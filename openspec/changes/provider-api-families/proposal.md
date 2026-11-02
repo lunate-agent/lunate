@@ -40,7 +40,8 @@ One contract change, four parts:
 3. **Headers that are sent** — static values and templated values from a fixed set
    (`{session.id}`, `{run.id}`, `{lunate.version}`), validated at load (unknown family or placeholder
    is refused by name), applied by one HTTP pipeline to chat, responses, messages, Google and
-   discovery. `User-Agent: lunate/<version>` is always set, for every provider.
+   discovery. `User-Agent: lunate/<version>` is always set, for every provider. The credential itself
+   is placed by declaration — bearer (default), named header, or query parameter — never by template.
 4. **Presets and custom providers** — presets gain per-family URLs, a models URL and headers;
    OpenCode Go is the first complete one. `auth login --custom` gains an API-family answer so an
    Anthropic-compatible or OpenAI-Responses endpoint can be configured, not only chat.
@@ -54,6 +55,6 @@ The wizard (#475) and the OpenCode Go bug (#473) both build on this; neither is 
 - ADR: `adr/0029-provider-api-families.md`.
 - Affected code: `ProviderEntry`, `ProviderPreset(s)`, `ProviderAdapter`, `ModelInfo` / catalog,
   `ChatClientFactory`, `CustomProvider`, `AuthCommand.Login`, `ProviderStore`, `DiscoverCommand`.
-- New code: a Google `generateContent` chat client (no new package — the Google SDK is not in the
-  build and a new NuGet needs approval).
-- No new dependency; settings stay user-scope only.
+- One new dependency, approved: `Google.GenAI` for the Google family (maintained M.E.AI chat client;
+  streaming, tools, thinking signatures, images). Everything else uses packages already pinned.
+- No settings-scope change; providers stay user-scope only.
