@@ -163,9 +163,10 @@ internal static class PrintMode
 
                 session = selected;
                 IExtensionLog log = options.Extensions?.Log ?? new StderrExtensionLog(errors);
-                // The redaction set exists before the MCP composition: composing with it withholds
-                // the values Lunate knows from every configured server's child environment
-                // (#449/#455). The harness later collects the same set again for its own redactor
+                // The redaction set exists before the MCP composition: the compose hands the
+                // values Lunate knows to the withheld list it wires (inert for the child
+                // environment since #472, kept for the public option's source compatibility). The
+                // harness later collects the same set again for its own redactor
                 // (CreateHarness) — same arguments, same values.
                 CredentialRedactor composeRedaction = HarnessFactory.CollectRedaction(
                     options.AuthPath,

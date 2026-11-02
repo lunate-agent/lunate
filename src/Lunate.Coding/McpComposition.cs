@@ -128,8 +128,9 @@ internal static class McpComposition
 
         // The withheld values apply only to the merged result: the trust hash and the approval
         // prompt throughout the composition above used the raw parsed definitions, and the mapping
-        // here must not change their identity — the host builds the child environment from them
-        // (#449/#455).
+        // here must not change their identity. Since #472 the host no longer consults them — the
+        // child environment is allow-listed regardless — and the value flows only to keep the
+        // public option's wired behaviour until the property is removed.
         IReadOnlyList<McpServerOptions> finalServers = withheldCredentialValues
             is { Count: > 0 } withheld
             ? [.. servers.Select(server => server with { WithheldCredentialValues = withheld })]

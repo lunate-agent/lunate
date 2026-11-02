@@ -2,13 +2,29 @@ namespace Lunate.Extensibility.Abstractions;
 
 /// <summary>
 /// Builds a child process environment that can never inherit Lunate's own variables by omission:
-/// the minimal base set (PATH, HOME/USERPROFILE, SYSTEMROOT, TEMP/TMP/TMPDIR, LANG), plus the
-/// declared pass-through names, plus the declared values — nothing else. The one implementation
-/// shared by the code-mode sample and the remote extension host.
+/// the minimal base set (see <see cref="BaseNames"/>, each entry's reason documented there), plus
+/// the declared pass-through names, plus the declared values — nothing else. The one
+/// implementation shared by every child spawn: the MCP stdio host (#472), the code-mode sample and
+/// the remote extension host.
 /// </summary>
 public static class EnvironmentScrubber
 {
-    /// <summary>The minimal base names every scrubbed child receives when the parent has them.</summary>
+    /// <summary>
+    /// The minimal base names every scrubbed child receives when the parent has them, each with
+    /// its reason (<c>read</c>'s names; only the parent's values are used, never defaults):
+    /// <list type="bullet">
+    /// <item><c>PATH</c> — the child must find its own commands and libraries.</item>
+    /// <item><c>HOME</c> (POSIX home), <c>USERPROFILE</c> (the Windows name of the same) — config
+    /// and caches under the user's home directory.</item>
+    /// <item><c>SystemRoot</c> — Windows requires it for process startup itself; without it a
+    /// child on Windows fails to start.</item>
+    /// <item><c>TEMP</c> and <c>TMP</c> (the Windows/temp-variable spellings), <c>TMPDIR</c> (the
+    /// POSIX spelling) — a child writing scratch files needs a directory it is allowed to write.</item>
+    /// <item><c>LANG</c> — the locale decides the child's output encoding, so its text parses.</item>
+    /// </list>
+    /// Everything the parent holds beyond these list is deliberately absent from the child —
+    /// declare a variable in the caller's own environment map to pass one.
+    /// </summary>
     public static IReadOnlyList<string> BaseNames { get; } =
     ["PATH", "HOME", "USERPROFILE", "SystemRoot", "TEMP", "TMP", "TMPDIR", "LANG"];
 

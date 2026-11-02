@@ -44,10 +44,10 @@ internal static class AcpMode
             LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
             IExtensionLog log = extensions?.Log ?? new StderrExtensionLog(errors);
             AgentSettings settings = SettingsStore.Resolve(null, null);
-            // The redaction set exists before the MCP composition: composing with it withholds the
-            // values Lunate knows at serve time from every configured server's child environment
-            // (#449/#455). The per-session harness later collects its own set with the session's
-            // cwd (CreateHarness), which is a different workspace's project configs.
+            // The redaction set exists before the MCP composition: the compose hands the values
+            // Lunate knows at serve time to the withheld list it wires (inert for the child
+            // environment since #472). The per-session harness later collects its own set with the
+            // session's cwd (CreateHarness), which is a different workspace's project configs.
             CredentialRedactor redaction = HarnessFactory.CollectRedaction(
                 authPath: null,
                 environment: null,

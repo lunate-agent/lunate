@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <ItemGroup>
         <ProjectReference Include="../Lunate.Agent/Lunate.Agent.csproj" />
+        <!-- The shared child-environment scrubber; the leaf abstractions project. -->
+        <ProjectReference Include="../Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj" />
     </ItemGroup>
 
     <ItemGroup>
