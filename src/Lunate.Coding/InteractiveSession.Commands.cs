@@ -305,8 +305,11 @@ internal sealed partial class InteractiveSession
 
     /// <summary>
     /// The <c>/thinking &lt;level&gt;</c> set form: sets the level, rebuilds the harness so the
-    /// next request carries the mapping, updates the footer and notices the level. An unknown
-    /// literal notices the allowed values and changes nothing.
+    /// next request carries the mapping, updates the footer and notices the level. A model that
+    /// declares no reasoning style refuses a non-<c>off</c> level by name — the model id and the
+    /// <c>thinking</c> setting — instead of silently accepting it (<c>inline</c> models accept, and
+    /// <c>off</c> is always accepted). An unknown literal notices the allowed values and changes
+    /// nothing.
     /// </summary>
     private void SetThinkingLevel(string argument)
     {
@@ -316,11 +319,28 @@ internal sealed partial class InteractiveSession
             return;
         }
 
+        if (ReasoningSettingRefusal(level) is { } refusal)
+        {
+            Notify(refusal, NoticeLevel.Warning);
+            return;
+        }
+
         _thinkingLevel = level;
         _harness = BuildHarness(_model);
         UpdateStatus();
         Notify("thinking: " + ThinkingLiteral(level));
     }
+
+    /// <summary>
+    /// The model's refusal of a non-<c>off</c> reasoning setting, naming the model and the setting,
+    /// or null when the level is accepted: <c>off</c> always is, and a model whose
+    /// <see cref="ModelInfo.Reasoning"/> style is declared (<c>effort</c>, <c>budget</c> or
+    /// <c>inline</c>) supports reasoning.
+    /// </summary>
+    private string? ReasoningSettingRefusal(ThinkingLevel level) =>
+        level == ThinkingLevel.Off || _model.Reasoning is not null
+            ? null
+            : $"model '{_model.Id}' has no reasoning support — the 'thinking' setting is refused";
 
     /// <summary>The level's user-facing lowercase literal; <c>off</c> is the plain form.</summary>
     private static string ThinkingLiteral(ThinkingLevel level) =>

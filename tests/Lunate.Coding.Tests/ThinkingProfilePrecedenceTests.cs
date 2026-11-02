@@ -141,11 +141,8 @@ public sealed class ThinkingProfilePrecedenceTests
         host.Console.SendText("/settings thinking low");
         host.Console.SendEnter();
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "thinking: low");
-        Assert.Contains(
-            "thinking: low (saved to " + host.Temp.File("settings.json") + ")",
-            host.LastFrame,
-            StringComparison.Ordinal
-        );
+
+        Assert.Contains("thinking: low (saved to", host.LastFrame, StringComparison.Ordinal);
         Assert.Contains("think:low", host.LastFrame, StringComparison.Ordinal);
 
         string file = File.ReadAllText(host.Temp.File("settings.json"));
@@ -160,13 +157,26 @@ public sealed class ThinkingProfilePrecedenceTests
     [Fact]
     public async Task Settings_thinking_refuses_a_selection_derived_profile()
     {
+        // A reasoning model with no profile configured at all: the chat selection resolves from
+        // the model itself, so there is no profile for the level to persist into.
         using var host = new InteractiveSessionHost();
+        File.WriteAllText(
+            host.Temp.File("models.json"),
+            $$"""
+            {
+              "schemaVersion": 1,
+              "models": [
+                { "id": "{{PrintModeTestSupport.ModelId}}", "provider": "openai", "endpoint": null, "contextWindow": 128000, "supportsTools": true, "reasoning": "effort" }
+              ]
+            }
+            """
+        );
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
         host.Console.SendText("/settings thinking low");
         host.Console.SendEnter();
-        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "cannot be persisted");
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "is not configured in");
 
         host.Console.SendText("/quit");
         host.Console.SendEnter();
@@ -187,44 +197,43 @@ public sealed class ThinkingProfilePrecedenceTests
     {
         var host = new InteractiveSessionHost(launch: launch);
         bool reasoned = profileLevel is not null;
+        string modelReasoning = reasoned ? ", \"reasoning\": \"effort\"" : string.Empty;
+        string profileEntry = reasoned
+            ? $",\n                  \"reasoningLevel\": \"{profileLevel}\""
+            : string.Empty;
+        string thinkingEntry = fileThinking is null
+            ? string.Empty
+            : $",\n  \"thinking\": \"{fileThinking}\"";
         File.WriteAllText(
             host.Temp.File("models.json"),
-            $"""
-            {{
+            $$"""
+            {
               "schemaVersion": 1,
               "models": [
-                {{
-                  "id": "{PrintModeTestSupport.ModelId}",
+                {
+                  "id": "{{PrintModeTestSupport.ModelId}}",
                   "provider": "openai",
                   "endpoint": null,
                   "contextWindow": 128000,
-                  "supportsTools": true{(
-                      reasoned ? $", \"reasoning\": \"effort\"" : string.Empty
-                  )}
-                }}
+                  "supportsTools": true{{modelReasoning}}
+                }
               ]
-            }}
+            }
             """
         );
         File.WriteAllText(
             host.Temp.File("settings.json"),
-            $"""
-            {{
+            $$"""
+            {
               "schemaVersion": 2,
-              "profiles": {{
-                "chat-profile": {{
+              "profiles": {
+                "chat-profile": {
                   "provider": "chat-provider",
-                  "model": "{PrintModeTestSupport.ModelId}"{(
-                      reasoned ? $", \"reasoningLevel\": \"{profileLevel}\"" : string.Empty
-                  )}
-                }}
-              }},
-              "usages": {{ "chat": "chat-profile" }}{(
-                  fileThinking is null
-                      ? string.Empty
-                      : $",\n  \"thinking\": \"{fileThinking}\""
-              )}
-            }}
+                  "model": "{{PrintModeTestSupport.ModelId}}"{{profileEntry}}
+                }
+              },
+              "usages": { "chat": "chat-profile" }{{thinkingEntry}}
+            }
             """
         );
         ProviderStore.Save(

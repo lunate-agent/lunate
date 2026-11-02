@@ -1,5 +1,6 @@
 using System.Globalization;
 using Lunate.Agent;
+using Lunate.Ai;
 using Lunate.Tui;
 using Spectre.Console;
 
@@ -228,10 +229,7 @@ internal sealed partial class InteractiveSession
                 Notify("the model has its own command — /model", NoticeLevel.Warning);
                 return;
             case "thinking":
-                Notify(
-                    "the thinking level has its own command — /thinking <level>",
-                    NoticeLevel.Warning
-                );
+                SetPersistedThinking(value);
                 return;
             case "favorites":
                 Notify(
@@ -377,6 +375,66 @@ internal sealed partial class InteractiveSession
         };
         _settings = _settings with { Tui = _settings.Tui with { Keys = merged } };
         PersistTui($"tui.keys: {id} → {KeyPatternFormatter.Describe(pattern)}");
+    }
+
+    /// <summary>
+    /// The <c>/settings thinking &lt;level&gt;</c> write: the chat profile's reasoning level is
+    /// the session's default, so the level persists there — <c>off</c> removes the key, because a
+    /// profile has no <c>off</c> — through the read-modify-write store, and the running session
+    /// applies it; a failed save keeps the session's own change and says so. A chat selection that
+    /// is not a configured profile in this session's file is refused naming the profile and the
+    /// file, with <c>/thinking</c> as the per-session lever; a model that declares no reasoning
+    /// style refuses the setting by name.
+    /// </summary>
+    private void SetPersistedThinking(string value)
+    {
+        if (!SettingsStore.TryParseThinking(value, out ThinkingLevel level))
+        {
+            Notify("thinking must be 'off', 'low', 'medium' or 'high'", NoticeLevel.Warning);
+            return;
+        }
+
+        if (RefusedWhileBusy())
+        {
+            return;
+        }
+
+        if (ReasoningSettingRefusal(level) is { } refusal)
+        {
+            Notify(refusal, NoticeLevel.Warning);
+            return;
+        }
+
+        _thinkingLevel = level;
+        _harness = BuildHarness(_model);
+
+        string chatProfile = _settings.Usages.TryGetValue("chat", out string? profile)
+            ? profile ?? string.Empty
+            : string.Empty;
+        try
+        {
+            string? problem = SettingsStore.WriteProfileReasoningLevel(
+                chatProfile,
+                level,
+                _options.SettingsPath
+            );
+            if (problem is not null)
+            {
+                Notify(problem + " — /thinking is the per-session change", NoticeLevel.Warning);
+                return;
+            }
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException)
+        {
+            Notify(
+                $"thinking: {ThinkingLiteral(level)} (this session; saving failed: "
+                    + $"{exception.Message})",
+                NoticeLevel.Warning
+            );
+        }
+
+        UpdateStatus();
+        Notify($"thinking: {ThinkingLiteral(level)} (saved to {_options.SettingsPath})");
     }
 
     /// <summary>

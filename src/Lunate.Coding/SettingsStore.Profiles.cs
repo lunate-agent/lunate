@@ -6,6 +6,35 @@ namespace Lunate.Coding;
 
 public static partial class SettingsStore
 {
+    /// <summary>
+    /// The chat usage's profile reasoning level as a session thinking level: the profile is the
+    /// default for every session that runs on it, so <see cref="ApplyLaunch"/> seeds it under the
+    /// launch flag and over the global <c>thinking</c> key, which keeps filling sessions whose
+    /// profile is without a reasoning setting. Only <c>low</c>/<c>medium</c>/<c>high</c> seed — a
+    /// profile has no <c>off</c> — and an unparseable literal seeds nothing (profile resolution
+    /// names it instead). A profile <c>reasoningBudget</c> is not the session default: the
+    /// request-time parameter is the level, so the budget stays a validated configuration fact.
+    /// </summary>
+    internal static ThinkingLevel? SeedReasoningLevel(AgentSettings settings)
+    {
+        if (
+            !settings.Usages.TryGetValue("chat", out string? chat)
+            || chat.Length == 0
+            || !settings.Profiles.TryGetValue(chat, out ModelProfile? profile)
+        )
+        {
+            return null;
+        }
+
+        return profile.ReasoningLevel switch
+        {
+            "low" => ThinkingLevel.Low,
+            "medium" => ThinkingLevel.Medium,
+            "high" => ThinkingLevel.High,
+            _ => null,
+        };
+    }
+
     private static IReadOnlyDictionary<string, ModelProfile> ReadProfiles(
         JsonElement value,
         List<string> problems
