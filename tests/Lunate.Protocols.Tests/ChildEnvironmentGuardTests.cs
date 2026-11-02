@@ -33,7 +33,8 @@ public sealed class ChildEnvironmentGuardTests
             plumbing.Select(source => Path.GetFileName(source.Path)).ToArray()
         );
 
-        Assert.Contains("EnvironmentScrubber.Build", plumbing[0].Content, StringComparison.Ordinal);
+        // The formatter may split the call across lines, so match the member path, not the line.
+        Assert.Matches(@"EnvironmentScrubber\s*\.\s*Build", plumbing[0].Content);
     }
 
     [Fact]
