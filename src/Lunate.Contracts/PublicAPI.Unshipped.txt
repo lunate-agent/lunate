@@ -468,6 +468,8 @@ Lunate.Ai.ModelInfo
 Lunate.Ai.ModelInfo.<Clone>$() -> Lunate.Ai.ModelInfo!
 Lunate.Ai.ModelInfo.ApiType.get -> string?
 Lunate.Ai.ModelInfo.ApiType.init -> void
+Lunate.Ai.ModelInfo.ApiFamily.get -> string?
+Lunate.Ai.ModelInfo.ApiFamily.init -> void
 Lunate.Ai.ModelInfo.AuthRef.get -> string?
 Lunate.Ai.ModelInfo.AuthRef.init -> void
 Lunate.Ai.ModelInfo.Capabilities.get -> Lunate.Ai.ModelCapabilityDescriptor?
