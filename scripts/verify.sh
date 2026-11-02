@@ -9,13 +9,17 @@ cd "${SCRIPT_DIR}/.."
 
 # Which gate to run. `full` is the whole thing (build, publish, both test passes, install/tool
 # roundtrips, formatting, public API); `docs` is the prose profile, and it deliberately runs no
-# build and no test. The two are a closed set: a typo must fail here rather than quietly run the
-# longest gate or, worse, the shortest one.
+# build and no test; `platform` is the platform-independent half of `full` — formatting, docs,
+# public API and the OpenSpec tree — so the OS legs stop paying for it on every machine and one
+# Linux job proves it once. The three are a closed set: a typo must fail here rather than quietly
+# run the longest gate or, worse, the shortest one.
 #
 # --shard i/n (default 1/1) partitions the test projects of lunate.slnx across n legs by
 # position (see scripts/test-parallel.sh): shard 1 also runs the non-test steps, shards > 1
 # run the build they need plus their slice of both test passes only. CI sharding: the `verify`
 # matrix jobs in .github/workflows/ci.yml pass one --shard each, and every shard must be green.
+# The platform-independent steps are skipped in a CI OS leg (VERIFY_SKIP_PLATFORM_CHECKS=1),
+# because the `platform` job in ci.yml owns them there; locally the default still runs them.
 PROFILE="full"
 SHARD_I=1
 SHARD_N=1
@@ -46,15 +50,15 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     *)
-      echo "verify: unknown argument '$1' (usage: verify.sh [--profile docs|full] [--shard <i>/<n>])" >&2
+      echo "verify: unknown argument '$1' (usage: verify.sh [--profile docs|full|platform] [--shard <i>/<n>])" >&2
       exit 2
       ;;
   esac
 done
 case "$PROFILE" in
-  docs | full) ;;
+  docs | full | platform) ;;
   *)
-    echo "verify: unknown profile '$PROFILE' (expected docs or full)" >&2
+    echo "verify: unknown profile '$PROFILE' (expected docs, full or platform)" >&2
     exit 2
     ;;
 esac
@@ -305,6 +309,97 @@ sha256_file() {
   else
     shasum -a 256 "$1" | awk '{ print $1 }'
   fi
+}
+
+# The steps that do not depend on the operating system: packaging files, formatting, the generated
+# docs regions, markdownlint, the two agent-hygiene checks, the public API and — when the caller
+# installed it — the OpenSpec tree. CI runs them once in the `platform` job; an OS leg skips them
+# (VERIFY_SKIP_PLATFORM_CHECKS=1) because a second copy on every runner is cost, not depth. A local
+# `verify.sh` run keeps the old behaviour and runs them as part of the full gate.
+platform_checks() {
+  local include_openspec="${1:-0}"
+
+  step "packaging files"
+  # A candidate is not a channel release: homebrew, scoop and winget keep pointing at the last stable
+  # version while the version under test carries a prerelease suffix, so only the files' presence is
+  # asserted here — a tag that produces 0.2.0 goes through the version match again.
+  local version packaging_requires_version=true
+  version="$(product_version)"
+  case "$version" in
+    *-*) packaging_requires_version=false ;;
+  esac
+  for packaging_file in \
+    packaging/homebrew/lunate.rb \
+    packaging/scoop/lunate.json \
+    packaging/winget/wdaniel1993.lunate.yaml \
+    packaging/winget/wdaniel1993.lunate.locale.en-US.yaml \
+    packaging/winget/wdaniel1993.lunate.installer.yaml; do
+    if [ ! -f "$packaging_file" ]; then
+      echo "verify: missing packaging file: ${packaging_file}" >&2
+      exit 1
+    fi
+    if [ "$packaging_requires_version" = true ] && ! grep -Fq "$version" "$packaging_file"; then
+      echo "verify: ${packaging_file} does not carry the current version ${version}" >&2
+      exit 1
+    fi
+  done
+
+  step "format"
+  # CSharpier owns formatting; dotnet format keeps style and analyzer duties.
+  dotnet csharpier check .
+  dotnet format style lunate.slnx --verify-no-changes --no-restore
+  dotnet format analyzers lunate.slnx --verify-no-changes --no-restore
+
+  step "generated docs regions"
+  python3 "${SCRIPT_DIR}/docs-sync" --check
+
+  step "docs lint"
+  if ! command -v node >/dev/null 2>&1; then
+    echo "verify: node is required for the documentation lint step; install Node.js (npx runs the pinned markdownlint-cli2)" >&2
+    exit 1
+  fi
+  npx --yes markdownlint-cli2@0.23.3
+
+  # Both checks run in the full profile too: the bypass they close (#241/#313) landed through a *code*
+  # pull request, which never runs the docs profile.
+  step "agent scratch paths"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_scratch_paths.py"
+  python3 "${SCRIPT_DIR}/check-scratch-paths.py" --base "${GITHUB_BASE_SHA:-origin/main}"
+
+  step "spec changes are archived"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_spec_archive.py"
+  python3 "${SCRIPT_DIR}/check-spec-archive.py" --base "${GITHUB_BASE_SHA:-origin/main}"
+
+  step "public API"
+  if ! check_shipped_api_unchanged; then
+    exit 1
+  fi
+
+  if [ "$include_openspec" = "1" ]; then
+    step "openspec"
+    if ! command -v openspec >/dev/null 2>&1; then
+      echo "verify: the openspec CLI is required for the platform profile; install the pinned version with: npm install -g @fission-ai/openspec@1.14.0" >&2
+      exit 1
+    fi
+    openspec validate --all --strict
+  fi
+}
+
+# The platform profile: exactly the checks above, on one Linux runner. It needs a restore (not a
+# build) for `dotnet format --no-restore` and the pinned tool set for CSharpier.
+platform_profile() {
+  step "tools"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "verify: python3 is required for the platform profile (scripts/docs-sync)" >&2
+    exit 1
+  fi
+  if ! dotnet tool restore; then
+    echo "verify: dotnet tool restore failed; CSharpier is pinned in .config/dotnet-tools.json" >&2
+    exit 1
+  fi
+  platform_checks 1
+  report_step
+  echo "verify: OK (platform profile)"
 }
 
 # The steps every non-test gate duty belongs to: tools, build, publish and the startup
@@ -708,56 +803,12 @@ XML
     -c "$CONFIGURATION" \
     -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
 
-  step "packaging files"
-  # A candidate is not a channel release: homebrew, scoop and winget keep pointing at the last stable
-  # version while the version under test carries a prerelease suffix, so only the files' presence is
-  # asserted here — a tag that produces 0.2.0 goes through the version match again.
-  packaging_requires_version=true
-  case "$version" in
-    *-*) packaging_requires_version=false ;;
-  esac
-  for packaging_file in \
-    packaging/homebrew/lunate.rb \
-    packaging/scoop/lunate.json \
-    packaging/winget/wdaniel1993.lunate.yaml \
-    packaging/winget/wdaniel1993.lunate.locale.en-US.yaml \
-    packaging/winget/wdaniel1993.lunate.installer.yaml; do
-    if [ ! -f "$packaging_file" ]; then
-      echo "verify: missing packaging file: ${packaging_file}" >&2
-      exit 1
-    fi
-    if [ "$packaging_requires_version" = true ] && ! grep -Fq "$version" "$packaging_file"; then
-      echo "verify: ${packaging_file} does not carry the current version ${version}" >&2
-      exit 1
-    fi
-  done
-  
-  step "format"
-  # CSharpier owns formatting; dotnet format keeps style and analyzer duties.
-  dotnet csharpier check .
-  dotnet format style lunate.slnx --verify-no-changes --no-restore
-  dotnet format analyzers lunate.slnx --verify-no-changes --no-restore
-  
-  step "docs lint"
-  if ! command -v node >/dev/null 2>&1; then
-    echo "verify: node is required for the documentation lint step; install Node.js (npx runs the pinned markdownlint-cli2)" >&2
-    exit 1
-  fi
-  npx --yes markdownlint-cli2@0.23.3
-  
-  # Both checks run in the full profile too: the bypass they close (#241/#313) landed through a *code*
-  # pull request, which never runs the docs profile.
-  step "agent scratch paths"
-  python3 "${SCRIPT_DIR}/../tests/scripts/test_scratch_paths.py"
-  python3 "${SCRIPT_DIR}/check-scratch-paths.py" --base "${GITHUB_BASE_SHA:-origin/main}"
-  
-  step "spec changes are archived"
-  python3 "${SCRIPT_DIR}/../tests/scripts/test_spec_archive.py"
-  python3 "${SCRIPT_DIR}/check-spec-archive.py" --base "${GITHUB_BASE_SHA:-origin/main}"
-  
-  step "public API"
-  if ! check_shipped_api_unchanged; then
-    exit 1
+  # The platform-independent half of the gate is owned by the `platform` job in CI. A local run
+  # (no environment flag) still executes it here, once, so `verify.sh` alone remains the gate.
+  if [ "${VERIFY_SKIP_PLATFORM_CHECKS:-0}" = "1" ]; then
+    echo "verify: platform-independent checks run in the platform job; skipping them on this leg"
+  else
+    platform_checks 0
   fi
 }
 
@@ -769,6 +820,13 @@ XML
 # cheapest self-contained option (a one- to three-minute rebuild against the
 # cache, versus minutes of upload and download for roughly a gigabyte of
 # binaries), and every shard stays order-independent.
+# The platform profile runs before the shard dispatch: one Linux job's work, no shard, no build,
+# no publish.
+if [ "$PROFILE" = "platform" ]; then
+  platform_profile
+  exit 0
+fi
+
 if [ "$SHARD_I" -eq 1 ]; then
   verify_primary_before_tests
 else

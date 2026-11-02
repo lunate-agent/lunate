@@ -3,9 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+    # A tag is a release candidate or a release: the full gate, including the PowerShell leg, must
+    # run on it even when the commit itself was already verified (the tag is what ships).
+    tags: ['v*']
     # Docs/spec-only pushes skip CI (they cannot break the build). A push that
     # touches any code or workflow file still runs the full matrix; docs-only
-    # pushes are linted by the docs-lint workflow instead.
+    # pushes are linted by the docs-lint workflow instead. Path filters are not
+    # evaluated for tag pushes.
     paths-ignore:
       - 'docs/**'
       - 'adr/**'
@@ -18,6 +22,11 @@ on:
   # The merge queue runs the required check on the combined head of a batch. Without this trigger
   # `ci-ok` never reports for a merge group and the queue stalls.
   merge_group:
+  # The nightly run keeps the path-filtered PowerShell leg honest: a Windows-only regression that
+  # arrives through a path the filter does not name still lands within a day, not at the next tag.
+  # A red nightly files its own issue (kind/bug, 0.3) so it cannot sit unnoticed.
+  schedule:
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       verify_shard_count:
@@ -61,6 +70,7 @@ jobs:
           set -euo pipefail
           bash scripts/ci-plan.sh --self-test
           bash scripts/ci-ok.sh --self-test
+          bash scripts/ci-powershell-paths.sh --self-test
           python3 scripts/docs-sync --self-test
           bash scripts/no-docs-references.sh --self-test
           bash scripts/no-wip-commits.sh --self-test
@@ -106,6 +116,96 @@ jobs:
           cat changed.txt
           bash scripts/ci-plan.sh --paths-file changed.txt >>"${GITHUB_OUTPUT}"
           cat "${GITHUB_OUTPUT}"
+
+  # Which legs the changed paths actually touch. Today that is one question -- does the Windows
+  # PowerShell leg have to run? -- but it lives in a job of its own so ci-ok can tell a legitimate
+  # skip (the paths did not match) from a missing one (they did). The decision itself is in
+  # scripts/ci-powershell-paths.sh: deny-by-default, with the Windows-specific source list derived
+  # from the code's own markers rather than a hand-kept list of files.
+  changes:
+    name: changes
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    outputs:
+      powershell: ${{ steps.powershell.outputs.powershell }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The decision diffs the pull request against its base, so the history has to be there.
+          fetch-depth: 0
+
+      - name: Does the PowerShell leg need to run?
+        id: powershell
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          case "${EVENT_NAME}" in
+            pull_request | merge_group) ;;
+            *)
+              # A push, a tag, a manual dispatch or the nightly run always exercises the Windows gate.
+              echo "not a pull request: the PowerShell leg runs"
+              echo "powershell=true" >>"${GITHUB_OUTPUT}"
+              exit 0
+              ;;
+          esac
+          if [ "${EVENT_NAME}" = "merge_group" ]; then
+            git diff --name-status -M "${BASE_SHA}...HEAD" >changed.txt
+          else
+            git diff --name-status -M "origin/${BASE_REF}...HEAD" >changed.txt
+          fi
+          cat changed.txt
+          bash scripts/ci-powershell-paths.sh --paths-file changed.txt >>"${GITHUB_OUTPUT}"
+          cat "${GITHUB_OUTPUT}"
+
+  # The platform-independent half of the gate: formatting, the generated docs regions, markdownlint,
+  # the public API, the OpenSpec tree and the two agent-hygiene checks. Running it once on Linux is
+  # the point -- a Windows runner formatting the same source as a macOS runner was cost, not depth.
+  # The OS legs skip these steps (VERIFY_SKIP_PLATFORM_CHECKS=1) and keep build, test, publish and
+  # the artifact proofs, which genuinely differ per OS.
+  platform:
+    name: platform
+    needs: plan
+    if: needs.plan.outputs.profile == 'full'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The public-API step diffs PublicAPI.Shipped.txt against the merge base with origin/main.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Build.props
+            **/*.csproj
+
+      # `dotnet format --no-restore` needs the assets files; a restore is enough, no build.
+      - name: Restore
+        shell: bash
+        run: dotnet restore lunate.slnx --nologo
+
+      # The gate pins the CLI version it was checked against; the flake that ships with a runner is
+      # not that version.
+      - name: Install openspec
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global --prefix "${RUNNER_TEMP}/openspec" @fission-ai/openspec@1.14.0
+          echo "${RUNNER_TEMP}/openspec/bin" >>"${GITHUB_PATH}"
+
+      - name: Platform checks
+        shell: bash
+        run: bash scripts/verify.sh --profile platform
 
   verify:
     name: verify (${{ matrix.os }}, ${{ matrix.shard }}/${{ matrix.shard_count }})
@@ -154,6 +254,9 @@ jobs:
             shard_count: ${{ github.event_name == 'workflow_dispatch' && inputs.verify_shard_count || 2 }}
     env:
       RID: ${{ matrix.rid }}
+      # The platform-independent checks (format, docs, public API, Openspec) run once in the
+      # `platform` job; this leg does build, test, publish and the artifact proofs.
+      VERIFY_SKIP_PLATFORM_CHECKS: "1"
       # English-first CI logs: pin the dotnet CLI / test-runner UI text. The
       # de-AT culture pass still sets the test culture via LANG; only UI
       # strings are pinned (defense in depth over scripts/verify.*).
@@ -334,9 +437,13 @@ jobs:
   # pipeline lands around ~10m while both gates still run on every PR.
   verify-powershell:
     name: verify-powershell (windows)
-    needs: plan
-    if: needs.plan.outputs.profile == 'full'
+    needs: [plan, changes]
+    if: needs.plan.outputs.profile == 'full' && needs.changes.outputs.powershell == 'true'
     runs-on: windows-latest
+    # A red nightly files its own issue; a pull request must not.
+    permissions:
+      contents: read
+      issues: write
     env:
       RID: win-x64
       BUDGET_MS: 350
@@ -402,6 +509,36 @@ jobs:
             artifacts/
             .artifacts/
           if-no-files-found: warn
+
+      # The nightly run is the safety net for the path filter: if it is red, a Windows-only
+      # regression exists somewhere the filter did not name. Filed automatically so it cannot sit
+      # unnoticed until the next tag, and deduplicated so a week of red nights is one issue.
+      - name: File an issue when the nightly gate fails
+        if: failure() && github.event_name == 'schedule'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="Nightly PowerShell gate failed on main"
+          body="The nightly \`ci.yml\` run failed in the PowerShell leg on \`main\`.
+
+          Run: ${RUN_URL}
+          Commit: \`${GITHUB_SHA}\`
+
+          This leg is path-filtered on pull requests, so a red nightly means a Windows-only change
+          reached \`main\` through a path the filter did not classify — or the filter itself is wrong.
+          Triage the failing step, then either fix the code or widen \`scripts/ci-powershell-paths.sh\`
+          (its self-test has a case for it)."
+          existing="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open \
+            --search "in:title \"${title}\"" --json number --jq '.[0].number // empty')"
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
+          else
+            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}" \
+              --label kind/bug --milestone 0.3.0
+          fi
 
   # The dedicated cold-startup leg (#240). The floor measured inside verify is still noisy on
   # the shared macOS runner: across 29 successful `main` runs (2026-10-28/29, post-#135,
@@ -492,7 +629,7 @@ jobs:
   # push still costs no matrix. scripts/ci-ok.sh --self-test pins both halves.
   ci-ok:
     name: ci-ok
-    needs: [plan, verify, verify-powershell, verify-docs, perf]
+    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -508,6 +645,8 @@ jobs:
           PROFILE: ${{ needs.plan.outputs.profile }}
           VERIFY: ${{ needs.verify.result }}
           POWERSHELL: ${{ needs.verify-powershell.result }}
+          PS_REQUIRED: ${{ needs.changes.outputs.powershell }}
           DOCS: ${{ needs.verify-docs.result }}
           PERF: ${{ needs.perf.result }}
+          PLATFORM: ${{ needs.platform.result }}
         run: bash scripts/ci-ok.sh
