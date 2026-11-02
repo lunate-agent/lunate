@@ -12,18 +12,14 @@ namespace Lunate.Protocols.Tests;
 public sealed class ChildEnvironmentGuardTests
 {
     /// <summary>
-    /// The source files allowed to mention child-environment plumbing at all — the scrubber
-    /// itself and the one stdio host that consumes it. A new spawn site belongs in this list
-    /// behind a review, never beside it.
+    /// The one source file allowed to build a child environment in Lunate's own code: the stdio
+    /// host. The scrubber itself is checked by its own test class; a new spawn site must move
+    /// this pin behind a review, never appear beside it.
     /// </summary>
-    private static readonly string[] AllowedPlumbingFiles =
-    [
-        "EnvironmentScrubber.cs",
-        "McpServerHost.cs",
-    ];
+    private const string BuilderFile = "McpServerHost.cs";
 
     [Fact]
-    public void Child_environment_plumbing_names_the_scrubber_wherever_it_appears()
+    public void The_stdio_host_is_the_only_child_environment_builder_and_names_the_scrubber()
     {
         (string Path, string Content)[] plumbing = CSharpSources()
             .Where(source =>
@@ -33,14 +29,11 @@ public sealed class ChildEnvironmentGuardTests
 
         Assert.NotEmpty(plumbing);
         Assert.Equal(
-            AllowedPlumbingFiles.Order(StringComparer.Ordinal),
-            plumbing.Select(source => Path.GetFileName(source.Path)).Order(StringComparer.Ordinal)
+            new[] { BuilderFile },
+            plumbing.Select(source => Path.GetFileName(source.Path)).ToArray()
         );
 
-        foreach ((string _, string content) in plumbing)
-        {
-            Assert.Contains("EnvironmentScrubber", content, StringComparison.Ordinal);
-        }
+        Assert.Contains("EnvironmentScrubber.Build", plumbing[0].Content, StringComparison.Ordinal);
     }
 
     [Fact]

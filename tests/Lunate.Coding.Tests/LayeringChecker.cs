@@ -44,6 +44,9 @@ internal static class LayeringChecker
             ("Lunate.Extensibility.Testing", "Lunate.Extensibility.Abstractions"),
             ("Lunate.Extensibility.Testing", "Lunate.Extensibility.Remote"),
             ("Lunate.Protocols", "Lunate.Agent"),
+            // The stdio host builds its child environment with the one shared scrubber (#472),
+            // implemented once in the leaf abstractions project instead of a protocols-local copy.
+            ("Lunate.Protocols", "Lunate.Extensibility.Abstractions"),
             ("Lunate.Roslyn", "Lunate.Extensibility.Abstractions"),
             // The typed host adapter is the only boundary between Coding and the Roslyn feature.
             ("Lunate.Roslyn.BuiltIn", "Lunate.Extensibility.Abstractions"),
