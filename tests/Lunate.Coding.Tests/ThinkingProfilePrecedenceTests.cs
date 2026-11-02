@@ -91,7 +91,9 @@ public sealed class ThinkingProfilePrecedenceTests
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "has no reasoning support");
 
         Assert.Contains(
-            "model '" + PrintModeTestSupport.ModelId + "' has no reasoning support "
+            "model '"
+                + PrintModeTestSupport.ModelId
+                + "' has no reasoning support "
                 + "— the 'thinking' setting is refused",
             host.LastFrame,
             StringComparison.Ordinal

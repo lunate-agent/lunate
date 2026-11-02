@@ -31,8 +31,7 @@ public static partial class SettingsStore
                 || profiles[profileName] is not JsonObject profile
             )
             {
-                return
-                    $"settings: the chat profile '{(profileName is { Length: > 0 } ? profileName : "(none)")}' "
+                return $"settings: the chat profile '{(profileName is { Length: > 0 } ? profileName : "(none)")}' "
                     + $"is not configured in {path}";
             }
 
