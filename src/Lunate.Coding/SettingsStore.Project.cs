@@ -172,6 +172,7 @@ public static partial class SettingsStore
                         or "headers"
                         or "kind"
                         or "apiFamily"
+                        or "credentialPlacement"
                 )
                 {
                     problems.Add(
