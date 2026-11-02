@@ -4,16 +4,16 @@ Slices are applied in this order; each is its own PR with its own tests.
 
 ## Slice 1 — model and presets
 
-- [ ] `ProviderApiFamily` enum + parsing; `ProviderEntry.BaseUrls` map, `ModelsUrl`, `baseUrl`
+- [x] `ProviderApiFamily` enum + parsing; `ProviderEntry.BaseUrls` map, `ModelsUrl`, `baseUrl`
       shorthand; unknown family refused by name.
-- [ ] `ProviderPreset(s)` + embedded `providers.json` schema 2: per-family URLs, `modelsUrl`,
+- [x] `ProviderPreset(s)` + embedded `providers.json` schema 2: per-family URLs, `modelsUrl`,
       headers; `opencode-go` complete (four URLs, discovery URL, session header).
-- [ ] `ModelInfo.ApiFamily` + catalog `apiFamily`; annotate built-ins so no model is ambiguous.
-- [ ] Family resolution (profile → discovery → catalog → single provider family) and the ambiguity
+- [x] `ModelInfo.ApiFamily` + catalog `apiFamily`; annotate built-ins so no model is ambiguous.
+- [x] Family resolution (profile → discovery → catalog → single provider family) and the ambiguity
       error naming the families.
-- [ ] `ChatClientFactory` selects by family; `ProviderAdapter` grows `OpenAiResponses` and `Google`.
-- [ ] Project-scope refusal widened to `baseUrls`, `modelsUrl`, `headers`, `credentialPlacement`.
-- [ ] Tests: loader, routing matrix, project scope.
+- [x] `ChatClientFactory` selects by family; `ProviderAdapter` grows `OpenAiResponses` and `Google`.
+- [x] Project-scope refusal widened to `baseUrls`, `modelsUrl`, `headers`, `credentialPlacement`.
+- [x] Tests: loader, routing matrix, project scope.
 
 ## Slice 2 — headers and credential placement
 
