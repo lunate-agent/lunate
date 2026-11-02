@@ -8,6 +8,13 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-02
+
+Security: the single-file binaries bundle the .NET runtime, so a runtime advisory reaches users
+through the installer, not through their own SDK. 0.2.0 was built with SDK 10.0.402 → runtime
+10.0.13; this release builds with SDK 10.0.403 → runtime **10.0.14**, the out-of-band servicing
+release for **CVE-2026-111497** (Brotli decoder). No Lunate code changes.
+
 ## [0.2.0] - 2026-11-02
 
 The first stable release of the 0.2 line. Its contents are the two candidates' entries below —
@@ -187,6 +194,7 @@ verified against a real, versioned build; the first stable release is `0.1.0`.
 
 [0.1.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.2...v0.1.0
 [0.1.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.1...v0.1.0-rc.2
+[0.2.1]: https://github.com/wdaniel1993/lunate/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0
 [0.2.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.2.0-rc.1...v0.2.0-rc.2
 [0.2.0-rc.1]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0-rc.1
