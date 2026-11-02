@@ -264,6 +264,27 @@ committed), refuse an existing file without `--force`, redact every credential L
 `[redacted:<name>]`, and print the absolute path plus a reminder that the file may contain file
 contents and command output. [`docs/spec/export.md`](docs/spec/export.md) owns the full contract.
 
+### A second model can decide when it is worth it
+
+`decisions` in `settings.json` names one profile and opts into any of four consumers: approvals
+(`off`, `shadow`, `enforce`, with a threshold for how sure a deny must be), routing (`off`, `shadow`,
+`enforce` over two or more profiles), the information-only decide tool, and display-only suggestions
+beside a question's top option. A decision can only tighten an approval, never grant one; without a
+profile the layer stays off. The same gate runs in the TUI, print mode and ACP, and the
+[configuration reference](docs/configuration.md) lists every key.
+
+### Fork a session without losing the tail
+
+`/fork` writes a new session file that continues the current one under a new id; `/clone` starts a
+copy from an earlier turn. A fork carries the session's images and redacts what the source redacted,
+so it resumes instead of failing on the first request.
+
+### Long sessions keep their place
+
+When a tool result would flood the window, the text is spilled to a file and the model sees a short
+stub it can page back through; observation masking trims old turns without losing the transcript.
+`/context` reports what each saved: `saved tokens: spills 0, masking 0, read stubs 0`.
+
 ## Configuration
 
 Everything of yours lives under `~/.lunate/`, and nothing there is required: without a settings file
@@ -271,7 +292,10 @@ you get the defaults below.
 
 ### Models and providers
 
-- `~/.lunate/settings.json` — `model` names the default model id.
+- `~/.lunate/settings.json` — `model` names the default model id. `profiles` declares named
+  provider/model pairs and `usages` maps a use (`chat`, `subagents`) to one; a project
+  `.lunate/settings.json` may reference a provider but never define a credential, and may define its
+  own profiles.
 - `~/.lunate/models.json` — your own catalog entries: `id`, `provider` (`openai` for any
   OpenAI-compatible endpoint, `anthropic`), optional `endpoint`, `contextWindow`, `supportsTools`
   and an `auth` reference naming a key in `auth.json`. An entry overrides a built-in one with the
@@ -350,6 +374,11 @@ You approve the file once, and the header is inside the bytes that decision cove
 `/extensions reload <id>` builds it and swaps it into the running session, so a tool the model just
 wrote is callable in the same session; a changed file stops at the trust question and keeps the build
 that was already answering.
+
+An extension can also run out of process: a manifest that declares `runtime` instead of
+`entryAssembly` starts a child that speaks newline-delimited JSON-RPC 2.0 over stdio, with a checked-in
+schema generated from the host's own DTOs. [`docs/extensions-remote.md`](docs/extensions-remote.md)
+owns the manifest, the wire and the conformance runner.
 
 The declared packages resolve into your NuGet cache and the build is cached by content, so the cost
 stays local: measured on this machine (macOS, arm64, .NET 10.0.13), a one-package extension's cache
