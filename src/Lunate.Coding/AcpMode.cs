@@ -44,6 +44,16 @@ internal static class AcpMode
             LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
             IExtensionLog log = extensions?.Log ?? new StderrExtensionLog(errors);
             AgentSettings settings = SettingsStore.Resolve(null, null);
+            // The redaction set exists before the MCP composition: composing with it withholds the
+            // values Lunate knows at serve time from every configured server's child environment
+            // (#449/#455). The per-session harness later collects its own set with the session's
+            // cwd (CreateHarness), which is a different workspace's project configs.
+            CredentialRedactor redaction = HarnessFactory.CollectRedaction(
+                authPath: null,
+                environment: null,
+                storePath: null,
+                workspace.WorktreeRoot
+            );
             if (settings.BashGuard)
             {
                 StateRootHardlinkScan.Report(
@@ -76,7 +86,8 @@ internal static class AcpMode
                     new NonInteractiveMcpServerApprovalPrompt(),
                     log,
                     notice => interaction.Notify(notice),
-                    ct
+                    ct,
+                    withheldCredentialValues: [.. redaction.Values.Select(pair => pair.Value)]
                 )
                 .GetAwaiter()
                 .GetResult();
@@ -95,7 +106,8 @@ internal static class AcpMode
                 // The configured names are the collision baseline: a same-named registration is
                 // skipped before listing (the configured server wins); nothing starts before.
                 ExtensionMcpServers servers = host.ComposeMcpServers(
-                    McpNameCollisions.ConfiguredServers(mcp)
+                    McpNameCollisions.ConfiguredServers(mcp),
+                    withheldCredentialValues: [.. redaction.Values.Select(pair => pair.Value)]
                 );
                 ToolComposition.AddSkippingTaken(
                     mcpTools,
@@ -147,7 +159,17 @@ internal static class AcpMode
                 .RunAsync(
                     input,
                     output,
-                    context => CreateHarness(context, host, mcpTools, inheritedTools, launch),
+                    // The decision profile degrades to no gate on resolve failure; the degrade goes
+                    // to the host log, never stdout (only protocol frames own it).
+                    context =>
+                        CreateHarness(
+                            context,
+                            host,
+                            mcpTools,
+                            inheritedTools,
+                            launch,
+                            warn: notice => interaction.Notify(notice)
+                        ),
                     ct
                 )
                 .GetAwaiter()
@@ -241,7 +263,9 @@ internal static class AcpMode
         IChatClientFactory? factory = null,
         string? sessionDirectory = null,
         AgentSettings? settings = null,
-        ModelCatalog? catalog = null
+        ModelCatalog? catalog = null,
+        string? authPath = null,
+        Action<UserNotice>? warn = null
     )
     {
         AgentSettings effective = SettingsStore.ApplyLaunch(
@@ -260,7 +284,8 @@ internal static class AcpMode
             authPath: null,
             environment: null,
             storePath: null,
-            workspace.WorktreeRoot
+            workspace.WorktreeRoot,
+            providerStorePath: AuthStore.ProviderStoreFilePath(null)
         );
         var refusalTracker = new WriteVerificationRefusalTracker();
         ToolRegistry tools = HarnessFactory.CreateTools(
@@ -299,11 +324,38 @@ internal static class AcpMode
         HarnessFactory.AttachRedaction(session, redaction);
         LaunchOptions directives = launch ?? new LaunchOptions();
         SystemPrompt.Record(session, directives);
+        // The decision model resolves once, before the harness options: the decision usage
+        // client, the decide-tool declaration and the gate's settings all come from one
+        // resolution. The decision gate is wired in ACP like in the interactive session: with a
+        // client approver an enforce-mode deny above the threshold asks the editor (the escalation
+        // flag is honored), without one the call is denied fail-closed. A profile that cannot
+        // resolve degrades to no gate with a visible warning, not a composition error.
+        UsageModelClient? decisionModel = DecisionUsageModels.ResolveDecisionModel(
+            effective,
+            LoadSources,
+            models,
+            name => Environment.GetEnvironmentVariable(name),
+            clientFactory,
+            warn ?? (_ => { }),
+            []
+        );
+        IReadOnlyDictionary<string, UsageModelClient>? usageModels = decisionModel is null
+            ? null
+            : new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
+            {
+                ["decision"] = decisionModel,
+            };
+        // The routing consumer is wired like the interactive session: an editor session is
+        // selected between the configured profiles it configured. Unresolved routing profiles
+        // are a settings-validation error before this point, so a resolution failure is a
+        // composition error, not a degraded gate.
+        IReadOnlyDictionary<string, UsageModelClient>? routingProfiles = ResolveRoutingProfiles();
+
         var options = new AgentHarnessOptions
         {
             SystemPrompt = SystemPrompt.Compose(
                 workspace,
-                [.. tools.Tools.Select(tool => tool.Name)],
+                ToolNames(),
                 SystemPrompt.Directives(directives, session)
             ),
             WorkingDirectory = workspace.WorktreeRoot,
@@ -316,6 +368,12 @@ internal static class AcpMode
             ToolOutputMask = redaction.Redact,
             SubagentLimits = effective.Subagents,
             ThinkingLevel = effective.Thinking,
+            DecisionMode = effective.Decisions.Approvals,
+            RoutingMode = effective.Decisions.Routing,
+            RoutingProfiles = routingProfiles,
+            ApprovalsThreshold = effective.Decisions.ApprovalsThreshold,
+            DecideTool = effective.Decisions.Tool,
+            UsageModels = usageModels,
             Approver = context.ClientApprover is { } clientApprover
                 ? new AcpApprover(effective.Approval, clientApprover)
                 : new NonInteractiveApprover(effective.Approval, yolo: false),
@@ -340,5 +398,52 @@ internal static class AcpMode
         };
 
         return new AgentHarness(clientFactory.Create(model), tools, options);
+
+        (AuthStore, IReadOnlyList<ProviderEntry>) LoadSources()
+        {
+            AuthStore auth = AuthStore.Load(
+                authPath,
+                static name => Environment.GetEnvironmentVariable(name)
+            );
+            ProviderStore providers = ProviderStore.Load(
+                AuthStore.ProviderStoreFilePath(authPath),
+                auth,
+                effective.Providers
+            );
+            return (auth, providers.Entries);
+        }
+
+        // The profile clients load the stores only when routing is on, like the interactive
+        // session's per-build resolution.
+        IReadOnlyDictionary<string, UsageModelClient>? ResolveRoutingProfiles()
+        {
+            if (effective.Decisions.Routing == DecisionMode.Off)
+            {
+                return null;
+            }
+
+            (AuthStore auth, IReadOnlyList<ProviderEntry> providers) = LoadSources();
+            return DecisionUsageModels.ResolveRoutingProfiles(
+                effective,
+                providers,
+                auth,
+                models,
+                static name => Environment.GetEnvironmentVariable(name),
+                clientFactory
+            );
+        }
+
+        // The decide tool is declared to the model only when it will be registered: the harness
+        // constructor adds it when the decision profile resolved and the setting asked for it.
+        IReadOnlyList<string> ToolNames()
+        {
+            List<string> names = [.. tools.Tools.Select(tool => tool.Name)];
+            if (decisionModel is not null && effective.Decisions.Tool && !names.Contains("decide"))
+            {
+                names.Add("decide");
+            }
+
+            return names;
+        }
     }
 }

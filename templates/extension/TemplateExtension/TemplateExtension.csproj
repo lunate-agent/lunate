@@ -1,5 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <!--
+        A copy of this template does not see the repository's Directory.Build.props, so the three
+        properties every SDK project needs live here (the props file inside this repository declares
+        the same values, so an in-repository build is unchanged). #464: `dotnet build` on the copy
+        failed with NETSDK1013 before.
+    -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <!--
         The contract reaches a template as packages (the stable pair pinned to the version
         ExtensionApi.Current names) and as projects while the template sits inside this
         repository, where the packages a feed serves may not exist yet. LunateUseNuGetContracts
@@ -20,6 +32,19 @@
         <RootNamespace>TemplateExtension</RootNamespace>
     </PropertyGroup>
 
+    <!--
+        The contracts a copied template pins must be installable. Inside this repository the pinned
+        version follows the release being built, so an RC pins `1.15.0-rc.N` — the only contract
+        version that exists for that tag — and a final tag pins `1.15.0`. Outside the repository
+        there is no release context, so the stable API version is the only thing that can exist.
+    -->
+    <PropertyGroup Condition="'$(LunateContractsVersion)' == ''">
+        <LunateContractsVersion Condition="'$(ContractVersion)' != ''"
+            >$(ContractVersion)</LunateContractsVersion>
+        <LunateContractsVersion Condition="'$(ContractVersion)' == ''"
+            >1.15.0</LunateContractsVersion>
+    </PropertyGroup>
+
     <ItemGroup>
         <!-- snippet:start — included by docs/extensions/README.md through scripts/docs-sync; keep the markers -->
         <!--
@@ -34,14 +59,14 @@
         <PackageReference
             Condition="'$(LunateUseNuGetContracts)' == 'true'"
             Include="Lunate.Contracts"
-            Version="1.15.0"
+            Version="$(LunateContractsVersion)"
             PrivateAssets="all"
             ExcludeAssets="runtime"
         />
         <PackageReference
             Condition="'$(LunateUseNuGetContracts)' == 'true'"
             Include="Lunate.Extensibility.Abstractions"
-            Version="1.15.0"
+            Version="$(LunateContractsVersion)"
             PrivateAssets="all"
             ExcludeAssets="runtime"
         />

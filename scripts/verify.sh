@@ -674,10 +674,15 @@ XML
   do
     dotnet pack "$contract_project" -c "$CONFIGURATION" -o "$contract_feed" --nologo -nodeReuse:false
   done
-  # The stable pair is versioned with ExtensionApi, the preview pair 0.2.0-preview.<n> — neither is
-  # the repository <Version>, so each is read from the csproj that owns it.
-  contract_version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj)"
-  preview_version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/Lunate.Agent/Lunate.Agent.csproj)"
+  # The contract pair carries the API version plus the tag's prerelease suffix, the preview pair the
+  # product version while it is a prerelease and <version>-preview.1 otherwise — never a constant,
+  # and never readable from the csproj, where these are $(ContractVersion) and $(PreviewVersion).
+  # One derivation (`scripts/release-versions.sh`) decides both here and in the pack-only job.
+  repo_version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "${SCRIPT_DIR}/../Directory.Build.props")"
+  while IFS='=' read -r key value; do printf -v "derived_${key}" '%s' "${value}"; done \
+    < <(bash "${SCRIPT_DIR}/release-versions.sh" "v${repo_version}")
+  contract_version="${derived_CONTRACTS}"
+  preview_version="${derived_PREVIEW}"
   "${SCRIPT_DIR}/check-package-metadata.sh" \
     "${contract_feed}/Lunate.Contracts.${contract_version}.nupkg" --id Lunate.Contracts
   "${SCRIPT_DIR}/check-package-metadata.sh" \
@@ -704,6 +709,13 @@ XML
     -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
 
   step "packaging files"
+  # A candidate is not a channel release: homebrew, scoop and winget keep pointing at the last stable
+  # version while the version under test carries a prerelease suffix, so only the files' presence is
+  # asserted here — a tag that produces 0.2.0 goes through the version match again.
+  packaging_requires_version=true
+  case "$version" in
+    *-*) packaging_requires_version=false ;;
+  esac
   for packaging_file in \
     packaging/homebrew/lunate.rb \
     packaging/scoop/lunate.json \
@@ -714,7 +726,7 @@ XML
       echo "verify: missing packaging file: ${packaging_file}" >&2
       exit 1
     fi
-    if ! grep -Fq "$version" "$packaging_file"; then
+    if [ "$packaging_requires_version" = true ] && ! grep -Fq "$version" "$packaging_file"; then
       echo "verify: ${packaging_file} does not carry the current version ${version}" >&2
       exit 1
     fi

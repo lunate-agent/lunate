@@ -32,13 +32,18 @@
   [`docs/spec/extensibility.md`](docs/spec/extensibility.md).
 - **Open protocols.** An MCP client for servers you already run, an ACP server so an editor such as
   Zed or JetBrains drives it, Agent Skills (`SKILL.md`) and `AGENTS.md` for project rules.
+- **Guarded by the OS, not only by a prompt.** On macOS and Linux every bash command runs under an
+  OS-level deny for the agent's own state: writes under `~/.lunate` and the install prefix are
+  refused and `auth.json` is read-denied, through `sandbox-exec` on macOS and bubblewrap (or
+  Landlock) on Linux ([ADR-0024](adr/0024-bash-guard.md)). Windows has no cheap mechanism and says
+  so in the tool result instead of running unconfined silently.
 - **A daily driver.** Every write and command asks first — edits show you their diff — repository
   code asks once per repository before it runs, sessions resume, and print mode (`lunate -p`,
   `--json`) scripts the whole thing for CI.
 
 ## Install
 
-`0.1.0` is the first stable release.
+The current stable release is `0.2.0`; `0.1.0` was the first.
 
 macOS (arm64) and Linux (x64), through Homebrew:
 
@@ -79,7 +84,7 @@ lunate packages --verify
 ```
 
 Prerequisite: the [.NET 10 SDK](https://dotnet.microsoft.com/download), pinned in
-[`global.json`](global.json) at 10.0.401.
+[`global.json`](global.json) at 10.0.402.
 
 ```bash
 git clone https://github.com/wdaniel1993/lunate
@@ -104,11 +109,12 @@ Contributor setup — the gate, the repository map and the OpenSpec workflow —
 
 ## Quick start
 
-**1. Pick a model and a credential.** The built-in catalog carries `gpt-4o-mini`, `gpt-4o`,
-`claude-sonnet-5-5` and `claude-opus-5-5`. Put the default in `~/.lunate/settings.json`:
+**1. Pick a model and a credential.** The catalog comes from models.dev, so its model ids are the
+ones your provider serves — `claude-sonnet-5-5` and `claude-opus-5-5` are current examples. Put the
+default in `~/.lunate/settings.json`:
 
-```json
-{ "schemaVersion": 1, "model": "claude-sonnet-5-5" }
+```json settings
+{ "schemaVersion": 2, "profiles": { "chat-main": { "provider": "anthropic", "model": "claude-sonnet-5-5" } }, "usages": { "chat": "chat-main" } }
 ```
 
 Then store that provider's key with the auth command:
@@ -258,6 +264,27 @@ committed), refuse an existing file without `--force`, redact every credential L
 `[redacted:<name>]`, and print the absolute path plus a reminder that the file may contain file
 contents and command output. [`docs/spec/export.md`](docs/spec/export.md) owns the full contract.
 
+### A second model can decide when it is worth it
+
+`decisions` in `settings.json` names one profile and opts into any of four consumers: approvals
+(`off`, `shadow`, `enforce`, with a threshold for how sure a deny must be), routing (`off`, `shadow`,
+`enforce` over two or more profiles), the information-only decide tool, and display-only suggestions
+beside a question's top option. A decision can only tighten an approval, never grant one; without a
+profile the layer stays off. The same gate runs in the TUI, print mode and ACP, and the
+[configuration reference](docs/configuration.md) lists every key.
+
+### Fork a session without losing the tail
+
+`/fork` writes a new session file that continues the current one under a new id; `/clone` starts a
+copy from an earlier turn. A fork carries the session's images and redacts what the source redacted,
+so it resumes instead of failing on the first request.
+
+### Long sessions keep their place
+
+When a tool result would flood the window, the text is spilled to a file and the model sees a short
+stub it can page back through; observation masking trims old turns without losing the transcript.
+`/context` reports what each saved: `saved tokens: spills 0, masking 0, read stubs 0`.
+
 ## Configuration
 
 Everything of yours lives under `~/.lunate/`, and nothing there is required: without a settings file
@@ -265,7 +292,10 @@ you get the defaults below.
 
 ### Models and providers
 
-- `~/.lunate/settings.json` — `model` names the default model id.
+- `~/.lunate/settings.json` — `model` names the default model id. `profiles` declares named
+  provider/model pairs and `usages` maps a use (`chat`, `subagents`) to one; a project
+  `.lunate/settings.json` may reference a provider but never define a credential, and may define its
+  own profiles.
 - `~/.lunate/models.json` — your own catalog entries: `id`, `provider` (`openai` for any
   OpenAI-compatible endpoint, `anthropic`), optional `endpoint`, `contextWindow`, `supportsTools`
   and an `auth` reference naming a key in `auth.json`. An entry overrides a built-in one with the
@@ -280,31 +310,14 @@ you get the defaults below.
 
 ### Settings
 
-`~/.lunate/settings.json` carries `schemaVersion: 1`. An unknown key or a bad value is one error
-naming every problem, and nothing partial is applied.
-
-| Key | Default | What it does |
-| --- | --- | --- |
-| `schemaVersion` | — | must be `1` or `2` (`2` is written) |
-| `model` | unset | the default model id |
-| `approval` | `ask` | `ask`: writes, edits and commands need approval; `auto-edit`: writes and edits run, commands still need approval |
-| `output.toolResultLimit` | `30000` | characters of one tool result before it is truncated |
-| `subagents.concurrency` | `4` | concurrent child runs in one tree, or `unlimited` |
-| `subagents.tokenBudget` | `100000` | tokens per child run, or `unlimited` |
-| `subagents.treeTokenBudget` | `500000` | tokens per top-level run tree, or `unlimited` |
-| `roslyn.maxLoadedWorkspaces` | `2` | C# workspaces kept loaded across roots |
-| `startupHeader` | `true` | print the welcome header when a session starts |
-| `updateCheck` | `true` | check GitHub Releases once a day and link a newer release's changelog |
-| `thinking` | `off` | reasoning level: `off`, `low`, `medium` or `high` (`/thinking` sets it per session) |
-| `thinkingFull` | `false` | commit the full reasoning text instead of the collapsed thought line |
-| `tools.extra` | `[]` | optional search tools to register beside the core set: `grep`, `find`, `ls` |
-
-Environment variables override the file: `LUNATE_MODEL`, `LUNATE_APPROVAL`,
-`LUNATE_TOOL_OUTPUT_LIMIT`, `LUNATE_STARTUP_HEADER` (`true`, `false`, `1` or `0`),
-`LUNATE_UPDATE_CHECK` (`true`, `false`, `1` or `0`), `LUNATE_SUBAGENTS_CONCURRENCY`,
-`LUNATE_SUBAGENTS_TOKEN_BUDGET`, `LUNATE_SUBAGENTS_TREE_TOKEN_BUDGET` and `LUNATE_EXTRA_TOOLS`
-(`grep,find,ls`). `yolo` is not a setting: it exists only as the per-run flag
-`lunate -p --yolo`.
+`~/.lunate/settings.json` carries `schemaVersion: 2`. An unknown key or a bad value is one error
+naming every problem, and nothing partial is applied. The generated
+[settings reference](docs/configuration.md) lists every key with its type, default, scope and
+allowed values, and names the environment-variable override each key accepts (from
+`LUNATE_MODEL` and `LUNATE_APPROVAL` through `LUNATE_TOOL_OUTPUT_LIMIT`, `LUNATE_SUBAGENTS_*` and
+`LUNATE_EXTRA_TOOLS`). The reference is rendered from the settings schema the store is pinned to,
+so it cannot list a key the parser refuses. `yolo` is not a setting: it exists only as the per-run
+flag `lunate -p --yolo`.
 
 The interactive session checks GitHub Releases at most once a day, in the background after the
 welcome header, and names a newer release as one dim linked line: `v0.2.0 available · changelog`.
@@ -312,7 +325,7 @@ The answer is cached under `~/.lunate/update-check.json` and reused for 24 hours
 There is no telemetry: the only header sent is `User-Agent: lunate/<version>`. Turn it off with
 `updateCheck: false` or `LUNATE_UPDATE_CHECK=0`; `--offline`, print mode, ACP and CI never check.
 
-The welcome header names the running build: `lunate  v0.1.0+0c96dc6`. The seven characters after `+` are the commit
+The welcome header names the running build: `lunate v0.2.0+1b045e5`. The seven characters after `+` are the commit
 it was built from, so two installs can be told apart without running `lunate --version`; a working-tree build
 with no commit metadata shows the plain version.
 
@@ -336,6 +349,13 @@ expand when the file loads. Within a scope `.lunate/` wins over `.agents/` wins 
 and a project file wins over a user file. Servers start on first use, their tools arrive as
 `server__tool`, and a project file and each of its servers needs its own trust decision.
 
+A stdio server is a child process and inherits Lunate's environment, so existing MCP setups keep
+working — with one exception: the credentials Lunate itself knows are withheld from that child.
+The provider keys the model presets and the provider store reference, the keys in `auth.json`,
+the extension secrets and the `env` values the configured entries set are removed from the child's
+environment (the variables are gone, not emptied), unless the server's own `env` map names the
+variable explicitly; `${VAR}` in a declared value still resolves from Lunate's environment.
+
 Lunate can also be the server: `lunate mcp roslyn` serves the five read-only `cs_*` C# tools over
 stdio to another MCP host, with no approvals or write path behind them.
 [`docs/mcp-roslyn.md`](docs/mcp-roslyn.md) covers the configuration and what it leaves out by design.
@@ -354,6 +374,11 @@ You approve the file once, and the header is inside the bytes that decision cove
 `/extensions reload <id>` builds it and swaps it into the running session, so a tool the model just
 wrote is callable in the same session; a changed file stops at the trust question and keeps the build
 that was already answering.
+
+An extension can also run out of process: a manifest that declares `runtime` instead of
+`entryAssembly` starts a child that speaks newline-delimited JSON-RPC 2.0 over stdio, with a checked-in
+schema generated from the host's own DTOs. [`docs/extensions-remote.md`](docs/extensions-remote.md)
+owns the manifest, the wire and the conformance runner.
 
 The declared packages resolve into your NuGet cache and the build is cached by content, so the cost
 stays local: measured on this machine (macOS, arm64, .NET 10.0.13), a one-package extension's cache
@@ -422,10 +447,19 @@ sources register the same way.
 ## Security model
 
 Lunate is a single-user tool, not a sandbox. The file tools (`read`, `write`, `edit`) resolve paths
-canonically — symlinks included — and refuse anything outside the working directory; `bash` is not
-boundary-checked, so the approval policy is its guard, and every write, edit and command asks before
-it runs unless you chose `auto-edit` or `--yolo`. Repository-provided code asks once per repository
-and re-asks when its content changes. In-process extensions are fully trusted, and an out-of-process
+canonically — symlinks included — and refuse anything outside the working directory. `bash` is not
+path-confined, but on macOS and Linux it runs under an OS-level guard ([ADR-0024](adr/0024-bash-guard.md))
+that refuses writes under the state root (`~/.lunate`, `LUNATE_HOME`) and the install prefix and
+read-denies `auth.json` — `sandbox-exec` on macOS, bubblewrap on Linux with `setpriv`'s Landlock
+rules as the fallback. When the mechanism cannot start (for example Ubuntu 23.10+'s AppArmor
+restriction), the command still runs with a visible notice and the result says so. The guard does not
+stop a reachable Docker socket, a pre-existing hardlink into the state root, or anything inside the
+workspace; `bashGuard: false` turns it off, and the header and tool results name that state. Windows
+has no mechanism yet and reports it rather than running unconfined silently.
+
+Beyond the guard, the approval policy is the boundary: every write, edit and command asks before it
+runs unless you chose `auto-edit` or `--yolo`. Repository-provided code asks once per repository and
+re-asks when its content changes. In-process extensions are fully trusted, and an out-of-process
 extension runs with your user privileges: the process boundary isolates dependencies and crashes,
 not permissions. Secrets are stored owner-only on POSIX and never printed. Report a vulnerability
 through GitHub's private vulnerability reporting on this repository — never a public issue — and see

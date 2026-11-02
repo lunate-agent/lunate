@@ -338,7 +338,7 @@ Append-only JSONL, one entry per line, each with `id`, `parentId`, `type` and a 
 ```json
 {"type":"header","schema":1,"id":"s_20261003-090000-ab12","cwd":"/repo","created":"2026-10-03T09:00:00.0000000+00:00","meai":"10.10.1"}
 {"type":"message","id":"e_01","parentId":null,"timestamp":"2026-10-03T09:00:01.0000000+00:00","message":{"role":"user","contents":[{"$type":"text","text":"add tests for Calculator"}]}}
-{"type":"message","id":"e_02","parentId":"e_01","timestamp":"2026-10-03T09:00:02.0000000+00:00","message":{"role":"assistant","contents":[{"$type":"functionCall","name":"read","arguments":{"path":"src/Calculator.cs"},"informationalOnly":false,"callId":"c_1"}]},"model":"gpt-4o-mini","usage":{"input":1834,"output":41}}
+{"type":"message","id":"e_02","parentId":"e_01","timestamp":"2026-10-03T09:00:02.0000000+00:00","message":{"role":"assistant","contents":[{"$type":"functionCall","name":"read","arguments":{"path":"src/Calculator.cs"},"informationalOnly":false,"callId":"c_1"}]},"model":"claude-sonnet-5-5","usage":{"input":1834,"output":41}}
 {"type":"message","id":"e_03","parentId":"e_02","timestamp":"2026-10-03T09:00:03.0000000+00:00","message":{"role":"tool","contents":[{"$type":"functionResult","result":"1  public class Calculator ...","callId":"c_1"}]}}
 {"type":"compaction","id":"e_40","parentId":"e_39","timestamp":"2026-10-03T09:10:00.0000000+00:00","summary":"...","replaces":["e_01","e_30"]}
 {"type":"modelChange","id":"e_41","parentId":"e_40","timestamp":"2026-10-03T09:11:00.0000000+00:00","model":"gpt-4o"}
@@ -464,11 +464,13 @@ write-verification mode, plus `projection.batchTurns` (default 4;
 `projection.maskTurns` (default 8) and `projection.maskErrorTurns` (default 32);
 `~/.lunate/providers.json` holds named provider instances; and `~/.lunate/auth.json` holds stored
 keys. Provider instances select one of the twelve built-in kinds as a template and may override its
-endpoint. Credentials and optional header values are references (`auth:`, `env:`, or `helper:`), not
+endpoint. Credentials and optional header values are references (`auth:` or `env:`), not
 literal values. Legacy stored keys migrate idempotently, without copying secrets; environment
 credentials retain precedence. Project settings may reference existing user providers/profiles and
 lower limits, but cannot define endpoints or credential references. Provider `region` is metadata,
-not a routing or residency policy. See [first run](first-run.md) for setup and examples.
+not a routing or residency policy. See [first run](first-run.md) for setup and examples. The
+generated [configuration reference](configuration.md) lists every settings key with its type,
+default, scope and allowed values, and is the page `--check` keeps from going stale.
 
 Profiles bind a name to a provider and catalog model with validated reasoning, output, temperature,
 context-window, decision-threshold and capability-override settings. Capability sets are open strings
@@ -724,6 +726,11 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
 **MCP client (official MCP C# SDK)**
 
 - Servers are configured in `~/.lunate/mcp.json` (command, args, env) and start on first use.
+- A stdio child inherits the session environment minus the credential values Lunate itself knows:
+  the auth-store keys, the provider keys the presets and the provider store's `env:` references
+  name, the extension secrets and the configured servers' own `env` values. A variable is removed
+  from the child (never emptied) unless the server's declared `env` names it — the opt-in — and
+  `${VAR}` in the declared map still resolves from Lunate's environment when the file loads.
 - Their tools arrive from the SDK as Microsoft.Extensions.AI functions and are wrapped as `ITool`s with risk `Execute`, so the approval policy applies. Names are prefixed `server__tool` to avoid collisions.
 - Refresh on tool list changes; cancel calls when a turn is cancelled; time out hanging servers. A crashing server becomes a tool error, never a crash of Lunate.
 - v1 uses stdio servers; remote servers over HTTP follow when needed, using the SDK's transports.
@@ -1002,9 +1009,9 @@ Lunate runs model-chosen shell commands with your user's rights, so the defaults
 - **The bash guard refuses the state root.** A bash command runs wrapped in an OS-level deny: writes under the state root (`~/.lunate`, `LUNATE_HOME`) and the install prefix are refused and `auth.json` is read-denied — `sandbox-exec` on macOS, bubblewrap on Linux with `setpriv`'s Landlock rules as fallback. A refused command names the guard ([ADR-0024](../adr/0024-bash-guard.md)). Windows has no cheap mechanism: the tool says so in its result, instead of silently running unconfined. When the mechanism cannot start — for example Ubuntu 23.10+'s AppArmor restriction of unprivileged user namespaces — that is detected and reported, the command still runs with a visible notice, and the guard claims only what it does: it does not stop a reachable Docker socket, a pre-existing hardlink or the workspace itself.
 - **The state root is not a security boundary.** `trust.json`, install records and session files live under `~/.lunate` (`LUNATE_HOME`). A bash command runs with your shell and can write there. The `LUNATE_SESSION` marker is a visibility guard, not a lock: it makes an install or a `trust --yes` started from inside a session say so, and `env -u LUNATE_SESSION …` removes it. `trust.json` is a record of your decisions, not a wall: `lunate trust --yes --digest <sha>` records one without a terminal, and the bash tool can run that command. Neither is a security boundary against the bash tool — in default mode the approval panel is what stands between the model and those commands, and under `--yolo` nothing does.
 - **Installing is not trusting.** `lunate install` writes no trust record: an installed extension stays pending, in both scopes, until you answer its question at first load.
-- **Workspace boundary:** file tools resolve real paths (including symlinks) and refuse anything outside the working directory unless `--allow-path` is given.
+- **Workspace boundary:** file tools resolve real paths (including symlinks) and refuse anything outside the working directory.
 - **Edit safety:** ambiguous matches are refused, never guessed; every edit shows its diff and match tier.
-- **Secrets:** provider keys live in `auth.json`, environment variables or configured helpers; `providers.json` stores only credential references, and optional header values are references too. The credential values Lunate itself holds — provider keys, extension secrets and MCP server environment values — are replaced by exact value with `[redacted:<name>]` in session files, spill files and exports (never by guessing at a pattern), and session files, spill files, the trust store and install records are owner-only (`0600`; session directories `0700`) where the platform has file modes.
+- **Secrets:** provider keys live in `auth.json` or environment variables; `providers.json` stores only credential references, and optional header values are references too. The credential values Lunate itself holds — provider keys, extension secrets and MCP server environment values — are replaced by exact value with `[redacted:<name>]` in session files, spill files and exports (never by guessing at a pattern), and session files, spill files, the trust store, install records, the input history and provider recordings are owner-only (`0600`; session directories `0700`) where the platform has file modes.
 - **Prompt injection:** file contents, command output and MCP results are data. The system prompt says so; approval is the real guard.
 - **MCP servers** are third-party code: only servers listed in `mcp.json` start, and their output is truncated like any tool output. Extensions are third-party code too: project-local ones need a one-time approval per repository, an installed package is pending until its first-load question is answered, and lunate --no-extensions starts without any.
 - **ACP mode** uses the editor's permission prompts; only a read-only call runs without one, so a request coming from an editor is never auto-approved.

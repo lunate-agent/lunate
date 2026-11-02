@@ -43,15 +43,15 @@ guessing.
 The twelve built-in provider kinds are templates for adapters and defaults. A user may define
 multiple named provider entries of one kind in `~/.lunate/providers.json`:
 
-```json
+```json providers
 {
   "schemaVersion": 1,
   "providers": [
     {
-      "name": "work-openai",
-      "kind": "openai",
-      "baseUrl": "https://api.openai.com/v1",
-      "credentialReference": "auth:work-openai",
+      "name": "work-anthropic",
+      "kind": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "credentialReference": "auth:work-anthropic",
       "region": "eu"
     }
   ]
@@ -59,8 +59,8 @@ multiple named provider entries of one kind in `~/.lunate/providers.json`:
 ```
 
 `credentialReference` and optional header values are references, never secret values. Supported
-sources are `auth:<key>`, `env:<VARIABLE>`, and `helper:<name>`. The credential itself stays in
-`auth.json`, the environment, or the configured helper. `region` (`eu`, `us`, or `local`) is
+sources are `auth:<key>` and `env:<VARIABLE>`. The credential itself stays in `auth.json` or the
+environment. `region` (`eu`, `us`, or `local`) is
 descriptive metadata only: it does not choose an endpoint or guarantee data residency.
 
 On load, Lunate idempotently migrates legacy stored keys and custom endpoints into matching provider
@@ -76,17 +76,27 @@ redirecting a user's credentials to its own server.
 ## Profiles and usages
 
 `~/.lunate/settings.json` binds a profile name to a provider entry and catalog model, then assigns
-profiles to existing usages. For example:
+profiles to existing usages; every settings key with its type, default and scope is in the
+generated [configuration reference](configuration.md). For example:
 
-```json
+```json settings
 {
   "schemaVersion": 2,
   "profiles": {
-    "chat-main": { "provider": "work-openai", "model": "gpt-4o-mini" },
-    "reviewer": { "provider": "work-openai", "model": "gpt-4o-mini" },
-    "quick": { "provider": "work-openai", "model": "gpt-4o-mini" }
+    "chat-main": { "provider": "work-anthropic", "model": "claude-sonnet-5-5" },
+    "reviewer": { "provider": "work-anthropic", "model": "claude-opus-5-5" },
+    "quick": { "provider": "work-anthropic", "model": "claude-sonnet-5-5" }
   },
-  "usages": { "chat": "chat-main" }
+  "usages": { "chat": "chat-main" },
+  "decisions": {
+    "profile": "reviewer",
+    "approvals": "enforce",
+    "approvalsThreshold": 0.5,
+    "routing": "shadow",
+    "routingProfiles": ["chat-main", "quick"],
+    "tool": "off",
+    "questions": "suggest"
+  }
 }
 ```
 
@@ -99,22 +109,10 @@ only when explicitly selected.
 ## Decisions
 
 Decision consumption is configured by one `decisions` block, with the same shape for every consumer.
-Without `profile` the layer is unavailable and nothing is offered; enabling a consumer without a
-profile is not an error — the layer stays off. The names below are the only ones this version
-accepts:
-
-```yaml
-decisions:
-  profile: reviewer        # required; the profile the layer runs on
-  approvals: enforce       # off (default) | shadow | enforce
-  approvalsThreshold: 0.5  # 0.0–1.0, default 0.5; a deny must reach this to escalate
-  routing: shadow          # off (default) | shadow | enforce
-  routingProfiles:         # 2–255 configured profiles the router may choose
-    - chat-main
-    - quick
-  tool: off                # off (default) | on; the decide tool is offered only when on
-  questions: suggest       # off (default) | suggest; display-only suggestions
-```
+It is part of `settings.json` (JSON only — nothing reads YAML), shown in the example above. Without
+`profile` the layer is unavailable and nothing is offered; enabling a consumer without a profile is
+not an error — the layer stays off. The generated [configuration reference](configuration.md)
+lists every accepted settings key with its type, default, scope and allowed values.
 
 `routing` records a suggested profile without changing the configured chat model in shadow, or uses
 the selected profile in enforce; routing picks the most probable profile and uses no threshold. An

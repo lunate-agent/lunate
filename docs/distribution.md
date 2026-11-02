@@ -11,20 +11,29 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `lunate-win-x64.zip` | Windows x64 binary (`lunate.exe`) |
 | `lunate.<version>.nupkg` | framework-dependent `dotnet tool` (package and command `lunate`) |
 | `Lunate.Extensions.Subagents.<version>.nupkg` | the reference subagents extension, installed with `lunate install Lunate.Extensions.Subagents` |
-| `Lunate.Contracts.<ExtensionApi.Current>.nupkg` | the stable message/tool contract half (versioned with `ExtensionApi`, not the tool) |
+| `Lunate.Contracts.<ExtensionApi.Current>[-rc.<n>].nupkg` | the message/tool contract half (versioned with `ExtensionApi`, not the tool; an RC tag publishes the `-rc.<n>` prerelease and only the final tag publishes the stable version) |
 | `Lunate.Extensibility.Abstractions.<ExtensionApi.Current>.nupkg` | the stable extension contract the template installs from NuGet |
-| `Lunate.Agent.0.2.0-preview.<n>.nupkg` | the embedded harness, preview |
-| `Lunate.Extensibility.Testing.0.2.0-preview.<n>.nupkg` | the test kit, preview |
+| `Lunate.Agent.<product version>.nupkg` | the embedded harness, preview — the product version while it is a prerelease (`0.2.0-rc.<n>`), `<version>-preview.<n>` on a final tag |
+| `Lunate.Extensibility.Testing.<product version>.nupkg` | the test kit, preview, versioned the same way |
 | `SHA256SUMS` | `<hash>  <filename>` lines covering every other asset |
 
 - Installers: [`install.sh`](../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/wdaniel1993/lunate/main/...`), not from the release assets.
 - Channel artifacts live in [`packaging/`](../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 3).
+- Every package version is derived from the tag in one place, [`scripts/release-versions.sh`](../scripts/release-versions.sh): an RC tag publishes `-rc.<n>` for every package (the contracts too), and only a final tag publishes the stable API version and the `-preview.<n>` previews. [`scripts/pack-dry-run.sh`](../scripts/pack-dry-run.sh) proves that derivation on every pull request, and the release workflow computes the same values from the tag before it packs or pushes anything.
 - The extension package is the distribution channel for extensions: the same tag that publishes the tool pushes it to nuget.org, so `lunate install <package-id>` installs the version the tag names. It is attached to the release as well, so a machine without feed access can point a `nuget.config` at the downloaded folder.
 - Release asset names, the installer platform map and the `LUNATE_INSTALL_*` environment seams are pinned in the distribution spec (`openspec/specs/distribution/spec.md` after archive).
 
 ## Pre-release checks (manual, T-33)
 
 Before tagging, run the terminal matrix from the guide: Windows Terminal, conhost, Git Bash, macOS Terminal, one Linux terminal, and tmux over SSH. The tag itself runs the full verify gate on ubuntu, macos and windows before anything is published.
+
+### 0. Re-read the README, the guide and the security model against the shipped behaviour
+
+Re-read `README.md`, `docs/guide.md` and `SECURITY.md` against the state the code ships: every
+command, flag and credential source those pages name must exist in the tree, and the generated docs
+regions must be fresh (`scripts/docs-sync --check` is always-on in Process). The 0.2.0-rc.1 review
+found pages documenting a `helper:` credential source and an `--allow-path` flag the code never
+implemented (#450) — this step exists to name that class of drift before a tag.
 
 ## Release smoke
 
@@ -46,7 +55,7 @@ The commands below use `0.1.0`; substitute the version from `Directory.Build.pro
 Before the first tag, run the Release workflow once via `workflow_dispatch` (dry run) to exercise the pack job and the archives; the attach job only runs on tags, so nothing is published:
 
 ```sh
-gh workflow run release.yml --ref main
+gh workflow run release.yml --ref main -f version=v0.2.0
 gh run list --workflow release.yml --limit 1
 ```
 

@@ -163,6 +163,19 @@ internal static class PrintMode
 
                 session = selected;
                 IExtensionLog log = options.Extensions?.Log ?? new StderrExtensionLog(errors);
+                // The redaction set exists before the MCP composition: composing with it withholds
+                // the values Lunate knows from every configured server's child environment
+                // (#449/#455). The harness later collects the same set again for its own redactor
+                // (CreateHarness) — same arguments, same values.
+                CredentialRedactor composeRedaction = HarnessFactory.CollectRedaction(
+                    options.AuthPath,
+                    options.Environment,
+                    options.Extensions?.StorePath,
+                    workspace.WorktreeRoot,
+                    options.McpConfigPath,
+                    options.McpAgentsConfigPath,
+                    AuthStore.ProviderStoreFilePath(options.AuthPath)
+                );
                 // The host composes in every mode: with --no-extensions it composes nothing at
                 // all — built-ins included — so no store scan, trust question or third-party
                 // load runs (design §1).
@@ -211,7 +224,11 @@ internal static class PrintMode
                         new NonInteractiveMcpServerApprovalPrompt(),
                         log,
                         notice => interaction.Notify(notice),
-                        ct
+                        ct,
+                        withheldCredentialValues:
+                        [
+                            .. composeRedaction.Values.Select(pair => pair.Value),
+                        ]
                     )
                     .ConfigureAwait(false);
 
@@ -231,7 +248,11 @@ internal static class PrintMode
                     // The configured names are the collision baseline: a same-named registration
                     // is skipped before listing (the configured server wins); nothing starts yet.
                     ExtensionMcpServers servers = extensions.ComposeMcpServers(
-                        McpNameCollisions.ConfiguredServers(mcp)
+                        McpNameCollisions.ConfiguredServers(mcp),
+                        withheldCredentialValues:
+                        [
+                            .. composeRedaction.Values.Select(pair => pair.Value),
+                        ]
                     );
                     ToolComposition.AddSkippingTaken(
                         tools,
@@ -292,7 +313,8 @@ internal static class PrintMode
                     extensions,
                     mcpTools,
                     inheritedTools,
-                    skills
+                    skills,
+                    notice => interaction.Notify(notice)
                 );
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -622,7 +644,8 @@ internal static class PrintMode
         ExtensionSession? extensions,
         IReadOnlyList<ITool> mcpTools,
         List<ITool> inheritedTools,
-        SkillCatalog skills
+        SkillCatalog skills,
+        Action<UserNotice> warn
     )
     {
         var refusalTracker = new WriteVerificationRefusalTracker();
@@ -632,7 +655,8 @@ internal static class PrintMode
             options.Extensions?.StorePath,
             workspace.WorktreeRoot,
             options.McpConfigPath,
-            options.McpAgentsConfigPath
+            options.McpAgentsConfigPath,
+            AuthStore.ProviderStoreFilePath(options.AuthPath)
         );
         ToolRegistry tools = HarnessFactory.CreateTools(
             workspace,
@@ -667,11 +691,45 @@ internal static class PrintMode
             }
         }
 
+        // The decision model resolves once, before the harness options: the decision usage
+        // client, the decide-tool declaration and the gate's settings all come from one
+        // resolution. The decision gate is wired in print mode like in the interactive session:
+        // the fail-closed rule covers a run no one watches, so with --yolo an enforce-mode deny
+        // above the threshold is still denied (no user is present to ask). A profile that
+        // cannot resolve degrades to no gate with a visible warning, not a run error.
+        UsageModelClient? decisionModel = DecisionUsageModels.ResolveDecisionModel(
+            settings,
+            LoadSources,
+            catalog,
+            options.Environment ?? Environment.GetEnvironmentVariable,
+            factory,
+            warn,
+            []
+        );
+        IReadOnlyDictionary<string, UsageModelClient>? decisionUsageModels = decisionModel is null
+            ? null
+            : new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
+            {
+                ["decision"] = decisionModel,
+            };
+        // The routing consumer is wired like the interactive session: a routed selection applies
+        // to the run nobody watches too. Unresolved routing profiles are a settings-validation
+        // error before this point, so a resolution failure is a run error, not a degraded gate.
+        IReadOnlyDictionary<string, UsageModelClient>? routingProfiles = ResolveRoutingProfiles();
+
         var harnessOptions = new AgentHarnessOptions
         {
+            // A deny reaching the threshold still passes through the approver seam; the
+            // fail-closed denial itself lives in the harness (ADR-0003's single approval seam).
+            DecisionMode = settings.Decisions.Approvals,
+            RoutingMode = settings.Decisions.Routing,
+            RoutingProfiles = routingProfiles,
+            ApprovalsThreshold = settings.Decisions.ApprovalsThreshold,
+            DecideTool = settings.Decisions.Tool,
+            UsageModels = decisionUsageModels,
             SystemPrompt = SystemPrompt.Compose(
                 workspace,
-                [.. tools.Tools.Select(tool => tool.Name)],
+                ToolNames(),
                 SystemPrompt.Directives(options.Launch, session)
             ),
             PromptSections =
@@ -711,6 +769,50 @@ internal static class PrintMode
         };
 
         return new AgentHarness(factory.Create(model), tools, harnessOptions);
+
+        (AuthStore, IReadOnlyList<ProviderEntry>) LoadSources()
+        {
+            AuthStore auth = AuthStore.Load(options.AuthPath, options.Environment);
+            ProviderStore providers = ProviderStore.Load(
+                AuthStore.ProviderStoreFilePath(options.AuthPath),
+                auth,
+                settings.Providers
+            );
+            return (auth, providers.Entries);
+        }
+
+        // The profile clients load the stores only when routing is on, like the interactive
+        // session's per-build resolution.
+        IReadOnlyDictionary<string, UsageModelClient>? ResolveRoutingProfiles()
+        {
+            if (settings.Decisions.Routing == DecisionMode.Off)
+            {
+                return null;
+            }
+
+            (AuthStore auth, IReadOnlyList<ProviderEntry> providers) = LoadSources();
+            return DecisionUsageModels.ResolveRoutingProfiles(
+                settings,
+                providers,
+                auth,
+                catalog,
+                options.Environment ?? Environment.GetEnvironmentVariable,
+                factory
+            );
+        }
+
+        // The decide tool is declared to the model only when it will be registered: the harness
+        // constructor adds it when the decision profile resolved and the setting asked for it.
+        IReadOnlyList<string> ToolNames()
+        {
+            List<string> names = [.. tools.Tools.Select(tool => tool.Name)];
+            if (decisionModel is not null && settings.Decisions.Tool && !names.Contains("decide"))
+            {
+                names.Add("decide");
+            }
+
+            return names;
+        }
     }
 
     /// <summary>

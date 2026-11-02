@@ -8,6 +8,73 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-02
+
+The first stable release of the 0.2 line. Its contents are the two candidates' entries below —
+[0.2.0-rc.1] and [0.2.0-rc.2] — which record every change, and the fixes that landed after rc.1 was
+cut are in the rc.2 section. Highlights of the line:
+
+- **Bash guard**: every command runs inside an OS sandbox (Seatbelt on macOS, bubblewrap/Landlock on
+  Linux), with the guard's state in the header and a probe that proves it works.
+- **Decision layer**: one optional profile, four consumers (approvals, routing, the decide tool,
+  question suggestions), the same gate in the TUI, print mode and ACP.
+- **Provider store and profiles**: providers and credentials live in user scope only; a project may
+  reference them, never define one.
+- **Session work**: fork/clone with images and redaction, an owner-only state directory, and a
+  history that stays consistent under concurrent appends.
+- **Extensions**: single-file extensions with `#:package`, remote (out-of-process) extensions, a
+  self-contained template, and a published contract at `1.15.0`.
+- **MCP**: stdio children keep the environment they had, minus the credential values Lunate itself
+  knows unless the server's own `env` map names them.
+- **Docs**: a configuration reference generated from the settings schema, and a gate that loads every
+  tagged config example through the real parser.
+
+## [0.2.0-rc.2] - 2026-11-02
+
+The third candidate. The decision layer ships behind one settings block, and the external review's
+security findings are closed: control bytes cannot reach the terminal from a model or a tool, session
+state and recordings are owner-only, and a branched session no longer writes back what its source file
+had redacted.
+
+### Added
+
+- The decision layer. One `decisions` block in `settings.json` names the profile that decides, then
+  opts into any of four consumers: approvals (`off`, `shadow`, `enforce`, with `approvalsThreshold`
+  deciding how certain a deny must be), routing (`off`, `shadow`, `enforce` over `routingProfiles`),
+  the information-only decide tool, and display-only suggestions beside a question's top option. A
+  decision can only tighten an approval, never grant one; without `profile` the layer stays off;
+  with no user present an `enforce` deny stands; an escalation may override a remembered
+  reject-always. The same gate runs in the TUI, print mode and ACP (#398, #399, #400, #402, #410,
+  #444, #458, #443). Settings are JSON only, and `docs/configuration.md` is generated from the
+  schema that parses them.
+
+### Fixed
+
+- Text bound for the terminal is scrubbed at every render boundary — live frame, committed markup,
+  tool output, diffs, the trust prompt, the select list, the git branch footer and bracketed paste —
+  so an OSC 52 clipboard write or an OSC 8 link in a model's or tool's output renders as inert text
+  instead of executing in the terminal (#447).
+- Session history and recordings are created owner-only (0600 files, 0700 directories), and a file
+  left world-readable by an older build is narrowed the next time it is written (#448).
+- A forked session file is redacted like its source and carries that session's image blobs, so a
+  fork resumes instead of failing on the first request; a fork fails loudly when a blob is missing
+  rather than producing a session that can never resume (#438).
+- The four session history lists stay consistent when an append throws, so the next turn builds a
+  request instead of crashing with an out-of-range index (#441).
+- The bash guard denies a target that does not exist yet without creating it first, and reports
+  Landlock as `unavailable` rather than claiming a sandbox it does not have (#437).
+- A release candidate is created as a prerelease, and the pack dry run refuses `/`, the home
+  directory, the repository or its ancestors instead of deleting them (#434).
+- Stdio MCP children keep inheriting Lunate's environment so existing setups continue to work, but
+  credential values Lunate knows (provider preset and provider-store `env:` values, auth-store keys,
+  extension secrets and configured MCP `env` values) are removed unless the server's own `env` map
+  declares that variable. A declared `${VAR}` still resolves from Lunate's environment (#449, #455).
+
+## [0.2.0-rc.1] - 2026-11-01
+
+The second release: the extension contract becomes a published surface, the bash guard lands on macOS
+and Linux, and the tool gains a pack-only gate that proves every package version before a tag does.
+
 ### Added
 
 - The bash guard: a bash command is wrapped in an OS-level deny that refuses writes under the state
@@ -120,4 +187,7 @@ verified against a real, versioned build; the first stable release is `0.1.0`.
 
 [0.1.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.2...v0.1.0
 [0.1.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.1...v0.1.0-rc.2
-[0.1.0-rc.1]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.1...v0.1.0-rc.2
+[0.2.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0
+[0.2.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.2.0-rc.1...v0.2.0-rc.2
+[0.2.0-rc.1]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0-rc.1
+[0.1.0-rc.1]: https://github.com/wdaniel1993/lunate/releases/tag/v0.1.0-rc.1
