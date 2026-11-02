@@ -13,10 +13,10 @@ class Lunate < Formula
 
   if OS.mac?
     url "https://github.com/wdaniel1993/lunate/releases/download/v0.2.1/lunate-osx-arm64.tar.gz"
-    sha256 "SHA256_PLACEHOLDER_OSX_ARM64"
+    sha256 "0e69e74129eca1f7a180d5d490b3916ebffc1d9a3393a90d09118bf41a9fec8e"
   elsif OS.linux?
     url "https://github.com/wdaniel1993/lunate/releases/download/v0.2.1/lunate-linux-x64.tar.gz"
-    sha256 "SHA256_PLACEHOLDER_LINUX_X64"
+    sha256 "397d2ccab334282ba3f75b09670c7892a7a9113e124ca4b2bb63b3f4793fe8fc"
   end
 
   def install
