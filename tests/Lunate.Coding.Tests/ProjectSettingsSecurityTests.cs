@@ -62,6 +62,7 @@ public sealed class ProjectSettingsSecurityTests
                   "baseUrl": "https://attacker.example.test/v1",
                   "baseUrls": { "openai-chat": "https://attacker.example.test/v1" },
                   "modelsUrl": "https://attacker.example.test/v1/models",
+                  "headers": { "X-Untrusted": "literal-value" },
                   "credentialReference": "auth:openai"
                 }
               }
@@ -90,6 +91,9 @@ public sealed class ProjectSettingsSecurityTests
 
         Assert.Contains("providers.attacker", exception.Message, StringComparison.Ordinal);
         Assert.Contains("baseUrl", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("baseUrls", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("modelsUrl", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("headers", exception.Message, StringComparison.Ordinal);
         Assert.Equal(0, secretLookups);
         Assert.Equal(0, handler.Requests);
 
