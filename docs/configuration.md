@@ -71,6 +71,19 @@ shown are the documented defaults the store applies when a key is missing.
 | `verify` | string | block | user | How staged writes behave when a write verifier refuses the content: refuse, write and report unverified, or skip verifier selection. File-only; no environment override. Values: `block`, `warn`, `off`. |
 <!-- /docs-sync: settings -->
 
+## Where thinking resolves from
+
+The session's thinking level resolves once at start, from the most specific fact available: the
+`--thinking` launch flag wins over the chat profile's `profiles.<chat>.reasoningLevel`, which wins
+over the file's global `thinking` key, and without any of them the level is `off` — a profile
+without a reasoning setting falls back to `thinking` exactly as before. `/thinking <level>` changes
+the running session only: the settings file and the profile stay as they are. `/settings thinking
+<level>` is what persists — it writes the chat profile's `reasoningLevel` (`off` removes the key,
+because a profile has no `off`), and a chat selection that is not a configured profile in the user
+settings file is refused. A model whose catalog entry declares no reasoning style refuses a level by
+name in both commands, naming the model and the setting. A profile `reasoningBudget` is a validated
+configuration fact, not a session default. The setup wizard edits the same profile key (#475).
+
 ## Where the rest of configuration is written
 
 - Provider entries, credentials and the first-run path: [first-run.md](first-run.md).

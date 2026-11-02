@@ -12,6 +12,7 @@ internal sealed partial class InteractiveSession
     private static readonly string[] EditableKeys =
     [
         "approval",
+        "thinking",
         "thinkingFull",
         "toolDetails",
         "toolResultLimit",
