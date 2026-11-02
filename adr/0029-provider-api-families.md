@@ -1,6 +1,6 @@
 # ADR-0029: A provider is a credential plus one base URL per API family
 
-Status: proposed — 2026-11-02
+Status: accepted — 2026-11-02
 Supersedes: the single-base-URL half of ADR-0027 (the provider store itself is unchanged)
 
 ## Context
@@ -30,9 +30,16 @@ clients to identify themselves and to send a stable per-conversation session hea
    on every provider path including discovery. `User-Agent: lunate/<version>` is always sent.
 4. Providers remain **user scope only**. A project can reference a provider; it cannot define one, its
    URLs or its headers. A custom provider's discovered base URLs must share its configured host.
-5. The OpenAI Responses family uses the SDK client already referenced by
-   `Microsoft.Extensions.AI.OpenAI` 10.10.1; the Google family needs a small native client. No new
-   package is introduced.
+5. The Google family ships complete in 0.3 through the **Google.GenAI .NET SDK**, which provides a
+   maintained `Microsoft.Extensions.AI` chat client (`AsIChatClient(Client, string)`); the package is
+   approved for this purpose. It covers streaming, function calling, system instructions, image input
+   and thinking with thought signatures (`TextReasoningContent.ProtectedData`), and accepts a base URL
+   and custom headers, so it serves both Google directly and a gateway. No hand-written
+   `generateContent` client is built.
+6. **The credential is placed by declaration, not by guess.** A provider entry carries a
+   `credentialPlacement`: `Authorization: Bearer` (default), a named header (`x-api-key`, `api-key`,
+   …), or a query parameter (`key=`), validated at load. The credential value is never available to
+   header templates; the template variable set stays `{session.id}`, `{run.id}`, `{lunate.version}`.
 
 ## Consequences
 
@@ -42,8 +49,9 @@ clients to identify themselves and to send a stable per-conversation session hea
   sending an empty value.
 - Every adapter shares one header pipeline, so a new adapter cannot silently omit identification or
   a provider's headers.
-- The Google client is the one large piece (~600–900 lines with fixtures); it is the change's risk
-  and is called out in the design for an explicit accept/cut decision.
+- The Google client is the one new dependency (Google.GenAI 1.28.0): streaming, tools, thinking with
+  signatures and images come from a maintained adapter instead of ~800 lines of translation, at the
+  cost of a package and its release cadence.
 
 ## Alternatives rejected
 
@@ -56,3 +64,6 @@ clients to identify themselves and to send a stable per-conversation session hea
 - **A per-provider request builder.** The layering rules and the ADR-0010 native-adapter decision both
   point the other way.
 - **Send headers in each adapter.** That is how the current dead `Headers` field happened.
+- **A hand-written `generateContent` client.** Rejected once Google.GenAI shipped a maintained
+  M.E.AI adapter: writing ~800 lines of streaming/tool/thinking translation to avoid a package the
+  provider itself maintains buys risk, not independence.

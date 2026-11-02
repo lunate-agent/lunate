@@ -58,7 +58,7 @@ For a preset whose base URL is the provider's own endpoint, the credential SHALL
 
 ### Requirement: Provider API families
 
-A model SHALL resolve exactly one API family from the closed set `openai-chat`, `openai-responses`, `anthropic-messages` and `google`. Resolution precedence SHALL be: the profile's explicit `apiFamily` override; then discovery metadata; then the catalog entry's `apiFamily`; then the provider's single declared family. When the provider declares more than one family and no higher source answered, resolution SHALL fail with an error naming the provider, the model and the families to choose from. A family SHALL select the adapter: `openai-chat` the OpenAI chat client, `openai-responses` the OpenAI Responses client, `anthropic-messages` the Anthropic SDK adapter, `google` a native `generateContent` client. A model with no family and a provider with exactly one family SHALL behave as that family, so existing entries keep working.
+A model SHALL resolve exactly one API family from the closed set `openai-chat`, `openai-responses`, `anthropic-messages` and `google`. Resolution precedence SHALL be: the profile's explicit `apiFamily` override; then discovery metadata; then the catalog entry's `apiFamily`; then the provider's single declared family. When the provider declares more than one family and no higher source answered, resolution SHALL fail with an error naming the provider, the model and the families to choose from. A family SHALL select the adapter: `openai-chat` the OpenAI chat client, `openai-responses` the OpenAI Responses client, `anthropic-messages` the Anthropic SDK adapter, `google` the Google.GenAI SDK's Microsoft.Extensions.AI client (streaming, function calling, system instructions, images, thinking with thought signatures). A model with no family and a provider with exactly one family SHALL behave as that family, so existing entries keep working.
 
 #### Scenario: A profile override wins
 
@@ -82,11 +82,12 @@ A model SHALL resolve exactly one API family from the closed set `openai-chat`, 
 
 - **GIVEN** a model whose family is `google`
 - **WHEN** the pipeline is built
-- **THEN** the Google `generateContent` client is used against the Google family base URL
+- **THEN** the Google.GenAI `AsIChatClient` client is used against the Google family base URL
+- **AND** a streamed tool call preserves the thought signature in returned reasoning content
 
 ### Requirement: Provider request headers
 
-Every provider request SHALL identify the client with `User-Agent: lunate/<informational version>`. A provider's declared headers SHALL be applied to every family's requests and to discovery requests, through one shared HTTP handler rather than per-adapter code. A header value SHALL be a literal or a template over `{session.id}`, `{run.id}` and `{lunate.version}`, substituted at request time. A template that cannot be resolved — a `{session.id}` header on a call with no session — SHALL fail with an actionable error instead of sending an empty or partial value. Protocol headers set by an SDK (`anthropic-version`, `Authorization`) SHALL be left intact unless the provider declares the same name.
+Every provider request SHALL identify the client with `User-Agent: lunate/<informational version>`. A provider's declared headers SHALL be applied to every family's requests and to discovery requests, through one shared HTTP handler rather than per-adapter code. A header value SHALL be a literal or a template over `{session.id}`, `{run.id}` and `{lunate.version}`, substituted at request time. A template that cannot be resolved — a `{session.id}` header on a call with no session — SHALL fail with an actionable error instead of sending an empty or partial value. Protocol headers set by an SDK (`anthropic-version`, `Authorization`) SHALL be left intact unless the provider declares the same name. The credential itself SHALL be applied only by the provider's declared placement — `Authorization: Bearer` by default, a named header, or a named query parameter — after removing any credential header the SDK added for that provider, so the key appears exactly once on the wire and never in a header template.
 
 #### Scenario: Every request identifies Lunate
 
@@ -111,3 +112,21 @@ Every provider request SHALL identify the client with `User-Agent: lunate/<infor
 - **GIVEN** the `openrouter` preset with `X-Title: Lunate`
 - **WHEN** a request is sent
 - **THEN** the header is present, and the provider's own headers win over an SDK default of the same name
+
+#### Scenario: The default placement is bearer
+
+- **GIVEN** a provider with no `credentialPlacement`
+- **WHEN** a request is sent
+- **THEN** it carries `Authorization: Bearer <credential>` exactly once
+
+#### Scenario: A query-parameter credential is placed once
+
+- **GIVEN** the `google` preset with a query placement named `key`
+- **WHEN** a request is sent
+- **THEN** the key appears in the query string and in no header
+
+#### Scenario: An SDK credential header is removed first
+
+- **GIVEN** an SDK that adds `x-goog-api-key` and a provider whose placement is a bearer header
+- **WHEN** the request is sent
+- **THEN** the SDK header is absent and the bearer header carries the key

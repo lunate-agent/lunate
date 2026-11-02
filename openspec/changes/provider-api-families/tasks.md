@@ -1,61 +1,60 @@
 # Tasks
 
-## 1. Contract and loader
+Slices are applied in this order; each is its own PR with its own tests.
 
-- [ ] `ProviderEntry`: `BaseUrls` map keyed by `ProviderApiFamily`, `ModelsUrl`; keep `baseUrl`
-      shorthand; refuse unknown families by name.
-- [ ] `ProviderApiFamily` enum + parsing/formatting; `ProviderAdapter` grows `OpenAiResponses` and
-      `Google`.
-- [ ] Header model: literal or template; validate name, value and placeholders at load; keep
-      `auth:`/`env:`/`helper:` references working.
-- [ ] `ProviderPreset` + embedded `providers.json` schema 2: per-family URLs, `modelsUrl`, headers;
-      add `opencode-go`'s four URLs, `openrouter` attribution headers, `google` native URL.
-- [ ] Project-scope refusal extended to the new fields (existing test widened, not replaced).
+## Slice 1 — model and presets
 
-## 2. Resolution and adapters
-
-- [ ] `ModelInfo.ApiFamily` + catalog `apiFamily`; annotate built-in entries for the presets.
-- [ ] Family resolution (profile → discovery → catalog → single provider family) with the ambiguity
+- [ ] `ProviderApiFamily` enum + parsing; `ProviderEntry.BaseUrls` map, `ModelsUrl`, `baseUrl`
+      shorthand; unknown family refused by name.
+- [ ] `ProviderPreset(s)` + embedded `providers.json` schema 2: per-family URLs, `modelsUrl`,
+      headers; `opencode-go` complete (four URLs, discovery URL, session header).
+- [ ] `ModelInfo.ApiFamily` + catalog `apiFamily`; annotate built-ins so no model is ambiguous.
+- [ ] Family resolution (profile → discovery → catalog → single provider family) and the ambiguity
       error naming the families.
-- [ ] `ChatClientFactory`: choose by family; OpenAI Responses via
-      `GetResponsesClient().AsIChatClient()`; keep the chat path unchanged.
-- [ ] Google `generateContent` chat client (messages, tools, SSE streaming) + recorded fixtures.
+- [ ] `ChatClientFactory` selects by family; `ProviderAdapter` grows `OpenAiResponses` and `Google`.
+- [ ] Project-scope refusal widened to `baseUrls`, `modelsUrl`, `headers`, `credentialPlacement`.
+- [ ] Tests: loader, routing matrix, project scope.
 
-## 3. Headers and context
+## Slice 2 — headers and credential placement
 
-- [ ] `ProviderHeadersHandler` on every provider `HttpClient` including discovery; `User-Agent` always.
-- [ ] `RequestContext(SessionId, RunId)` threaded through `IChatClientFactory.Create`; session and
-      child-session call sites pass their own id.
-- [ ] Missing `{session.id}` fails with an actionable error.
-- [ ] `CredentialRedactor` learns header values so they never reach logs.
+- [ ] Header model: literal or template over `{session.id}`, `{run.id}`, `{lunate.version}`; validate
+      name, value, placeholders at load; keep `auth:`/`env:`/`helper:` references.
+- [ ] `ProviderHeadersHandler`: `User-Agent: lunate/<version>` on every request, provider headers,
+      template substitution, missing session id fails loudly.
+- [ ] `ProviderCredentialHandler`: bearer (default), `x-api-key`, named header, query parameter;
+      removes SDK-added credential headers first; sentinel-key support for SDKs.
+- [ ] `RequestContext(SessionId, RunId)` through `IChatClientFactory.Create`; session and child
+      session pass their own id.
+- [ ] `CredentialRedactor` learns header values and the placement.
+- [ ] Tests: every placement, template cannot reference the credential, SDK header removed,
+      parent/child session ids, discovery carries the same headers.
 
-## 4. Custom providers
+## Slice 3 — OpenAI Responses family
 
-- [ ] `CustomProvider` carries a family; `auth login --custom --api-family` and `--models-url`;
-      writes `baseUrls` for that family; prompt when the flag is absent.
-- [ ] No second settings writer: the wizard (#475) will call the same path.
+- [ ] `openai-responses` adapter via `GetResponsesClient().AsIChatClient()` (M.E.AI 10.10.1).
+- [ ] Fixture: streamed text, tool call, tool result; live smoke skipped without a key.
 
-## 5. Discovery (hands the metadata to #473)
+## Slice 4 — Anthropic-compatible custom providers
 
-- [ ] Discovery client reads `api` per model: family, `base_url`, capabilities, context/output limits,
-      reasoning effort list; produces catalog entries with family + endpoint.
-- [ ] Custom-provider discovery rejects a `base_url` outside the configured host, naming the model.
+- [ ] `CustomProvider` carries a family; `auth login --custom --api-family`,
+      `--credential-placement`, `--models-url`; one settings writer for the wizard.
+- [ ] Tests: writes `baseUrls` for the chosen family; refuses an unknown family; bearer vs `x-api-key`.
 
-## 6. Proof
+## Slice 5 — Google family
 
-- [ ] Loader tests: unknown family, unknown placeholder, CRLF, bad discovery host.
-- [ ] Routing matrix: one model per family resolves to the expected client and URL; ambiguous fails.
-- [ ] Header tests across all five request kinds (chat, responses, messages, google, discovery),
-      including parent/child session ids.
-- [ ] Google fixtures: tool call, streamed text, multi-turn.
-- [ ] `verify.sh` green on macOS and the PR CI.
+- [ ] Add `Google.GenAI` 1.28.0 to `Directory.Packages.props` (approved); record it in ADR-0029.
+- [ ] `google` adapter from `Client(...).AsIChatClient(model)` with `HttpOptions.BaseUrl` and the
+      headers/credential handlers via `ClientOptions.HttpClientFactory`.
+- [ ] Acceptance tests: streaming; function calling incl. parallel calls; system instructions; image
+      input gated by capability; thinking with thought signature preserved across a tool turn,
+      **compaction** and a **session reload**; prompt caching where supported.
+- [ ] Live smoke: Gemini through Google directly and through OpenCode Go's Google endpoint, skipped
+      without a key.
 
-## 7. Docs
+## Cross-cutting
 
-- [ ] `docs/configuration.md`: provider entry v2, families, headers, placeholders, migration.
-- [ ] `docs/guide.md`: `auth login --custom --api-family`; what each preset sets.
-- [ ] ADR-0029 accepted in `adr/`.
-
-## 8. Sign-off gate
-
-- [ ] Maintainer sign-off on the Google-client scope (implement in 0.3 vs defer to 0.4) before apply.
+- [ ] Discovery client reads per-model `api` metadata: family, `base_url`, capabilities, context/output
+      limits, reasoning efforts; custom providers constrained to their configured host.
+- [ ] Docs: `docs/configuration.md` (entry v2, families, headers, placements, migration),
+      `docs/guide.md` (`auth login --custom`), ADR-0029 accepted.
+- [ ] `verify.sh` green locally and the PR CI on every slice.
