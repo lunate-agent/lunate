@@ -181,10 +181,9 @@ public sealed class McpServerHost : IAsyncDisposable
                 Command = options.Command,
                 Arguments = [.. options.Arguments],
                 WorkingDirectory = options.WorkingDirectory,
-                EnvironmentVariables = EnvironmentScrubber.Build(set: options.Environment).ToDictionary(
-                    pair => pair.Key,
-                    pair => (string?)pair.Value
-                ),
+                EnvironmentVariables = EnvironmentScrubber
+                    .Build(set: options.Environment)
+                    .ToDictionary(pair => pair.Key, pair => (string?)pair.Value),
                 InheritEnvironmentVariables = false,
                 ShutdownTimeout = ShutdownTimeout,
                 // stderr is the only child output the client can observe while it waits on the
