@@ -12,18 +12,24 @@
 #   ci-ok.sh --self-test
 #
 # Reads, all from the environment:
-#   EVENT_NAME  github.event_name
-#   DRAFT       github.event.pull_request.draft ("true"/"false"; empty off a pull request)
-#   PLAN        needs.plan.result
-#   PROFILE     needs.plan.outputs.profile
-#   VERIFY      needs.verify.result
-#   POWERSHELL  needs.verify-powershell.result
-#   DOCS        needs.verify-docs.result
-#   PERF        needs.perf.result
+#   EVENT_NAME   github.event_name
+#   DRAFT        github.event.pull_request.draft ("true"/"false"; empty off a pull request)
+#   PLAN         needs.plan.result
+#   PROFILE      needs.plan.outputs.profile
+#   VERIFY       needs.verify.result
+#   POWERSHELL   needs.verify-powershell.result
+#   PS_REQUIRED  needs.changes.outputs.powershell ("true"/"false")
+#   DOCS         needs.verify-docs.result
+#   PERF         needs.perf.result
+#   PLATFORM     needs.platform.result
 #
 # Exits 0 only when the run that actually happened is the gate the profile selected. Every other
 # outcome -- a draft, a skipped plan, a failed or skipped leg, a leg the profile did not select, an
 # unreadable profile -- exits 1 with a named reason.
+#
+# The PowerShell leg is path-filtered: skipped is a pass when `changes` said its paths did not
+# match, and a failure when nothing said so. An unreadable decision (PS_REQUIRED empty) is red, not
+# "probably fine".
 
 set -euo pipefail
 
@@ -39,9 +45,9 @@ fail() {
 decide() {
     local event="${EVENT_NAME:-}" draft="${DRAFT:-}" plan="${PLAN:-}"
     local profile="${PROFILE:-}" verify="${VERIFY:-}" powershell="${POWERSHELL:-}"
-    local docs="${DOCS:-}" perf="${PERF:-}"
+    local ps_required="${PS_REQUIRED:-}" docs="${DOCS:-}" perf="${PERF:-}" platform="${PLATFORM:-}"
 
-    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile verify=$verify verify-powershell=$powershell verify-docs=$docs perf=$perf"
+    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform"
 
     if [ "$event" = "pull_request" ] && [ "$draft" != "false" ]; then
         fail "the head is a draft (draft=$draft), so no gate ran; a draft push costs no matrix, but the required check still has to report. Mark the pull request ready for review and this check runs again."
@@ -51,17 +57,32 @@ decide() {
     fi
     case "$profile" in
         docs)
+            if [ "$verify" != "skipped" ] || [ "$powershell" != "skipped" ] || [ "$perf" != "skipped" ] || [ "$platform" != "skipped" ]; then
+                fail "profile=docs, yet a full leg ran (verify=$verify, verify-powershell=$powershell, perf=$perf, platform=$platform)"
+            fi
             if [ "$docs" != "success" ]; then
                 fail "the docs profile did not succeed (verify-docs=$docs)"
             fi
-            if [ "$verify" != "skipped" ] || [ "$powershell" != "skipped" ] || [ "$perf" != "skipped" ]; then
-                fail "profile=docs, yet a full leg ran (verify=$verify, verify-powershell=$powershell, perf=$perf)"
-            fi
             ;;
         full)
-            if [ "$verify" != "success" ] || [ "$powershell" != "success" ] || [ "$perf" != "success" ]; then
-                fail "a required job did not succeed (verify=$verify, verify-powershell=$powershell, perf=$perf)"
+            if [ "$verify" != "success" ] || [ "$perf" != "success" ] || [ "$platform" != "success" ]; then
+                fail "a required job did not succeed (verify=$verify, perf=$perf, platform=$platform)"
             fi
+            case "$ps_required" in
+                true)
+                    if [ "$powershell" != "success" ]; then
+                        fail "the PowerShell leg was required by the changed paths but did not run (verify-powershell=$powershell); a skipped or cancelled leg is not a pass"
+                    fi
+                    ;;
+                false)
+                    if [ "$powershell" != "skipped" ] && [ "$powershell" != "success" ]; then
+                        fail "the PowerShell leg was not required and did not pass either (verify-powershell=$powershell)"
+                    fi
+                    ;;
+                *)
+                    fail "the path decision for the PowerShell leg is unreadable (ps-required='$ps_required'); refusing to pass on an unknown state"
+                    ;;
+            esac
             if [ "$docs" != "skipped" ]; then
                 fail "profile=full, yet the docs leg ran (verify-docs=$docs)"
             fi
@@ -96,7 +117,7 @@ PY
 
 _run_from_env() {
     env EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
-        VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" \
+        VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
 }
 
@@ -147,45 +168,67 @@ self_test() {
 
     # The required context must never be skipped on a head that can be merged.
     _self_case "a draft pull request fails instead of skipping" 1 "draft" \
-        pull_request true skipped "" skipped skipped skipped skipped
+        pull_request true skipped "" skipped skipped skipped skipped "" ""
     _self_case "a draft with no job results still fails for the draft" 1 "draft" \
-        pull_request true skipped "" "" "" "" ""
+        pull_request true skipped "" "" "" "" "" "" ""
     _self_case "a pull request whose draft flag did not render fails closed" 1 "draft" \
-        pull_request "" success full success success success skipped success
+        pull_request "" success full success success success skipped success success true
 
     # The profiles that can pass.
     _self_case "a full gate that passed" 0 "the full gate succeeded" \
-        pull_request false success full success success skipped success
+        pull_request false success full success success skipped success success true
+    _self_case "a full gate whose PowerShell leg was not required" 0 "the full gate succeeded" \
+        pull_request false success full success skipped skipped success success false
+    _self_case "a full gate whose PowerShell leg ran without being required" 0 "the full gate succeeded" \
+        pull_request false success full success success skipped success success false
     _self_case "a docs gate that passed" 0 "the docs gate succeeded" \
-        pull_request false success docs skipped skipped success skipped
+        pull_request false success docs skipped skipped success skipped skipped ""
     _self_case "a push to main" 0 "the full gate succeeded" \
-        push "" success full success success skipped success
+        push "" success full success success skipped success success true
     _self_case "a manual dispatch" 0 "the full gate succeeded" \
-        workflow_dispatch "" success full success success skipped success
+        workflow_dispatch "" success full success success skipped success success true
 
     # Every way the run that happened can fail to be the gate:
     _self_case "a failed verify leg" 1 "did not succeed" \
-        pull_request false success full failure success skipped success
-    _self_case "a failed windows leg" 1 "did not succeed" \
-        pull_request false success full success failure skipped success
+        pull_request false success full failure success skipped success success true
+    _self_case "a failed windows leg" 1 "was required by the changed paths" \
+        pull_request false success full success failure skipped success success true
     _self_case "a failed perf leg" 1 "did not succeed" \
-        pull_request false success full success success skipped failure
+        pull_request false success full success success skipped failure success true
+    _self_case "a failed platform leg" 1 "did not succeed" \
+        pull_request false success full success success skipped success failure true
     _self_case "a failed docs leg" 1 "did not succeed" \
-        pull_request false success docs skipped skipped failure skipped
+        pull_request false success docs skipped skipped failure skipped skipped ""
     _self_case "a skipped verify leg on the full profile" 1 "did not succeed" \
-        pull_request false success full skipped success skipped success
+        pull_request false success full skipped success skipped success success true
     _self_case "a skipped perf leg on the full profile" 1 "did not succeed" \
-        pull_request false success full success success skipped skipped
+        pull_request false success full success success skipped skipped success true
+    _self_case "a skipped platform leg on the full profile" 1 "did not succeed" \
+        pull_request false success full success success skipped success skipped true
+
+    # The path-filtered PowerShell leg: skipped is a pass only when the change said so.
+    _self_case "a PowerShell leg skipped although the paths required it" 1 "was required by the changed paths" \
+        pull_request false success full success skipped skipped success success true
+    _self_case "a PowerShell leg skipped with an unreadable decision" 1 "unreadable" \
+        pull_request false success full success skipped skipped success success ""
+    _self_case "a PowerShell leg cancelled although required" 1 "was required by the changed paths" \
+        pull_request false success full success cancelled skipped success success true
+    _self_case "a PowerShell leg cancelled although not required" 1 "did not pass either" \
+        pull_request false success full success cancelled skipped success success false
+
+    # Legs that ran although the profile did not select them.
     _self_case "the docs leg ran on a full profile" 1 "docs leg ran" \
-        pull_request false success full success success success success
+        pull_request false success full success success success success success true
     _self_case "the matrix ran on a docs profile" 1 "full leg ran" \
-        pull_request false success docs success skipped success success
+        pull_request false success docs success skipped success success skipped ""
     _self_case "the perf leg ran on a docs profile" 1 "full leg ran" \
-        pull_request false success docs skipped skipped success success
+        pull_request false success docs skipped skipped success success skipped ""
+    _self_case "the platform leg ran on a docs profile" 1 "full leg ran" \
+        pull_request false success docs skipped skipped skipped success success ""
     _self_case "a skipped plan on a non-draft head" 1 "plan job did not succeed" \
-        pull_request false skipped "" skipped skipped skipped skipped
+        pull_request false skipped "" skipped skipped skipped skipped "" ""
     _self_case "an unreadable profile" 1 "no usable profile" \
-        pull_request false success "" skipped skipped skipped skipped
+        pull_request false success "" skipped skipped skipped skipped "" ""
 
     # The wiring this script's decisions rely on.
     _self_workflow "ci-ok must not gate itself on draft (a skip reads as satisfied)" \
@@ -196,8 +239,8 @@ self_test() {
         ci-ok 'scripts/ci-ok\.sh' 1
     _self_workflow "plan must keep the draft gate, so a draft push costs no matrix" \
         plan '^    if:.*draft' 1
-    _self_workflow "ci-ok must take the perf leg as a needed job" \
-        ci-ok '^    needs: \[plan, verify, verify-powershell, verify-docs, perf\]' 1
+    _self_workflow "ci-ok must take every gate leg as a needed job" \
+        ci-ok '^    needs: \[plan, changes, verify, verify-powershell, platform, verify-docs, perf\]' 1
     _self_workflow "the verify matrix must cover every OS leg" \
         verify 'os: \[ubuntu-latest, macos-latest, windows-latest\]' 1
     _self_workflow "Linux hyperfine must run only on Linux shard 1" \
@@ -208,10 +251,20 @@ self_test() {
         verify 'inputs\.verify_shard_count' 1
     _self_workflow "the verify leg must run on the full profile only" \
         verify "^    if: needs\.plan\.outputs\.profile == 'full'" 1
+    _self_workflow "the OS legs must skip the platform checks, so one Linux job owns them" \
+        verify 'VERIFY_SKIP_PLATFORM_CHECKS' 1
+    _self_workflow "the platform job must run the platform profile" \
+        platform 'scripts/verify\.sh --profile platform' 1
+    _self_workflow "the platform job must run on the full profile only" \
+        platform "^    if: needs\.plan\.outputs\.profile == 'full'" 1
     _self_workflow "the perf leg must run the dedicated startup measurement" \
         perf 'scripts/perf\.sh' 1
     _self_workflow "the perf leg must run on the full profile only" \
         perf "^    if: needs\.plan\.outputs\.profile == 'full'" 1
+    _self_workflow "the PowerShell leg must be gated on the changed paths" \
+        verify-powershell "needs\.changes\.outputs\.powershell == 'true'" 1
+    _self_workflow "the changes job must decide through scripts/ci-powershell-paths.sh" \
+        changes 'scripts/ci-powershell-paths\.sh' 1
 
     if [ "$FAILURES" -ne 0 ]; then
         echo "self-test: FAIL: ${FAILURES} of ${CASES} checks failed" >&2
