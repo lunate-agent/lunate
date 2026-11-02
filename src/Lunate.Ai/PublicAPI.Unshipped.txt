@@ -83,23 +83,49 @@ Lunate.Ai.ProviderAdapter
 Lunate.Ai.ProviderAdapter.Anthropic = 1 -> Lunate.Ai.ProviderAdapter
 Lunate.Ai.ProviderAdapter.OpenAi = 0 -> Lunate.Ai.ProviderAdapter
 Lunate.Ai.ProviderAdapter.OpenAiCompatible = 2 -> Lunate.Ai.ProviderAdapter
+Lunate.Ai.ProviderAdapter.OpenAiResponses = 3 -> Lunate.Ai.ProviderAdapter
+Lunate.Ai.ProviderAdapter.Google = 4 -> Lunate.Ai.ProviderAdapter
+Lunate.Ai.ProviderApiFamily
+Lunate.Ai.ProviderApiFamily.OpenAiChat = 0 -> Lunate.Ai.ProviderApiFamily
+Lunate.Ai.ProviderApiFamily.OpenAiResponses = 1 -> Lunate.Ai.ProviderApiFamily
+Lunate.Ai.ProviderApiFamily.AnthropicMessages = 2 -> Lunate.Ai.ProviderApiFamily
+Lunate.Ai.ProviderApiFamily.Google = 3 -> Lunate.Ai.ProviderApiFamily
+Lunate.Ai.ProviderApiFamilies
+const Lunate.Ai.ProviderApiFamilies.OpenAiChat = "openai-chat" -> string!
+const Lunate.Ai.ProviderApiFamilies.OpenAiResponses = "openai-responses" -> string!
+const Lunate.Ai.ProviderApiFamilies.AnthropicMessages = "anthropic-messages" -> string!
+const Lunate.Ai.ProviderApiFamilies.Google = "google" -> string!
+static Lunate.Ai.ProviderApiFamilies.All.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.ProviderApiFamily>!
+static Lunate.Ai.ProviderApiFamilies.Name(Lunate.Ai.ProviderApiFamily family) -> string!
+static Lunate.Ai.ProviderApiFamilies.IsKnown(string? value) -> bool
+static Lunate.Ai.ProviderApiFamilies.Supported() -> string!
+static Lunate.Ai.ProviderApiFamilies.NamesFor(System.Collections.Generic.IEnumerable<Lunate.Ai.ProviderApiFamily>! families) -> string!
+static Lunate.Ai.ProviderApiFamilies.TryParse(string? value, out Lunate.Ai.ProviderApiFamily family) -> bool
+static Lunate.Ai.ProviderApiFamilies.Unsupported(string? value, string! field) -> string!
 Lunate.Ai.ProviderEntry
 Lunate.Ai.ProviderEntry.<Clone>$() -> Lunate.Ai.ProviderEntry!
 Lunate.Ai.ProviderEntry.BaseUrl.get -> System.Uri!
 Lunate.Ai.ProviderEntry.BaseUrl.init -> void
+Lunate.Ai.ProviderEntry.BaseUrls.get -> System.Collections.Generic.IReadOnlyDictionary<Lunate.Ai.ProviderApiFamily, System.Uri!>?
+Lunate.Ai.ProviderEntry.BaseUrls.init -> void
 Lunate.Ai.ProviderEntry.CredentialReference.get -> string!
 Lunate.Ai.ProviderEntry.CredentialReference.init -> void
-Lunate.Ai.ProviderEntry.Deconstruct(out string! Name, out string! Kind, out System.Uri! BaseUrl, out string! CredentialReference, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Headers, out string? Region) -> void
+Lunate.Ai.ProviderEntry.Deconstruct(out string! Name, out string! Kind, out System.Uri! BaseUrl, out string! CredentialReference, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Headers, out string? Region, out System.Collections.Generic.IReadOnlyDictionary<Lunate.Ai.ProviderApiFamily, System.Uri!>? BaseUrls, out System.Uri? ModelsUrl) -> void
+Lunate.Ai.ProviderEntry.DefaultFamily.get -> Lunate.Ai.ProviderApiFamily
 Lunate.Ai.ProviderEntry.Equals(Lunate.Ai.ProviderEntry? other) -> bool
+Lunate.Ai.ProviderEntry.Families.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.ProviderApiFamily>!
 Lunate.Ai.ProviderEntry.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 Lunate.Ai.ProviderEntry.Headers.init -> void
 Lunate.Ai.ProviderEntry.Kind.get -> string!
 Lunate.Ai.ProviderEntry.Kind.init -> void
+Lunate.Ai.ProviderEntry.ModelsUrl.get -> System.Uri?
+Lunate.Ai.ProviderEntry.ModelsUrl.init -> void
 Lunate.Ai.ProviderEntry.Name.get -> string!
 Lunate.Ai.ProviderEntry.Name.init -> void
-Lunate.Ai.ProviderEntry.ProviderEntry(string! Name, string! Kind, System.Uri! BaseUrl, string! CredentialReference, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Headers = null, string? Region = null) -> void
+Lunate.Ai.ProviderEntry.ProviderEntry(string! Name, string! Kind, System.Uri! BaseUrl, string! CredentialReference, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Headers = null, string? Region = null, System.Collections.Generic.IReadOnlyDictionary<Lunate.Ai.ProviderApiFamily, System.Uri!>? BaseUrls = null, System.Uri? ModelsUrl = null) -> void
 Lunate.Ai.ProviderEntry.Region.get -> string?
 Lunate.Ai.ProviderEntry.Region.init -> void
+Lunate.Ai.ProviderEntry.UrlFor(Lunate.Ai.ProviderApiFamily family) -> System.Uri?
 Lunate.Ai.ProviderErrors
 Lunate.Ai.ProviderPreset
 Lunate.Ai.ProviderPreset.<Clone>$() -> Lunate.Ai.ProviderPreset!
@@ -107,17 +133,26 @@ Lunate.Ai.ProviderPreset.Adapter.get -> Lunate.Ai.ProviderAdapter
 Lunate.Ai.ProviderPreset.Adapter.init -> void
 Lunate.Ai.ProviderPreset.BaseUrl.get -> System.Uri!
 Lunate.Ai.ProviderPreset.BaseUrl.init -> void
-Lunate.Ai.ProviderPreset.Deconstruct(out string! Id, out string! Name, out Lunate.Ai.ProviderAdapter Adapter, out System.Uri! BaseUrl, out string! KeyVariable, out string? KeyVariableAlias) -> void
+Lunate.Ai.ProviderPreset.BaseUrls.get -> System.Collections.Generic.IReadOnlyDictionary<Lunate.Ai.ProviderApiFamily, System.Uri!>?
+Lunate.Ai.ProviderPreset.BaseUrls.init -> void
+Lunate.Ai.ProviderPreset.Deconstruct(out string! Id, out string! Name, out Lunate.Ai.ProviderAdapter Adapter, out System.Uri! BaseUrl, out string! KeyVariable, out string? KeyVariableAlias, out System.Collections.Generic.IReadOnlyDictionary<Lunate.Ai.ProviderApiFamily, System.Uri!>? BaseUrls, out System.Uri? ModelsUrl, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Headers) -> void
+Lunate.Ai.ProviderPreset.DefaultFamily.get -> Lunate.Ai.ProviderApiFamily
 Lunate.Ai.ProviderPreset.Equals(Lunate.Ai.ProviderPreset? other) -> bool
+Lunate.Ai.ProviderPreset.Families.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.ProviderApiFamily>!
+Lunate.Ai.ProviderPreset.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Lunate.Ai.ProviderPreset.Headers.init -> void
 Lunate.Ai.ProviderPreset.Id.get -> string!
 Lunate.Ai.ProviderPreset.Id.init -> void
 Lunate.Ai.ProviderPreset.KeyVariable.get -> string!
 Lunate.Ai.ProviderPreset.KeyVariable.init -> void
 Lunate.Ai.ProviderPreset.KeyVariableAlias.get -> string?
 Lunate.Ai.ProviderPreset.KeyVariableAlias.init -> void
+Lunate.Ai.ProviderPreset.ModelsUrl.get -> System.Uri?
+Lunate.Ai.ProviderPreset.ModelsUrl.init -> void
 Lunate.Ai.ProviderPreset.Name.get -> string!
 Lunate.Ai.ProviderPreset.Name.init -> void
-Lunate.Ai.ProviderPreset.ProviderPreset(string! Id, string! Name, Lunate.Ai.ProviderAdapter Adapter, System.Uri! BaseUrl, string! KeyVariable, string? KeyVariableAlias = null) -> void
+Lunate.Ai.ProviderPreset.ProviderPreset(string! Id, string! Name, Lunate.Ai.ProviderAdapter Adapter, System.Uri! BaseUrl, string! KeyVariable, string? KeyVariableAlias = null, System.Collections.Generic.IReadOnlyDictionary<Lunate.Ai.ProviderApiFamily, System.Uri!>? BaseUrls = null, System.Uri? ModelsUrl = null, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Headers = null) -> void
+Lunate.Ai.ProviderPreset.UrlFor(Lunate.Ai.ProviderApiFamily family) -> System.Uri?
 Lunate.Ai.ProviderPresets
 Lunate.Ai.ReasoningParameters
 Lunate.Ai.RecordingChatClient
