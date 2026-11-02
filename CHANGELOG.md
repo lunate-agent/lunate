@@ -8,6 +8,27 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-02
+
+The first stable release of the 0.2 line. Its contents are the two candidates' entries below —
+[0.2.0-rc.1] and [0.2.0-rc.2] — which record every change, and the fixes that landed after rc.1 was
+cut are in the rc.2 section. Highlights of the line:
+
+- **Bash guard**: every command runs inside an OS sandbox (Seatbelt on macOS, bubblewrap/Landlock on
+  Linux), with the guard's state in the header and a probe that proves it works.
+- **Decision layer**: one optional profile, four consumers (approvals, routing, the decide tool,
+  question suggestions), the same gate in the TUI, print mode and ACP.
+- **Provider store and profiles**: providers and credentials live in user scope only; a project may
+  reference them, never define one.
+- **Session work**: fork/clone with images and redaction, an owner-only state directory, and a
+  history that stays consistent under concurrent appends.
+- **Extensions**: single-file extensions with `#:package`, remote (out-of-process) extensions, a
+  self-contained template, and a published contract at `1.15.0`.
+- **MCP**: stdio children keep the environment they had, minus the credential values Lunate itself
+  knows unless the server's own `env` map names them.
+- **Docs**: a configuration reference generated from the settings schema, and a gate that loads every
+  tagged config example through the real parser.
+
 ## [0.2.0-rc.2] - 2026-11-02
 
 The third candidate. The decision layer ships behind one settings block, and the external review's
@@ -166,6 +187,7 @@ verified against a real, versioned build; the first stable release is `0.1.0`.
 
 [0.1.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.2...v0.1.0
 [0.1.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.1...v0.1.0-rc.2
+[0.2.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0
 [0.2.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.2.0-rc.1...v0.2.0-rc.2
 [0.2.0-rc.1]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0-rc.1
 [0.1.0-rc.1]: https://github.com/wdaniel1993/lunate/releases/tag/v0.1.0-rc.1
