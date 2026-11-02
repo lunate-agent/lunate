@@ -154,6 +154,18 @@ public sealed class ThinkingProfilePrecedenceTests
         host.Console.SendText("/quit");
         host.Console.SendEnter();
         await run;
+
+        using var nextHost = new InteractiveSessionHost();
+        File.Copy(host.Temp.File("settings.json"), nextHost.Temp.File("settings.json"));
+        File.Copy(host.Temp.File("models.json"), nextHost.Temp.File("models.json"));
+        File.Copy(host.Temp.File("auth.json"), nextHost.Temp.File("auth.json"));
+        Task nextRun = nextHost.RunAsync();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(nextHost, "think:low");
+        Assert.Contains("think:low", nextHost.LastFrame, StringComparison.Ordinal);
+
+        nextHost.Console.SendText("/quit");
+        nextHost.Console.SendEnter();
+        await nextRun;
     }
 
     [Fact]
