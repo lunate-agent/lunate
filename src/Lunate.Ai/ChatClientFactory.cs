@@ -117,19 +117,50 @@ public sealed class ChatClientFactory : IChatClientFactory
         ProviderPreset preset =
             ProviderPresets.Find(model.Provider) ?? throw UnsupportedProvider(model.Provider);
         string wireId = WireModelId(model, preset);
+        ProviderApiFamily family = ProviderFamilyResolver.Resolve(
+            model.ApiFamily,
+            preset.Families,
+            model.Provider,
+            model.Id
+        );
 
-        if (preset.Adapter == ProviderAdapter.Anthropic)
+        return family switch
         {
-            return CreateAnthropicClient(model, preset, _namedKeySource, apiKey)
-                .AsIChatClient(wireId);
-        }
-
-        // The native OpenAI preset keeps the SDK default endpoint; every compatible preset routes
-        // to its own base URL unless the entry declares one.
-        return CreateOpenAiClient(model, preset, _namedKeySource, apiKey)
-            .GetChatClient(wireId)
-            .AsIChatClient();
+            // The native OpenAI preset keeps the SDK default endpoint; every compatible preset
+            // routes to its own base URL unless the entry declares one.
+            ProviderApiFamily.OpenAiChat => CreateOpenAiClient(
+                    model,
+                    preset,
+                    _namedKeySource,
+                    apiKey
+                )
+                .GetChatClient(wireId)
+                .AsIChatClient(),
+            ProviderApiFamily.AnthropicMessages => CreateAnthropicClient(
+                    model,
+                    preset,
+                    _namedKeySource,
+                    apiKey
+                )
+                .AsIChatClient(wireId),
+            _ => throw NotImplementedFamily(family, model, model.Provider),
+        };
     }
+
+    private static NotSupportedException NotImplementedFamily(
+        ProviderApiFamily family,
+        ModelInfo model,
+        string provider
+    ) =>
+        new(
+            $"API family '{ProviderApiFamilies.Name(family)}' is not implemented in this slice of the "
+                + "provider-families change: model '"
+                + model.Id
+                + "' on provider '"
+                + provider
+                + "' resolves to it, but only 'openai-chat' and 'anthropic-messages' have clients. "
+                + "Pick a model of a wired family, or wait for the family's client."
+        );
 
     /// <summary>
     /// The id the provider receives. A declared wire id always wins; a qualified id on a
@@ -269,7 +300,7 @@ public sealed class ChatClientFactory : IChatClientFactory
             return named;
         }
 
-        if (model.Endpoint is not null && !ProviderEndpoint.IsOwn(model.Endpoint, preset.BaseUrl))
+        if (model.Endpoint is not null && !ProviderEndpoint.IsOwn(model.Endpoint, preset))
         {
             return PlaceholderCredential;
         }
