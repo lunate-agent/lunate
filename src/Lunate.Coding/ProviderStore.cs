@@ -37,6 +37,8 @@ internal sealed class ProviderStore
                         entry.CredentialReference,
                         entry.Headers,
                         entry.Region,
+                        entry.BaseUrls,
+                        entry.ModelsUrl,
                         out ProviderEntry? safeEntry,
                         out string? error
                     ) || safeEntry is null
@@ -74,7 +76,14 @@ internal sealed class ProviderStore
         lock (Gate)
         {
             ProviderFile file = Read(filePath);
-            var entries = file.Providers.ToDictionary(entry => entry.Name, StringComparer.Ordinal);
+            var entries = new Dictionary<string, ProviderEntry>(StringComparer.Ordinal);
+            foreach (ProviderFileRecord record in file.Providers)
+            {
+                // Read validated every row already, so this conversion cannot fail.
+                TryCreateRecord(record, out ProviderEntry? entry, out _);
+                entries.Add(entry!.Name, entry);
+            }
+
             bool migrated = false;
 
             foreach ((string name, _) in auth.Keys)
@@ -147,21 +156,13 @@ internal sealed class ProviderStore
                 );
             }
 
-            var entries = new List<ProviderEntry>(file.Providers.Length);
+            var entries = new List<ProviderFileRecord>(file.Providers.Length);
             var names = new HashSet<string>(StringComparer.Ordinal);
-            foreach (ProviderEntry entry in file.Providers)
+            foreach (ProviderFileRecord record in file.Providers)
             {
                 if (
-                    !ProviderEntry.TryCreate(
-                        entry.Name,
-                        entry.Kind,
-                        entry.BaseUrl,
-                        entry.CredentialReference,
-                        entry.Headers,
-                        entry.Region,
-                        out ProviderEntry? safeEntry,
-                        out string? error
-                    ) || safeEntry is null
+                    !TryCreateRecord(record, out ProviderEntry? entry, out string? error)
+                    || entry is null
                 )
                 {
                     throw new InvalidDataException(
@@ -169,14 +170,14 @@ internal sealed class ProviderStore
                     );
                 }
 
-                if (!names.Add(safeEntry.Name))
+                if (!names.Add(entry.Name))
                 {
                     throw new InvalidDataException(
-                        $"Invalid provider store '{path}': duplicate provider name '{safeEntry.Name}'. No providers were loaded."
+                        $"Invalid provider store '{path}': duplicate provider name '{entry.Name}'. No providers were loaded."
                     );
                 }
 
-                entries.Add(safeEntry);
+                entries.Add(ToFileRecord(entry));
             }
 
             return file with
@@ -193,6 +194,75 @@ internal sealed class ProviderStore
         }
     }
 
+    /// <summary>
+    /// Maps a file record to a validated entry. <c>baseUrls</c> keys must name a known API
+    /// family — an unknown key is refused by name with the supported set — and every declared
+    /// URL passes the provider entry's endpoint rule.
+    /// </summary>
+    private static bool TryCreateRecord(
+        ProviderFileRecord record,
+        out ProviderEntry? entry,
+        out string? error
+    )
+    {
+        entry = null;
+        Dictionary<ProviderApiFamily, Uri>? baseUrls = null;
+        if (record.BaseUrls is { Count: > 0 } declared)
+        {
+            baseUrls = [];
+            foreach ((string familyName, string urlValue) in declared)
+            {
+                if (!ProviderApiFamilies.TryParse(familyName, out ProviderApiFamily family))
+                {
+                    error =
+                        $"providers.{record.Name}.baseUrls has an unknown API family '{familyName}'; "
+                        + $"supported families: {ProviderApiFamilies.Supported()}.";
+                    return false;
+                }
+
+                if (!Uri.TryCreate(urlValue, UriKind.Absolute, out Uri? url))
+                {
+                    error =
+                        $"providers.{record.Name}.baseUrls.{familyName} is '{urlValue}', which is not a valid absolute URL.";
+                    return false;
+                }
+
+                baseUrls.Add(family, url);
+            }
+        }
+
+        return ProviderEntry.TryCreate(
+            record.Name,
+            record.Kind,
+            record.BaseUrl,
+            record.CredentialReference,
+            record.Headers,
+            record.Region,
+            baseUrls,
+            record.ModelsUrl,
+            out entry,
+            out error
+        );
+    }
+
+    private static ProviderFileRecord ToFileRecord(ProviderEntry entry) =>
+        new(
+            entry.Name,
+            entry.Kind,
+            entry.BaseUrl,
+            entry.CredentialReference,
+            entry.Headers,
+            entry.Region,
+            entry.BaseUrls is { Count: > 0 } baseUrls
+                ? baseUrls.ToDictionary(
+                    static family => ProviderApiFamilies.Name(family.Key),
+                    static family => family.Value.OriginalString,
+                    StringComparer.Ordinal
+                )
+                : null,
+            entry.ModelsUrl
+        );
+
     private static void Write(string path, IEnumerable<ProviderEntry> entries)
     {
         string? directory = Path.GetDirectoryName(path);
@@ -205,7 +275,7 @@ internal sealed class ProviderStore
         string temp = Path.Combine(targetDirectory, Path.GetRandomFileName() + ".tmp");
         string json =
             JsonSerializer.Serialize(
-                new ProviderFile(SchemaVersion, entries.ToArray()),
+                new ProviderFile(SchemaVersion, entries.Select(ToFileRecord).ToArray()),
                 JsonOptions
             ) + "\n";
         try
@@ -222,5 +292,16 @@ internal sealed class ProviderStore
         }
     }
 
-    private sealed record ProviderFile(int SchemaVersion, ProviderEntry[] Providers);
+    private sealed record ProviderFile(int SchemaVersion, ProviderFileRecord[] Providers);
+
+    private sealed record ProviderFileRecord(
+        string? Name,
+        string? Kind,
+        Uri? BaseUrl,
+        string? CredentialReference,
+        IReadOnlyDictionary<string, string>? Headers,
+        string? Region,
+        IReadOnlyDictionary<string, string>? BaseUrls,
+        Uri? ModelsUrl
+    );
 }

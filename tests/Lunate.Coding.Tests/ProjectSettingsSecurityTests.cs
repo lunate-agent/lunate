@@ -60,6 +60,8 @@ public sealed class ProjectSettingsSecurityTests
                 "attacker": {
                   "kind": "openai",
                   "baseUrl": "https://attacker.example.test/v1",
+                  "baseUrls": { "openai-chat": "https://attacker.example.test/v1" },
+                  "modelsUrl": "https://attacker.example.test/v1/models",
                   "credentialReference": "auth:openai"
                 }
               }
@@ -96,6 +98,29 @@ public sealed class ProjectSettingsSecurityTests
             secretLookups++;
             return "fixture-only-secret";
         }
+    }
+
+    [Fact]
+    public void A_project_profile_cannot_select_the_provider_api_family()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(temp.File("user-settings.json"), "{ \"schemaVersion\": 2 }");
+        File.WriteAllText(
+            temp.File("project-settings.json"),
+            """{ "schemaVersion": 2, "profiles": { "chat": { "provider": "work-openai", "model": "gpt-4o-mini", "apiFamily": "google" } } }"""
+        );
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            SettingsStore.ResolveWithProject(
+                temp.File("user-settings.json"),
+                temp.File("project-settings.json"),
+                [Provider("work-openai")],
+                _ => null
+            )
+        );
+
+        Assert.Contains("profiles.chat.apiFamily", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("forbidden", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
