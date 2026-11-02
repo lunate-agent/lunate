@@ -1,6 +1,9 @@
 namespace Lunate.Ai;
 
-/// <summary>A named model choice and the optional settings validated against its catalog model.</summary>
+/// <summary>A named model choice and the optional settings validated against its catalog model.
+/// <see cref="ApiFamily"/> is the optional wire-name override (<c>openai-chat</c>,
+/// <c>openai-responses</c>, <c>anthropic-messages</c>, <c>google</c>) that pins which API family
+/// the model resolves to; it wins over discovery and the catalog.</summary>
 internal sealed record ModelProfile(
     string Name,
     string Provider,
@@ -10,7 +13,8 @@ internal sealed record ModelProfile(
     int? MaxOutput = null,
     decimal? Temperature = null,
     int? ContextWindow = null,
-    ModelCapabilityDescriptor? CapabilitiesOverride = null
+    ModelCapabilityDescriptor? CapabilitiesOverride = null,
+    string? ApiFamily = null
 );
 
 /// <summary>A profile resolved to one user provider entry and one catalog model.</summary>
@@ -68,6 +72,34 @@ internal static class ModelProfileResolver
             );
         }
 
+        ProviderApiFamily family;
+        Uri? endpoint;
+        try
+        {
+            // Precedence: profile override, then the already-merged discovery/catalog family,
+            // then the provider's single family; the provider entry must declare a URL for it.
+            family = ProviderFamilyResolver.Resolve(
+                profile.ApiFamily ?? model.ApiFamily,
+                provider.Families,
+                provider.Name,
+                model.Id
+            );
+            endpoint = provider.UrlFor(family);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw Invalid(profile, "apiFamily", exception.Message);
+        }
+
+        if (endpoint is null)
+        {
+            throw Invalid(
+                profile,
+                "apiFamily",
+                $"provider '{provider.Name}' declares no URL for family '{ProviderApiFamilies.Name(family)}'; add \"baseUrls.{ProviderApiFamilies.Name(family)}\" to the provider entry"
+            );
+        }
+
         ValidateReasoning(profile, model);
         ValidateOutput(profile, model);
         ValidateTemperature(profile, model);
@@ -82,7 +114,8 @@ internal static class ModelProfileResolver
             provider,
             model with
             {
-                Endpoint = provider.BaseUrl,
+                Endpoint = endpoint,
+                ApiFamily = ProviderApiFamilies.Name(family),
                 Capabilities = capabilities,
             },
             contextWindow,

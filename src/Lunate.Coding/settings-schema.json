@@ -98,6 +98,13 @@
       "description": "Characters of one tool result before truncation. A project file may lower it, never raise it. `LUNATE_TOOL_OUTPUT_LIMIT` overrides it."
     },
     {
+      "name": "profiles.*.apiFamily",
+      "type": "string",
+      "default": "unset",
+      "scope": "user",
+      "description": "The API family the model must resolve to (`openai-chat`, `openai-responses`, `anthropic-messages` or `google`); it wins over discovery and the catalog and selects one of the provider's own URLs. User scope only."
+    },
+    {
       "name": "profiles.*.capabilities.apis",
       "type": "string array",
       "default": "unset",

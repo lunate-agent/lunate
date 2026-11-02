@@ -1,17 +1,43 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "providers": [
+    // openai: Chat Completions only (https://platform.openai.com/docs/api-reference/chat).
+    // The Responses API talks to the same base URL but is deliberately not declared: its
+    // client lands in a later slice of the provider-families change, and declaring a family
+    // no client serves would only turn a chosen model into a dead end.
     { "id": "openai", "name": "OpenAI", "adapter": "openai", "baseUrl": "https://api.openai.com/v1", "keyVariable": "OPENAI_API_KEY" },
-    { "id": "anthropic", "name": "Anthropic", "adapter": "anthropic", "baseUrl": "https://api.anthropic.com/v1", "keyVariable": "ANTHROPIC_API_KEY" },
-    { "id": "openrouter", "name": "OpenRouter", "adapter": "openai-compatible", "baseUrl": "https://openrouter.ai/api/v1", "keyVariable": "OPENROUTER_API_KEY" },
+    // anthropic: the Messages API is the only API the provider documents for serving
+    // (https://docs.anthropic.com/en/api/messages); one family, so no catalog annotation.
+    { "id": "anthropic", "name": "Anthropic", "adapter": "anthropic", "baseUrls": { "anthropic-messages": "https://api.anthropic.com/v1" }, "keyVariable": "ANTHROPIC_API_KEY" },
+    // openrouter: OpenAI-compatible Chat Completions (https://openrouter.ai/docs). The
+    // attribution headers the provider documents are declared here and become live when the
+    // headers pipeline lands (slice 2); this slice declares them without sending.
+    { "id": "openrouter", "name": "OpenRouter", "adapter": "openai-compatible", "baseUrl": "https://openrouter.ai/api/v1", "keyVariable": "OPENROUTER_API_KEY", "headers": { "HTTP-Referer": "https://github.com/wdaniel1993/lunate", "X-Title": "Lunate" } },
+    // deepseek: OpenAI-compatible Chat Completions (https://api-docs.deepseek.com); the apex
+    // domain serves the documented paths directly.
     { "id": "deepseek", "name": "DeepSeek", "adapter": "openai-compatible", "baseUrl": "https://api.deepseek.com", "keyVariable": "DEEPSEEK_API_KEY" },
+    // moonshotai: OpenAI-compatible Chat Completions (https://platform.moonshot.ai/docs/guide/chat-completion).
     { "id": "moonshotai", "name": "Moonshot AI", "adapter": "openai-compatible", "baseUrl": "https://api.moonshot.ai/v1", "keyVariable": "MOONSHOT_API_KEY" },
+    // zai: OpenAI-compatible Chat Completions (https://docs.z.ai/llm-api-quick-start/).
     { "id": "zai", "name": "Z.AI", "adapter": "openai-compatible", "baseUrl": "https://api.z.ai/api/paas/v4", "keyVariable": "ZHIPU_API_KEY" },
+    // opencode: the OpenAI-compatible inference surface (https://opencode.ai/docs).
     { "id": "opencode", "name": "OpenCode", "adapter": "openai-compatible", "baseUrl": "https://opencode.ai/inference/openai/v1", "keyVariable": "OPENCODE_API_KEY" },
-    { "id": "opencode-go", "name": "OpenCode Go", "adapter": "openai-compatible", "baseUrl": "https://opencode.ai/inference/go/openai/v1", "keyVariable": "OPENCODE_API_KEY" },
+    // opencode-go: one key across every wire API, declared per family (families may share a
+    // URL): chat and responses share the OpenAI-compatible surface, messages the
+    // Anthropic-compatible one, google the Gemini-compatible one. modelsUrl is the discovery
+    // endpoint a later slice reads; x-opencode-session pins a request to a session and is sent
+    // by the headers pipeline (slice 2), not by this slice.
+    { "id": "opencode-go", "name": "OpenCode Go", "adapter": "openai-compatible", "baseUrls": { "openai-chat": "https://opencode.ai/inference/go/openai/v1", "openai-responses": "https://opencode.ai/inference/go/openai/v1", "anthropic-messages": "https://opencode.ai/inference/go/anthropic/v1", "google": "https://opencode.ai/inference/go/google/v1beta" }, "modelsUrl": "https://opencode.ai/inference/go/v1/models", "headers": { "x-opencode-session": "{session.id}" }, "keyVariable": "OPENCODE_API_KEY" },
+    // groq: OpenAI-compatible Chat Completions (https://console.groq.com/docs/openai).
     { "id": "groq", "name": "Groq", "adapter": "openai-compatible", "baseUrl": "https://api.groq.com/openai/v1", "keyVariable": "GROQ_API_KEY" },
+    // togetherai: OpenAI-compatible Chat Completions (https://docs.together.ai/docs/openai-compatibility).
     { "id": "togetherai", "name": "Together AI", "adapter": "openai-compatible", "baseUrl": "https://api.together.xyz/v1", "keyVariable": "TOGETHER_API_KEY" },
+    // xai: OpenAI-compatible Chat Completions (https://docs.x.ai/api).
     { "id": "xai", "name": "xAI", "adapter": "openai-compatible", "baseUrl": "https://api.x.ai/v1", "keyVariable": "XAI_API_KEY" },
-    { "id": "google", "name": "Google", "adapter": "openai-compatible", "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai", "keyVariable": "GOOGLE_API_KEY", "keyVariableAlias": "GEMINI_API_KEY" }
+    // google: two families. The OpenAI-compatible surface is what the built-in catalog routes
+    // to today; the native Gemini API (https://ai.google.dev/gemini-api/docs) is declared here
+    // per the providers audit but has no client yet (slice 5), so the catalog annotates the
+    // google entries 'openai-chat' and nothing resolves to the native family by default.
+    { "id": "google", "name": "Google", "adapter": "openai-compatible", "baseUrls": { "openai-chat": "https://generativelanguage.googleapis.com/v1beta/openai", "google": "https://generativelanguage.googleapis.com/v1beta" }, "keyVariable": "GOOGLE_API_KEY", "keyVariableAlias": "GEMINI_API_KEY" }
   ]
 }

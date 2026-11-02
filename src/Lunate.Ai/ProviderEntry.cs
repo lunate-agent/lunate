@@ -2,7 +2,10 @@ namespace Lunate.Ai;
 
 /// <summary>
 /// A named user-owned provider access entry. Credential and header references point to secret
-/// sources; they never contain resolved values.
+/// sources; they never contain resolved values. <see cref="BaseUrls"/> may key a URL per API
+/// family (families may share a URL); <see cref="BaseUrl"/> stays accepted and means the kind's
+/// default family (<c>openai-chat</c> for OpenAI-compatible kinds, <c>anthropic-messages</c> for
+/// <c>anthropic</c>). Reading never rewrites a user file.
 /// </summary>
 public sealed record ProviderEntry(
     string Name,
@@ -10,9 +13,37 @@ public sealed record ProviderEntry(
     Uri BaseUrl,
     string CredentialReference,
     IReadOnlyDictionary<string, string>? Headers = null,
-    string? Region = null
+    string? Region = null,
+    IReadOnlyDictionary<ProviderApiFamily, Uri>? BaseUrls = null,
+    Uri? ModelsUrl = null
 )
 {
+    /// <summary>
+    /// The family <see cref="BaseUrl"/> shorthand names when <see cref="BaseUrls"/> is absent:
+    /// <see cref="ProviderApiFamily.AnthropicMessages"/> for the <c>anthropic</c> kind,
+    /// <see cref="ProviderApiFamily.OpenAiChat"/> for everything else.
+    /// </summary>
+    public ProviderApiFamily DefaultFamily =>
+        ProviderPresets.Find(Kind)?.DefaultFamily ?? ProviderApiFamily.OpenAiChat;
+
+    /// <summary>
+    /// The families this entry serves: the declared <see cref="BaseUrls"/> keys (in stable
+    /// declaration order) when present, otherwise just <see cref="DefaultFamily"/>.
+    /// </summary>
+    public IReadOnlyList<ProviderApiFamily> Families =>
+        BaseUrls is { Count: > 0 }
+            ? [.. ProviderApiFamilies.All.Where(BaseUrls.ContainsKey)]
+            : [DefaultFamily];
+
+    /// <summary>
+    /// The URL a family routes to, or null when the entry does not declare it. Without
+    /// <see cref="BaseUrls"/> only <see cref="DefaultFamily"/> resolves, to <see cref="BaseUrl"/>.
+    /// </summary>
+    public Uri? UrlFor(ProviderApiFamily family) =>
+        BaseUrls is { Count: > 0 } ? BaseUrls.GetValueOrDefault(family)
+        : family == DefaultFamily ? BaseUrl
+        : null;
+
     internal static bool TryCreate(
         string? name,
         string? kind,
@@ -20,6 +51,31 @@ public sealed record ProviderEntry(
         string? credentialReference,
         IReadOnlyDictionary<string, string>? headers,
         string? region,
+        out ProviderEntry? entry,
+        out string? error
+    ) =>
+        TryCreate(
+            name,
+            kind,
+            baseUrl,
+            credentialReference,
+            headers,
+            region,
+            baseUrls: null,
+            modelsUrl: null,
+            out entry,
+            out error
+        );
+
+    internal static bool TryCreate(
+        string? name,
+        string? kind,
+        Uri? baseUrl,
+        string? credentialReference,
+        IReadOnlyDictionary<string, string>? headers,
+        string? region,
+        IReadOnlyDictionary<ProviderApiFamily, Uri>? baseUrls,
+        Uri? modelsUrl,
         out ProviderEntry? entry,
         out string? error
     )
@@ -38,9 +94,51 @@ public sealed record ProviderEntry(
             return false;
         }
 
-        if (baseUrl is null || !baseUrl.IsAbsoluteUri || !IsAllowedEndpoint(baseUrl))
+        if (baseUrl is not null && (!baseUrl.IsAbsoluteUri || !IsAllowedEndpoint(baseUrl)))
         {
             error = $"providers.{name}.baseUrl must be https or loopback http";
+            return false;
+        }
+
+        Dictionary<ProviderApiFamily, Uri>? copiedFamilyUrls = null;
+        if (baseUrls is { Count: > 0 })
+        {
+            copiedFamilyUrls = [];
+            foreach ((ProviderApiFamily family, Uri familyUrl) in baseUrls)
+            {
+                if (!familyUrl.IsAbsoluteUri || !IsAllowedEndpoint(familyUrl))
+                {
+                    error =
+                        $"providers.{name}.baseUrls.{ProviderApiFamilies.Name(family)} must be https or loopback http";
+                    return false;
+                }
+
+                copiedFamilyUrls.Add(family, familyUrl);
+            }
+
+            if (baseUrl is null)
+            {
+                // The file declared only baseUrls: the shorthand baseUrl is the kind's default
+                // family URL, so derived from it rather than refused.
+                baseUrl = copiedFamilyUrls.GetValueOrDefault(preset.DefaultFamily);
+                if (baseUrl is null)
+                {
+                    error =
+                        $"providers.{name}.baseUrls must declare {ProviderApiFamilies.Name(preset.DefaultFamily)} when 'baseUrl' is absent";
+                    return false;
+                }
+            }
+        }
+
+        if (baseUrl is null)
+        {
+            error = $"providers.{name} must declare 'baseUrl' or 'baseUrls'";
+            return false;
+        }
+
+        if (modelsUrl is not null && (!modelsUrl.IsAbsoluteUri || !IsAllowedEndpoint(modelsUrl)))
+        {
+            error = $"providers.{name}.modelsUrl must be https or loopback http";
             return false;
         }
 
@@ -90,7 +188,9 @@ public sealed record ProviderEntry(
             baseUrl,
             credentialReference!,
             copiedHeaders,
-            region
+            region,
+            copiedFamilyUrls,
+            modelsUrl
         );
         error = null;
         return true;

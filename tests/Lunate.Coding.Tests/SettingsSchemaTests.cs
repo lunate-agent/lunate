@@ -65,6 +65,7 @@ public sealed partial class SettingsSchemaTests
         ["providers.*.baseUrl"] = "https://probe.example.test/v1",
         ["providers.*.model"] = ProbeModel,
         ["providers.*.catalogName"] = "Probe",
+        ["profiles.*.apiFamily"] = "openai-chat",
         ["profiles.*.provider"] = ProbeProvider,
         ["profiles.*.model"] = ProbeModel,
         ["profiles.*.reasoningLevel"] = "low",

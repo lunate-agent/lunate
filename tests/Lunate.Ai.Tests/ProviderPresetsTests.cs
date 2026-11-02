@@ -21,14 +21,23 @@ public sealed class ProviderPresetsTests
                 "Anthropic",
                 ProviderAdapter.Anthropic,
                 new Uri("https://api.anthropic.com/v1"),
-                "ANTHROPIC_API_KEY"
+                "ANTHROPIC_API_KEY",
+                BaseUrls: new Dictionary<ProviderApiFamily, Uri>
+                {
+                    [ProviderApiFamily.AnthropicMessages] = new("https://api.anthropic.com/v1"),
+                }
             ),
             new(
                 "openrouter",
                 "OpenRouter",
                 ProviderAdapter.OpenAiCompatible,
                 new Uri("https://openrouter.ai/api/v1"),
-                "OPENROUTER_API_KEY"
+                "OPENROUTER_API_KEY",
+                Headers: new Dictionary<string, string>
+                {
+                    ["HTTP-Referer"] = "https://github.com/wdaniel1993/lunate",
+                    ["X-Title"] = "Lunate",
+                }
             ),
             new(
                 "deepseek",
@@ -63,7 +72,24 @@ public sealed class ProviderPresetsTests
                 "OpenCode Go",
                 ProviderAdapter.OpenAiCompatible,
                 new Uri("https://opencode.ai/inference/go/openai/v1"),
-                "OPENCODE_API_KEY"
+                "OPENCODE_API_KEY",
+                BaseUrls: new Dictionary<ProviderApiFamily, Uri>
+                {
+                    [ProviderApiFamily.OpenAiChat] = new(
+                        "https://opencode.ai/inference/go/openai/v1"
+                    ),
+                    [ProviderApiFamily.OpenAiResponses] = new(
+                        "https://opencode.ai/inference/go/openai/v1"
+                    ),
+                    [ProviderApiFamily.AnthropicMessages] = new(
+                        "https://opencode.ai/inference/go/anthropic/v1"
+                    ),
+                    [ProviderApiFamily.Google] = new(
+                        "https://opencode.ai/inference/go/google/v1beta"
+                    ),
+                },
+                ModelsUrl: new Uri("https://opencode.ai/inference/go/v1/models"),
+                Headers: new Dictionary<string, string> { ["x-opencode-session"] = "{session.id}" }
             ),
             new(
                 "groq",
@@ -92,11 +118,22 @@ public sealed class ProviderPresetsTests
                 ProviderAdapter.OpenAiCompatible,
                 new Uri("https://generativelanguage.googleapis.com/v1beta/openai"),
                 "GOOGLE_API_KEY",
-                "GEMINI_API_KEY"
+                "GEMINI_API_KEY",
+                BaseUrls: new Dictionary<ProviderApiFamily, Uri>
+                {
+                    [ProviderApiFamily.OpenAiChat] = new(
+                        "https://generativelanguage.googleapis.com/v1beta/openai"
+                    ),
+                    [ProviderApiFamily.Google] = new(
+                        "https://generativelanguage.googleapis.com/v1beta"
+                    ),
+                }
             ),
         ];
 
-        Assert.Equal(expected, ProviderPresets.All);
+        // ProviderPreset is a record, but its dictionary members compare by reference, so the
+        // embedded table is compared structurally.
+        Assert.Equivalent(expected, ProviderPresets.All);
     }
 
     [Fact]
@@ -107,6 +144,46 @@ public sealed class ProviderPresetsTests
         Assert.NotNull(google);
         Assert.Equal("GOOGLE_API_KEY", google.KeyVariable);
         Assert.Equal("GEMINI_API_KEY", google.KeyVariableAlias);
+    }
+
+    [Fact]
+    public void Opencode_go_declares_all_four_families_and_the_discovery_url()
+    {
+        ProviderPreset preset = ProviderPresets.Find("opencode-go")!;
+
+        Assert.Equal(
+            [
+                ProviderApiFamily.OpenAiChat,
+                ProviderApiFamily.OpenAiResponses,
+                ProviderApiFamily.AnthropicMessages,
+                ProviderApiFamily.Google,
+            ],
+            preset.Families
+        );
+        Assert.Equal(
+            new Uri("https://opencode.ai/inference/go/openai/v1"),
+            preset.UrlFor(ProviderApiFamily.OpenAiResponses)
+        );
+        Assert.Equal(
+            new Uri("https://opencode.ai/inference/go/anthropic/v1"),
+            preset.UrlFor(ProviderApiFamily.AnthropicMessages)
+        );
+        Assert.Equal(
+            new Uri("https://opencode.ai/inference/go/google/v1beta"),
+            preset.UrlFor(ProviderApiFamily.Google)
+        );
+        Assert.Equal(new Uri("https://opencode.ai/inference/go/v1/models"), preset.ModelsUrl);
+    }
+
+    [Fact]
+    public void A_single_family_preset_resolves_its_default_only()
+    {
+        ProviderPreset anthropic = ProviderPresets.Find("anthropic")!;
+
+        Assert.Equal([ProviderApiFamily.AnthropicMessages], anthropic.Families);
+        Assert.Equal(anthropic.BaseUrl, anthropic.UrlFor(ProviderApiFamily.AnthropicMessages));
+        Assert.Null(anthropic.UrlFor(ProviderApiFamily.OpenAiChat));
+        Assert.Equal(ProviderApiFamily.AnthropicMessages, anthropic.DefaultFamily);
     }
 
     [Fact]
@@ -185,25 +262,95 @@ public sealed class ProviderPresetsTests
     [Fact]
     public void Parse_with_unsupported_schema_version_throws_naming_the_version()
     {
-        const string json = """{ "schemaVersion": 2, "providers": [] }""";
+        const string json = """{ "schemaVersion": 3, "providers": [] }""";
 
         InvalidDataException exception = AssertParseFails(json);
 
-        Assert.Contains("2", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("3", exception.Message, StringComparison.Ordinal);
         Assert.Contains(Source, exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Parse_with_missing_name_throws_naming_the_provider()
+    public void Parse_accepts_the_version_1_shorthand()
+    {
+        IReadOnlyList<ProviderPreset> presets = ProviderPresets.Parse(
+            """{ "schemaVersion": 1, "providers": [ { "id": "legacy", "name": "Legacy", "adapter": "openai-compatible", "baseUrl": "https://legacy.example.test/v1", "keyVariable": "LEGACY_API_KEY" } ] }""",
+            Source
+        );
+
+        ProviderPreset legacy = Assert.Single(presets);
+        Assert.Equal("https://legacy.example.test/v1", legacy.BaseUrl.AbsoluteUri);
+        Assert.Null(legacy.BaseUrls);
+        Assert.Equal(ProviderApiFamily.OpenAiChat, legacy.DefaultFamily);
+    }
+
+    [Fact]
+    public void Parse_refuses_an_unknown_family_name_in_base_urls()
     {
         string json = JsonWithProviders(
-            """{ "id": "openai", "adapter": "openai", "baseUrl": "https://api.openai.com/v1", "keyVariable": "OPENAI_API_KEY" }"""
+            """{ "id": "sample", "name": "Sample", "adapter": "openai-compatible", "baseUrls": { "openai-chat": "https://sample.example.test/v1", "mistery": "https://sample.example.test/mystery" }, "keyVariable": "SAMPLE_API_KEY" }"""
         );
 
         InvalidDataException exception = AssertParseFails(json);
 
-        Assert.Contains("openai", exception.Message, StringComparison.Ordinal);
-        Assert.Contains(Source, exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mistery", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("supported families", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'mistery' in 'baseUrls'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_takes_the_shorthand_url_from_the_default_family_when_only_base_urls_are_declared()
+    {
+        ProviderPreset preset = ProviderPresets
+            .Parse(
+                JsonWithProviders(
+                    """{ "id": "sample", "name": "Sample", "adapter": "openai-compatible", "baseUrls": { "openai-chat": "https://sample.example.test/v1" }, "keyVariable": "SAMPLE_API_KEY" }"""
+                ),
+                Source
+            )
+            .Single();
+
+        Assert.Equal("https://sample.example.test/v1", preset.BaseUrl.AbsoluteUri);
+    }
+
+    [Fact]
+    public void Parse_refuses_base_urls_without_the_adapters_default_family_and_no_shorthand()
+    {
+        string json = JsonWithProviders(
+            """{ "id": "sample", "name": "Sample", "adapter": "openai-compatible", "baseUrls": { "google": "https://sample.example.test/google" }, "keyVariable": "SAMPLE_API_KEY" }"""
+        );
+
+        InvalidDataException exception = AssertParseFails(json);
+
+        Assert.Contains("openai-chat", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_keeps_the_declared_models_url_and_headers()
+    {
+        ProviderPreset preset = ProviderPresets
+            .Parse(
+                JsonWithProviders(
+                    """{ "id": "sample", "name": "Sample", "adapter": "openai-compatible", "baseUrl": "https://sample.example.test/v1", "modelsUrl": "https://sample.example.test/v1/models", "headers": { "X-Known": "literal-value" }, "keyVariable": "SAMPLE_API_KEY" }"""
+                ),
+                Source
+            )
+            .Single();
+
+        Assert.Equal("https://sample.example.test/v1/models", preset.ModelsUrl!.AbsoluteUri);
+        Assert.Equal("literal-value", preset.Headers!.Single().Value);
+    }
+
+    [Fact]
+    public void Parse_refuses_a_header_with_a_control_character_value()
+    {
+        string json = JsonWithProviders(
+            """{ "id": "sample", "name": "Sample", "adapter": "openai-compatible", "baseUrl": "https://sample.example.test/v1", "headers": { "X-Refused": "line\nbreak" }, "keyVariable": "SAMPLE_API_KEY" }"""
+        );
+
+        InvalidDataException exception = AssertParseFails(json);
+
+        Assert.Contains("X-Refused", exception.Message, StringComparison.Ordinal);
     }
 
     private static InvalidDataException AssertParseFails(string json) =>
@@ -212,7 +359,7 @@ public sealed class ProviderPresetsTests
     private static string JsonWithProviders(params string[] providers) =>
         $$"""
             {
-              "schemaVersion": 1,
+              "schemaVersion": 2,
               "providers": [
                 {{string.Join(",\n            ", providers)}}
               ]
