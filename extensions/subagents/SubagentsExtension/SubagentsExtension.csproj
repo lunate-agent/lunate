@@ -56,7 +56,7 @@
         <None Include="../README.md" Pack="true" PackagePath="/" />
         <!-- The packages carry the same icon: one brand on every feed page. -->
         <None
-            Include="../../../docs/media/brand/lunate-logo-dark.png"
+            Include="../../../assets/brand/lunate-logo-dark.png"
             Pack="true"
             PackagePath="/"
         />

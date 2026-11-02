@@ -29,7 +29,10 @@ provider is called during a render.
 | `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](tapes/features-bash.tape) |
 | `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](tapes/features-follow-up.tape) |
 | `first-run.gif` | not on disk yet — see [`first-run.md`](first-run.md) | recorded by hand with a real key |
-| `brand/*` | `README.md` logo, social preview | not taped |
+
+A note on the logo and social preview: the brand files do not live in this media set — the
+build packs them as package icons out of [`assets/brand/`](../../assets/brand/), a build-owned
+directory, so `docs/` stays prose that no build reads (#430).
 
 ## Re-rendering
 

@@ -81,7 +81,7 @@ public sealed class ExtensionContractPackages
             Assert.True(File.Exists(ReadmePath(id)), $"{id} packs a README.md that is missing.");
             Assert.True(
                 File.Exists(IconPath()),
-                "docs/media/brand/lunate-logo-dark.png is missing: every package packs it as its icon."
+                "assets/brand/lunate-logo-dark.png is missing: every package packs it as its icon."
             );
         }
     }
@@ -202,7 +202,7 @@ public sealed class ExtensionContractPackages
     private static string ReadmePath(string id) => Path.Combine(ProjectDirectory(id), "README.md");
 
     private static string IconPath() =>
-        Path.Combine(RepositoryRoot.Find(), "docs", "media", "brand", "lunate-logo-dark.png");
+        Path.Combine(RepositoryRoot.Find(), "assets", "brand", "lunate-logo-dark.png");
 
     private static XElement SingleReference(XDocument document, string name, string includeMatch) =>
         Assert.Single(
