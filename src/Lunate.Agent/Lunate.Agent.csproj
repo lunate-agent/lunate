@@ -31,7 +31,7 @@
 
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="/" />
-        <None Include="../../docs/media/brand/lunate-logo-dark.png" Pack="true" PackagePath="/" />
+        <None Include="../../assets/brand/lunate-logo-dark.png" Pack="true" PackagePath="/" />
     </ItemGroup>
 
     <ItemGroup>

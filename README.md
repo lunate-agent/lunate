@@ -1,8 +1,8 @@
 # Lunate
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/brand/lunate-logo-dark.png">
-  <img src="docs/media/brand/lunate-logo-light.png" alt="Lunate" width="340">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lunate-logo-dark.png">
+  <img src="assets/brand/lunate-logo-light.png" alt="Lunate" width="340">
 </picture>
 
 **Small, native, yours: a coding agent you can customise in C#.**
