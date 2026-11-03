@@ -136,7 +136,7 @@ public sealed class ExtensionContractPackages
     /// a second copy would blur which copy types bind to at load.
     /// </summary>
     [Theory]
-    [InlineData("Lunate.Agent", new[] { "Lunate.Ai.dll" })]
+    [InlineData("Lunate.Agent", new[] { "Lunate.Ai.dll", "Lunate.Ai.Decisions.dll" })]
     [InlineData(
         "Lunate.Extensibility.Testing",
         new[]
@@ -208,10 +208,11 @@ public sealed class ExtensionContractPackages
         Assert.Single(
             document.Descendants(name),
             element =>
-                ((string?)element.Attribute("Include"))?.Contains(
-                    includeMatch,
+                string.Equals(
+                    Path.GetFileName((string?)element.Attribute("Include")),
+                    includeMatch + ".csproj",
                     StringComparison.Ordinal
-                ) == true
+                )
         );
 
     private static XDocument Load(string id) =>
