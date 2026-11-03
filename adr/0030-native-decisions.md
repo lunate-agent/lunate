@@ -1,6 +1,6 @@
 # ADR-0030: Native decisions are a provider family, not a chat model
 
-Status: proposed — 2026-11-02
+Status: accepted — 2026-11-03
 Completes: ADR-0027 (provider store) and ADR-0028 (decision layer); builds on ADR-0029
 
 ## Context
@@ -26,7 +26,10 @@ are an array while choice criteria are a record, OpenCode needs an image header,
    provider `usage`. A thin `IChatClient` facade fails chat calls by name so the 0.2 seam and its
    provenance are untouched.
 3. Keep provider differences as **preset data**: criteria shape overrides, image-only headers, model
-   ids. One client, one mapper, fixture per provider.
+   ids. One client, one mapper, fixture per provider. Two presets ship in 0.3 — OpenRouter
+   (`jev-1.14`) and OpenCode Console/Zen (`jev-1.13`, no box questions). A Go key on the OpenCode
+   systemone URL bills to the pay-as-you-go balance, not the Go plan. TypeSafe direct is deferred
+   until a live probe with a key exists; no unverified preset ships.
 4. Extend the decision contract **minor to 1.16.0**: a fourth kind, box (four fractions + confidence),
    and image parts in the state, gated by the model's input modalities. The adapter supports box only
    on vision-capable chat models.

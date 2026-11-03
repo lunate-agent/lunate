@@ -22,9 +22,10 @@ chat families would misrepresent it.
    decision layer's native seam, returns raw `answers` JSON for the existing validator, and reports
    the provider's `usage` so `/cost` can show decision cost.
 3. **Presets** carry the SystemOne URL: OpenRouter (`/api/v1/systemone`), OpenCode Console/Zen
-   (`/inference/systemone/v1/systemone`, the subscription that serves Jev — not Go), and TypeSafe
-   direct (`api.typesafe.ai/v1/systemone`). All three share one client; the small per-provider
-   differences (score criteria shape, image header, model ids) are data in the preset, not forks.
+   (`/inference/systemone/v1/systemone`; Console/Zen, and a Go key there bills to the pay-as-you-go
+   balance, not the Go plan). Both share one client; the small per-provider differences (score
+   criteria shape, image header, model ids) are data in the preset, not forks. No TypeSafe-direct
+   preset ships in 0.3 — an unverified endpoint does not get a preset.
 4. **Contract minor bump to 1.16.0** (lockstep): a fourth question kind, **box** (instructions in;
    `top`/`bottom`/`left`/`right` fractions + confidence out), and **image parts in the state**, gated
    by the model's input-modality capability. The adapter path supports box only on a vision-capable
@@ -41,8 +42,8 @@ Nine live calls recorded as fixtures in `fixtures/` (provenance in `fixtures/REA
 shape, all four question kinds, the response and `usage` shape on OpenRouter; the OpenCode variant
 with its `usage.opencode` block; the error shapes. Two provider differences found and designed for:
 `score.criteria` is an **array** while `choice.criteria` is an **object**; and OpenCode requires the
-header `TypeSafe-Danger-Zone-Images: true` for image content. TypeSafe direct is documented but **not
-verified live** (no key) — first implementation task.
+header `TypeSafe-Danger-Zone-Images: true` for image content. TypeSafe direct is **not** verified live
+(no key) and is therefore out of 0.3; Jev stays reachable through OpenRouter and OpenCode.
 
 ## Scope
 
