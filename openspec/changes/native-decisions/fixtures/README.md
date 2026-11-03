@@ -27,3 +27,7 @@ Files and what each pins:
 
 These become test fixtures in the implementation; they are kept here so the design's claims are
 auditable and a reviewer can diff the later client against the recorded wire shapes.
+
+- `typesafe-openapi.json` — the provider's published OpenAPI 3.1 document, snapshotted 2026-11-03. The
+  contract test validates every recorded fixture against it and pins its hash, so schema drift shows
+  up as a failing test rather than a mis-mapped answer.

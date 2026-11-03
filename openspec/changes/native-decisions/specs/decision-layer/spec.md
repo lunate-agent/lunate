@@ -9,8 +9,9 @@ answer and result DTOs SHALL live in `Lunate.Contracts`; a request SHALL carry a
 the resolved model's input modalities include images) and **one or more named questions** evaluated
 independently against that state. Results SHALL be keyed by question id, and question ids SHALL be
 unique within a request. A result SHALL carry the chosen answer, that answer's probability, the full
-distribution over the question's answers, the resolved model id and the method label (`native` or
-`adapter`); a box answer SHALL instead carry four image fractions and a confidence. The result SHALL
+distribution over the question's answers, the computed **confidence** (one definition across native
+and adapter, derived from the distribution), the resolved model id and the method label (`native` or
+`adapter`); a box answer SHALL instead carry four image fractions and the provider's confidence. The result SHALL
 be the only thing a caller sees of the model exchange: never raw model text or off-contract
 probabilities.
 
@@ -113,8 +114,19 @@ provider's request shape — model, state, questions with the per-kind criteria 
 requires — and SHALL return raw `answers` JSON to the existing validator. Provider differences SHALL
 be data on the preset, not separate families: a criteria-shape override where a provider differs and
 image-only headers applied when the request contains image content. A deterministic 4xx SHALL surface
-as a typed transport failure naming the provider's message, not be retried as an off-contract
-response. A chat usage SHALL refuse a `systemone` model, naming the family.
+as a typed transport failure naming the provider's message and, for a 422, the offending field, not be
+retried as an off-contract response. A chat usage SHALL refuse a `systemone` model, naming the family.
+
+The transport SHALL enforce the provider's request rules before sending where it can do so cheaply:
+a UTF-8 JSON body of at most 32 MiB (413 maps to a named error), at most 64 nesting levels in `state`,
+`instructions` and `criteria`, finite numbers only, and identifiers or exact large quantities sent as
+strings. It SHALL gzip bodies above a threshold, retry `429` and `529` with exponential backoff and
+jitter honouring `retry-after` (at most three attempts), and surface `422` fields and the
+`max_tokens_exceeded` 400 as "state too large for this model".
+
+Discovery SHALL read the provider's models endpoint and fall back to the catalog; recorded response
+fixtures SHALL be validated against the provider's published OpenAPI snapshot in a contract test that
+fails on schema drift.
 
 #### Scenario: A native decision does not go through chat
 
@@ -178,3 +190,90 @@ alias. Discovery MAY display aliases; a profile SHALL NOT persist one.
 - **GIVEN** a profile naming `typesafe/jev-1.14-20261014`
 - **WHEN** it is validated
 - **THEN** it is accepted and the decision records that model id
+
+### Requirement: Confidence
+
+The layer SHALL compute confidence from the answer's own distribution, for native and adapter results
+alike, using one definition: noul `|2p − 1|`; choice `(p_max − 1/n) / (1 − 1/n)`; score
+`max(0, 1 − Σ_i p_i·|i − m| / MAD_unif)` with `MAD_unif = (1/n)·Σ_i |i − (n−1)/2|`; box the provider's
+confidence. The computed value SHALL be recorded in provenance next to the distribution and SHALL be
+the value the public contract exposes.
+
+#### Scenario: Confidence matches the published formulas
+
+- **GIVEN** a choice answer `(0.6, 0.3, 0.1)`, a score answer `(0, 0.57, 0.43)` and a noul `p = 0.5`
+- **WHEN** confidence is computed
+- **THEN** the values are `0.4`, `0.35` and `0`, matching the provider's documented examples
+
+#### Scenario: Native and adapter agree
+
+- **GIVEN** the same distribution from a native answer and from an adapter answer
+- **WHEN** both results are recorded
+- **THEN** their confidence values are equal
+
+### Requirement: Confidence-gated routing
+
+When a decision routes to a chat profile, a result below `decisions.routingMinConfidence` (default
+`0.5`) SHALL NOT take the argmax: the configured chat profile stays in force. At or above the
+threshold the winning profile SHALL be used. The transcript SHALL record the distribution, the
+confidence and the gate outcome. Each routing option SHALL carry a short user-written description used
+as its criteria; a profile without a description is allowed with a one-time warning. Options SHALL be
+presented sorted by name, not in configuration order, so a positional bias cannot decide the route.
+
+#### Scenario: Low confidence keeps the chat profile
+
+- **GIVEN** a routing decision with confidence below the configured minimum
+- **WHEN** the route is applied
+- **THEN** the configured chat profile stays in force, and the transcript says why
+
+#### Scenario: A missing description warns once
+
+- **GIVEN** routing enabled with a profile that has no description
+- **WHEN** the session starts
+- **THEN** one transcript warning says routing quality depends on the description, and the session
+  continues
+
+### Requirement: Atomic approval questions
+
+The approval gate SHALL ask several atomic noul questions about one structured state in one request,
+covering at least writes outside the workspace, network access, irreversible deletion and credential
+exposure. The state SHALL carry only the fields those questions need — tool, arguments, workspace
+root, risk tier — with untrusted content in its own named field, and untrusted content SHALL NOT
+appear in any instruction or criteria. Code SHALL combine the atomic answers into the escalate
+decision using the decision profile's thresholds. Shadow mode SHALL record every atomic answer. No
+answer SHALL approve a tool call; a decision can only tighten the gate.
+
+#### Scenario: Four signals, one request
+
+- **GIVEN** a tool call that writes outside the workspace and reaches the network
+- **WHEN** the approval gate decides
+- **THEN** one request carries all four atomic questions, the two relevant signals are recorded as
+  true with their probabilities, and the call escalates
+
+#### Scenario: Untrusted content stays data
+
+- **GIVEN** a tool argument containing text that instructs the model to answer yes
+- **WHEN** the gate questions are built
+- **THEN** that text appears only in the state's `untrusted_content` field and in no instruction or
+  criteria
+
+### Requirement: Decision state size
+
+Decision states SHALL stay small and structured. The transcript SHALL warn when a state is estimated
+above the model's default per-question budget (about 28k tokens of the 32k limit, estimated at four
+characters per token), because beyond it the provider's long-context mode is slower and less accurate.
+Long-context mode SHALL NOT be enabled implicitly; it is an explicit per-provider option. The
+tool-result consumer SHALL send head and tail with a truncation marker rather than a whole output.
+
+#### Scenario: A large state warns
+
+- **GIVEN** a state estimated above the per-question budget
+- **WHEN** the decision is proposed
+- **THEN** the transcript warns that accuracy and latency degrade beyond the default budget and that
+  long context is opt-in, and the request is still sent
+
+#### Scenario: A tool result is truncated
+
+- **GIVEN** a tool output larger than the consumer's budget
+- **WHEN** it becomes decision state
+- **THEN** only its head and tail are sent, and the state says it was truncated

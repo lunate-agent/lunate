@@ -60,3 +60,13 @@ are an array while choice criteria are a record, OpenCode needs an image header,
   the preset audit for differences that are data, not protocol.
 - **Let profiles use the `jev-latest` alias.** Convenient, and wrong: upgrades silently change
   probabilities, which is exactly what a pinned decision profile must not allow.
+
+## Addendum — 2026-11-03: the MEAI swap path
+
+The client surface is deliberately shaped like `Microsoft.Extensions.AI` — `IDecisionClient` with
+`GetDecisionAsync(request, options, ct)`, `GetService`, a delegating client, a builder and
+OpenTelemetry — and the internals are split into `Lunate.Ai.Decisions` (the abstraction plus the chat
+adapter) and `Lunate.Ai.SystemOne` (the vendor transport), neither packed. If MEAI ships a decision
+abstraction, `IDecisionClient` becomes an adapter onto it (or is replaced by it) and System One
+implements theirs; the public `Lunate.Contracts` request/result types are revisited only at the next
+contract major, so the swap stays mechanical and nothing users depend on moves.
