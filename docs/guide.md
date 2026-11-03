@@ -495,6 +495,16 @@ retried once, then reported as a failed decision naming the model. `apiType` rec
 `adapter` provenance but does not assess suitability. Decisions never override deny or approve beyond
 the user's allow envelope.
 
+A **System One** decision profile names the native transport with `apiFamily: systemone` and pins an
+exact catalog version, for example `{"provider": "openrouter", "model":
+"openrouter/typesafe/jev-1.14", "apiFamily": "systemone"}` as `decisions.profile`. Chat usage refuses
+that profile by name; `openrouter` serves Jev 1.14 (box questions with an image) and `opencode` serves
+Jev 1.13 only (no box), through the Console/Zen surface rather than OpenCode Go. Jev Router is an
+ordinary chat model: a chat profile points at it like any other OpenRouter model and does not set
+`apiFamily`, so it never takes the decision transport. See
+[`configuration.md`](configuration.md#system-one-decision-profiles) for the presets, alias refusal,
+cost reporting and the 32k per-question budget.
+
 The top-level `verify` setting selects how staged writes are verified: `block` (default) prevents a
 write on verifier refusal, `warn` writes and reports `unverified` with diagnostics, and `off` skips
 verifier selection and execution. It has no environment-variable override.

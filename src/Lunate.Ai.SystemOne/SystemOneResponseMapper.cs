@@ -177,7 +177,36 @@ internal static class SystemOneResponseMapper
             && double.IsFinite(parsedCost)
                 ? parsedCost
                 : null;
-        return new DecisionUsage(input, output, cost, IsProviderReported: cost.HasValue);
+        return new DecisionUsage(input, output, cost, IsProviderReported: cost.HasValue)
+        {
+            Opencode = OpencodeBlock(usage),
+        };
+    }
+
+    private static DecisionUsage.OpencodeUsage? OpencodeBlock(JsonElement usage)
+    {
+        if (
+            !usage.TryGetProperty("opencode", out JsonElement opencode)
+            || opencode.ValueKind != JsonValueKind.Object
+        )
+        {
+            return null;
+        }
+
+        string? billingSource =
+            opencode.TryGetProperty("billing_source", out JsonElement source)
+            && source.ValueKind == JsonValueKind.String
+                ? source.GetString()
+                : null;
+        double? listCost =
+            opencode.TryGetProperty("list_cost", out JsonElement listCostElement)
+            && listCostElement.TryGetDouble(out double parsedListCost)
+            && double.IsFinite(parsedListCost)
+                ? parsedListCost
+                : null;
+        return billingSource is null && listCost is null
+            ? null
+            : new DecisionUsage.OpencodeUsage(billingSource, listCost);
     }
 
     private static long? OptionalInt64(JsonElement element, string property) =>

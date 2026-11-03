@@ -463,6 +463,8 @@ Lunate.Agent.UsageUpdated.Deconstruct(out string! RunId, out Microsoft.Extension
 Lunate.Agent.UsageUpdated.Equals(Lunate.Agent.UsageUpdated? other) -> bool
 Lunate.Agent.UsageUpdated.ModelId.get -> string?
 Lunate.Agent.UsageUpdated.ModelId.init -> void
+Lunate.Agent.UsageUpdated.ProviderCost.get -> double?
+Lunate.Agent.UsageUpdated.ProviderCost.init -> void
 Lunate.Agent.UsageUpdated.Usage.get -> Microsoft.Extensions.AI.UsageDetails!
 Lunate.Agent.UsageUpdated.Usage.init -> void
 Lunate.Agent.UsageUpdated.UsageUpdated(string! RunId, Microsoft.Extensions.AI.UsageDetails! Usage) -> void

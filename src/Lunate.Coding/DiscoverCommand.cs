@@ -248,7 +248,8 @@ public static class DiscoverCommand
                 baseUrl,
                 qualified,
                 authRef,
-                pinnedToHost
+                pinnedToHost,
+                catalog
             );
         }
     }
@@ -261,7 +262,8 @@ public static class DiscoverCommand
         string baseUrl,
         bool qualified,
         string? authRef,
-        bool pinnedToHost
+        bool pinnedToHost,
+        ModelCatalog catalog
     )
     {
         JsonDocument document;
@@ -322,6 +324,13 @@ public static class DiscoverCommand
                 string? endpoint =
                     metadata?.Endpoint?.AbsoluteUri.TrimEnd('/')
                     ?? (customEndpoint ? baseUrl : null);
+                (string? apiFamily, string? apiType, bool? orderSensitive) = DecisionAnnotation(
+                    catalog,
+                    metadata,
+                    provider,
+                    qualified,
+                    listed
+                );
                 models.Add(
                     qualified
                         ? new DraftModel(
@@ -330,14 +339,16 @@ public static class DiscoverCommand
                             endpoint,
                             authRef,
                             WireId: listed,
-                            metadata?.ApiFamily,
+                            apiFamily,
                             metadata?.ContextWindow,
                             metadata?.SupportsTools,
                             metadata?.MaxOutput,
                             metadata?.SupportsVision,
                             metadata?.Reasoning,
                             metadata?.Capabilities,
-                            metadata?.SupportsTemperature
+                            metadata?.SupportsTemperature,
+                            apiType,
+                            orderSensitive
                         )
                         : new DraftModel(
                             listed,
@@ -345,14 +356,16 @@ public static class DiscoverCommand
                             endpoint,
                             authRef,
                             WireId: null,
-                            metadata?.ApiFamily,
+                            apiFamily,
                             metadata?.ContextWindow,
                             metadata?.SupportsTools,
                             metadata?.MaxOutput,
                             metadata?.SupportsVision,
                             metadata?.Reasoning,
                             metadata?.Capabilities,
-                            metadata?.SupportsTemperature
+                            metadata?.SupportsTemperature,
+                            apiType,
+                            orderSensitive
                         )
                 );
             }
@@ -362,6 +375,67 @@ public static class DiscoverCommand
                 DraftJson
             );
             return new DiscoverResult(true, draft, null);
+        }
+    }
+
+    /// <summary>
+    /// The draft's decision annotations: the listing's own metadata when the provider declares the
+    /// family, and the model endpoint with catalog fallback — the catalog entry the draft would
+    /// replace carries the family, the native transport label and the routing-order flag when the
+    /// provider's listing does not, so a refreshed draft never silently turns a decision model
+    /// into a chat one.
+    /// </summary>
+    private static (
+        string? ApiFamily,
+        string? ApiType,
+        bool? ChoiceOrderSensitive
+    ) DecisionAnnotation(
+        ModelCatalog catalog,
+        DiscoveryModelMetadata? metadata,
+        string? provider,
+        bool qualified,
+        string listed
+    )
+    {
+        string? declaredFamily = metadata?.ApiFamily;
+        if (declaredFamily is not null)
+        {
+            return (
+                declaredFamily,
+                string.Equals(
+                    declaredFamily,
+                    ProviderApiFamilies.SystemOne,
+                    StringComparison.Ordinal
+                )
+                    ? "native"
+                    : null,
+                null
+            );
+        }
+
+        try
+        {
+            ModelInfo? known =
+                qualified && provider is { }
+                    ? catalog.Find($"{provider}/{listed}")
+                    : catalog.Find(listed);
+            return (
+                string.Equals(
+                    known?.ApiFamily,
+                    ProviderApiFamilies.SystemOne,
+                    StringComparison.Ordinal
+                )
+                    ? known!.ApiFamily
+                    : null,
+                known?.ApiType,
+                known?.ChoiceOrderSensitive == true ? true : null
+            );
+        }
+        catch (InvalidOperationException)
+        {
+            // An ambiguous id names its candidates in the draft anyway; the annotations stay
+            // absent rather than misleading.
+            return (null, null, null);
         }
     }
 
@@ -643,6 +717,8 @@ public static class DiscoverCommand
         bool? SupportsVision = null,
         string? Reasoning = null,
         ModelCapabilityDescriptor? Capabilities = null,
-        bool? SupportsTemperature = null
+        bool? SupportsTemperature = null,
+        string? ApiType = null,
+        bool? ChoiceOrderSensitive = null
     );
 }

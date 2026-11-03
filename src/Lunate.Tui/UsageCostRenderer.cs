@@ -16,6 +16,9 @@ public sealed record CostGroupView(
 {
     /// <summary>The decision method shown beside decision-usage totals, when attributed.</summary>
     public string? DecisionMethod { get; init; }
+
+    /// <summary>Where a decision amount came from: <c>provider-reported</c> or <c>estimate</c>.</summary>
+    public string? CostSource { get; init; }
 }
 
 /// <summary>The priced and unpriced cost groups shown by the read-only cost command.</summary>
@@ -63,9 +66,13 @@ public static class UsageCostRenderer
                 name += $" ({method})";
             }
 
+            string cost =
+                group.Cost is null ? "unpriced"
+                : group.CostSource is { Length: > 0 } source ? $"{group.Cost} ({source})"
+                : group.Cost;
             lines.Add(
                 FormattableString.Invariant(
-                    $"  {name}: {group.Input.ToString("N0", CultureInfo.InvariantCulture)} in / {group.Output.ToString("N0", CultureInfo.InvariantCulture)} out / {group.CacheRead.ToString("N0", CultureInfo.InvariantCulture)} cache read / {group.CacheWrite.ToString("N0", CultureInfo.InvariantCulture)} cache write = {group.Cost ?? "unpriced"}; models: {string.Join(", ", group.ModelIds)}"
+                    $"  {name}: {group.Input.ToString("N0", CultureInfo.InvariantCulture)} in / {group.Output.ToString("N0", CultureInfo.InvariantCulture)} out / {group.CacheRead.ToString("N0", CultureInfo.InvariantCulture)} cache read / {group.CacheWrite.ToString("N0", CultureInfo.InvariantCulture)} cache write = {cost}; models: {string.Join(", ", group.ModelIds)}"
                 )
             );
         }

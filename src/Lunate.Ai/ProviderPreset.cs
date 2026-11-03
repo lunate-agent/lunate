@@ -6,7 +6,8 @@ namespace Lunate.Ai;
 /// variable accepted for the same provider (for example <c>GEMINI_API_KEY</c> for Google).
 /// A preset may declare per-family URLs (<see cref="BaseUrls"/>, families may share a URL), a
 /// discovery <see cref="ModelsUrl"/>, <see cref="Headers"/> (values literal, template or
-/// credential reference) and per-family <see cref="CredentialPlacements"/>.
+/// credential reference), per-family <see cref="CredentialPlacements"/> and per-family headers
+/// (<see cref="FamilyHeaders"/>, sent only on that family's wire).
 /// </summary>
 public sealed record ProviderPreset(
     string Id,
@@ -18,7 +19,9 @@ public sealed record ProviderPreset(
     IReadOnlyDictionary<ProviderApiFamily, Uri>? BaseUrls = null,
     Uri? ModelsUrl = null,
     IReadOnlyDictionary<string, string>? Headers = null,
-    IReadOnlyDictionary<ProviderApiFamily, CredentialPlacement>? CredentialPlacements = null
+    IReadOnlyDictionary<ProviderApiFamily, CredentialPlacement>? CredentialPlacements = null,
+    IReadOnlyDictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>? FamilyHeaders =
+        null
 )
 {
     /// <summary>
@@ -32,12 +35,19 @@ public sealed record ProviderPreset(
             : ProviderApiFamily.OpenAiChat;
 
     /// <summary>
-    /// The families this preset declares: the keys of <see cref="BaseUrls"/> (in stable
-    /// declaration order) when present, otherwise just <see cref="DefaultFamily"/>.
+    /// The families this preset declares: the keys of <see cref="BaseUrls"/>, plus
+    /// <see cref="DefaultFamily"/> when only the <c>baseUrl</c> shorthand declares it (families
+    /// may share a URL; a per-family URL never removes the shorthand's family), in stable
+    /// declaration order. Otherwise just <see cref="DefaultFamily"/>.
     /// </summary>
     public IReadOnlyList<ProviderApiFamily> Families =>
-        BaseUrls is { Count: > 0 }
-            ? [.. ProviderApiFamilies.All.Where(BaseUrls.ContainsKey)]
+        BaseUrls is { Count: > 0 } bUrls
+            ?
+            [
+                .. ProviderApiFamilies.All.Where(family =>
+                    bUrls.ContainsKey(family) || family == DefaultFamily
+                ),
+            ]
             : [DefaultFamily];
 
     /// <summary>
@@ -56,4 +66,12 @@ public sealed record ProviderPreset(
     /// </summary>
     public CredentialPlacement PlacementFor(ProviderApiFamily family) =>
         CredentialPlacements?.GetValueOrDefault(family) ?? CredentialPlacement.Bearer;
+
+    /// <summary>
+    /// The headers a family's wire sends on its own: image-only headers (System One's
+    /// <c>TypeSafe-Danger-Zone-Images</c>) live here, so a family's headers never reach another
+    /// family's wire.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? HeadersFor(ProviderApiFamily family) =>
+        FamilyHeaders?.GetValueOrDefault(family);
 }

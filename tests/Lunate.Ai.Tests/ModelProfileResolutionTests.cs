@@ -252,6 +252,72 @@ public sealed class ModelProfileResolutionTests
         };
     }
 
+    [Fact]
+    public void A_systemone_profile_with_an_exact_version_resolves()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = Catalog(
+            temp,
+            """
+            { "id": "openrouter/typesafe/jev-1.14", "provider": "openrouter",
+              "wireId": "typesafe/jev-1.14", "contextWindow": 65536,
+              "supportsTools": false, "supportsVision": true,
+              "apiType": "native", "apiFamily": "systemone" }
+            """
+        );
+        var profile = new ModelProfile("decision", "gateway", "openrouter/typesafe/jev-1.14");
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            profile,
+            [Provider("gateway", "https://openrouter.ai/api/v1", "openrouter")],
+            catalog
+        );
+
+        Assert.Equal("systemone", resolved.Model.ApiFamily);
+        Assert.Equal("native", resolved.Model.ApiType);
+    }
+
+    [Fact]
+    public void A_systemone_alias_is_refused_with_the_exact_version_the_catalog_records()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = Catalog(
+            temp,
+            """
+            { "id": "openrouter/~typesafe/jev-1.14", "provider": "openrouter",
+              "wireId": "~typesafe/jev-1.14", "contextWindow": 65536,
+              "supportsTools": false, "supportsVision": true,
+              "apiType": "native", "apiFamily": "systemone" }
+            """
+        );
+        catalog = catalog.WithAdditionalModels([
+            new ModelInfo(
+                "openrouter/typesafe/jev-1.14",
+                "openrouter",
+                Endpoint: null,
+                ContextWindow: 65536,
+                SupportsTools: false
+            )
+            {
+                WireId = "typesafe/jev-1.14",
+                ApiType = "native",
+                ApiFamily = "systemone",
+            },
+        ]);
+        var profile = new ModelProfile("decision", "gateway", "openrouter/~typesafe/jev-1.14");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ModelProfileResolver.Resolve(
+                profile,
+                [Provider("gateway", "https://openrouter.ai/api/v1", "openrouter")],
+                catalog
+            )
+        );
+
+        Assert.Contains("~typesafe/jev-1.14", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("typesafe/jev-1.14", exception.Message, StringComparison.Ordinal);
+    }
+
     private static ModelCatalog Catalog(TempDirectory temp, string model)
     {
         string path = temp.File("models.json");

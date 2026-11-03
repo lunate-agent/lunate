@@ -64,6 +64,47 @@ public sealed class DecisionUsageModelsTests
         Assert.Equal("alias-key", factory.ApiKey);
     }
 
+    [Fact]
+    public void A_systemone_profile_is_refused_for_chat_usage_by_name()
+    {
+        bool valid = ProviderEntry.TryCreate(
+            "openrouter-provider",
+            "openrouter",
+            new Uri("https://openrouter.ai/api/v1"),
+            "auth:openrouter-key",
+            headers: null,
+            region: null,
+            out ProviderEntry? provider,
+            out string? error
+        );
+        Assert.True(valid, error);
+        var model = new ModelInfo(
+            "openrouter/typesafe/jev-1.14",
+            "openrouter",
+            Endpoint: null,
+            ContextWindow: 65536,
+            SupportsTools: false
+        )
+        {
+            ApiType = "native",
+            ApiFamily = "systemone",
+        };
+        var resolved = new ResolvedModelProfile(
+            new ModelProfile("decision", "openrouter-provider", model.Id),
+            provider!,
+            model,
+            65536,
+            new ModelCapabilityDescriptor()
+        );
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            DecisionUsageModels.RequireChatFamily(resolved, "chat")
+        );
+
+        Assert.Contains("systemone", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("decision-only", exception.Message, StringComparison.Ordinal);
+    }
+
     private sealed class RecordingFactory(IChatClient client) : IChatClientFactory
     {
         public string? ApiKey { get; private set; }

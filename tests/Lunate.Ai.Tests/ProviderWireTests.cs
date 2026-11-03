@@ -41,7 +41,12 @@ public sealed class ProviderWireTests
             ("OPENROUTER_API_KEY", "wire-probe-openrouter-key")
         );
         CapturingWire wire = CapturingWire.OpenAi();
-        var model = new ModelInfo("vendor-a/chat-model", "openrouter", null, 8_192, true);
+        // A generated openrouter entry carries the default-family annotation once the preset
+        // declares more than one family (System One joined it).
+        var model = new ModelInfo("vendor-a/chat-model", "openrouter", null, 8_192, true)
+        {
+            ApiFamily = ProviderApiFamilies.OpenAiChat,
+        };
 
         IChatClient client = wire.Factory().Create(model);
 

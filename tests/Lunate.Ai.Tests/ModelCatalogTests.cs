@@ -414,7 +414,7 @@ public sealed class ModelCatalogTests
                 Path.Combine(directory, "does-not-exist.json")
             );
 
-            Assert.Equal(746, catalog.Models.Count);
+            Assert.Equal(748, catalog.Models.Count);
             Assert.Contains(catalog.Models, model => model.Id == "gpt-4o-mini");
             Assert.Contains(catalog.Models, model => model.Id == "gpt-4o");
             Assert.Contains(catalog.Models, model => model.Id == "claude-sonnet-5-5");

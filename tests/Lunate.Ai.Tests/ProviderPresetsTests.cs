@@ -34,6 +34,10 @@ public sealed class ProviderPresetsTests
                 ProviderAdapter.OpenAiCompatible,
                 new Uri("https://openrouter.ai/api/v1"),
                 "OPENROUTER_API_KEY",
+                BaseUrls: new Dictionary<ProviderApiFamily, Uri>
+                {
+                    [ProviderApiFamily.SystemOne] = new("https://openrouter.ai/api/v1/systemone"),
+                },
                 Headers: new Dictionary<string, string>
                 {
                     ["HTTP-Referer"] = "https://github.com/wdaniel1993/lunate",
@@ -66,7 +70,14 @@ public sealed class ProviderPresetsTests
                 "OpenCode",
                 ProviderAdapter.OpenAiCompatible,
                 new Uri("https://opencode.ai/inference/openai/v1"),
-                "OPENCODE_API_KEY"
+                "OPENCODE_API_KEY",
+                BaseUrls: new Dictionary<ProviderApiFamily, Uri>
+                {
+                    [ProviderApiFamily.SystemOne] = new(
+                        "https://opencode.ai/inference/systemone/v1/systemone"
+                    ),
+                },
+                FamilyHeaders: SystemOneImageHeaders()
             ),
             new(
                 "opencode-go",
@@ -147,6 +158,18 @@ public sealed class ProviderPresetsTests
     private static Dictionary<ProviderApiFamily, CredentialPlacement> EveryFamily(
         CredentialPlacement placement
     ) => ProviderApiFamilies.All.ToDictionary(family => family, _ => placement);
+
+    private static Dictionary<
+        ProviderApiFamily,
+        IReadOnlyDictionary<string, string>
+    > SystemOneImageHeaders() =>
+        new()
+        {
+            [ProviderApiFamily.SystemOne] = new Dictionary<string, string>
+            {
+                ["TypeSafe-Danger-Zone-Images"] = "true",
+            },
+        };
 
     [Fact]
     public void Google_preset_exposes_the_gemini_key_variable_alias()

@@ -41,6 +41,7 @@ internal sealed class ProviderStore
                         entry.BaseUrls,
                         entry.ModelsUrl,
                         entry.CredentialPlacements,
+                        entry.FamilyHeaders,
                         out ProviderEntry? safeEntry,
                         out string? error
                     ) || safeEntry is null
@@ -238,6 +239,7 @@ internal sealed class ProviderStore
     {
         entry = null;
         Dictionary<ProviderApiFamily, Uri>? baseUrls = null;
+        Dictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>? familyHeaders = null;
         if (record.BaseUrls is { Count: > 0 } declared)
         {
             baseUrls = [];
@@ -274,6 +276,38 @@ internal sealed class ProviderStore
             return false;
         }
 
+        if (record.FamilyHeaders is { Count: > 0 } declaredFamilyHeaders)
+        {
+            familyHeaders =
+                new Dictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>();
+            foreach (
+                (
+                    string familyName,
+                    Dictionary<string, string>? headerValues
+                ) in declaredFamilyHeaders
+            )
+            {
+                if (!ProviderApiFamilies.TryParse(familyName, out ProviderApiFamily family))
+                {
+                    error =
+                        $"providers.{record.Name}.familyHeaders has an unknown API family '{familyName}'; "
+                        + $"supported families: {ProviderApiFamilies.Supported()}.";
+                    return false;
+                }
+
+                Dictionary<string, string> copiedValues = new(StringComparer.Ordinal);
+                if (headerValues is not null)
+                {
+                    foreach ((string header, string headerValue) in headerValues)
+                    {
+                        copiedValues.Add(header, headerValue);
+                    }
+                }
+
+                familyHeaders.Add(family, copiedValues);
+            }
+        }
+
         return ProviderEntry.TryCreate(
             record.Name,
             record.Kind,
@@ -284,6 +318,7 @@ internal sealed class ProviderStore
             baseUrls,
             record.ModelsUrl,
             placements,
+            familyHeaders,
             out entry,
             out error
         );
@@ -305,8 +340,35 @@ internal sealed class ProviderStore
                 )
                 : null,
             entry.ModelsUrl,
-            ToFilePlacement(entry.CredentialPlacements)
+            ToFilePlacement(entry.CredentialPlacements),
+            ToFileFamilyHeaders(entry.FamilyHeaders)
         );
+
+    private static Dictionary<string, Dictionary<string, string>>? ToFileFamilyHeaders(
+        IReadOnlyDictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>? familyHeaders
+    )
+    {
+        if (familyHeaders is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var file = new Dictionary<string, Dictionary<string, string>>();
+        foreach (
+            (
+                ProviderApiFamily family,
+                IReadOnlyDictionary<string, string> headerValues
+            ) in familyHeaders
+        )
+        {
+            file.Add(
+                ProviderApiFamilies.Name(family),
+                new Dictionary<string, string>(headerValues, StringComparer.Ordinal)
+            );
+        }
+
+        return file;
+    }
 
     /// <summary>
     /// The file declaration is always family-keyed: a provider-wide object would mean "every
@@ -408,6 +470,7 @@ internal sealed class ProviderStore
         string? Region,
         IReadOnlyDictionary<string, string>? BaseUrls,
         Uri? ModelsUrl,
-        JsonElement? CredentialPlacement = null
+        JsonElement? CredentialPlacement = null,
+        Dictionary<string, Dictionary<string, string>>? FamilyHeaders = null
     );
 }

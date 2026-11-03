@@ -45,13 +45,14 @@ public sealed partial class AgentHarness
                 modelId,
                 method,
                 ct,
-                (usage, resolvedModelId, decisionMethod, probability) =>
+                (usage, resolvedModelId, decisionMethod, probability, providerCost) =>
                     AccumulateUsage(
                         runId,
                         channel,
                         usage,
                         resolvedModelId,
-                        UsageAttribution("decision", model, decisionMethod, probability)
+                        UsageAttribution("decision", model, decisionMethod, probability),
+                        providerCost
                     ),
                 supportsImages: DecisionClientResolver.SupportsImageInput(model.Model)
             );

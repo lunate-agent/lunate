@@ -27,7 +27,11 @@ internal sealed partial class InteractiveSession
             (int)(details.OutputTokenCount ?? 0),
             cacheRead,
             cacheWrite
-        );
+        )
+        {
+            Attribution = attribution,
+            Cost = usage.ProviderCost is { } reportedCost ? (decimal)reportedCost : null,
+        };
 
         session.AppendModelUsage(usage.ModelId, recorded, attribution);
     }

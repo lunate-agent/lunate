@@ -14,7 +14,9 @@
     // openrouter: OpenAI-compatible Chat Completions (https://openrouter.ai/docs). The
     // attribution headers the provider documents are declared here and become live when the
     // headers pipeline lands (slice 2); this slice declares them without sending.
-    { "id": "openrouter", "name": "OpenRouter", "adapter": "openai-compatible", "baseUrl": "https://openrouter.ai/api/v1", "keyVariable": "OPENROUTER_API_KEY", "headers": { "HTTP-Referer": "https://github.com/wdaniel1993/lunate", "X-Title": "Lunate" } },
+    // baseUrls.systemone is the decision-only System One wire (https://openrouter.ai/docs);
+    // a profile on it resolves the native decision transport, never a chat client.
+    { "id": "openrouter", "name": "OpenRouter", "adapter": "openai-compatible", "baseUrl": "https://openrouter.ai/api/v1", "baseUrls": { "systemone": "https://openrouter.ai/api/v1/systemone" }, "keyVariable": "OPENROUTER_API_KEY", "headers": { "HTTP-Referer": "https://github.com/wdaniel1993/lunate", "X-Title": "Lunate" } },
     // deepseek: OpenAI-compatible Chat Completions (https://api-docs.deepseek.com); the apex
     // domain serves the documented paths directly.
     { "id": "deepseek", "name": "DeepSeek", "adapter": "openai-compatible", "baseUrl": "https://api.deepseek.com", "keyVariable": "DEEPSEEK_API_KEY" },
@@ -22,8 +24,12 @@
     { "id": "moonshotai", "name": "Moonshot AI", "adapter": "openai-compatible", "baseUrl": "https://api.moonshot.ai/v1", "keyVariable": "MOONSHOT_API_KEY" },
     // zai: OpenAI-compatible Chat Completions (https://docs.z.ai/llm-api-quick-start/).
     { "id": "zai", "name": "Z.AI", "adapter": "openai-compatible", "baseUrl": "https://api.z.ai/api/paas/v4", "keyVariable": "ZHIPU_API_KEY" },
-    // opencode: the OpenAI-compatible inference surface (https://opencode.ai/docs).
-    { "id": "opencode", "name": "OpenCode", "adapter": "openai-compatible", "baseUrl": "https://opencode.ai/inference/openai/v1", "keyVariable": "OPENCODE_API_KEY" },
+    // opencode: the OpenAI-compatible inference surface (https://opencode.ai/docs). The
+    // systemone family is the Console/Zen System One surface, not the Go one: a Go key is
+    // accepted there but bills to the pay-as-you-go balance. It serves jev-1.13 only, and image
+    // and box questions require TypeSafe-Danger-Zone-Images: true on request — declared as the
+    // family's image headers.
+    { "id": "opencode", "name": "OpenCode", "adapter": "openai-compatible", "baseUrl": "https://opencode.ai/inference/openai/v1", "baseUrls": { "systemone": "https://opencode.ai/inference/systemone/v1/systemone" }, "familyHeaders": { "systemone": { "TypeSafe-Danger-Zone-Images": "true" } }, "keyVariable": "OPENCODE_API_KEY" },
     // opencode-go: one key across every wire API, declared per family (families may share a
     // URL): chat and responses share the OpenAI-compatible surface, messages the
     // Anthropic-compatible one, google the Gemini-compatible one. modelsUrl is the discovery

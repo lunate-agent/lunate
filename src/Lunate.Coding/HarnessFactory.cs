@@ -337,17 +337,35 @@ internal static class HarnessFactory
 
         try
         {
-            return catalog.Find(modelId)
+            ModelInfo model =
+                catalog.Find(modelId)
                 ?? throw new UnknownModelException(
                     $"Model '{modelId}' is not in the catalog. Run lunate --discover <name-or-url> "
                         + $"to draft a models.json entry or add '{modelId}' to ~/.lunate/models.json."
                 );
+            RefuseSystemOneChatModel(model);
+            return model;
         }
         catch (InvalidOperationException exception)
         {
             // An ambiguous bare id already names every candidate and the qualified-id fix; the
             // configuration-error path owns the message and the exit code.
             throw new UnknownModelException(exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// The chat path of a run refuses a <c>systemone</c> model before any client is built: the
+    /// family is decision-only, and the refusal names it and the fix.
+    /// </summary>
+    private static void RefuseSystemOneChatModel(ModelInfo model)
+    {
+        if (string.Equals(model.ApiFamily, ProviderApiFamilies.SystemOne, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Model '{model.Id}' is of the 'systemone' API family; System One is decision-only "
+                    + "and cannot serve chat. Use it as 'decisions.profile', or pick a chat model."
+            );
         }
     }
 

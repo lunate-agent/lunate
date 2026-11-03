@@ -196,11 +196,11 @@ public static class ModelsDevCatalog
             MaxOutput = ReadMaxOutput(entry),
             SupportsVision = ReadBoolean(entry, "attachment"),
             WireId = native ? null : modelKey,
-            // A preset that declares per-family URLs would leave every generated model ambiguous
-            // (nothing above it answers which family to use), so the entry carries the preset's
-            // default family, written as the wire name. Single-family presets resolve alone and
-            // stay unannotated.
-            ApiFamily = preset.BaseUrls is { Count: > 1 }
+            // A preset that serves more than one family would leave every generated model
+            // ambiguous (nothing above it answers which family to use), so the entry carries the
+            // preset's default family, written as the wire name. Single-family presets resolve
+            // alone and stay unannotated.
+            ApiFamily = preset.Families is { Count: > 1 }
                 ? ProviderApiFamilies.Name(preset.DefaultFamily)
                 : null,
         };

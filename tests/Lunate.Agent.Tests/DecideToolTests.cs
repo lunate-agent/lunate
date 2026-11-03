@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Lunate.Ai;
 using Lunate.Contracts;
-using Microsoft.Extensions.AI;
 
 namespace Lunate.Agent.Tests;
 

@@ -155,7 +155,8 @@ public static class ProviderPresets
             familyUrls,
             modelsUrl,
             headers,
-            placements
+            placements,
+            ParseFamilyHeaders(row.FamilyHeaders, id, source)
         );
     }
 
@@ -232,6 +233,42 @@ public static class ProviderPresets
         return headers;
     }
 
+    private static Dictionary<
+        ProviderApiFamily,
+        IReadOnlyDictionary<string, string>
+    >? ParseFamilyHeaders(
+        Dictionary<string, Dictionary<string, string>>? declared,
+        string id,
+        string source
+    )
+    {
+        if (declared is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var familyHeaders =
+            new Dictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>();
+        foreach ((string familyName, Dictionary<string, string>? headers) in declared)
+        {
+            if (!ProviderApiFamilies.TryParse(familyName, out ProviderApiFamily family))
+            {
+                throw new InvalidDataException(
+                    $"Provider '{id}' in {source} has an unknown API family '{familyName}' in 'familyHeaders'; "
+                        + $"supported families: {ProviderApiFamilies.Supported()}."
+                );
+            }
+
+            Dictionary<string, string>? parsed = ParseHeaders(headers, id, source);
+            if (parsed is { Count: > 0 })
+            {
+                familyHeaders.Add(family, parsed);
+            }
+        }
+
+        return familyHeaders;
+    }
+
     private static string Require(string? value, string field, string? providerId, string source)
     {
         if (!string.IsNullOrEmpty(value))
@@ -291,6 +328,8 @@ public static class ProviderPresets
         public string? ModelsUrl { get; set; }
 
         public Dictionary<string, string>? Headers { get; set; }
+
+        public Dictionary<string, Dictionary<string, string>>? FamilyHeaders { get; set; }
 
         public JsonElement? CredentialPlacement { get; set; }
 

@@ -79,7 +79,16 @@ internal sealed record DecisionUsage(
     long? OutputTokens = null,
     double? Cost = null,
     bool IsProviderReported = false
-);
+)
+{
+    /// <summary>
+    /// The provider's own usage sidecar when one adds cost detail: OpenCode reports its billing
+    /// source (its own balance or a marketplace) and list cost in <c>usage.opencode</c>.
+    /// </summary>
+    public OpencodeUsage? Opencode { get; init; }
+
+    internal sealed record OpencodeUsage(string? BillingSource, double? ListCost);
+}
 
 internal sealed record DecisionResult(
     IReadOnlyDictionary<string, DecisionAnswer> Results,

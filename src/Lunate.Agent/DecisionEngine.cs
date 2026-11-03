@@ -15,7 +15,7 @@ internal static class DecisionEngine
         string modelId,
         string method,
         CancellationToken cancellationToken = default,
-        Action<UsageDetails, string, string?, double?>? recordUsage = null,
+        Action<UsageDetails, string, string?, double?, double?>? recordUsage = null,
         bool supportsImages = false,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? questionCriteria = null
     )
@@ -23,6 +23,17 @@ internal static class DecisionEngine
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        bool hasBoxQuestion = request.Questions.Any(question =>
+            question.Kind == Lunate.Contracts.DecisionQuestionKind.Box
+        );
+        if (hasBoxQuestion && !supportsImages)
+        {
+            // A box question is answered from an image; on a model without image input the
+            // missing capability is named, per the decision-layer spec.
+            throw new InvalidOperationException(
+                $"Model '{modelId}' cannot decide box questions because it is missing required input modality 'image'. Use a vision-capable model for this request."
+            );
+        }
         if (DecisionRequestValidator.ContainsImagePart(request.State) && !supportsImages)
         {
             throw new InvalidOperationException(
@@ -56,9 +67,29 @@ internal static class DecisionEngine
                     usages[index],
                     first?.ModelId ?? modelId,
                     isFinalAttempt ? first?.Method : null,
-                    isFinalAttempt ? first?.Probability : null
+                    isFinalAttempt ? first?.Probability : null,
+                    null
                 );
             }
+        }
+        else if (result.Usage is { } providerUsage && recordUsage is not null)
+        {
+            // The native transport's provider usage: the tokens travel in the usage details, the
+            // provider-reported cost beside them, so the same accumulation path (session record,
+            // run budget, /cost) serves both transports.
+            var details = new UsageDetails
+            {
+                InputTokenCount = providerUsage.InputTokens,
+                OutputTokenCount = providerUsage.OutputTokens,
+            };
+            InternalDecisionAnswer? sample = result.Results.Values.FirstOrDefault();
+            recordUsage(
+                details,
+                sample?.ModelId ?? modelId,
+                sample?.Method,
+                sample?.Probability,
+                providerUsage.Cost
+            );
         }
 
         Dictionary<string, Lunate.Contracts.DecisionAnswer> answers = new(StringComparer.Ordinal);
