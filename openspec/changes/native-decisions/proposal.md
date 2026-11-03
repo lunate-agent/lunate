@@ -32,6 +32,21 @@ chat families would misrepresent it.
    chat model; otherwise the decision fails naming the missing capability.
 5. **Native provenance completes the routing rule**: a `systemone` profile is accepted by the
    decision usage as `native`, and the same profile used as a chat profile is refused by capability.
+6. **The layer is split by concern, MEAI-shaped** (before any System One code): `Lunate.Ai.Decisions`
+   holds `IDecisionClient` (delegating client, builder, OpenTelemetry) and the chat adapter;
+   `Lunate.Ai.SystemOne` holds the vendor transport; `Lunate.Agent` depends only on the interface;
+   `Lunate.Contracts` is unchanged until the 1.16.0 bump. Neither new project is packed.
+7. **Confidence is one definition** computed from the distribution (noul/choice/score formulas), used
+   by routing — below `decisions.routingMinConfidence` (default 0.5) the configured chat profile stays
+   — and exposed at 1.16.0. The single `choice` route switches to one noul per profile on a
+   `choiceOrderSensitive` model (jev-1.13), so a positional bias cannot decide it. Approvals use one
+   `decisions.approvalsThreshold` in confidence (`2t − 1` of the old probability value).
+8. **The approval gate asks four atomic questions in one request** (writes outside the workspace,
+   network, irreversible deletion, credential exposure) over a structured state with untrusted content
+   in its own field; shadow records every answer, and no answer approves a tool call.
+9. **States stay small**: warn near the 32k-token per-question budget, never enable long context
+   implicitly, send tool results as head and tail; the client honours the provider's request limits
+   and validates its fixtures against the published OpenAPI.
 
 Jev Router (`typesafe/jev-router`) is not part of this: it is an ordinary chat model on OpenRouter
 that works through the `openrouter` chat preset today; it is documented as an example only.
