@@ -36,9 +36,9 @@ Slices are applied in this order; each is its own PR with its own tests.
 
 ## Slice 4 — Anthropic-compatible custom providers
 
-- [ ] `CustomProvider` carries a family; `auth login --custom --api-family`,
+- [x] `CustomProvider` carries a family; `auth login --custom --api-family`,
       `--credential-placement`, `--models-url`; one settings writer for the wizard.
-- [ ] Tests: writes `baseUrls` for the chosen family; refuses an unknown family; bearer vs `x-api-key`.
+- [x] Tests: writes `baseUrls` for the chosen family; refuses an unknown family; bearer vs `x-api-key`.
 
 ## Slice 5 — Google family
 

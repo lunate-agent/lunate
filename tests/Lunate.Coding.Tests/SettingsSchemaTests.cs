@@ -63,6 +63,13 @@ public sealed partial class SettingsSchemaTests
         ["decisions.tool"] = "off",
         ["decisions.questions"] = "off",
         ["providers.*.baseUrl"] = "https://probe.example.test/v1",
+        ["providers.*.baseUrls"] = new Dictionary<string, string>
+        {
+            ["openai-chat"] = "https://probe.example.test/v1",
+        },
+        ["providers.*.modelsUrl"] = "https://probe.example.test/v1/models",
+        ["providers.*.credentialPlacement"] = "x-api-key",
+        ["providers.*.headers"] = new Dictionary<string, string> { ["x-probe"] = "literal" },
         ["providers.*.model"] = ProbeModel,
         ["providers.*.catalogName"] = "Probe",
         ["profiles.*.apiFamily"] = "openai-chat",
@@ -414,6 +421,14 @@ public sealed partial class SettingsSchemaTests
                 }
 
                 return array;
+            case Dictionary<string, string> fields:
+                JsonObject fieldsNode = [];
+                foreach ((string field, string text) in fields)
+                {
+                    fieldsNode[field] = text;
+                }
+
+                return fieldsNode;
             default:
                 throw new InvalidOperationException(
                     $"no probe node builds for a probe value of {value?.GetType().Name}"

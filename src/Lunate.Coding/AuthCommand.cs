@@ -31,7 +31,10 @@ internal static partial class AuthCommand
 
     internal const string LoginUsage =
         "Usage: lunate auth login <provider> [--key-stdin]\n"
-        + "       lunate auth login --custom [--id <id> --base-url <url> --model <model>] [--key-stdin]";
+        + "       lunate auth login --custom [--id <id> --base-url <url> --model <model>]\n"
+        + "             [--api-family <openai-chat|openai-responses|anthropic-messages|google>]\n"
+        + "             [--credential-placement <bearer|x-api-key|header:<name>|query:<name>>]\n"
+        + "             [--models-url <url>] [--key-stdin]";
 
     internal static int Run(
         string[] args,

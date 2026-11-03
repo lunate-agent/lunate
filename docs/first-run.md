@@ -169,8 +169,10 @@ bottom of the `/auth` picker, or run:
 lunate auth login --custom
 ```
 
-The interactive flow asks for four fields in order: provider id, base URL, model id and key. A
-script supplies the first three as flags and the key on stdin:
+The interactive flow asks for provider id, base URL, API family, credential placement, an optional
+models URL, model id and key. The family defaults to `openai-chat`, because every existing custom
+provider is OpenAI-compatible — an omitted flag never silently re-routes one. A script supplies the
+values as flags and the key on stdin:
 
 ```bash
 printf '%s\n' "$LOCAL_KEY" |
@@ -178,10 +180,28 @@ printf '%s\n' "$LOCAL_KEY" |
     --id local --base-url http://localhost:11434/v1 --model llama3 --key-stdin
 ```
 
+An Anthropic-compatible endpoint names its family and placement:
+
+```bash
+printf '%s\n' "$ANTHROPIC_KEY" |
+  lunate auth login --custom \
+    --id my-anthropic --base-url https://api.example.com/v1 \
+    --api-family anthropic-messages --credential-placement x-api-key \
+    --models-url https://api.example.com/v1/models \
+    --model claude-example --key-stdin
+```
+
+Placements are `bearer` (the default), `x-api-key`, `header:<name>` (for example Azure's `api-key`)
+and `query:<name>` (for example Google's `key`). The entry is written in the v2 shape — `baseUrls`
+keyed by family, `credentialPlacement`, optional `modelsUrl`, headers — and the key stays in
+`auth.json`, never in `providers.json`.
+
 Saving validates the entry:
 
 - The base URL must be absolute and `https`, or `http` only for a loopback host.
 - The model id is required.
+- The API family must be one the client wires; an unknown family is refused by name.
+- Discovery through `--models-url` stays inside the entry's configured host.
 - The provider id must be non-empty, must not contain spaces or `/`, and must not shadow a built-in
   preset.
 

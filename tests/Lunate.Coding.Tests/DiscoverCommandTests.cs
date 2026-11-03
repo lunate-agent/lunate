@@ -638,6 +638,115 @@ public sealed class DiscoverCommandTests
         Assert.Empty(handler.Requests);
     }
 
+    [Fact]
+    public async Task A_custom_provider_target_uses_its_models_url_and_declared_placement()
+    {
+        using var temp = new TempDirectory();
+        using var handler = new FakeHandler(_ =>
+            Json(HttpStatusCode.OK, """{ "data": [ { "id": "claude-wire" } ] }""")
+        );
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "relay/claude-wire",
+            CustomCatalog(temp, CredentialPlacement.XApiKey),
+            handler,
+            namedKeySource: id => id == "relay" ? "relay-key" : null,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(
+            "https://relay.example/v1/models",
+            handler.Requests[0].RequestUri!.AbsoluteUri
+        );
+        Assert.Equal("relay-key", handler.Requests[0].Headers.GetValues("x-api-key").Single());
+        Assert.False(handler.Requests[0].Headers.Contains("Authorization"));
+    }
+
+    [Fact]
+    public async Task A_custom_provider_discovery_refuses_a_redirect_to_another_host()
+    {
+        using var temp = new TempDirectory();
+        using var handler = new FakeHandler(request =>
+            string.Equals(
+                request.RequestUri!.Host,
+                "relay.example",
+                StringComparison.OrdinalIgnoreCase
+            )
+                ? new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers = { Location = new Uri("https://elsewhere.example/v2/models") },
+                }
+                : Json(HttpStatusCode.OK, """{ "data": [] }""")
+        );
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "relay/claude-wire",
+            CustomCatalog(temp, CredentialPlacement.XApiKey),
+            handler,
+            namedKeySource: id => id == "relay" ? "relay-key" : null,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("elsewhere.example", result.Error, StringComparison.Ordinal);
+        Assert.Contains("configured host", result.Error, StringComparison.Ordinal);
+        // The refused redirect never went out: only the request to the configured host exists.
+        Assert.Single(handler.Requests);
+        Assert.Equal("relay.example", handler.Requests[0].RequestUri!.Host, ignoreCase: true);
+    }
+
+    [Fact]
+    public async Task A_custom_provider_discovery_follows_a_redirect_inside_its_host()
+    {
+        using var temp = new TempDirectory();
+        using var handler = new FakeHandler(request =>
+            request.RequestUri!.AbsolutePath.EndsWith("/v1/models", StringComparison.Ordinal)
+                ? new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers = { Location = new Uri("https://relay.example/v2/models") },
+                }
+                : Json(HttpStatusCode.OK, """{ "data": [ { "id": "claude-wire" } ] }""")
+        );
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "relay/claude-wire",
+            CustomCatalog(temp, CredentialPlacement.XApiKey),
+            handler,
+            namedKeySource: id => id == "relay" ? "relay-key" : null,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(
+            "https://relay.example/v2/models",
+            handler.Requests[1].RequestUri!.AbsoluteUri
+        );
+        Assert.Equal("relay-key", handler.Requests[1].Headers.GetValues("x-api-key").Single());
+    }
+
+    private static ModelCatalog CustomCatalog(TempDirectory temp, CredentialPlacement placement)
+    {
+        string settingsPath = temp.File("settings.json");
+        var provider = new CustomProvider(
+            "relay",
+            new Uri("https://relay.example/v1"),
+            "claude-wire",
+            "relay/claude-wire",
+            ProviderApiFamily.AnthropicMessages,
+            placement,
+            new Uri("https://relay.example/v1/models")
+        );
+        SettingsStore.WriteProvider(provider, settingsPath);
+
+        AgentSettings settings = SettingsStore.Resolve(settingsPath, _ => null);
+        return HarnessFactory.LoadCatalog(settings, temp.File("models.json"));
+    }
+
     private static ModelCatalog Catalog(TempDirectory temp) =>
         ModelCatalog.Load(temp.File("models.json"));
 

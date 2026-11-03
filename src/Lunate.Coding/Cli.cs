@@ -356,7 +356,10 @@ internal static class Cli
         DiscoverResult result;
         try
         {
-            ModelCatalog catalog = ModelCatalog.Load();
+            // The stored custom providers are in the catalog, so a stored entry's models URL and
+            // credential reach discovery the same way a preset's do.
+            AgentSettings settings = SettingsStore.Resolve(AuthStore.SettingsFilePath(null), null);
+            ModelCatalog catalog = HarnessFactory.LoadCatalog(settings, modelsPath: null);
             AuthStore auth = AuthStore.Load();
             result = DiscoverCommand
                 .RunAsync(target, catalog, namedKeySource: auth.TryGet)

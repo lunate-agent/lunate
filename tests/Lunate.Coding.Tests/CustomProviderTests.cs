@@ -137,4 +137,126 @@ public sealed class CustomProviderTests
         Assert.Equal("work", model.AuthRef);
         Assert.Equal("qwen2.5-coder", model.WireId);
     }
+
+    [Theory]
+    [InlineData("openai-chat", "openai")]
+    [InlineData("openai-responses", "openai")]
+    [InlineData("anthropic-messages", "anthropic")]
+    [InlineData("google", "google")]
+    public void A_declared_family_is_carried_and_names_the_routing_kind(string family, string kind)
+    {
+        bool created = CustomProvider.TryCreate(
+            "work",
+            "https://example.com/v1",
+            "m",
+            null,
+            out CustomProvider? provider,
+            out string? error,
+            apiFamily: family
+        );
+
+        Assert.True(created);
+        Assert.Null(error);
+        Assert.NotNull(provider);
+        Assert.Equal(family, ProviderApiFamilies.Name(provider!.ApiFamily));
+        ModelInfo model = provider.ToModelInfo();
+        Assert.Equal(kind, model.Provider);
+        Assert.Equal(family, model.ApiFamily);
+    }
+
+    [Fact]
+    public void An_unknown_family_is_refused_by_name_with_the_supported_set()
+    {
+        bool created = CustomProvider.TryCreate(
+            "work",
+            "https://example.com/v1",
+            "m",
+            null,
+            out CustomProvider? provider,
+            out string? error,
+            apiFamily: "openai-realtime"
+        );
+
+        Assert.False(created);
+        Assert.Null(provider);
+        Assert.Contains("openai-realtime", error, StringComparison.Ordinal);
+        Assert.Contains("supported families", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_anthropic_family_model_without_a_placement_keeps_the_declared_default()
+    {
+        bool created = CustomProvider.TryCreate(
+            "work",
+            "https://example.com/v1",
+            "m",
+            null,
+            out CustomProvider? provider,
+            out _,
+            apiFamily: "anthropic-messages"
+        );
+
+        Assert.True(created);
+        Assert.Null(provider!.CredentialPlacement);
+        Assert.Null(provider.ToModelInfo().CredentialPlacement);
+    }
+
+    [Theory]
+    [InlineData("x-api-key")]
+    [InlineData("header:api-key")]
+    [InlineData("query:key")]
+    public void A_declared_placement_is_carried_onto_the_model(string placement)
+    {
+        CredentialPlacement.TryParseCompact(placement, out CredentialPlacement? parsed, out _);
+        bool created = CustomProvider.TryCreate(
+            "work",
+            "https://example.com/v1",
+            "m",
+            null,
+            out CustomProvider? provider,
+            out string? error,
+            credentialPlacement: parsed
+        );
+
+        Assert.True(created);
+        Assert.Null(error);
+        Assert.Equal(placement, provider!.ToModelInfo().CredentialPlacement);
+    }
+
+    [Fact]
+    public void A_models_url_is_carried_onto_the_model()
+    {
+        bool created = CustomProvider.TryCreate(
+            "work",
+            "https://example.com/v1",
+            "m",
+            null,
+            out CustomProvider? provider,
+            out string? error,
+            modelsUrl: "https://example.com/v1/models"
+        );
+
+        Assert.True(created);
+        Assert.Null(error);
+        Assert.Equal(new Uri("https://example.com/v1/models"), provider!.ToModelInfo().ModelsUrl);
+    }
+
+    [Fact]
+    public void A_non_loopback_http_models_url_is_refused_without_echoing_it()
+    {
+        bool created = CustomProvider.TryCreate(
+            "work",
+            "https://example.com/v1",
+            "m",
+            null,
+            out CustomProvider? provider,
+            out string? error,
+            modelsUrl: "http://insecure.example/v1/models"
+        );
+
+        Assert.False(created);
+        Assert.Null(provider);
+        Assert.Contains("http", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("insecure.example", error, StringComparison.Ordinal);
+    }
 }

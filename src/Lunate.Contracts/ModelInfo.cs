@@ -54,6 +54,13 @@ public sealed record ModelInfo(
     /// </summary>
     public string? CredentialPlacement { get; init; }
 
+    /// <summary>
+    /// The provider's models/discovery URL when it declares one; null lets discovery derive
+    /// <c>{endpoint}/models</c>. Discovery for a self-declared endpoint never leaves the URL's
+    /// host.
+    /// </summary>
+    public Uri? ModelsUrl { get; init; }
+
     internal bool SupportsTemperature { get; init; }
 
     public string? WireId { get; init; }

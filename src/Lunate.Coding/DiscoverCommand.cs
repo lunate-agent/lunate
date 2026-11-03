@@ -44,6 +44,9 @@ public static class DiscoverCommand
         bool customEndpoint = false;
         bool qualified = false;
         ProviderPreset? credentialPreset = null;
+        CredentialPlacement? declaredPlacement = null;
+        IReadOnlyDictionary<string, string>? entryHeaders = null;
+        Uri? modelsUrl = null;
         string baseUrl;
 
         if (IsHttpUrl(target, out string url))
@@ -85,6 +88,26 @@ public static class DiscoverCommand
 
             provider = model.Provider;
             authRef = model.AuthRef;
+            entryHeaders = model.ProviderHeaders;
+            if (model.CredentialPlacement is { } declared)
+            {
+                if (
+                    !CredentialPlacement.TryParseCompact(
+                        declared,
+                        out CredentialPlacement? parsed,
+                        out string? placementError
+                    )
+                )
+                {
+                    return Failure(
+                        $"Model '{target}' declares an unusable credentialPlacement '{declared}': {placementError}"
+                    );
+                }
+
+                declaredPlacement = parsed;
+            }
+
+            modelsUrl = model.ModelsUrl;
             if (model.Endpoint is not null)
             {
                 baseUrl = TrimTrailingSlash(model.Endpoint.AbsoluteUri);
@@ -131,12 +154,22 @@ public static class DiscoverCommand
             key = PresetKey(credentialPreset, environment, namedKeySource);
         }
 
-        string requestUrl = $"{baseUrl}/models";
+        // A self-declared endpoint stays inside its host: the credential may only go where the
+        // entry points, so redirects off the configured host are refused before they are sent.
+        bool pinnedToHost = customEndpoint && credentialPreset is null;
+        string requestUrl = modelsUrl?.AbsoluteUri ?? $"{baseUrl}/models";
+        // The protocol header a preset's SDK adds on its own (anthropic-version) is discovery's
+        // too, even when the endpoint is a custom one that routes through the preset's wire.
+        ProviderPreset? protocolPreset =
+            credentialPreset ?? (provider is null ? null : ProviderPresets.Find(provider));
         using var client = DiscoveryClient(
             handler ?? new HttpClientHandler(),
             disposeBase: handler is null,
-            credentialPreset,
+            pinnedToHost,
+            protocolPreset,
+            entryHeaders,
             key,
+            Placement(declaredPlacement, credentialPreset),
             environment ?? Environment.GetEnvironmentVariable,
             namedKeySource
         );
@@ -144,8 +177,7 @@ public static class DiscoverCommand
         HttpResponseMessage response;
         try
         {
-            using var request = CreateRequest(requestUrl, credentialPreset);
-            response = await client.SendAsync(request, ct);
+            response = await client.SendAsync(CreateRequest(requestUrl, protocolPreset), ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -159,6 +191,21 @@ public static class DiscoverCommand
             )
         {
             return Failure($"Discovering models from {requestUrl} failed: {exception.Message}");
+        }
+
+        if (pinnedToHost)
+        {
+            (response, requestUrl, DiscoverResult? refused) = await FollowRedirectsInsideHost(
+                client,
+                response,
+                requestUrl,
+                protocolPreset,
+                ct
+            );
+            if (refused is not null)
+            {
+                return refused;
+            }
         }
 
         using (response)
@@ -293,20 +340,45 @@ public static class DiscoverCommand
     /// <summary>
     /// The discovery client sits on the same pipeline as a chat client: the lunate user agent,
     /// the preset's declared headers (values resolved onto this request's context, which for a
-    /// discovery run names nothing) and the credential in the preset's placement. One place adds
-    /// headers, so discovery cannot forget what the chat path sends.
+    /// discovery run names nothing) and the credential in the declared placement. One place adds
+    /// headers, so discovery cannot forget what the chat path sends. A pinned client keeps its
+    /// redirects under the command's own control, so a self-declared endpoint cannot be followed
+    /// off its host before the refusal fires.
     /// </summary>
     private static HttpClient DiscoveryClient(
         HttpMessageHandler baseHandler,
         bool disposeBase,
+        bool pinnedToHost,
         ProviderPreset? preset,
+        IReadOnlyDictionary<string, string>? entryHeaders,
         string? key,
+        CredentialPlacement placement,
         Func<string, string?> environment,
         Func<string, string?>? namedKeySource
     )
     {
+        if (pinnedToHost && baseHandler is HttpClientHandler clientHandler)
+        {
+            clientHandler.AllowAutoRedirect = false;
+        }
+
+        var declared = new List<(string Name, string Raw)>();
+        if (preset?.Headers is { Count: > 0 } presetHeaders)
+        {
+            declared.AddRange(
+                presetHeaders
+                    .Where(header => entryHeaders?.ContainsKey(header.Key) != true)
+                    .Select(header => (header.Key, header.Value))
+            );
+        }
+
+        if (entryHeaders is { Count: > 0 })
+        {
+            declared.AddRange(entryHeaders.Select(header => (header.Key, header.Value)));
+        }
+
         var headers = new ProviderHeadersHandler(
-            preset?.Headers?.Select(header => (header.Key, header.Value)) ?? [],
+            declared,
             context: null,
             namedKeySource: namedKeySource,
             environment: environment ?? Environment.GetEnvironmentVariable
@@ -316,10 +388,7 @@ public static class DiscoverCommand
         {
             // An auth-referenced key is the explicit opt-in that reaches any declared endpoint;
             // only a preset's own key directions can name a different placement.
-            var credential = new ProviderCredentialHandler(
-                key,
-                preset?.PlacementFor(preset.DefaultFamily) ?? CredentialPlacement.Bearer
-            );
+            var credential = new ProviderCredentialHandler(key, placement);
             credential.InnerHandler = baseHandler;
             headers.InnerHandler = credential;
             outermost = headers;
@@ -330,6 +399,121 @@ public static class DiscoverCommand
         }
 
         return new HttpClient(outermost, disposeHandler: disposeBase) { Timeout = RequestTimeout };
+    }
+
+    /// <summary>The credential placement the discovery wire uses.</summary>
+    private static CredentialPlacement Placement(
+        CredentialPlacement? declared,
+        ProviderPreset? preset
+    ) => declared ?? preset?.PlacementFor(preset.DefaultFamily) ?? CredentialPlacement.Bearer;
+
+    /// <summary>
+    /// Follows redirects while they stay inside the request URL's host; a redirect to another
+    /// host is refused before anything is sent there, because a self-declared endpoint's
+    /// credential must not leave the host the entry configures.
+    /// </summary>
+    private static async Task<(
+        HttpResponseMessage Response,
+        string RequestUrl,
+        DiscoverResult? Failure
+    )> FollowRedirectsInsideHost(
+        HttpClient client,
+        HttpResponseMessage response,
+        string requestUrl,
+        ProviderPreset? protocolPreset,
+        CancellationToken ct
+    )
+    {
+        const int MaxRedirects = 5;
+        int redirects = 0;
+        while (IsRedirect(response, out Uri? location))
+        {
+            Uri baseUri = new(requestUrl);
+            Uri target = location!.IsAbsoluteUri ? location : new Uri(baseUri, location);
+            if (!string.Equals(target.Host, baseUri.Host, StringComparison.OrdinalIgnoreCase))
+            {
+                response.Dispose();
+                return (
+                    response,
+                    requestUrl,
+                    Failure(
+                        $"Discovering models from {requestUrl} was redirected to {target.Host}, which is "
+                            + "outside the custom provider's configured host; the redirect was refused "
+                            + "and no request was sent there."
+                    )
+                );
+            }
+
+            if (++redirects > MaxRedirects)
+            {
+                response.Dispose();
+                return (
+                    response,
+                    requestUrl,
+                    Failure(
+                        $"Discovering models from {requestUrl} was redirected more than "
+                            + MaxRedirects.ToString(CultureInfo.InvariantCulture)
+                            + " times inside its host."
+                    )
+                );
+            }
+
+            HttpResponseMessage next;
+            try
+            {
+                next = await client.SendAsync(
+                    CreateRequest(target.AbsoluteUri, protocolPreset),
+                    ct
+                );
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+                when (exception
+                        is HttpRequestException
+                            or TaskCanceledException
+                            or InvalidOperationException
+                )
+            {
+                response.Dispose();
+                return (
+                    response,
+                    target.AbsoluteUri,
+                    Failure(
+                        $"Discovering models from {target.AbsoluteUri} failed: {exception.Message}"
+                    )
+                );
+            }
+
+            response.Dispose();
+            response = next;
+            requestUrl = target.AbsoluteUri;
+        }
+
+        return (response, requestUrl, null);
+    }
+
+    private static bool IsRedirect(HttpResponseMessage response, out Uri? location)
+    {
+        location = null;
+        if (
+            response.StatusCode
+            is not (
+                HttpStatusCode.MovedPermanently
+                or HttpStatusCode.Found
+                or HttpStatusCode.SeeOther
+                or HttpStatusCode.TemporaryRedirect
+                or HttpStatusCode.PermanentRedirect
+            )
+        )
+        {
+            return false;
+        }
+
+        location = response.Headers.Location;
+        return location is not null;
     }
 
     private static bool IsHttpUrl(string target, out string url)

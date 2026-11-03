@@ -261,3 +261,5 @@ static Lunate.Ai.CredentialPlacement.operator !=(Lunate.Ai.CredentialPlacement? 
 static Lunate.Ai.CredentialPlacement.operator ==(Lunate.Ai.CredentialPlacement? left, Lunate.Ai.CredentialPlacement? right) -> bool
 static Lunate.Ai.RequestContext.operator !=(Lunate.Ai.RequestContext? left, Lunate.Ai.RequestContext? right) -> bool
 static Lunate.Ai.RequestContext.operator ==(Lunate.Ai.RequestContext? left, Lunate.Ai.RequestContext? right) -> bool
+Lunate.Ai.ModelInfo.ModelsUrl.get -> System.Uri? (forwarded, contained in Lunate.Contracts)
+Lunate.Ai.ModelInfo.ModelsUrl.init -> void (forwarded, contained in Lunate.Contracts)

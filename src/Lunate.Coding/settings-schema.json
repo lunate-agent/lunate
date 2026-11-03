@@ -207,7 +207,14 @@
       "type": "string",
       "default": "unset",
       "scope": "user",
-      "description": "The endpoint's base URL: absolute and https, or http only for a loopback host. Definitions live in user settings only."
+      "description": "The endpoint's base URL: absolute and https, or http only for a loopback host. The shorthand for `baseUrls` under the entry's default family; both together must name the same URL. Definitions live in user settings only."
+    },
+    {
+      "name": "providers.*.baseUrls",
+      "type": "object",
+      "default": "unset",
+      "scope": "user",
+      "description": "One base URL per API family, keyed by family name (`openai-chat`, `openai-responses`, `anthropic-messages`, `google`); a custom entry declares exactly one. Definitions live in user settings only."
     },
     {
       "name": "providers.*.catalogName",
@@ -217,11 +224,32 @@
       "description": "The display name the model picker shows for the endpoint."
     },
     {
+      "name": "providers.*.credentialPlacement",
+      "type": "string",
+      "default": "bearer",
+      "scope": "user",
+      "description": "How the credential is sent: `bearer`, `x-api-key`, `header:<name>` or `query:<name>` (or the equivalent object form). Definitions live in user settings only."
+    },
+    {
+      "name": "providers.*.headers",
+      "type": "object",
+      "default": "unset",
+      "scope": "user",
+      "description": "Headers sent with every request: literal values, `auth:`/`env:`/`helper:` references, or templates over `{session.id}`, `{run.id}` and `{lunate.version}`. Definitions live in user settings only."
+    },
+    {
       "name": "providers.*.model",
       "type": "string",
       "default": "unset",
       "scope": "user",
       "description": "The model id requests use through the endpoint unless a selection overrides it."
+    },
+    {
+      "name": "providers.*.modelsUrl",
+      "type": "string",
+      "default": "unset",
+      "scope": "user",
+      "description": "The models/discovery URL; absent means discovery derives `{base URL}/models`. Discovery never leaves the URL's host. Definitions live in user settings only."
     },
     {
       "name": "roslyn.maxLoadedWorkspaces",
