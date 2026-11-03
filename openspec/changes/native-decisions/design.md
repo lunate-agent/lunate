@@ -3,14 +3,15 @@
 ## 1. Verified protocol (fixtures in `fixtures/`)
 
 Nine live calls on 2026-11-02, from this machine, with the configured OpenRouter key and the OpenCode
-Go key; the responses are stored verbatim. TypeSafe direct was **not** verified — no key.
+Go key; the responses are stored verbatim. TypeSafe direct was **not** verified — no key — so it is
+deliberately **out of scope for 0.3**: no unverified preset ships.
 
-| | OpenRouter | OpenCode (Console/Zen) | TypeSafe direct |
-|---|---|---|---|
-| URL | `POST https://openrouter.ai/api/v1/systemone` | `POST https://opencode.ai/inference/systemone/v1/systemone` | `POST https://api.typesafe.ai/v1/systemone` (docs only) |
-| Auth | `Authorization: Bearer` | `Authorization: Bearer` (Go key worked, billed to balance) | Bearer per SDK docs |
-| Models | `typesafe/jev-1.14`, alias `~typesafe/jev-latest` | `jev-1.13` (1.14 → "Model is unavailable") | `jev-1.14` per docs |
-| Images | accepted without a special header | requires `TypeSafe-Danger-Zone-Images: true` | unknown |
+| | OpenRouter | OpenCode (Console/Zen) |
+|---|---|---|
+| URL | `POST https://openrouter.ai/api/v1/systemone` | `POST https://opencode.ai/inference/systemone/v1/systemone` |
+| Auth | `Authorization: Bearer` | `Authorization: Bearer` (a Go key is accepted and bills to the pay-as-you-go balance) |
+| Models | `typesafe/jev-1.14`, alias `~typesafe/jev-latest` | `jev-1.13` (1.14 → "Model is unavailable") |
+| Images | accepted without a special header | requires `TypeSafe-Danger-Zone-Images: true` |
 
 Request, identical on both verified providers:
 
@@ -59,9 +60,14 @@ Presets:
 
 - `openrouter`: adds `systemone: https://openrouter.ai/api/v1/systemone`; same key.
 - `opencode`: adds `systemone: https://opencode.ai/inference/systemone/v1/systemone` and
-  `imageHeaders: { "TypeSafe-Danger-Zone-Images": "true" }`; this is the Console/Zen subscription,
-  not Go — the preset doc comment says so and the Go key is not assumed.
-- `typesafe`: new preset, `api.typesafe.ai/v1/systemone`, bearer.
+  `imageHeaders: { "TypeSafe-Danger-Zone-Images": "true" }`. This is the Console/Zen surface: a Go
+  key is accepted there but **bills to the pay-as-you-go balance, not the Go plan** — the preset docs
+  and the wizard say so. It advertises **`jev-1.13` only**, which rejects box questions; the
+  OpenRouter preset advertises **`jev-1.14`**, which supports them.
+
+No TypeSafe-direct preset in 0.3. Jev is reachable through OpenRouter and OpenCode; a direct preset is
+added only after someone verifies `api.typesafe.ai/v1/systemone` live with a key and records the
+fixture.
 
 ## 3. The client
 
@@ -129,15 +135,16 @@ Validator additions: box fractions are finite in [0,1], `top < bottom`, `left < 
 `usage.cost` is provider-reported and real (OpenRouter and OpenCode both return it; OpenCode also
 returns `list_cost`). The decision record carries `DecisionUsage(InputTokens, OutputTokens,
 CostUsd, ProviderReported)`; `/cost` shows it under the decision usage, with the provider-reported
-amount preferred over a catalog estimate and the estimate used only when the field is absent
-(TypeSafe direct until verified). Provenance and family stay visible next to the amount.
+amount preferred over a catalog estimate and the estimate used only when the provider reports no cost.
+Provenance and family stay visible next to the amount.
 
 ## 7. Adapter path: box on vision chat models
 
 The adapter already asks a chat model for decision JSON. It gains box: the schema returns four
 fractions + confidence, validated like a native box. It is offered only when the model's input
-modalities include images; otherwise the decision fails with "this model cannot decide: box questions
-need image input". No streaming, no new tool surface.
+modalities include images; otherwise the decision fails with a message naming the model, its version
+and the missing capability — on `jev-1.13` that reads "this model cannot decide: box questions need
+Jev 1.14". No streaming, no new tool surface.
 
 ## 8. Tests
 
@@ -149,7 +156,7 @@ need image input". No streaming, no new tool surface.
   reads `native`; a chat usage on the systemone profile is refused naming the family; an alias
   profile is refused naming the resolved version.
 - Cost: provider-reported cost recorded; absent cost falls back to the catalog estimate.
-- Live smoke: OpenRouter and OpenCode, skipped without a key; TypeSafe direct once a key exists.
+- Live smoke: OpenRouter and OpenCode, skipped without a key.
 
 ## 9. Risks
 
@@ -157,7 +164,8 @@ need image input". No streaming, no new tool surface.
   the preset does not advertise 1.14.
 - **Box and images are experimental** at the provider (the header says so). They sit behind the
   capability check and are fixture-tested, not relied on by default decisions.
-- **TypeSafe direct is unverified.** First implementation task: probe it and record the fixture; if
-  its shape differs, it becomes a preset variant, not a second family.
+- **TypeSafe direct is deferred.** It is not a 0.3 preset: unverified endpoints do not ship. Jev
+  remains reachable through OpenRouter and OpenCode; the direct preset is added when a key exists and
+  a live probe has recorded its fixture.
 - The per-kind criteria asymmetry is a provider contract quirk; the client owns it in one mapper with
   a fixture per kind so a future provider change fails a test, not a user's decision.

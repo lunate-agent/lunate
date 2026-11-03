@@ -5,8 +5,8 @@
 - [x] OpenRouter SystemOne: noul/choice/score, box with an image, unknown type, unknown model — live,
       recorded in `fixtures/`.
 - [x] OpenCode SystemOne: noul, image header requirement, 1.14 unavailable — live, recorded.
-- [ ] TypeSafe direct `api.typesafe.ai/v1/systemone`: probe with a key and record the fixture; if the
-      shape differs, add a preset variant, not a family.
+- [ ] TypeSafe direct is **deferred out of 0.3** (no key to verify it); add its preset only with a
+      recorded live fixture.
 - [ ] Rate limits and retry semantics: probe for headers or documented limits; record what is absent.
 
 ## 2. Contract 1.16.0 (lockstep)
@@ -36,9 +36,8 @@
 - [ ] `openrouter` gains `systemone: https://openrouter.ai/api/v1/systemone`.
 - [ ] `opencode` gains `systemone: https://opencode.ai/inference/systemone/v1/systemone` and the
       image header, documented as Console/Zen (not Go).
-- [ ] New `typesafe` preset (`api.typesafe.ai/v1/systemone`, bearer).
-- [ ] Catalog entries for `typesafe/jev-1.14` (OpenRouter), `jev-1.13` (OpenCode), TypeSafe direct;
-      family `systemone`; context/limits from the model pages.
+- [ ] Catalog entries for `typesafe/jev-1.14` (OpenRouter) and `jev-1.13` (OpenCode); family
+      `systemone`; context/limits from the model pages. No TypeSafe-direct entry in 0.3.
 - [ ] Discovery marks decision models when the provider advertises them; catalog otherwise.
 - [ ] Decision usage accepts a `systemone` profile; chat usage refuses it naming the family.
 - [ ] Alias profiles refused, naming the alias and the exact version it resolves to.
@@ -58,7 +57,9 @@
 
 ## 7. Docs
 
-- [ ] `docs/configuration.md`: `systemone` family, presets, image header, alias rule, cost reporting.
+- [ ] `docs/configuration.md`: `systemone` family, presets, image header, alias rule, cost reporting;
+      state that a Go key on the OpenCode systemone URL bills to the pay-as-you-go balance, and that
+      the OpenCode preset serves `jev-1.13` (no box) while OpenRouter serves `jev-1.14`.
 - [ ] `docs/guide.md`: a decision profile example and the `jev-router` chat example (no code).
 - [ ] ADR-0030 accepted.
 
@@ -66,5 +67,5 @@
 
 - [ ] Fixture replay per provider (success + error shapes), header-only-with-images, `usage.opencode`.
 - [ ] Existing decision-layer tests green with a native profile replacing the adapter.
-- [ ] Live smoke: OpenRouter and OpenCode (skip without a key); TypeSafe once a key exists.
+- [ ] Live smoke: OpenRouter and OpenCode (skip without a key).
 - [ ] `verify.sh` green and PR CI green.
