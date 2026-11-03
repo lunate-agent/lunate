@@ -42,6 +42,26 @@ public sealed class LiveContractTests
     }
 
     /// <summary>
+    /// The Responses family's live smoke: a streamed round trip through the family's own wire
+    /// (LUNATE_REPLAY is out of scope for the explicit-credential path this test avoids).
+    /// </summary>
+    [Fact]
+    public async Task OpenAiResponses_streamed_round_trip_returns_meai_updates()
+    {
+        Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
+        Assert.SkipWhen(
+            string.IsNullOrEmpty(Environment.GetEnvironmentVariable(OpenAiApiKeyVariable)),
+            $"{OpenAiApiKeyVariable} is not set."
+        );
+
+        ModelInfo responses = new("gpt-4o-mini", "openai", null, 128_000, true)
+        {
+            ApiFamily = ProviderApiFamilies.OpenAiResponses,
+        };
+        await RunStreamedRoundTrip(responses);
+    }
+
+    /// <summary>
     /// The extended-thinking contract: a streaming round-trip with style <c>budget</c> returns
     /// signed thinking blocks, and the tool loop that follows sends them back unchanged (a broken
     /// or missing signature is rejected by the API).

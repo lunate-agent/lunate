@@ -163,7 +163,14 @@ public sealed class ChatClientFactory : IChatClientFactory
 
         // An unwired family is a slice error before it is an auth error: the check owns the
         // message naming the family and the families this slice serves.
-        if (family is not (ProviderApiFamily.OpenAiChat or ProviderApiFamily.AnthropicMessages))
+        if (
+            family
+            is not (
+                ProviderApiFamily.OpenAiChat
+                or ProviderApiFamily.OpenAiResponses
+                or ProviderApiFamily.AnthropicMessages
+            )
+        )
         {
             throw NotImplementedFamily(family, model, model.Provider);
         }
@@ -178,11 +185,24 @@ public sealed class ChatClientFactory : IChatClientFactory
         switch (family)
         {
             // The native OpenAI preset keeps the SDK default endpoint; every compatible preset
-            // routes to its own base URL unless the entry declares one.
+            // routes to its own base URL unless the entry declares one. A preset that declares
+            // per-family URLs routes the family's URL.
             case ProviderApiFamily.OpenAiChat:
                 return CreateOpenAiClient(model, preset, headersHandler, credentialHandler)
                     .GetChatClient(wireId)
                     .AsIChatClient();
+            case ProviderApiFamily.OpenAiResponses:
+#pragma warning disable OPENAI001 // The Responses API is the family's own wire; the design pins it.
+                return CreateOpenAiClient(
+                        model,
+                        preset,
+                        headersHandler,
+                        credentialHandler,
+                        ProviderApiFamily.OpenAiResponses
+                    )
+                    .GetResponsesClient()
+                    .AsIChatClient(wireId);
+#pragma warning restore OPENAI001
             case ProviderApiFamily.AnthropicMessages:
                 return CreateAnthropicClient(model, preset, headersHandler, credentialHandler)
                     .AsIChatClient(wireId);
@@ -264,8 +284,9 @@ public sealed class ChatClientFactory : IChatClientFactory
                 + model.Id
                 + "' on provider '"
                 + provider
-                + "' resolves to it, but only 'openai-chat' and 'anthropic-messages' have clients. "
-                + "Pick a model of a wired family, or wait for the family's client."
+                + "' resolves to it, but only 'openai-chat', 'openai-responses' and "
+                + "'anthropic-messages' have clients. Pick a model of a wired family, or wait for "
+                + "the family's client."
         );
 
     /// <summary>
@@ -304,7 +325,8 @@ public sealed class ChatClientFactory : IChatClientFactory
         ModelInfo model,
         ProviderPreset? preset,
         DelegatingHandler? headersHandler,
-        DelegatingHandler? credentialHandler
+        DelegatingHandler? credentialHandler,
+        ProviderApiFamily? family = null
     )
     {
         // The SDK holds the sentinel only: the credential handler places the real value on the
@@ -316,7 +338,8 @@ public sealed class ChatClientFactory : IChatClientFactory
                 preset,
                 headersHandler,
                 credentialHandler,
-                BaseTransportFactory
+                BaseTransportFactory,
+                family
             )
         );
     }
@@ -338,14 +361,23 @@ public sealed class ChatClientFactory : IChatClientFactory
         ProviderPreset? preset,
         DelegatingHandler? headersHandler,
         DelegatingHandler? credentialHandler,
-        Func<HttpMessageHandler>? baseTransport
+        Func<HttpMessageHandler>? baseTransport,
+        ProviderApiFamily? family = null
     )
     {
         OpenAIClientOptions options = new() { RetryPolicy = new ClientRetryPolicy(maxRetries: 0) };
 
+        // A compatible preset routes to its own base URL; the family's URL wins when the preset
+        // declares one for it, so per-family settings (openai-responses) select their own entry.
         Uri? endpoint =
             model.Endpoint
-            ?? (preset?.Adapter == ProviderAdapter.OpenAiCompatible ? preset.BaseUrl : null);
+            ?? (
+                preset?.Adapter == ProviderAdapter.OpenAiCompatible
+                    ? family is ProviderApiFamily resolved
+                        ? preset.UrlFor(resolved) ?? preset.BaseUrl
+                        : preset.BaseUrl
+                    : null
+            );
         if (endpoint is not null)
         {
             options.Endpoint = endpoint;
