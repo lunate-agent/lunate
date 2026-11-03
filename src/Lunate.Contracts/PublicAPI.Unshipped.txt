@@ -886,3 +886,5 @@ override Lunate.Contracts.DecisionResponse.ToString() -> string!
 Lunate.Agent.GitIdentity
 static Lunate.Agent.GitIdentity.Canonicalize(string! path) -> string!
 static Lunate.Agent.GitIdentity.Detect(string! worktreeRoot) -> (string? RepoRoot, string? GitCommonDir)
+Lunate.Ai.ModelInfo.ModelsUrl.get -> System.Uri?
+Lunate.Ai.ModelInfo.ModelsUrl.init -> void

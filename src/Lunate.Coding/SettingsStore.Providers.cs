@@ -33,6 +33,10 @@ public static partial class SettingsStore
             string? baseUrl = null;
             string? model = null;
             string? catalogName = null;
+            string? apiFamily = null;
+            string? credentialPlacement = null;
+            string? modelsUrl = null;
+            Dictionary<string, string>? headers = null;
             foreach (JsonProperty field in property.Value.EnumerateObject())
             {
                 switch (field.Name)
@@ -69,7 +73,11 @@ public static partial class SettingsStore
                     model,
                     catalogName,
                     out CustomProvider? provider,
-                    out string? error
+                    out string? error,
+                    apiFamily,
+                    credentialPlacement,
+                    modelsUrl,
+                    headers
                 ) || provider is null
             )
             {
