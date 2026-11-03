@@ -1379,7 +1379,7 @@ public static partial class SettingsStore
         settings = settings with
         {
             Model = launch.Model ?? settings.Model,
-            Thinking = launch.Thinking ?? settings.Thinking,
+            Thinking = launch.Thinking ?? SeedReasoningLevel(settings) ?? settings.Thinking,
         };
         if (launch.ExtraTools is { } extra)
         {

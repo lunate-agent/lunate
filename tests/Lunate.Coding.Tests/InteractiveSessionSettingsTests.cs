@@ -62,7 +62,7 @@ public sealed class InteractiveSessionSettingsTests
             StringComparison.Ordinal
         );
         Assert.Contains(
-            "editable here: approval, thinkingFull, toolDetails, toolResultLimit,",
+            "editable here: approval, thinking, thinkingFull, toolDetails, toolResultLimit,",
             scrollback,
             StringComparison.Ordinal
         );
