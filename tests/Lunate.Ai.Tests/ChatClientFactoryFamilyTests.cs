@@ -104,6 +104,34 @@ public sealed class ChatClientFactoryFamilyTests
     }
 
     [Fact]
+    public void A_messages_model_on_a_compatible_preset_routes_to_the_family_declared_url()
+    {
+        using var environment = new EnvironmentScope(
+            ("OPENCODE_API_KEY", "fixture-only-key"),
+            ("LUNATE_OTEL", null),
+            ("OTEL_EXPORTER_OTLP_ENDPOINT", null)
+        );
+        ProviderPreset preset = ProviderPresets.Find("opencode-go")!;
+        var factory = new ChatClientFactory(new MarkingLoggerFactory(static () => { }));
+        var model = new ModelInfo("beam", "opencode-go", Endpoint: null, ContextWindow: 8192, true)
+        {
+            ApiFamily = "anthropic-messages",
+        };
+
+        IChatClient client = factory.Create(model);
+
+        var metadata = (ChatClientMetadata)client.GetService(typeof(ChatClientMetadata))!;
+        // The Anthropic SDK assembles the version path itself (messages), so the base it holds
+        // is the family URL stripped of its trailing version segment — the wire the request
+        // eventually builds is pinned by the messages-family URL test in OpenCodeGoWireTests.
+        Uri messagesFamily = preset.UrlFor(ProviderApiFamily.AnthropicMessages)!;
+        Assert.Equal(
+            ChatClientFactory.SplitApiVersion(messagesFamily).BaseUrl,
+            metadata.ProviderUri
+        );
+    }
+
+    [Fact]
     public void A_family_url_of_the_preset_counts_as_an_own_endpoint_for_the_credential()
     {
         ProviderPreset preset = ProviderPresets.Find("opencode-go")!;

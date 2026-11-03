@@ -212,9 +212,65 @@ public sealed class LiveContractTests
     }
 
     /// <summary>
-    /// The Google family's live smoke through OpenCode Go's Google endpoint: the gateway URL the
-    /// preset declares, one Go key, the same family client.
+    /// The OpenCode Go smokes: one per native API family, all against the Go gateway with the
+    /// single <c>OPENCODE_API_KEY</c>. Wire ids track the discovery listing the gateway serves at
+    /// <c>https://opencode.ai/inference/go/v1/models</c>; it is the provider that adds and
+    /// retires models, so a test naming a gone id is a data problem, not a code one.
     /// </summary>
+    [Fact]
+    public async Task OpenCodeGo_chat_completions_streamed_round_trip_returns_meai_updates()
+    {
+        Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
+        Assert.SkipWhen(
+            string.IsNullOrEmpty(Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable)),
+            $"{OpenCodeApiKeyVariable} is not set."
+        );
+
+        await RunStreamedRoundTrip(
+            new ModelInfo("glm-5.3-flash", "opencode-go", null, 1_000_000, true)
+            {
+                ApiFamily = ProviderApiFamilies.OpenAiChat,
+            }
+        );
+    }
+
+    /// <summary>The Responses family's live smoke through OpenCode Go's Responses endpoint.</summary>
+    [Fact]
+    public async Task OpenCodeGo_responses_streamed_round_trip_returns_meai_updates()
+    {
+        Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
+        Assert.SkipWhen(
+            string.IsNullOrEmpty(Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable)),
+            $"{OpenCodeApiKeyVariable} is not set."
+        );
+
+        await RunStreamedRoundTrip(
+            new ModelInfo("gpt-6-luna", "opencode-go", null, 1_050_000, true)
+            {
+                ApiFamily = ProviderApiFamilies.OpenAiResponses,
+            }
+        );
+    }
+
+    /// <summary>The Anthropic Messages family's live smoke through OpenCode Go's endpoint.</summary>
+    [Fact]
+    public async Task OpenCodeGo_anthropic_messages_streamed_round_trip_returns_meai_updates()
+    {
+        Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
+        Assert.SkipWhen(
+            string.IsNullOrEmpty(Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable)),
+            $"{OpenCodeApiKeyVariable} is not set."
+        );
+
+        await RunStreamedRoundTrip(
+            new ModelInfo("claude-haiku-5-5", "opencode-go", null, 1_000_000, true)
+            {
+                ApiFamily = ProviderApiFamilies.AnthropicMessages,
+            }
+        );
+    }
+
+    /// <summary>The Google family's live smoke through OpenCode Go's Google endpoint.</summary>
     [Fact]
     public async Task OpenCodeGo_google_streamed_round_trip_returns_meai_updates()
     {
@@ -225,7 +281,7 @@ public sealed class LiveContractTests
         );
 
         await RunStreamedRoundTrip(
-            new ModelInfo("gemini-2.5-flash", "opencode-go", null, 1_048_576, true)
+            new ModelInfo("gemini-4-argon", "opencode-go", null, 1_048_576, true)
             {
                 ApiFamily = ProviderApiFamilies.Google,
             }

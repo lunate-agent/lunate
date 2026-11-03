@@ -790,6 +790,67 @@ public sealed class DiscoverCommandTests
 
     [Fact]
     [Trait("Discovery", "ProviderApi")]
+    public async Task OpenCode_Go_discovery_requests_the_preset_models_url_not_a_family_url()
+    {
+        using var temp = new TempDirectory();
+        string response = File.ReadAllText(Fixture("opencode-go-models.json"));
+        // The handler serves only the discovery endpoint the preset declares; a family URL's
+        // /models path is a 404, which is exactly what the live endpoint answers with.
+        using var handler = new FakeHandler(request =>
+            request.RequestUri!.AbsoluteUri == "https://opencode.ai/inference/go/v1/models"
+                ? Json(HttpStatusCode.OK, response)
+                : new HttpResponseMessage(HttpStatusCode.NotFound) { ReasonPhrase = "Not Found" }
+        );
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "opencode-go",
+            Catalog(temp),
+            handler,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(
+            "https://opencode.ai/inference/go/v1/models",
+            handler.Requests[0].RequestUri!.AbsoluteUri
+        );
+    }
+
+    [Fact]
+    [Trait("Discovery", "ProviderApi")]
+    public async Task A_hand_entry_of_a_preset_model_discovers_through_the_preset_models_url()
+    {
+        using var temp = new TempDirectory();
+        string response = File.ReadAllText(Fixture("opencode-go-models.json"));
+        using var handler = new FakeHandler(request =>
+            request.RequestUri!.AbsoluteUri == "https://opencode.ai/inference/go/v1/models"
+                ? Json(HttpStatusCode.OK, response)
+                : new HttpResponseMessage(HttpStatusCode.NotFound) { ReasonPhrase = "Not Found" }
+        );
+        string path = temp.File("models.json");
+        File.WriteAllText(
+            path,
+            """{ "schemaVersion": 2, "models": [ { "id": "go/beam", "provider": "opencode-go", "contextWindow": 8192, "supportsTools": true, "apiFamily": "anthropic-messages" } ] }"""
+        );
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "go/beam",
+            ModelCatalog.Load(path),
+            handler,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(
+            "https://opencode.ai/inference/go/v1/models",
+            handler.Requests[0].RequestUri!.AbsoluteUri
+        );
+    }
+
+    [Fact]
+    [Trait("Discovery", "ProviderApi")]
     public async Task Custom_provider_discovery_rejects_a_model_base_url_on_another_host()
     {
         using var temp = new TempDirectory();
