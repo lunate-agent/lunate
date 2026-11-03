@@ -13,7 +13,14 @@ internal static class SystemOneDecisionTestData
         return new DecisionRequest(
             "typesafe/jev-1.14",
             providedState ?? state.RootElement.Clone(),
-            [new DecisionQuestion("safe", "Is the call safe?", DecisionQuestionKind.Noul, ["yes", "no"])]
+            [
+                new DecisionQuestion(
+                    "safe",
+                    "Is the call safe?",
+                    DecisionQuestionKind.Noul,
+                    ["yes", "no"]
+                ),
+            ]
         );
     }
 }

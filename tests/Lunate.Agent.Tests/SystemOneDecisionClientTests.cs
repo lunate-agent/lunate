@@ -51,7 +51,10 @@ public sealed class SystemOneDecisionClientTests
         );
         JsonElement question = sent.RootElement.GetProperty("questions").GetProperty("safe");
         Assert.Equal("noul", question.GetProperty("type").GetString());
-        Assert.Equal("The call is safe.", question.GetProperty("criteria").GetProperty("true").GetString());
+        Assert.Equal(
+            "The call is safe.",
+            question.GetProperty("criteria").GetProperty("true").GetString()
+        );
         Assert.Equal("yes", result.Results["safe"].Answer);
         Assert.Equal(0.91, result.Results["safe"].Probability);
         Assert.Equal(0.82, result.Results["safe"].Confidence, 10);
@@ -71,13 +74,18 @@ public sealed class SystemOneDecisionClientTests
         );
 
         DecisionTransportException exception = await Assert.ThrowsAsync<DecisionTransportException>(
-            () => client.GetDecisionAsync(
-                SystemOneDecisionTestData.CreateRequest(),
-                cancellationToken: TestContext.Current.CancellationToken
-            )
+            () =>
+                client.GetDecisionAsync(
+                    SystemOneDecisionTestData.CreateRequest(),
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
         );
 
-        Assert.Contains("state too large for this model", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "state too large for this model",
+            exception.Message,
+            StringComparison.Ordinal
+        );
         Assert.Equal(1, handler.RequestCount);
     }
 
@@ -95,10 +103,11 @@ public sealed class SystemOneDecisionClientTests
         );
 
         DecisionTransportException exception = await Assert.ThrowsAsync<DecisionTransportException>(
-            () => client.GetDecisionAsync(
-                SystemOneDecisionTestData.CreateRequest(),
-                cancellationToken: TestContext.Current.CancellationToken
-            )
+            () =>
+                client.GetDecisionAsync(
+                    SystemOneDecisionTestData.CreateRequest(),
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
         );
 
         Assert.Equal("questions.safe.criteria", exception.Field);
@@ -120,10 +129,11 @@ public sealed class SystemOneDecisionClientTests
         );
 
         DecisionTransportException exception = await Assert.ThrowsAsync<DecisionTransportException>(
-            () => client.GetDecisionAsync(
-                SystemOneDecisionTestData.CreateRequest(),
-                cancellationToken: TestContext.Current.CancellationToken
-            )
+            () =>
+                client.GetDecisionAsync(
+                    SystemOneDecisionTestData.CreateRequest(),
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
         );
 
         Assert.Contains("32 MiB request limit", exception.Message, StringComparison.Ordinal);
@@ -141,10 +151,7 @@ public sealed class SystemOneDecisionClientTests
             httpClient,
             new SystemOnePreset(
                 new Uri("https://example.test/api/v1/systemone"),
-                new Dictionary<string, string>
-                {
-                    ["TypeSafe-Danger-Zone-Images"] = "true",
-                }
+                new Dictionary<string, string> { ["TypeSafe-Danger-Zone-Images"] = "true" }
             )
         );
         using JsonDocument state = JsonDocument.Parse(
@@ -170,10 +177,7 @@ public sealed class SystemOneDecisionClientTests
             httpClient,
             new SystemOnePreset(
                 new Uri("https://example.test/api/v1/systemone"),
-                new Dictionary<string, string>
-                {
-                    ["TypeSafe-Danger-Zone-Images"] = "true",
-                }
+                new Dictionary<string, string> { ["TypeSafe-Danger-Zone-Images"] = "true" }
             )
         );
 
@@ -184,5 +188,4 @@ public sealed class SystemOneDecisionClientTests
 
         Assert.DoesNotContain("TypeSafe-Danger-Zone-Images", handler.RequestHeaders!.Keys);
     }
-
 }

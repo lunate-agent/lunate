@@ -38,11 +38,17 @@ internal static class SystemOneErrorMapper
 
     private static JsonElement FindErrorObject(JsonElement root)
     {
-        if (root.TryGetProperty("error", out JsonElement error) && error.ValueKind == JsonValueKind.Object)
+        if (
+            root.TryGetProperty("error", out JsonElement error)
+            && error.ValueKind == JsonValueKind.Object
+        )
         {
             return error;
         }
-        if (root.TryGetProperty("detail", out JsonElement detail) && detail.ValueKind == JsonValueKind.Object)
+        if (
+            root.TryGetProperty("detail", out JsonElement detail)
+            && detail.ValueKind == JsonValueKind.Object
+        )
         {
             return detail;
         }
@@ -50,7 +56,8 @@ internal static class SystemOneErrorMapper
     }
 
     private static string? StringProperty(JsonElement element, string name) =>
-        element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+        element.TryGetProperty(name, out JsonElement value)
+        && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
 
@@ -68,14 +75,15 @@ internal static class SystemOneErrorMapper
                     && path.ValueKind == JsonValueKind.Array
                 )
                 {
-                    string[] parts = path
-                        .EnumerateArray()
-                        .Select(value => value.ValueKind switch
-                        {
-                            JsonValueKind.String => value.GetString(),
-                            JsonValueKind.Number => value.GetRawText(),
-                            _ => null,
-                        })
+                    string[] parts = path.EnumerateArray()
+                        .Select(value =>
+                            value.ValueKind switch
+                            {
+                                JsonValueKind.String => value.GetString(),
+                                JsonValueKind.Number => value.GetRawText(),
+                                _ => null,
+                            }
+                        )
                         .OfType<string>()
                         .ToArray();
                     return parts.Length == 0 ? null : string.Join('.', parts);

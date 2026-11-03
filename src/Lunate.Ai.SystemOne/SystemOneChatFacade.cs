@@ -3,7 +3,8 @@ using Microsoft.Extensions.AI;
 
 namespace Lunate.Ai.SystemOne;
 
-internal sealed class SystemOneChatFacade(string modelId, IDecisionClient decisionClient) : IChatClient
+internal sealed class SystemOneChatFacade(string modelId, IDecisionClient decisionClient)
+    : IChatClient
 {
     public Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,

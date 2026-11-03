@@ -9,8 +9,7 @@ internal sealed class SystemOneDecisionClient(
     SystemOnePreset preset,
     Func<double>? jitterSource = null,
     Func<TimeSpan, CancellationToken, Task>? delayAsync = null
-)
-    : IDecisionClient
+) : IDecisionClient
 {
     public async Task<DecisionResult> GetDecisionAsync(
         DecisionRequest request,
@@ -58,9 +57,9 @@ internal sealed class SystemOneDecisionClient(
                 throw SystemOneErrorMapper.Create(response.StatusCode, responseBody);
             }
             await (delayAsync ?? Task.Delay)(
-                    GetRetryDelay(response, attempt, jitterSource),
-                    cancellationToken
-                )
+                GetRetryDelay(response, attempt, jitterSource),
+                cancellationToken
+            )
                 .ConfigureAwait(false);
         }
 
@@ -96,8 +95,7 @@ internal sealed class SystemOneDecisionClient(
         return message;
     }
 
-    public object? GetService(Type serviceType) =>
-        serviceType.IsInstanceOfType(this) ? this : null;
+    public object? GetService(Type serviceType) => serviceType.IsInstanceOfType(this) ? this : null;
 
     private static bool IsRetryable(System.Net.HttpStatusCode statusCode) =>
         statusCode == System.Net.HttpStatusCode.TooManyRequests || (int)statusCode == 529;

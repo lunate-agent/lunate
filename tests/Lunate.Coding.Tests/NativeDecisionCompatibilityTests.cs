@@ -27,7 +27,13 @@ public sealed class NativeDecisionCompatibilityTests
         string response = await legacy.GetDecisionAsync(
             new Lunate.Contracts.DecisionRequest(
                 state.RootElement.Clone(),
-                [new Lunate.Contracts.DecisionQuestion("safe", "Is it safe?", DecisionQuestionKind.YesNo)]
+                [
+                    new Lunate.Contracts.DecisionQuestion(
+                        "safe",
+                        "Is it safe?",
+                        DecisionQuestionKind.YesNo
+                    ),
+                ]
             ),
             TestContext.Current.CancellationToken
         );
@@ -35,7 +41,11 @@ public sealed class NativeDecisionCompatibilityTests
         using JsonDocument parsed = JsonDocument.Parse(response);
         Assert.Equal(
             "yes",
-            parsed.RootElement.GetProperty("results").GetProperty("safe").GetProperty("answer").GetString()
+            parsed
+                .RootElement.GetProperty("results")
+                .GetProperty("safe")
+                .GetProperty("answer")
+                .GetString()
         );
         Assert.Equal("model-x", handler.ModelId);
     }

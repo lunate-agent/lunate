@@ -2,9 +2,9 @@ using System.Text.Json;
 using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using InternalDecisionAnswer = Lunate.Ai.Decisions.DecisionAnswer;
-using InternalDecisionRequest = Lunate.Ai.Decisions.DecisionRequest;
 using InternalDecisionQuestion = Lunate.Ai.Decisions.DecisionQuestion;
 using InternalDecisionQuestionKind = Lunate.Ai.Decisions.DecisionQuestionKind;
+using InternalDecisionRequest = Lunate.Ai.Decisions.DecisionRequest;
 
 namespace Lunate.Agent;
 
@@ -24,11 +24,16 @@ internal sealed class NativeDecisionClientForwarder(IDecisionClient inner, strin
                 question.Text,
                 question.Kind switch
                 {
-                    Lunate.Contracts.DecisionQuestionKind.YesNo => InternalDecisionQuestionKind.Noul,
-                    Lunate.Contracts.DecisionQuestionKind.Choice => InternalDecisionQuestionKind.Choice,
-                    Lunate.Contracts.DecisionQuestionKind.Score => InternalDecisionQuestionKind.Score,
+                    Lunate.Contracts.DecisionQuestionKind.YesNo =>
+                        InternalDecisionQuestionKind.Noul,
+                    Lunate.Contracts.DecisionQuestionKind.Choice =>
+                        InternalDecisionQuestionKind.Choice,
+                    Lunate.Contracts.DecisionQuestionKind.Score =>
+                        InternalDecisionQuestionKind.Score,
                     Lunate.Contracts.DecisionQuestionKind.Box => InternalDecisionQuestionKind.Box,
-                    _ => throw new InvalidOperationException("The decision question kind is unsupported."),
+                    _ => throw new InvalidOperationException(
+                        "The decision question kind is unsupported."
+                    ),
                 },
                 question.Kind == Lunate.Contracts.DecisionQuestionKind.YesNo
                     ? ["yes", "no"]

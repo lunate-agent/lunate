@@ -24,7 +24,10 @@ public sealed class SystemOneDecisionMappingTests
         );
 
         using JsonDocument sent = JsonDocument.Parse(handler.RequestBody!);
-        Assert.Equal(state.RootElement.GetRawText(), sent.RootElement.GetProperty("state").GetRawText());
+        Assert.Equal(
+            state.RootElement.GetRawText(),
+            sent.RootElement.GetProperty("state").GetRawText()
+        );
     }
 
     [Fact]
@@ -116,11 +119,7 @@ public sealed class SystemOneDecisionMappingTests
         );
         using HttpClient httpClient = new(handler);
         SystemOneDecisionClient client = CreateClient(httpClient);
-        DecisionQuestion question = new(
-            "logo",
-            "Locate the logo.",
-            DecisionQuestionKind.Box
-        );
+        DecisionQuestion question = new("logo", "Locate the logo.", DecisionQuestionKind.Box);
 
         DecisionResult result = await client.GetDecisionAsync(
             CreateRequest(question),
@@ -128,9 +127,7 @@ public sealed class SystemOneDecisionMappingTests
         );
 
         using JsonDocument sent = JsonDocument.Parse(handler.RequestBody!);
-        JsonElement mappedQuestion = sent
-            .RootElement.GetProperty("questions")
-            .GetProperty("logo");
+        JsonElement mappedQuestion = sent.RootElement.GetProperty("questions").GetProperty("logo");
         Assert.False(mappedQuestion.TryGetProperty("criteria", out _));
         Assert.Equal(0.16, result.Results["logo"].Confidence);
         Assert.Equal(0.05, result.Results["logo"].Box!.Top);

@@ -6,7 +6,9 @@ namespace Lunate.Ai.SystemOne;
 internal static class SystemOneRequestMapper
 {
     private const int MaximumBodyBytes = 32 * 1024 * 1024;
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
+    private static readonly JsonSerializerOptions SerializerOptions = new(
+        JsonSerializerDefaults.Web
+    )
     {
         MaxDepth = 70,
     };
@@ -14,7 +16,10 @@ internal static class SystemOneRequestMapper
     public static byte[] Serialize(DecisionRequest request, string modelId)
     {
         ValidateState(request.State, 0);
-        byte[] body = JsonSerializer.SerializeToUtf8Bytes(Create(request, modelId), SerializerOptions);
+        byte[] body = JsonSerializer.SerializeToUtf8Bytes(
+            Create(request, modelId),
+            SerializerOptions
+        );
         if (body.Length > MaximumBodyBytes)
         {
             throw new InvalidDataException("Decision request exceeds the 32 MiB body limit.");
@@ -47,7 +52,9 @@ internal static class SystemOneRequestMapper
 
         return state.ValueKind switch
         {
-            JsonValueKind.Object => state.EnumerateObject().Any(property => ContainsImagePart(property.Value)),
+            JsonValueKind.Object => state
+                .EnumerateObject()
+                .Any(property => ContainsImagePart(property.Value)),
             JsonValueKind.Array => state.EnumerateArray().Any(ContainsImagePart),
             _ => false,
         };
@@ -55,7 +62,8 @@ internal static class SystemOneRequestMapper
 
     private static void ValidateState(JsonElement state, int parentDepth)
     {
-        int depth = parentDepth + (state.ValueKind is JsonValueKind.Object or JsonValueKind.Array ? 1 : 0);
+        int depth =
+            parentDepth + (state.ValueKind is JsonValueKind.Object or JsonValueKind.Array ? 1 : 0);
         if (depth > 64)
         {
             throw new InvalidDataException("Decision state exceeds the 64-level nesting limit.");
@@ -109,29 +117,35 @@ internal static class SystemOneRequestMapper
         };
     }
 
-    private static object? Criteria(DecisionQuestion question) => question.Kind switch
-    {
-        DecisionQuestionKind.Noul => question.Criteria,
-        DecisionQuestionKind.Choice => question.Criteria ?? question.Answers!.ToDictionary(
-            answer => answer,
-            answer => answer,
-            StringComparer.Ordinal
-        ),
-        DecisionQuestionKind.Score => question.Answers!.Select(answer =>
-            question.Criteria is not null && question.Criteria.TryGetValue(answer, out string? text)
-                ? text
-                : answer
-        ).ToArray(),
-        DecisionQuestionKind.Box => null,
-        _ => throw new ArgumentOutOfRangeException(nameof(question), question.Kind, null),
-    };
+    private static object? Criteria(DecisionQuestion question) =>
+        question.Kind switch
+        {
+            DecisionQuestionKind.Noul => question.Criteria,
+            DecisionQuestionKind.Choice => question.Criteria
+                ?? question.Answers!.ToDictionary(
+                    answer => answer,
+                    answer => answer,
+                    StringComparer.Ordinal
+                ),
+            DecisionQuestionKind.Score => question
+                .Answers!.Select(answer =>
+                    question.Criteria is not null
+                    && question.Criteria.TryGetValue(answer, out string? text)
+                        ? text
+                        : answer
+                )
+                .ToArray(),
+            DecisionQuestionKind.Box => null,
+            _ => throw new ArgumentOutOfRangeException(nameof(question), question.Kind, null),
+        };
 
-    private static string TypeName(DecisionQuestionKind kind) => kind switch
-    {
-        DecisionQuestionKind.Noul => "noul",
-        DecisionQuestionKind.Choice => "choice",
-        DecisionQuestionKind.Score => "score",
-        DecisionQuestionKind.Box => "box",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-    };
+    private static string TypeName(DecisionQuestionKind kind) =>
+        kind switch
+        {
+            DecisionQuestionKind.Noul => "noul",
+            DecisionQuestionKind.Choice => "choice",
+            DecisionQuestionKind.Score => "score",
+            DecisionQuestionKind.Box => "box",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
 }

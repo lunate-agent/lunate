@@ -19,7 +19,11 @@ public sealed class SystemOneChatFacadeTests
                 )
         );
 
-        Assert.Contains("typesafe/jev-1.14 is a decision model", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "typesafe/jev-1.14 is a decision model",
+            exception.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -34,7 +38,11 @@ public sealed class SystemOneChatFacadeTests
             )
         );
 
-        Assert.Contains("typesafe/jev-1.14 is a decision model", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "typesafe/jev-1.14 is a decision model",
+            exception.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

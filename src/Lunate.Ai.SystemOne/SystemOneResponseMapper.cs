@@ -126,7 +126,9 @@ internal static class SystemOneResponseMapper
         {
             if (level.Value.ValueKind != JsonValueKind.String)
             {
-                throw new InvalidDataException("System One score legend must contain string levels.");
+                throw new InvalidDataException(
+                    "System One score legend must contain string levels."
+                );
             }
             labelsByIndex.Add(level.Name, level.Value.GetString()!);
         }
@@ -142,10 +144,9 @@ internal static class SystemOneResponseMapper
         }
 
         IReadOnlyList<string> order = question.Answers!;
-        string chosen = order
-            .Where(normalized.ContainsKey)
-            .MaxBy(label => normalized[label].GetDouble())
-                       ?? throw new InvalidDataException("System One score answer has no levels.");
+        string chosen =
+            order.Where(normalized.ContainsKey).MaxBy(label => normalized[label].GetDouble())
+            ?? throw new InvalidDataException("System One score answer has no levels.");
         double expectedScore = RequiredFiniteNumber(answer, "score");
         return new MappedScore(new { answer = chosen, probabilities = normalized }, expectedScore);
     }
@@ -170,7 +171,8 @@ internal static class SystemOneResponseMapper
         }
         long? input = OptionalInt64(usage, "input_tokens");
         long? output = OptionalInt64(usage, "output_tokens");
-        double? cost = usage.TryGetProperty("cost", out JsonElement costElement)
+        double? cost =
+            usage.TryGetProperty("cost", out JsonElement costElement)
             && costElement.TryGetDouble(out double parsedCost)
             && double.IsFinite(parsedCost)
                 ? parsedCost
@@ -179,7 +181,8 @@ internal static class SystemOneResponseMapper
     }
 
     private static long? OptionalInt64(JsonElement element, string property) =>
-        element.TryGetProperty(property, out JsonElement value) && value.TryGetInt64(out long parsed)
+        element.TryGetProperty(property, out JsonElement value)
+        && value.TryGetInt64(out long parsed)
             ? parsed
             : null;
 
@@ -191,19 +194,22 @@ internal static class SystemOneResponseMapper
             || !double.IsFinite(parsed)
         )
         {
-            throw new InvalidDataException($"System One answer requires a finite '{property}' number.");
+            throw new InvalidDataException(
+                $"System One answer requires a finite '{property}' number."
+            );
         }
         return parsed;
     }
 
-    private static string TypeName(DecisionQuestionKind kind) => kind switch
-    {
-        DecisionQuestionKind.Noul => "noul",
-        DecisionQuestionKind.Choice => "choice",
-        DecisionQuestionKind.Score => "score",
-        DecisionQuestionKind.Box => "box",
-        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
-    };
+    private static string TypeName(DecisionQuestionKind kind) =>
+        kind switch
+        {
+            DecisionQuestionKind.Noul => "noul",
+            DecisionQuestionKind.Choice => "choice",
+            DecisionQuestionKind.Score => "score",
+            DecisionQuestionKind.Box => "box",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+        };
 
     private sealed record MappedScore(object Answer, double ExpectedScore);
 }

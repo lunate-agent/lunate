@@ -18,8 +18,8 @@ public sealed class SystemOneDecisionClientTransportTests
             JsonSerializer.Serialize(new string('x', 32 * 1024 * 1024))
         );
 
-        await Assert.ThrowsAsync<InvalidDataException>(
-            () => client.GetDecisionAsync(
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            client.GetDecisionAsync(
                 SystemOneDecisionTestData.CreateRequest(state.RootElement.Clone()),
                 cancellationToken: TestContext.Current.CancellationToken
             )
@@ -37,10 +37,13 @@ public sealed class SystemOneDecisionClientTransportTests
         using HttpClient httpClient = new(handler);
         SystemOneDecisionClient client = CreateClient(httpClient);
         string nested = new string('[', 65) + new string(']', 65);
-        using JsonDocument state = JsonDocument.Parse(nested, new JsonDocumentOptions { MaxDepth = 100 });
+        using JsonDocument state = JsonDocument.Parse(
+            nested,
+            new JsonDocumentOptions { MaxDepth = 100 }
+        );
 
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => client.GetDecisionAsync(
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            client.GetDecisionAsync(
                 SystemOneDecisionTestData.CreateRequest(state.RootElement.Clone()),
                 cancellationToken: TestContext.Current.CancellationToken
             )
@@ -60,8 +63,8 @@ public sealed class SystemOneDecisionClientTransportTests
         SystemOneDecisionClient client = CreateClient(httpClient);
         using JsonDocument state = JsonDocument.Parse("""{"quantity":1e9999}""");
 
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => client.GetDecisionAsync(
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            client.GetDecisionAsync(
                 SystemOneDecisionTestData.CreateRequest(state.RootElement.Clone()),
                 cancellationToken: TestContext.Current.CancellationToken
             )
@@ -156,8 +159,8 @@ public sealed class SystemOneDecisionClientTransportTests
             delayAsync: (_, _) => Task.CompletedTask
         );
 
-        await Assert.ThrowsAsync<DecisionTransportException>(
-            () => client.GetDecisionAsync(
+        await Assert.ThrowsAsync<DecisionTransportException>(() =>
+            client.GetDecisionAsync(
                 SystemOneDecisionTestData.CreateRequest(),
                 cancellationToken: TestContext.Current.CancellationToken
             )

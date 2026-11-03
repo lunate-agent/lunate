@@ -10,7 +10,9 @@ public sealed class SystemOneFixtureReplayTests
     [Fact]
     public async Task OpenRouter_fixture_replays_noul_choice_and_score_answers()
     {
-        using SystemOneRecordingHandler handler = new(ReadFixture("openrouter-noul-choice-score.json"));
+        using SystemOneRecordingHandler handler = new(
+            ReadFixture("openrouter-noul-choice-score.json")
+        );
         using HttpClient httpClient = new(handler);
         SystemOneDecisionClient client = CreateClient(httpClient);
         DecisionRequest request = CreateRequest(
@@ -82,7 +84,9 @@ public sealed class SystemOneFixtureReplayTests
         SystemOneDecisionClient client = CreateClient(httpClient);
 
         DecisionResult result = await client.GetDecisionAsync(
-            CreateRequest(new DecisionQuestion("q", "Is this true?", DecisionQuestionKind.Noul, ["yes", "no"])),
+            CreateRequest(
+                new DecisionQuestion("q", "Is this true?", DecisionQuestionKind.Noul, ["yes", "no"])
+            ),
             cancellationToken: TestContext.Current.CancellationToken
         );
 
@@ -105,15 +109,19 @@ public sealed class SystemOneFixtureReplayTests
         string expectedMessage
     )
     {
-        using SystemOneRecordingHandler handler = new(ReadFixture(fileName), HttpStatusCode.BadRequest);
+        using SystemOneRecordingHandler handler = new(
+            ReadFixture(fileName),
+            HttpStatusCode.BadRequest
+        );
         using HttpClient httpClient = new(handler);
         SystemOneDecisionClient client = CreateClient(httpClient);
 
         DecisionTransportException exception = await Assert.ThrowsAsync<DecisionTransportException>(
-            () => client.GetDecisionAsync(
-                SystemOneDecisionTestData.CreateRequest(),
-                cancellationToken: TestContext.Current.CancellationToken
-            )
+            () =>
+                client.GetDecisionAsync(
+                    SystemOneDecisionTestData.CreateRequest(),
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
         );
 
         Assert.Contains(expectedMessage, exception.ProviderMessage, StringComparison.Ordinal);

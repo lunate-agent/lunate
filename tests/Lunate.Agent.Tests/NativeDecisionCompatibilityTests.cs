@@ -14,13 +14,16 @@ public sealed class NativeDecisionCompatibilityTests
         using JsonDocument state = JsonDocument.Parse("{\"path\":\"src\"}");
         Lunate.Contracts.DecisionRequest request = new(
             state.RootElement.Clone(),
-            [new ContractDecisionQuestion("safe", "Is this safe?", ContractDecisionQuestionKind.YesNo)]
+            [
+                new ContractDecisionQuestion(
+                    "safe",
+                    "Is this safe?",
+                    ContractDecisionQuestionKind.YesNo
+                ),
+            ]
         );
         RecordingDecisionClient inner = new();
-        INativeDecisionClient adapter = new NativeDecisionClientForwarder(
-            inner,
-            "model-x"
-        );
+        INativeDecisionClient adapter = new NativeDecisionClientForwarder(inner, "model-x");
 
         string response = await adapter.GetDecisionAsync(
             request,
@@ -32,7 +35,10 @@ public sealed class NativeDecisionCompatibilityTests
         Assert.Equal("yes", result.GetProperty("answer").GetString());
         Assert.Equal(0.8, result.GetProperty("probabilities").GetProperty("yes").GetDouble());
         Assert.Equal("model-x", inner.Request!.ModelId);
-        Assert.Equal(Lunate.Ai.Decisions.DecisionQuestionKind.Noul, inner.Request.Questions[0].Kind);
+        Assert.Equal(
+            Lunate.Ai.Decisions.DecisionQuestionKind.Noul,
+            inner.Request.Questions[0].Kind
+        );
     }
 
     private sealed class RecordingDecisionClient : IDecisionClient

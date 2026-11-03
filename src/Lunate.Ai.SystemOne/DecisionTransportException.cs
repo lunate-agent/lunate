@@ -12,7 +12,11 @@ internal sealed class DecisionTransportException(
     public string ProviderMessage { get; } = providerMessage;
     public string? Field { get; } = field;
 
-    private static string CreateMessage(HttpStatusCode statusCode, string providerMessage, string? field)
+    private static string CreateMessage(
+        HttpStatusCode statusCode,
+        string providerMessage,
+        string? field
+    )
     {
         if (statusCode == HttpStatusCode.RequestEntityTooLarge)
         {
