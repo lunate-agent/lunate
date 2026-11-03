@@ -13,6 +13,44 @@ namespace Lunate.Ai;
 /// </summary>
 internal static class CredentialPlacementFile
 {
+    /// <summary>
+    /// Parses one placement declaration that is not family-keyed: a compact string
+    /// (<c>"bearer"</c>, <c>"x-api-key"</c>, <c>"query:key"</c>) or a single object
+    /// (<c>{ "in": "header", "name": "x-api-key" }</c>). A custom provider entry declares exactly
+    /// one, so no family key is accepted here.
+    /// </summary>
+    internal static bool TryParseSingle(
+        JsonElement? declared,
+        out CredentialPlacement? placement,
+        out string? error
+    )
+    {
+        placement = null;
+        error = null;
+        if (!declared.HasValue || declared.Value.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        JsonElement element = declared.Value;
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            return CredentialPlacement.TryParseCompact(
+                element.GetString(),
+                out placement,
+                out error
+            );
+        }
+
+        if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty("in", out JsonElement target))
+        {
+            return FromObject(element, target, out placement, out error);
+        }
+
+        error = "the placement must be a string or an object";
+        return false;
+    }
+
     internal static bool TryParseProvider(
         JsonElement? declared,
         out Dictionary<ProviderApiFamily, CredentialPlacement>? placements,

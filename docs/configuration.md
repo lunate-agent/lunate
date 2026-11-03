@@ -48,9 +48,13 @@ shown are the documented defaults the store applies when a key is missing.
 | `projection.batchTurns` | integer | 4 | user | Model turns between request-time projection rewrites. `LUNATE_PROJECTION_BATCH_TURNS` overrides it. |
 | `projection.maskErrorTurns` | integer | 32 | user | The mask window for error tool results, in model turns; must be at least the success window. `LUNATE_PROJECTION_MASK_ERROR_TURNS` overrides it. |
 | `projection.maskTurns` | integer | 8 | user | The mask window for successful tool results, in model turns. `LUNATE_PROJECTION_MASK_TURNS` overrides it. |
-| `providers.<id>.baseUrl` | string | unset | user | The endpoint's base URL: absolute and https, or http only for a loopback host. Definitions live in user settings only. |
+| `providers.<id>.baseUrl` | string | unset | user | The endpoint's base URL: absolute and https, or http only for a loopback host. The shorthand for `baseUrls` under the entry's default family; both together must name the same URL. Definitions live in user settings only. |
+| `providers.<id>.baseUrls` | object | unset | user | One base URL per API family, keyed by family name (`openai-chat`, `openai-responses`, `anthropic-messages`, `google`); a custom entry declares exactly one. Definitions live in user settings only. |
 | `providers.<id>.catalogName` | string | unset | user | The display name the model picker shows for the endpoint. |
+| `providers.<id>.credentialPlacement` | string | bearer | user | How the credential is sent: `bearer`, `x-api-key`, `header:<name>` or `query:<name>` (or the equivalent object form). Definitions live in user settings only. |
+| `providers.<id>.headers` | object | unset | user | Headers sent with every request: literal values, `auth:`/`env:`/`helper:` references, or templates over `{session.id}`, `{run.id}` and `{lunate.version}`. Definitions live in user settings only. |
 | `providers.<id>.model` | string | unset | user | The model id requests use through the endpoint unless a selection overrides it. |
+| `providers.<id>.modelsUrl` | string | unset | user | The models/discovery URL; absent means discovery derives `{base URL}/models`. Discovery never leaves the URL's host. Definitions live in user settings only. |
 | `roslyn.maxLoadedWorkspaces` | integer | 2 | user | C# workspaces kept loaded across roots; a further root's load evicts the least-recently-used one. Never `unlimited`. |
 | `schemaVersion` | integer | 2 | user, project | Required; 1 or 2 are readable, 2 is written. |
 | `startupHeader` | boolean | true | user | Prints the welcome header when a session starts. `LUNATE_STARTUP_HEADER` overrides it. |

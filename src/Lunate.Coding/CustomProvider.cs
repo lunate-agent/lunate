@@ -37,7 +37,7 @@ public sealed record CustomProvider(
         out CustomProvider? provider,
         out string? error,
         string? apiFamily = null,
-        string? credentialPlacement = null,
+        CredentialPlacement? credentialPlacement = null,
         string? modelsUrl = null,
         IReadOnlyDictionary<string, string>? headers = null
     )
@@ -68,20 +68,6 @@ public sealed record CustomProvider(
         )
         {
             error = ProviderApiFamilies.Unsupported(apiFamily, "--api-family");
-            return false;
-        }
-
-        CredentialPlacement? placement = null;
-        if (
-            credentialPlacement is not null
-            && !CredentialPlacement.TryParseCompact(
-                credentialPlacement,
-                out placement,
-                out string? placementError
-            )
-        )
-        {
-            error = $"the credential placement is refused: {placementError}";
             return false;
         }
 
@@ -143,7 +129,7 @@ public sealed record CustomProvider(
             trimmedModel,
             resolvedCatalogName,
             family,
-            placement,
+            credentialPlacement,
             parsedModelsUrl,
             copiedHeaders
         );

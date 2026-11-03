@@ -207,6 +207,7 @@ public sealed class CustomProviderTests
     [InlineData("query:key")]
     public void A_declared_placement_is_carried_onto_the_model(string placement)
     {
+        CredentialPlacement.TryParseCompact(placement, out CredentialPlacement? parsed, out _);
         bool created = CustomProvider.TryCreate(
             "work",
             "https://example.com/v1",
@@ -214,30 +215,12 @@ public sealed class CustomProviderTests
             null,
             out CustomProvider? provider,
             out string? error,
-            credentialPlacement: placement
+            credentialPlacement: parsed
         );
 
         Assert.True(created);
         Assert.Null(error);
         Assert.Equal(placement, provider!.ToModelInfo().CredentialPlacement);
-    }
-
-    [Fact]
-    public void An_unusable_placement_is_refused_with_the_parse_error()
-    {
-        bool created = CustomProvider.TryCreate(
-            "work",
-            "https://example.com/v1",
-            "m",
-            null,
-            out CustomProvider? provider,
-            out string? error,
-            credentialPlacement: "bearer "
-        );
-
-        Assert.False(created);
-        Assert.Null(provider);
-        Assert.Contains("not a placement", error, StringComparison.Ordinal);
     }
 
     [Fact]
