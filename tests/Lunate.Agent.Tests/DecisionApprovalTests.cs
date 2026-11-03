@@ -61,33 +61,24 @@ public sealed class DecisionApprovalTests
         Assert.Equal(2, decision.Requests.Count);
         Assert.Single(approver.Requests);
         Assert.Equal(1, executions);
-        Assert.Equal(4, events.OfType<DecisionFailed>().Count());
+        Assert.Single(events.OfType<DecisionFailed>());
     }
 
     [Fact]
     public async Task Decision_allow_does_not_override_user_deny()
     {
         DecisionRun run = await RunApprovalAsync(
-            DecisionApprovalResponse.Create(
-                "writes_outside_workspace",
-                affirmativeProbability: 0.2
-            ),
+            """{"results":{"approval":{"answer":"approve","probabilities":{"approve":0.8,"deny":0.2}}}}""",
             DecisionMode.Enforce,
             userApproval: false,
             apiType: "native"
         );
 
-        DecisionEvaluated[] decisions = [.. run.Events.OfType<DecisionEvaluated>()];
-        Assert.Equal(4, decisions.Length);
-        Assert.All(decisions, decision => Assert.Equal("no", decision.Answer));
-        DecisionEvaluated decision = Assert.Single(
-            decisions,
-            item => item.QuestionId == "writes_outside_workspace"
-        );
+        DecisionEvaluated decision = Assert.Single(run.Events.OfType<DecisionEvaluated>());
         Assert.Equal("decision-model", decision.ModelId);
         Assert.Equal("adapter", decision.Method);
-        Assert.Equal("no", decision.Option);
-        Assert.Equal("writes_outside_workspace", decision.QuestionId);
+        Assert.Equal("approve", decision.Option);
+        Assert.Equal("approval", decision.QuestionId);
         Assert.Equal(decision.Option, decision.Answer);
         Assert.Equal(0.8d, decision.Probability);
         Assert.Single(run.Approver.Requests);
@@ -99,18 +90,14 @@ public sealed class DecisionApprovalTests
     public async Task Shadow_decision_does_not_veto_user_approval()
     {
         DecisionRun run = await RunApprovalAsync(
-            DecisionApprovalResponse.Create("network_access", affirmativeProbability: 0.8),
+            """{"results":{"approval":{"answer":"deny","probabilities":{"approve":0.2,"deny":0.8}}}}""",
             DecisionMode.Shadow,
             userApproval: true
         );
 
-        DecisionEvaluated[] decisions = [.. run.Events.OfType<DecisionEvaluated>()];
-        Assert.Equal(4, decisions.Length);
-        Assert.Contains(
-            decisions,
-            decision => decision.QuestionId == "network_access" && decision.Answer == "yes"
-        );
-        Assert.Equal("adapter", decisions[0].Method);
+        DecisionEvaluated decision = Assert.Single(run.Events.OfType<DecisionEvaluated>());
+        Assert.Equal("adapter", decision.Method);
+        Assert.Equal("deny", decision.Option);
         Assert.Single(run.Approver.Requests);
         Assert.Equal(1, run.Executions);
     }
@@ -177,7 +164,9 @@ public sealed class DecisionApprovalTests
             .Enqueue(LoopScripts.Text("not JSON"), LoopScripts.Stop())
             .Enqueue(LoopScripts.Text("still not JSON"), LoopScripts.Stop())
             .Enqueue(
-                LoopScripts.Text(DecisionApprovalResponse.Create(affirmativeProbability: 0.1)),
+                LoopScripts.Text(
+                    """{"results":{"approval":{"answer":"approve","probabilities":{"approve":0.9,"deny":0.1}}}}"""
+                ),
                 LoopScripts.Stop()
             );
         var approver = new RecordingApprover(decision: true);
@@ -223,8 +212,8 @@ public sealed class DecisionApprovalTests
         List<AgentEvent> events = await AgentTestSupport.Run(harness);
 
         Assert.Equal(3, decision.Requests.Count);
-        Assert.Equal(4, events.OfType<DecisionFailed>().Count());
-        Assert.Equal(4, events.OfType<DecisionEvaluated>().Count());
+        Assert.Single(events.OfType<DecisionFailed>());
+        Assert.Single(events.OfType<DecisionEvaluated>());
         Assert.Equal(2, approver.Requests.Count);
         Assert.Equal(2, executions);
     }

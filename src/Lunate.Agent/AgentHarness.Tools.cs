@@ -503,7 +503,8 @@ public sealed partial class AgentHarness
                     );
                     if (
                         _options.DecisionMode == DecisionMode.Enforce
-                        && decision.Escalation is { } evaluation
+                        && decision.Evaluation is { Answer: "deny" } evaluation
+                        && evaluation.Probability >= _options.ApprovalsThreshold
                     )
                     {
                         if (decisionApprover is not IUserPromptToolApprover promptApprover)
@@ -517,8 +518,8 @@ public sealed partial class AgentHarness
                         approvalRequest = approvalRequest with
                         {
                             EscalationRequested = true,
-                            DecisionRecommendation = "deny",
-                            DecisionProbability = decision.EscalationProbability,
+                            DecisionRecommendation = evaluation.Answer,
+                            DecisionProbability = evaluation.Probability,
                             DecisionModelId = evaluation.ModelId,
                             DecisionMethod = evaluation.Method,
                         };

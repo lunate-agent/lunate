@@ -10,7 +10,7 @@ public sealed class DecisionApprovalPromptTests
     {
         var decision = new ScriptedChatClient().Enqueue(
             Scripts.Text(
-                """{"results":{"writes_outside_workspace":{"answer":"yes","probabilities":{"yes":0.87,"no":0.13}},"network_access":{"answer":"no","probabilities":{"yes":0.05,"no":0.95}},"irreversible_deletion":{"answer":"no","probabilities":{"yes":0.05,"no":0.95}},"credential_exposure":{"answer":"no","probabilities":{"yes":0.05,"no":0.95}}}}"""
+                """{"results":{"approval":{"answer":"deny","probabilities":{"approve":0.13,"deny":0.87}}}}"""
             ),
             Scripts.Stop()
         );
