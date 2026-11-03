@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Agent;
@@ -175,4 +176,11 @@ public sealed record SessionUsage(
 {
     /// <summary>The model usage attribution added in session schema 4; null for schemas 1–3.</summary>
     public ModelUsageAttribution? Attribution { get; init; }
+
+    /// <summary>
+    /// The provider-reported cost in US dollars when the provider reports one; null means the cost
+    /// is unknown or estimated, and a reader prices it from the catalog instead.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? Cost { get; init; }
 }

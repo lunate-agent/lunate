@@ -783,6 +783,8 @@ Lunate.Agent.SessionUsage.CacheRead.get -> int?
 Lunate.Agent.SessionUsage.CacheRead.init -> void
 Lunate.Agent.SessionUsage.CacheWrite.get -> int?
 Lunate.Agent.SessionUsage.CacheWrite.init -> void
+Lunate.Agent.SessionUsage.Cost.get -> decimal?
+Lunate.Agent.SessionUsage.Cost.init -> void
 Lunate.Agent.SessionUsage.Deconstruct(out int Input, out int Output, out int? CacheRead, out int? CacheWrite) -> void
 Lunate.Agent.SessionUsage.Equals(Lunate.Agent.SessionUsage? other) -> bool
 Lunate.Agent.SessionUsage.Input.get -> int
@@ -1096,6 +1098,8 @@ Lunate.Agent.UsageUpdated.Deconstruct(out string! RunId, out Microsoft.Extension
 Lunate.Agent.UsageUpdated.Equals(Lunate.Agent.UsageUpdated? other) -> bool (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.UsageUpdated.ModelId.get -> string? (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.UsageUpdated.ModelId.init -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.UsageUpdated.ProviderCost.get -> double? (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.UsageUpdated.ProviderCost.init -> void (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.UsageUpdated.Usage.get -> Microsoft.Extensions.AI.UsageDetails! (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.UsageUpdated.Usage.init -> void (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.UsageUpdated.UsageUpdated(string! RunId, Microsoft.Extensions.AI.UsageDetails! Usage) -> void (forwarded, contained in Lunate.Contracts)

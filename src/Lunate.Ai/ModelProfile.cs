@@ -243,6 +243,11 @@ internal static class ModelProfileResolver
     {
         foreach (string alias in new[] { model.Id, model.WireId }.OfType<string>())
         {
+            if (!IsAlias(alias))
+            {
+                continue;
+            }
+
             string? resolved = ResolvedAliasVersion(catalog, model.Provider, alias);
             if (resolved is null)
             {
@@ -269,6 +274,9 @@ internal static class ModelProfileResolver
     /// wire id extends the alias's non-<c>latest</c> prefix. Unknown when more than one entry
     /// competes or none exists — the refusal then says so instead of guessing.
     /// </summary>
+    private static bool IsAlias(string id) =>
+        id.StartsWith('~') || id.EndsWith("latest", StringComparison.Ordinal);
+
     private static string? ResolvedAliasVersion(
         ModelCatalog catalog,
         string providerKind,
@@ -277,7 +285,13 @@ internal static class ModelProfileResolver
     {
         if (!alias.EndsWith("latest", StringComparison.Ordinal))
         {
-            return null;
+            string exact = alias.TrimStart('~');
+            return catalog.Models.Any(candidate =>
+                string.Equals(candidate.Provider, providerKind, StringComparison.Ordinal)
+                && string.Equals(candidate.WireId ?? candidate.Id, exact, StringComparison.Ordinal)
+            )
+                ? exact
+                : null;
         }
 
         string prefix = alias[..^"latest".Length].TrimStart('~').TrimEnd('-');

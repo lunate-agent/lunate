@@ -106,8 +106,21 @@ internal static partial class UsageCost
                 .Select(item => item.Lanes)
                 .Aggregate(default(UsageLanes), (sum, lanes) => sum.Add(lanes)),
             cost,
-            decisionMethod
+            decisionMethod,
+            GroupCostSource(items)
         );
+    }
+
+    /// <summary>
+    /// The group's cost source, shown with the amount when every item agrees; a mixed group
+    /// (provider cost and estimate in one) stays unmarked rather than naming either.
+    /// </summary>
+    private static string? GroupCostSource(IEnumerable<AttributedRecord> records)
+    {
+        string[] sources = [.. records.Select(record => record.CostSource).OfType<string>()];
+        return sources.Length > 0 && sources.All(source => source == sources[0])
+            ? sources[0]
+            : null;
     }
 
     private static AttributedRecord CreateAttributedRecord(
@@ -118,6 +131,11 @@ internal static partial class UsageCost
     )
     {
         UsageLanes lanes = UsageLanes.From(usage);
+        decimal? estimate = ForRecord(catalog, modelId, lanes);
+        bool decision = attribution?.Usage == "decision";
+        // A decision usage keeps the provider-reported amount when the record carries one and is
+        // marked as such; without it the catalog estimate is what is shown, also marked.
+        decimal? cost = decision && usage.Cost is { } providerCost ? providerCost : estimate;
         return new AttributedRecord(
             attribution?.Usage ?? "unknown",
             attribution?.ProviderName ?? "unknown",
@@ -125,7 +143,14 @@ internal static partial class UsageCost
             attribution?.Usage == "decision" ? attribution.DecisionMethod : null,
             modelId,
             lanes,
-            ForRecord(catalog, modelId, lanes)
+            cost,
+            decision
+                ? usage.Cost is not null
+                    ? "provider-reported"
+                    : estimate is not null
+                        ? "estimate"
+                        : null
+                : null
         );
     }
 
@@ -136,6 +161,7 @@ internal static partial class UsageCost
         string? DecisionMethod,
         string? ModelId,
         UsageLanes Lanes,
-        decimal? Cost
+        decimal? Cost,
+        string? CostSource
     );
 }

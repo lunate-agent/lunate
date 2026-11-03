@@ -282,6 +282,7 @@ internal sealed partial class InteractiveSession
             )
             {
                 DecisionMethod = line.DecisionMethod,
+                CostSource = line.CostSource,
             };
 
         var view = new CostReportView(

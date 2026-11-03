@@ -50,13 +50,12 @@ public sealed partial class AgentHarness
         _tools = tools;
         _options = options ?? new AgentHarnessOptions();
         ValidateOptions(_options);
-        if (
-            _options.DecideTool
-            && ResolveUsageModel("decision") is not null
-            && _tools.Find("decide") is null
-        )
+        UsageModelClient? decisionModel = ResolveUsageModel("decision");
+        if (_options.DecideTool && decisionModel is not null && _tools.Find("decide") is null)
         {
-            _tools.Add(new DecideTool());
+            _tools.Add(
+                new DecideTool(DecisionClientResolver.SupportsImageInput(decisionModel.Model))
+            );
         }
 
         _images = _options.Session?.Images ?? SessionImages.InMemory();
@@ -847,11 +846,17 @@ public sealed partial class AgentHarness
         AgentEventChannel channel,
         UsageDetails details,
         string? modelId,
-        ModelUsageAttribution? attribution = null
+        ModelUsageAttribution? attribution = null,
+        double? providerCost = null
     )
     {
         channel.Emit(
-            new UsageUpdated(runId, details) { ModelId = modelId, Attribution = attribution }
+            new UsageUpdated(runId, details)
+            {
+                ModelId = modelId,
+                Attribution = attribution,
+                ProviderCost = providerCost,
+            }
         );
         long used = (details.InputTokenCount ?? 0) + (details.OutputTokenCount ?? 0);
         _tokenBudgetUsed += used;

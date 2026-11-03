@@ -96,6 +96,12 @@ public sealed record UsageUpdated(string RunId, UsageDetails Usage) : ExtensionE
 
     /// <summary>The usage, profile, and provider that produced these tokens; null for legacy callers.</summary>
     public ModelUsageAttribution? Attribution { get; init; }
+
+    /// <summary>
+    /// The amount the provider reported for this usage in US dollars; null when the provider does
+    /// not report a cost and a reader prices the record from the catalog instead.
+    /// </summary>
+    public double? ProviderCost { get; init; }
 }
 
 /// <summary>A validated approval recommendation from the configured decision model.</summary>

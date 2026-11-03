@@ -84,6 +84,50 @@ For a binary decision with probability `p`, confidence is `|2p - 1|`. An existin
 probability threshold `t` of at least `0.5` maps to `2t - 1` in confidence, so the default threshold
 `0.5` remains `0`; the approval gate keeps the same behavior while using confidence consistently.
 
+## System One decision profiles
+
+`apiFamily: systemone` selects the native decision transport instead of a chat client. Two built-in
+presets declare it:
+
+- `openrouter` — `baseUrls.systemone` is `https://openrouter.ai/api/v1/systemone` and serves
+  `typesafe/jev-1.14`, including box questions with an image.
+- `opencode` — `baseUrls.systemone` is `https://opencode.ai/inference/systemone/v1/systemone` and
+  serves `jev-1.13` only. It is the Console/Zen System One surface, not OpenCode Go: a Go key is
+  accepted there and bills to the pay-as-you-go balance. Image and box questions need the family
+  header `TypeSafe-Danger-Zone-Images: true`, which the preset sends.
+
+A decision profile must name an exact version. An alias — an id starting with `~` or ending in
+`latest` — is refused with the exact version the catalog records for it, because a provider upgrade
+can change probabilities behind the alias. Chat usage with a `systemone` profile is refused by name;
+use `decisions.profile` for decisions and an ordinary chat profile for chat.
+
+```json settings
+{
+  "schemaVersion": 2,
+  "profiles": {
+    "decision": {
+      "provider": "openrouter",
+      "model": "openrouter/typesafe/jev-1.14",
+      "apiFamily": "systemone"
+    },
+    "chat": { "provider": "openrouter", "model": "openrouter/anthropic/claude-fable-5.1" }
+  },
+  "usages": { "chat": "chat" },
+  "decisions": { "profile": "decision", "tool": "on" }
+}
+```
+
+Confidence is computed from the answer distribution (`|2p − 1|` for yes/no, the choice/score
+normalisation, or the box confidence) and recorded on every decision. Routing changes the chat
+profile only when confidence reaches `decisions.routingMinConfidence` (default `0.5`); the approval
+gate maps `decisions.approvalsThreshold` to confidence the same way. A request above roughly 28k
+tokens of the 32k per-question budget warns before sending, and tool results are bounded to head and
+tail rather than trimmed to a single edge.
+
+Decision usage records the provider's `usage` block, including OpenCode's `usage.opencode` block, and
+marks the cost provider-reported. `/cost` shows the decision line with model, method (`native` or
+`adapter`) and amount; the catalog estimate is used only when the provider omits `cost`.
+
 ## Custom provider entry v2
 
 The `providers.<id>` settings block describes one user-owned custom endpoint and serves exactly one

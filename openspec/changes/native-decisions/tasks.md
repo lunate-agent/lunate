@@ -77,54 +77,54 @@
 
 ## 7. State size and truncation
 
-- [ ] Warn when a state is estimated above ~28k tokens (4 chars/token) of the 32k per-question budget;
+- [x] Warn when a state is estimated above ~28k tokens (4 chars/token) of the 32k per-question budget;
       say long context is opt-in and slower/less accurate.
-- [ ] Tool-result consumer sends head and tail with a truncation marker, never a whole output.
-- [ ] No implicit `TypeSafe-Danger-Zone-Long-Context`; opt-in per provider only.
+- [x] Tool-result consumer sends head and tail with a truncation marker, never a whole output.
+- [x] No implicit `TypeSafe-Danger-Zone-Long-Context`; opt-in per provider only.
 
 ## 8. Presets, discovery, profiles
 
-- [ ] `openrouter` gains `systemone: https://openrouter.ai/api/v1/systemone`.
-- [ ] `opencode` gains `systemone: https://opencode.ai/inference/systemone/v1/systemone` and the
+- [x] `openrouter` gains `systemone: https://openrouter.ai/api/v1/systemone`.
+- [x] `opencode` gains `systemone: https://opencode.ai/inference/systemone/v1/systemone` and the
       image header, documented as Console/Zen (not Go) and billing to the pay-as-you-go balance.
-- [ ] Catalog entries for `typesafe/jev-1.14` (OpenRouter) and `jev-1.13` (OpenCode); family
+- [x] Catalog entries for `typesafe/jev-1.14` (OpenRouter) and `jev-1.13` (OpenCode); family
       `systemone`; `choiceOrderSensitive: true` on 1.13; no TypeSafe-direct entry in 0.3.
-- [ ] Discovery via the models endpoint with catalog fallback; decision usage accepts a `systemone`
+- [x] Discovery via the models endpoint with catalog fallback; decision usage accepts a `systemone`
       profile; chat usage refuses it naming the family.
-- [ ] Alias profiles refused, naming the alias and the exact version it resolves to.
+- [x] Alias profiles refused, naming the alias and the exact version it resolves to.
 
 ## 9. Cost
 
-- [ ] Record `usage` (`input_tokens`, `output_tokens`, `cost`) from the response, including the
+- [x] Record `usage` (`input_tokens`, `output_tokens`, `cost`) from the response, including the
       OpenCode `usage.opencode` block; mark provider-reported.
-- [ ] `/cost`: decision usage line with model, method label and amount; catalog estimate only when the
+- [x] `/cost`: decision usage line with model, method label and amount; catalog estimate only when the
       provider omits cost.
 
 ## 10. Adapter
 
-- [ ] Adapter schema for box (four fractions + confidence) validated by the shared validator.
-- [ ] Offered only on vision-capable chat models; otherwise "this model cannot decide" names the
+- [x] Adapter schema for box (four fractions + confidence) validated by the shared validator.
+- [x] Offered only on vision-capable chat models; otherwise "this model cannot decide" names the
       missing capability.
-- [ ] Adapter prompt teaches atomic questions, structured state, no arithmetic, low confidence means
+- [x] Adapter prompt teaches atomic questions, structured state, no arithmetic, low confidence means
       "unknown".
 
 ## 11. Docs and tool description
 
-- [ ] `docs/configuration.md`: `systemone` family, presets, image header, alias rule, cost reporting;
+- [x] `docs/configuration.md`: `systemone` family, presets, image header, alias rule, cost reporting;
       a Go key on the OpenCode systemone URL bills to pay-as-you-go; OpenCode serves `jev-1.13`
       (no box), OpenRouter `jev-1.14`; confidence and the routing threshold; the 32k-token budget.
-- [ ] `docs/guide.md`: a decision profile example and the `jev-router` chat example (no code).
-- [ ] The `decide` tool's description: several atomic questions, named state fields, never splice
+- [x] `docs/guide.md`: a decision profile example and the `jev-router` chat example (no code).
+- [x] The `decide` tool's description: several atomic questions, named state fields, never splice
       untrusted content, no counting/arithmetic/dates, low confidence = unknown.
-- [ ] ADR-0030 addendum: MEAI decision abstraction swap path.
+- [x] ADR-0030 addendum: MEAI decision abstraction swap path.
 
 ## 12. Proof
 
-- [ ] Fixture replay per provider (success + error shapes), header-only-with-images, `usage.opencode`.
-- [ ] OpenAPI contract test over every fixture; schema hash pinned.
-- [ ] Confidence formulas against the documented examples; native vs adapter equality.
-- [ ] Routing below/at threshold for both strategies (choice confidence, noul margin); strategy recorded.
-- [ ] Existing decision-layer tests green with a native profile replacing the adapter.
-- [ ] Layering graph test and the Contracts isolation test.
-- [ ] Live smoke: OpenRouter and OpenCode (skip without a key).
+- [x] Fixture replay per provider (success + error shapes), header-only-with-images, `usage.opencode`.
+- [x] OpenAPI contract test over every fixture; schema hash pinned.
+- [x] Confidence formulas against the documented examples; native vs adapter equality.
+- [x] Routing below/at threshold for both strategies (choice confidence, noul margin); strategy recorded.
+- [x] Existing decision-layer tests green with a native profile replacing the adapter.
+- [x] Layering graph test and the Contracts isolation test.
+- [x] Live smoke: OpenRouter and OpenCode (skip without a key).
 - [ ] `verify.sh` green and PR CI green.

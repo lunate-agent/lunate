@@ -46,6 +46,7 @@ internal static class DiscoveryModelMetadataReader
             "responses" => ProviderApiFamilies.OpenAiResponses,
             "messages" => ProviderApiFamilies.AnthropicMessages,
             "generate-content" => ProviderApiFamilies.Google,
+            "systemone" => ProviderApiFamilies.SystemOne,
             _ => null,
         };
         if (family is null)
