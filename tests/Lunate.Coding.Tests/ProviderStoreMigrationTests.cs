@@ -63,6 +63,43 @@ public sealed class ProviderStoreMigrationTests
         );
     }
 
+    [Fact]
+    public void A_custom_provider_with_a_family_migrates_onto_its_own_kind_and_shape()
+    {
+        using var temp = new TempDirectory();
+        string authPath = temp.File("auth.json");
+        AuthStore auth = AuthStore.Load(authPath, _ => null);
+        auth.Set("relay", "irrelevant");
+        auth.Save();
+        var custom = new CustomProvider(
+            "relay",
+            new Uri("https://relay.example/v1"),
+            "claude-wire",
+            "relay/claude-wire",
+            ProviderApiFamily.AnthropicMessages,
+            CredentialPlacement.XApiKey,
+            new Uri("https://relay.example/v1/models")
+        );
+
+        ProviderStore providerStore = ProviderStore.Load(
+            temp.File("providers.json"),
+            auth,
+            [custom]
+        );
+
+        ProviderEntry entry = Assert.Single(providerStore.Entries);
+        Assert.Equal("anthropic", entry.Kind);
+        Assert.Equal(
+            new Uri("https://relay.example/v1"),
+            entry.UrlFor(ProviderApiFamily.AnthropicMessages)
+        );
+        Assert.Equal(
+            CredentialPlacement.XApiKey,
+            entry.PlacementFor(ProviderApiFamily.AnthropicMessages)
+        );
+        Assert.Equal(new Uri("https://relay.example/v1/models"), entry.ModelsUrl);
+    }
+
     private static string Fixture(string name) =>
         Path.Combine(RepositoryRoot.Find(), "tests", "fixtures", "provider-store", name);
 }

@@ -133,9 +133,38 @@ internal sealed class ProviderStore
         CustomProvider? custom = legacyProviders.FirstOrDefault(provider =>
             string.Equals(provider.Id, name, StringComparison.Ordinal)
         );
-        return custom is null
-            ? null
-            : new ProviderEntry(custom.Id, "openai", custom.BaseUrl, $"auth:{name}");
+        if (custom is null)
+        {
+            return null;
+        }
+
+        // The entry carries what the custom provider declares: the family's own kind routes its
+        // wire, the family-keyed URL and placement keep the entry's shape, and the models URL
+        // and headers ride along.
+        var familyUrls = new Dictionary<ProviderApiFamily, Uri>
+        {
+            [custom.ApiFamily] = custom.BaseUrl,
+        };
+        Dictionary<ProviderApiFamily, CredentialPlacement>? placements = null;
+        if (custom.CredentialPlacement is { } placement)
+        {
+            placements = new Dictionary<ProviderApiFamily, CredentialPlacement>
+            {
+                [custom.ApiFamily] = placement,
+            };
+        }
+
+        return new ProviderEntry(
+            custom.Id,
+            CustomProvider.KindFor(custom.ApiFamily),
+            custom.BaseUrl,
+            $"auth:{name}",
+            custom.Headers,
+            null,
+            familyUrls,
+            custom.ModelsUrl,
+            placements
+        );
     }
 
     private static ProviderFile Read(string path)
