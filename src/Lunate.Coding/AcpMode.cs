@@ -44,16 +44,6 @@ internal static class AcpMode
             LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
             IExtensionLog log = extensions?.Log ?? new StderrExtensionLog(errors);
             AgentSettings settings = SettingsStore.Resolve(null, null);
-            // The redaction set exists before the MCP composition: the compose hands the values
-            // Lunate knows at serve time to the withheld list it wires (inert for the child
-            // environment since #472). The per-session harness later collects its own set with the
-            // session's cwd (CreateHarness), which is a different workspace's project configs.
-            CredentialRedactor redaction = HarnessFactory.CollectRedaction(
-                authPath: null,
-                environment: null,
-                storePath: null,
-                workspace.WorktreeRoot
-            );
             if (settings.BashGuard)
             {
                 StateRootHardlinkScan.Report(
@@ -86,8 +76,7 @@ internal static class AcpMode
                     new NonInteractiveMcpServerApprovalPrompt(),
                     log,
                     notice => interaction.Notify(notice),
-                    ct,
-                    withheldCredentialValues: [.. redaction.Values.Select(pair => pair.Value)]
+                    ct
                 )
                 .GetAwaiter()
                 .GetResult();
@@ -106,8 +95,7 @@ internal static class AcpMode
                 // The configured names are the collision baseline: a same-named registration is
                 // skipped before listing (the configured server wins); nothing starts before.
                 ExtensionMcpServers servers = host.ComposeMcpServers(
-                    McpNameCollisions.ConfiguredServers(mcp),
-                    withheldCredentialValues: [.. redaction.Values.Select(pair => pair.Value)]
+                    McpNameCollisions.ConfiguredServers(mcp)
                 );
                 ToolComposition.AddSkippingTaken(
                     mcpTools,

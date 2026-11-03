@@ -163,20 +163,6 @@ internal static class PrintMode
 
                 session = selected;
                 IExtensionLog log = options.Extensions?.Log ?? new StderrExtensionLog(errors);
-                // The redaction set exists before the MCP composition: the compose hands the
-                // values Lunate knows to the withheld list it wires (inert for the child
-                // environment since #472, kept for the public option's source compatibility). The
-                // harness later collects the same set again for its own redactor
-                // (CreateHarness) — same arguments, same values.
-                CredentialRedactor composeRedaction = HarnessFactory.CollectRedaction(
-                    options.AuthPath,
-                    options.Environment,
-                    options.Extensions?.StorePath,
-                    workspace.WorktreeRoot,
-                    options.McpConfigPath,
-                    options.McpAgentsConfigPath,
-                    AuthStore.ProviderStoreFilePath(options.AuthPath)
-                );
                 // The host composes in every mode: with --no-extensions it composes nothing at
                 // all — built-ins included — so no store scan, trust question or third-party
                 // load runs (design §1).
@@ -225,11 +211,7 @@ internal static class PrintMode
                         new NonInteractiveMcpServerApprovalPrompt(),
                         log,
                         notice => interaction.Notify(notice),
-                        ct,
-                        withheldCredentialValues:
-                        [
-                            .. composeRedaction.Values.Select(pair => pair.Value),
-                        ]
+                        ct
                     )
                     .ConfigureAwait(false);
 
@@ -249,11 +231,7 @@ internal static class PrintMode
                     // The configured names are the collision baseline: a same-named registration
                     // is skipped before listing (the configured server wins); nothing starts yet.
                     ExtensionMcpServers servers = extensions.ComposeMcpServers(
-                        McpNameCollisions.ConfiguredServers(mcp),
-                        withheldCredentialValues:
-                        [
-                            .. composeRedaction.Values.Select(pair => pair.Value),
-                        ]
+                        McpNameCollisions.ConfiguredServers(mcp)
                     );
                     ToolComposition.AddSkippingTaken(
                         tools,
