@@ -8,6 +8,15 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **MCP stdio child environment is allow-listed.** A stdio server no longer inherits the session
+  environment minus Lunate's known credential values (the 0.2 behaviour of #449/#455); it receives
+  exactly the base set the shared `EnvironmentScrubber` builds — `PATH`, `HOME`/`USERPROFILE`,
+  `SystemRoot`, `TEMP`/`TMP`/`TMPDIR`, `LANG` — plus its own declared `env` map and nothing else,
+  configured or not (#472). The shared scrubber is annotated with the reason for each base
+  entry, and a source-scan test keeps it the only child-environment code path.
+
 ## [0.2.1] - 2026-11-02
 
 Security: the single-file binaries bundle the .NET runtime, so a runtime advisory reaches users

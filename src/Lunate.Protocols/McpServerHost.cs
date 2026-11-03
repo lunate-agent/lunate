@@ -1,5 +1,6 @@
 using System.Globalization;
 using Lunate.Agent;
+using Lunate.Extensibility.Abstractions;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
@@ -169,11 +170,10 @@ public sealed class McpServerHost : IAsyncDisposable
     private async Task StartAsync(CancellationToken ct)
     {
         using var liveness = new StartupLiveness(startupStallBound, ct);
-        // With known credential values the child starts from an explicit environment Lunate builds
-        // (see McpChildEnvironment); with none it keeps today's full inheritance. The declared env
-        // map is the per-server opt-in in either case.
-        IReadOnlyList<string> withheld = options.WithheldCredentialValues ?? [];
-        bool withholds = withheld.Count > 0;
+        // The child environment is allow-listed, never inherited (#472): the scrubber builds the
+        // base set from the parent plus the server's declared `env` map — the per-server opt-in —
+        // and nothing else, whatever Lunate itself holds. The declared values are already
+        // resolved (the `${VAR}` expansion happened when the config loaded).
         var transport = new StdioClientTransport(
             new StdioClientTransportOptions
             {
@@ -181,13 +181,10 @@ public sealed class McpServerHost : IAsyncDisposable
                 Command = options.Command,
                 Arguments = [.. options.Arguments],
                 WorkingDirectory = options.WorkingDirectory,
-                EnvironmentVariables = withholds
-                    ? McpChildEnvironment.BuildChildEnvironment(withheld, options.Environment)
-                    : options.Environment?.ToDictionary(
-                        pair => pair.Key,
-                        pair => (string?)pair.Value
-                    ),
-                InheritEnvironmentVariables = !withholds,
+                EnvironmentVariables = EnvironmentScrubber
+                    .Build(set: options.Environment)
+                    .ToDictionary(pair => pair.Key, pair => (string?)pair.Value),
+                InheritEnvironmentVariables = false,
                 ShutdownTimeout = ShutdownTimeout,
                 // stderr is the only child output the client can observe while it waits on the
                 // protocol stream, so each line is the liveness signal that restarts the stall

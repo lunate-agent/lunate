@@ -10,11 +10,10 @@ using Lunate.TestSupport;
 namespace Lunate.Coding.Tests;
 
 /// <summary>
-/// #449/#455 through the real composition: the values <see cref="CredentialRedactorSource.Collect"/>
-/// knows reach <see cref="McpComposition.ComposeAsync"/>, which passes them to every configured
-/// server host, so the spawned TestMcpServer child must not see a known credential value unless
-/// its own declared <c>env</c> names the variable. The fixture variables are set on the real
-/// process environment and restored afterwards.
+/// #449/#455/#472 through the real composition: every server host builds the child environment
+/// through the allow-list scrubber, whatever a compose passes for the withheld values — the
+/// spawned TestMcpServer child sees only the base set plus its own declared <c>env</c> map. The
+/// fixture variables are set on the real process environment and restored afterwards.
 /// </summary>
 [Collection("mcp-processes")]
 public sealed class McpCompositionCredentialTests
@@ -58,10 +57,11 @@ public sealed class McpCompositionCredentialTests
 
             string[] names = await NamesAsync(set);
 
+            // The allow-list rule holds with the withheld list wired too: composition setting the
+            // values on the options cannot add inheritance back.
             Assert.DoesNotContain(AnthropicVariable, names);
             Assert.DoesNotContain(ProviderVariable, names);
-            Assert.Contains(ParentFlagVariable, names);
-            Assert.Equal(ParentFlagValue, await ValueAsync(set, ParentFlagVariable));
+            Assert.DoesNotContain(ParentFlagVariable, names);
             Assert.NotEqual("(unset)", await ValueAsync(set, "PATH"));
         }
         finally
@@ -116,7 +116,7 @@ public sealed class McpCompositionCredentialTests
     }
 
     [Fact]
-    public async Task Without_a_withheld_set_the_composed_child_still_inherits_everything()
+    public async Task A_compose_without_a_withheld_set_is_allow_listed_too()
     {
         using var temp = new TempDirectory();
         IDisposable restore = SetTestEnvironment(
@@ -134,9 +134,10 @@ public sealed class McpCompositionCredentialTests
 
             await using McpToolSet set = Compose(worktree, config, agents, temp, redaction: null)!;
 
-            // The rule only tightens: a compose that passes no withheld values (even a caller
-            // whose redactor was never built) keeps today's full inheritance.
-            Assert.Contains(AnthropicVariable, await NamesAsync(set));
+            // #472 made the allow-list unconditional: a compose passing no withheld values keeps
+            // the same scrubbed child, so the undeclared credential is absent without any list.
+            Assert.DoesNotContain(AnthropicVariable, await NamesAsync(set));
+            Assert.DoesNotContain(ParentFlagVariable, await NamesAsync(set));
         }
         finally
         {
@@ -184,8 +185,9 @@ public sealed class McpCompositionCredentialTests
 
             Assert.DoesNotContain(AnthropicVariable, names);
             Assert.DoesNotContain(ProviderVariable, names);
-            // What Lunate does not know stays inherited, exactly as for configured servers.
-            Assert.Contains(ParentFlagVariable, names);
+            // Same rule for extension-registered servers: nothing inherits beyond the base set
+            // and the registration's declared env, whatever the withheld values carry.
+            Assert.DoesNotContain(ParentFlagVariable, names);
         }
         finally
         {
