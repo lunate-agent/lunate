@@ -14,6 +14,9 @@ internal static partial class AuthCommand
             string? id = null;
             string? baseUrl = null;
             string? model = null;
+            string? apiFamily = null;
+            string? credentialPlacement = null;
+            string? modelsUrl = null;
             for (int index = 0; index < args.Length; index++)
             {
                 string arg = args[index];
@@ -35,7 +38,12 @@ internal static partial class AuthCommand
 
                         custom = true;
                         continue;
-                    case "--id" or "--base-url" or "--model":
+                    case "--id"
+                        or "--base-url"
+                        or "--model"
+                        or "--api-family"
+                        or "--credential-placement"
+                        or "--models-url":
                         if (index + 1 >= args.Length)
                         {
                             return UsageError();
@@ -50,6 +58,18 @@ internal static partial class AuthCommand
                         else if (arg == "--model")
                         {
                             target = ref model;
+                        }
+                        else if (arg == "--api-family")
+                        {
+                            target = ref apiFamily;
+                        }
+                        else if (arg == "--credential-placement")
+                        {
+                            target = ref credentialPlacement;
+                        }
+                        else if (arg == "--models-url")
+                        {
+                            target = ref modelsUrl;
                         }
 
                         if (target is not null)
@@ -76,10 +96,25 @@ internal static partial class AuthCommand
 
             if (custom)
             {
-                return LoginCustom(id, baseUrl, model, keyStdin);
+                return LoginCustom(
+                    id,
+                    baseUrl,
+                    model,
+                    apiFamily,
+                    credentialPlacement,
+                    modelsUrl,
+                    keyStdin
+                );
             }
 
-            if (id is not null || baseUrl is not null || model is not null)
+            if (
+                id is not null
+                || baseUrl is not null
+                || model is not null
+                || apiFamily is not null
+                || credentialPlacement is not null
+                || modelsUrl is not null
+            )
             {
                 return UsageError();
             }
@@ -167,11 +202,21 @@ internal static partial class AuthCommand
         }
 
         /// <summary>
-        /// The custom OpenAI-compatible save: collect the id, base URL and model id (from flags or
-        /// visible prompts, in that order), validate them, then read the key and write it to the
-        /// auth store before the settings entry. A refused field writes nothing.
+        /// The custom provider save: collect the id, base URL and model id (from flags or visible
+        /// prompts, in that order), the API family, credential placement and models URL from
+        /// flags, validate them, then read the key and write it to the auth store before the
+        /// settings entry. An omitted family defaults to <c>openai-chat</c> with a printed note.
+        /// A refused field writes nothing.
         /// </summary>
-        private int LoginCustom(string? id, string? baseUrl, string? model, bool keyStdin)
+        private int LoginCustom(
+            string? id,
+            string? baseUrl,
+            string? model,
+            string? apiFamily,
+            string? credentialPlacement,
+            string? modelsUrl,
+            bool keyStdin
+        )
         {
             if (keyStdin && (id is null || baseUrl is null || model is null))
             {
@@ -190,6 +235,20 @@ internal static partial class AuthCommand
                 return ExitUsage;
             }
 
+            CredentialPlacement? placement = null;
+            if (
+                credentialPlacement is not null
+                && !CredentialPlacement.TryParseCompact(
+                    credentialPlacement,
+                    out placement,
+                    out string? placementError
+                )
+            )
+            {
+                errors.WriteLine($"lunate: the credential placement {placementError}");
+                return ExitUsage;
+            }
+
             TextReader input = seams.Input ?? Console.In;
             id ??= ReadField(input, "Provider id");
             baseUrl ??= ReadField(input, "Base URL");
@@ -202,12 +261,22 @@ internal static partial class AuthCommand
                     model,
                     catalogName: null,
                     out CustomProvider? provider,
-                    out string? error
+                    out string? error,
+                    apiFamily,
+                    placement,
+                    modelsUrl
                 ) || provider is null
             )
             {
                 errors.WriteLine($"lunate: {error}");
                 return ExitUsage;
+            }
+
+            if (apiFamily is null)
+            {
+                output.WriteLine(
+                    "auth: no --api-family given; using 'openai-chat' (OpenAI-compatible chat)"
+                );
             }
 
             string? secret;

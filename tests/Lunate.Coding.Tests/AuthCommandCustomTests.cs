@@ -143,6 +143,254 @@ public sealed class AuthCommandCustomTests
     }
 
     [Fact]
+    public void Custom_login_writes_the_declared_family_placement_and_models_url()
+    {
+        using var temp = new TempDirectory();
+        AuthCommandSeams seams = Seams(
+            temp,
+            stdinIsTerminal: false,
+            input: new StringReader(Secret + "\n")
+        );
+
+        (int exit, string output, string errors) = Run(
+            [
+                "login",
+                "--custom",
+                "--key-stdin",
+                "--id",
+                "relay",
+                "--base-url",
+                "https://relay.example/v1",
+                "--model",
+                "claude-wire",
+                "--api-family",
+                "anthropic-messages",
+                "--credential-placement",
+                "x-api-key",
+                "--models-url",
+                "https://relay.example/v1/models",
+            ],
+            seams
+        );
+
+        Assert.Equal(0, exit);
+        CustomProvider stored = Assert.Single(
+            SettingsStore.Resolve(seams.SettingsPath, _ => null).Providers
+        );
+        Assert.Equal(ProviderApiFamily.AnthropicMessages, stored.ApiFamily);
+        Assert.Equal(CredentialPlacement.XApiKey, stored.CredentialPlacement);
+        Assert.Equal(new Uri("https://relay.example/v1/models"), stored.ModelsUrl);
+        Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_omitted_family_defaults_to_openai_chat_with_a_printed_note()
+    {
+        using var temp = new TempDirectory();
+        AuthCommandSeams seams = Seams(
+            temp,
+            stdinIsTerminal: false,
+            input: new StringReader(Secret + "\n")
+        );
+
+        (int exit, string output, string errors) = Run(
+            [
+                "login",
+                "--custom",
+                "--key-stdin",
+                "--id",
+                "local",
+                "--base-url",
+                BaseUrl,
+                "--model",
+                Model,
+            ],
+            seams
+        );
+
+        Assert.Equal(0, exit);
+        Assert.Equal(
+            ProviderApiFamily.OpenAiChat,
+            Assert.Single(SettingsStore.Resolve(seams.SettingsPath, _ => null).Providers).ApiFamily
+        );
+        Assert.Contains("--api-family", output, StringComparison.Ordinal);
+        Assert.Contains("openai-chat", output, StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Custom_login_refuses_an_unknown_family_by_name_without_writing_anything()
+    {
+        using var temp = new TempDirectory();
+        AuthCommandSeams seams = Seams(
+            temp,
+            stdinIsTerminal: false,
+            input: new StringReader(Secret + "\n")
+        );
+
+        (int exit, string output, string errors) = Run(
+            [
+                "login",
+                "--custom",
+                "--key-stdin",
+                "--id",
+                "relay",
+                "--base-url",
+                "https://relay.example/v1",
+                "--model",
+                "m",
+                "--api-family",
+                "openai-realtime",
+            ],
+            seams
+        );
+
+        Assert.Equal(2, exit);
+        Assert.Contains("openai-realtime", errors, StringComparison.Ordinal);
+        Assert.Contains("supported families", errors, StringComparison.Ordinal);
+        Assert.False(File.Exists(seams.AuthPath));
+        Assert.False(File.Exists(seams.SettingsPath));
+    }
+
+    [Fact]
+    public void Custom_login_refuses_an_unusable_placement_by_name()
+    {
+        using var temp = new TempDirectory();
+        AuthCommandSeams seams = Seams(
+            temp,
+            stdinIsTerminal: false,
+            input: new StringReader(Secret + "\n")
+        );
+
+        (int exit, string output, string errors) = Run(
+            [
+                "login",
+                "--custom",
+                "--key-stdin",
+                "--id",
+                "relay",
+                "--base-url",
+                "https://relay.example/v1",
+                "--model",
+                "m",
+                "--credential-placement",
+                "bearer ",
+            ],
+            seams
+        );
+
+        Assert.Equal(2, exit);
+        Assert.Contains("not a placement", errors, StringComparison.Ordinal);
+        Assert.False(File.Exists(seams.AuthPath));
+        Assert.False(File.Exists(seams.SettingsPath));
+    }
+
+    [Fact]
+    public void Custom_login_refuses_a_models_url_outside_the_endpoint_rule()
+    {
+        using var temp = new TempDirectory();
+        AuthCommandSeams seams = Seams(
+            temp,
+            stdinIsTerminal: false,
+            input: new StringReader(Secret + "\n")
+        );
+
+        (int exit, string output, string errors) = Run(
+            [
+                "login",
+                "--custom",
+                "--key-stdin",
+                "--id",
+                "relay",
+                "--base-url",
+                "https://relay.example/v1",
+                "--model",
+                "m",
+                "--models-url",
+                "http://insecure.example/v1/models",
+            ],
+            seams
+        );
+
+        Assert.Equal(2, exit);
+        Assert.Contains("http", errors, StringComparison.Ordinal);
+        Assert.DoesNotContain("insecure.example", output + errors, StringComparison.Ordinal);
+        Assert.False(File.Exists(seams.AuthPath));
+        Assert.False(File.Exists(seams.SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("--api-family")]
+    [InlineData("--credential-placement")]
+    [InlineData("--models-url")]
+    public void A_new_flag_without_a_value_is_a_usage_error(string flag)
+    {
+        using var temp = new TempDirectory();
+        AuthCommandSeams seams = Seams(
+            temp,
+            stdinIsTerminal: false,
+            input: new StringReader(Secret + "\n")
+        );
+
+        (int exit, _, _) = Run(
+            [
+                "login",
+                "--custom",
+                "--key-stdin",
+                "--id",
+                "local",
+                "--base-url",
+                BaseUrl,
+                "--model",
+                Model,
+                flag,
+            ],
+            seams
+        );
+
+        Assert.Equal(2, exit);
+        Assert.False(File.Exists(seams.AuthPath));
+        Assert.False(File.Exists(seams.SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("--api-family")]
+    [InlineData("--credential-placement")]
+    [InlineData("--models-url")]
+    public void A_repeated_new_flag_is_a_usage_error(string flag)
+    {
+        using var temp = new TempDirectory();
+        AuthCommandSeams seams = Seams(
+            temp,
+            stdinIsTerminal: false,
+            input: new StringReader(Secret + "\n")
+        );
+
+        (int exit, _, _) = Run(
+            [
+                "login",
+                "--custom",
+                "--key-stdin",
+                "--id",
+                "local",
+                "--base-url",
+                BaseUrl,
+                "--model",
+                Model,
+                flag,
+                "openai-chat",
+                flag,
+                "anthropic-messages",
+            ],
+            seams
+        );
+
+        Assert.Equal(2, exit);
+        Assert.False(File.Exists(seams.AuthPath));
+        Assert.False(File.Exists(seams.SettingsPath));
+    }
+
+    [Fact]
     public void Custom_login_with_key_stdin_missing_a_flag_exits_two_without_reading_the_key()
     {
         using var temp = new TempDirectory();
