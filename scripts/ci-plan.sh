@@ -156,7 +156,11 @@ _self_test_cases() {
     _expect "$scratch" "an ADR" "docs" 'M\tadr/0018-docs-gate.md\n' || return 1
     _expect "$scratch" "no changes at all" "full" '' || return 1
 
-    echo "self-test: 12/12"
+    # 11. A markdown file under src/ is code: system-prompt.md is embedded and changes behaviour.
+    _expect "$scratch" "the embedded system prompt" "full" \
+        'M\tsrc/Lunate.Coding/system-prompt.md\n' || return 1
+
+    echo "self-test: 13/13"
 }
 
 paths_file=""
