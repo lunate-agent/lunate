@@ -66,12 +66,13 @@ public sealed class DecisionConfidenceTests
         );
         using HttpClient httpClient = new(handler);
         DecisionResult native = await new SystemOneDecisionClient(
-                httpClient,
-                new SystemOnePreset(new Uri("https://example.test/api/v1/systemone"))
-            )
-            .GetDecisionAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+            httpClient,
+            new SystemOnePreset(new Uri("https://example.test/api/v1/systemone"))
+        ).GetDecisionAsync(request, cancellationToken: TestContext.Current.CancellationToken);
         ScriptedChatClient chat = new ScriptedChatClient().Enqueue(
-            LoopScripts.Text("""{"results":{"q":{"answer":"yes","probabilities":{"yes":0.8,"no":0.2}}}}""")
+            LoopScripts.Text(
+                """{"results":{"q":{"answer":"yes","probabilities":{"yes":0.8,"no":0.2}}}}"""
+            )
         );
         DecisionResult adapter = await new ChatDecisionClient(chat).GetDecisionAsync(
             request,
