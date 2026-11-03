@@ -176,7 +176,12 @@ public sealed class DecisionPrimitiveTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Same(request, native.Request);
+        Assert.NotNull(native.Request);
+        Assert.Equal(request.State.GetRawText(), native.Request.State.GetRawText());
+        Assert.Equal(
+            request.Questions.Select(question => question.Id),
+            native.Request.Questions.Select(question => question.Id)
+        );
         Assert.Empty(client.Requests);
         Assert.Equal("native", response.Results["confirm"].Method);
     }
