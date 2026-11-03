@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Lunate.Ai.Decisions;
 using Lunate.Ai.SystemOne;
 
 namespace Lunate.Agent.Tests;
@@ -63,7 +64,11 @@ public sealed class SystemOneLiveSmokeTests
     }
 
     private static bool LiveRequested() =>
-        string.Equals(Environment.GetEnvironmentVariable(LiveVariable), "1", StringComparison.Ordinal);
+        string.Equals(
+            Environment.GetEnvironmentVariable(LiveVariable),
+            "1",
+            StringComparison.Ordinal
+        );
 
     private static HttpClient Client(string key)
     {
@@ -74,7 +79,9 @@ public sealed class SystemOneLiveSmokeTests
 
     private static DecisionRequest Request(string modelId)
     {
-        using JsonDocument state = JsonDocument.Parse("""{"message":"A short live smoke check."}""");
+        using JsonDocument state = JsonDocument.Parse(
+            """{"message":"A short live smoke check."}"""
+        );
         return new DecisionRequest(
             modelId,
             state.RootElement.Clone(),
