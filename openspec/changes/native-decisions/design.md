@@ -173,8 +173,8 @@ Code combines the four answers into the escalate decision against **one threshol
 threshold `t` to `2t − 1`, so shipped behaviour is unchanged. Any of the four signals at or above the
 threshold escalates. Shadow mode records **every** atomic answer, so an escalation can be traced to
 the signal that drove it. If one signal later proves to need its own threshold, that is a follow-up
-with data behind it, not a design default. A decision can only tighten the gate; no answer here
-approves a tool call.
+with data behind it, not a design default. The profile carries no per-signal threshold and no
+risk-tier table. A decision can only tighten the gate; no answer here approves a tool call.
 
 ## 7. Routing options carry their own descriptions
 
@@ -196,7 +196,9 @@ two strategies, chosen by the decision model's catalog entry:
   keeps the configured chat profile.
 
 The provenance records which strategy ran, with the distribution or the two leading probabilities
-behind the decision.
+behind the decision. Both paths are tested: the single-choice path (including a below-threshold
+result) and the noul-per-profile path (including a close call that keeps the chat profile), with the
+strategy asserted in provenance.
 
 ## 8. State size and request limits
 
