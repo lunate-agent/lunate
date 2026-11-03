@@ -25,6 +25,11 @@
             PrivateAssets="compile"
         />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+        <!-- Official Google GenAI SDK (ADR-0029, approved 2026-11-02; ships the native Gemini
+         family's Microsoft.Extensions.AI client). PrivateAssets=compile keeps the provider compile
+         surface out of consumers while runtime assets still flow to the app output. The approval
+         names this exact version. -->
+        <PackageReference Include="Google.GenAI" Version="1.28.0" PrivateAssets="compile" />
     </ItemGroup>
 
     <ItemGroup>
