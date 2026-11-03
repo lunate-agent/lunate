@@ -35,6 +35,38 @@ public sealed class ProviderWireTests
     }
 
     [Fact]
+    public async Task The_openrouter_wire_carries_the_lunate_user_agent_and_attribution_headers()
+    {
+        using var environment = new EnvironmentScope(
+            ("OPENROUTER_API_KEY", "wire-probe-openrouter-key")
+        );
+        CapturingWire wire = CapturingWire.OpenAi();
+        var model = new ModelInfo("vendor-a/chat-model", "openrouter", null, 8_192, true);
+
+        IChatClient client = wire.Factory().Create(model);
+
+        await client.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "Hi")],
+            options: null,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(wire.Last);
+        Assert.StartsWith("lunate/", wire.Last.Headers.UserAgent.ToString());
+        // The attribution headers a non-OpenCode provider documents ride the same pipeline:
+        // one headers handler serves every provider, so the UA test is not an OpenCode-only fact.
+        Assert.Equal(
+            ["https://github.com/wdaniel1993/lunate"],
+            wire.HeaderValues("HTTP-Referer")
+        );
+        Assert.Equal(["Lunate"], wire.HeaderValues("X-Title"));
+        Assert.Equal(
+            "Bearer wire-probe-openrouter-key",
+            wire.HeaderValues("Authorization").Single()
+        );
+    }
+
+    [Fact]
     public async Task An_x_api_key_placement_removes_the_sdk_added_authorization_and_sends_the_key_once()
     {
         using var environment = new EnvironmentScope(("OPENAI_API_KEY", "wire-probe-openai-key"));
@@ -260,7 +292,17 @@ internal sealed class CapturingWire
             : null;
 
     /// <summary>The factory whose OpenAI transport reaches this capture.</summary>
-    public static CapturingWire OpenAi() => new();
+    public static CapturingWire OpenAi() => new(null);
+
+    /// <summary>
+    /// The factory whose transport answers the Anthropic Messages shape; the messages family's
+    /// probes ride it, because the chat-completions body does not parse as a messages response.
+    /// </summary>
+    public static CapturingWire Anthropic() => new(AnthropicMessage);
+
+    private readonly string? _factoryResponse;
+
+    private CapturingWire(string? factoryResponse) => _factoryResponse = factoryResponse;
 
     public ChatClientFactory Factory()
     {
@@ -268,7 +310,7 @@ internal sealed class CapturingWire
             new MarkingLoggerFactory(static () => { }),
             enableOpenTelemetry: false
         );
-        factory.BaseTransportFactory = () => new CapturingTransport(this, null);
+        factory.BaseTransportFactory = () => new CapturingTransport(this, _factoryResponse);
         return factory;
     }
 
