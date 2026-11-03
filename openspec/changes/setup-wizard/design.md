@@ -45,23 +45,31 @@ session start (open the wizard), the welcome header (print no fix when the wizar
 `lunate setup`. One check, so the header's fix text, the wizard and the CLI can never disagree about
 what "not configured" means.
 
+Only an interactive TTY session may enter the wizard. Print mode, ACP, piped stdin and CI never
+open it: they keep their configure-it refusal and exit 2, with the message pointing at
+`lunate setup` and its flags. A wizard rendered into a pipe would be a hung process, not a helpful
+one.
+
 ### 2. The wizard is a state machine driven by the existing interaction stack
 
 The wizard is a component model (`SetupWizardModel`) plus a driver that runs inside the session's
 live area exactly as the auth picker does — `SelectList` for choices, the masked prompt for
 credentials, `SelectListQuestion` for the decisions switches — with no nested read loop, no alternate
 screen. States are `(Step, Collected, Skipped)`; answers are staged in memory only. This is what
-makes the fixture-driven nine-step walk at 80 and 60 columns a test of the real component stack:
-the same renderers a session uses render the wizard.
+makes the fixture-driven full walk at 80 and 60 columns a test of the real component stack:
+the same renderers a session uses render the wizard. A configured install enters through an entry
+menu instead (§8), so the full walk is the first-run path and an explicit choice on re-runs.
 
 ```
 flowchart LR
     S[InteractiveSession start / lunate setup / setup command] --> C{SetupState.Check}
     C -- no provider or no chat profile --> W[SetupWizardModel]
-    W --> P[Provider step: presets + custom (family, placement, models URL)] --> K[Credential step: masked prompt or env: reference]
+    W --> P[Provider step: presets + custom (family, placement, models URL, region)] --> K[Credential step: environment key first, masked prompt or env: reference]
     K --> T[Connection test: discovery client] -- failure, go back --> K
-    T --> M[Model step: picker with search text or manual id] --> F[Profile step: name + thinking level]
-    F --> O[Optional fast/decision profiles] --> D[Decisions switches: SelectListQuestion]
+    T --> M[Model step: picker with search text or manual id] --> V[Model check: one minimal real request]
+    V -- failure, go back --> M
+    V --> F[Profile step: name + supported thinking levels]
+    F --> O[Optional fast/decision profiles] --> D[Decisions: native Jev or adapter; routing descriptions]
     D --> SU[Summary: every value, nothing written]
     SU -- confirmed --> WR[(SettingsStore / ProviderStore / AuthStore writers)]
     SU -- Esc / Ctrl+C --> X[(no file changed)]
@@ -76,9 +84,22 @@ fixtures exercise every failure shape offline. A failure prints what failed — 
 (authentication named at 401/403), or an undecipherable response — and offers *go back to the
 credential step* before anything else; `Esc` at that notice is *stop the wizard*, never *abort the
 session*. Skipped or failed tests do not block later steps: the model step degrades to manual id
-entry and the summary marks the test skipped/failed.
+entry and the summary marks the test skipped/failed. There is no automatic retry: the go-back loop is
+the retry the user controls.
 
-### 4. Writes go through the store writers, staged in memory
+### 4. The model check is a real request, not a second discovery
+
+Discovery proves the credential; it does not prove the model. After the model step the wizard makes
+one **minimal real request through the model's resolved API family**: one short completion (a fixed
+two-token prompt, small `max_tokens`) for a chat profile, or one tiny noul for a decision profile. A
+wrong model id or a wrong API family passes discovery and fails the first session — OpenCode Go serves
+different models on different native APIs, which is exactly the case this catches. The cost is stated
+before the check runs (one short request; the provider's published price where known) and the check is
+skippable, including with `--no-model-check` on the flag path. A failure names the model, the resolved
+family and the HTTP status or response shape, and offers going back to the model step; a skip or
+failure never silently calls the model verified — the summary says unverified. No automatic retry.
+
+### 5. Writes go through the store writers, staged in memory
 
 The commit step calls, in one pass: `AuthStore` for the key; the provider store's save path for the
 provider entry (`ProviderStore.Save` — the same writer `auth login --custom` uses through
@@ -91,7 +112,7 @@ and cannot be a rewrite). The stomp risk — a `/settings` write racing a wizard
 to the wizard's own window and accepted: an interactive wizard run and a simultaneous settings edit
 are not one session's flow; the store writers verify-and-replace as they do today.
 
-### 5. The non-interactive path is flags, not a second format
+### 6. The non-interactive path is flags, not a second format
 
 `lunate setup --provider <id> [--endpoint <url>] [--api-family <family>]
 [--credential-placement <placement>] [--models-url <url>] [--credential <ref>|--key-stdin]
@@ -104,18 +125,43 @@ exit 0 only after a real commit or a no-op with everything skipped. A settings f
 <file>`) was the alternative; flags win because they need no file format, no loader and no new schema,
 and the settings writers are already the machine-readable contract.
 
-### 6. Narrow widths come for free from the components, and are pinned anyway
+### 7. Narrow widths come for free from the components, and are pinned anyway
 
 Sixty and eighty columns are inside the existing narrow-terminal breakpoints the pickers already
 honour: descriptions truncate, list windows bound themselves, and the summary wraps. The wizard adds
-no width-aware layout of its own; the fixture-driven test walks the nine stepping inputs at 80 and
+no width-aware layout of its own; the fixture-driven test walks the full set of stepping inputs at 80 and
 60 columns through the real stack and pins both render trees, so a component regression cannot show
 the wizard readable at one width and broken at the other.
 
+### 8. Re-runs open an entry menu, not the wall again
+
+On a configured install, `/setup` opens an entry menu instead of walking every step again: add a
+provider, add a profile, change the chat profile, or edit the decisions layer. Each entry is
+prefilled with the current values and writes only what changed. The full walk stays available from
+the menu ("walk everything") and is still the first-run path; the trigger itself never fires when
+configuration resolves. This bounds the re-run cost to an explicit choice.
+
+### 9. The decisions step offers what the provider can actually do
+
+After the model step, the decisions step looks at the chosen provider's family. If the provider
+exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the
+preset's pinned version (`jev-1.14` on OpenRouter; `jev-1.13` on OpenCode Go, documented with its box
+limitation). Otherwise the wizard offers an **adapter** profile and labels it as an adapter in the
+picker and the summary, so the difference is visible before the first decision runs. When routing is
+enabled, the wizard asks for each routing profile's description — what the profile is for, what it is
+not, an example — as #494 §7 requires, and warns once if one is left blank.
+
+### 10. Thinking offers only what the model supports
+
+The chat-profile step offers only the reasoning levels the chosen model declares; a model without a
+reasoning style skips the question entirely, rather than offering levels that would be refused at
+write time. The summary shows a thinking level only where the model has one.
+
 ## Risks / Trade-offs
 
-- **The wizard can feel like a wall on re-runs.** Mitigation: `/setup` re-runs it intentionally;
-  the trigger never fires when configuration resolves, and Esc at the first prompt is always an exit.
+- **The wizard can feel like a wall on re-runs.** Mitigation: a configured `/setup` opens the entry
+  menu (§8), the trigger never fires when configuration resolves, and Esc at the first prompt is
+  always an exit.
 - **The connection test sends the credential to the endpoint.** By design — it is the same call the
   session will make — but it must never print the key, log it, or put it in a process argument; the
   existing redaction tests extend to the wizard's outputs.
@@ -136,6 +182,3 @@ fix line and auth picker.
 
 - Exact summary layout and copy (one value per line vs. grouped) — spec pins content, not layout;
   layout lands with the fixture render and review.
-- Whether the connection test retries transient network failures once (the decision layer retries a
-  malformed response once) or fails immediately with go-back. Proposed: no automatic retry — the
-  go-back loop is the retry the user controls.

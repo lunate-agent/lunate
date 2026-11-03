@@ -15,23 +15,33 @@ step, no profile step, no connection test before committing
 - When no provider or no chat profile is configured, an interactive `lunate` run opens a setup
   wizard instead of the tidy-sequential first-run refusal; `lunate setup` and `/setup` re-run it
   at any time; the wizard inherits the /auth picker rules (no prompting while busy; a terminal is required).
-- Steps ([DETAILED IN DESIGN]): provider (presets + `custom` family selection per #474), credential
-  (masked entry, masked completion, reviewable, optional `environment:` reference) never written to
-  project settings / stored, connection test (real discovery `GET /models` call, failures are
-  reportable and step-recoverable, not fatal), model (from the discovery listing or a manual id —
-  discovery surfaced by the provider metadata contract in #474, model id entry with search/discovery
-  unavailable fallback), chat profile (name + reasoning level per #476's profiled thinking),
-  optional fast/decision profiles, decisions-all-off defaults (one explanatory line per option),
-  and a summary step offering every collected value for final review/confirmation before writes; all
-  values staged until the summary confirm; explicit abort/skip leaves the stores byte-identical.
+- Steps ([DETAILED IN DESIGN]): provider (presets + `custom` family selection per #474, region shown
+  or asked), credential (environment key first when the standard variable is set, then masked entry,
+  masked completion, reviewable, optional `environment:` reference) never written to project settings
+  / stored, connection test (real discovery `GET /models` call, failures are reportable and
+  step-recoverable, not fatal, no automatic retry), model (from the discovery listing or a manual id
+  — discovery surfaced by the provider metadata contract in #474, model id entry with
+  search/discovery unavailable fallback), **model check** (one minimal real request through the
+  resolved API family — short completion, or a tiny noul for a decision profile — with its cost
+  stated and skippable, so a wrong model or family fails in the wizard), chat profile (name + only
+  the reasoning levels the model supports, the question hidden when it has none), optional
+  fast/decision profiles (native Jev when the provider exposes `systemone`, otherwise an adapter
+  labelled as such), decision routing descriptions when routing is enabled, decisions-all-off
+  defaults (one explanatory line per option), and a summary step offering every collected value for
+  final review/confirmation before writes; all values staged until the summary confirm; explicit
+  abort/skip leaves the stores byte-identical.
+- A configured install enters `/setup` through an entry menu (add provider, add profile, change the
+  chat profile, decisions, walk everything) with current values prefilled, instead of the full walk;
+  the first run keeps the full walk.
 - One writer: the wizard submits edits through the same stores/settings writers `/settings` and
   `auth login` consume (the `SettingsStore`/`AuthStore` and provider-store write paths), never a
   parallel writer.
 
 ### New Capabilities
 
-- `setup-wizard`: the wizard flow itself — trigger conditions, the nine steps, test step, non-interactive
-  equivalent, atomic no-write-until-confirmed and skip semantics.
+- `setup-wizard`: the wizard flow itself — TTY-only trigger, the ten steps (including the model
+  check), re-run entry menu, non-interactive equivalent, atomic no-write-until-confirmed and skip
+  semantics.
 
 ### Modified Capabilities
 
@@ -44,8 +54,9 @@ step, no profile step, no connection test before committing
 
 - Affected code: `InteractiveSession` (first-run trigger; `/setup`; welcome-header fix routing),
   `AuthCommand` (custom writers reused), new `SetupWizard` implementation in `Lunate.Coding`/`Lunate.Tui`
-  (wizard state/steps, no model calls — the connection test uses the same discovery client as
-  `--discover`), `SettingsStore` (profile/usage writers), and fixture-driven wizard-session tests.
+  (wizard state/steps; the connection test uses the same discovery client as `--discover`, and the
+  model check makes one minimal real request through the resolved family), `SettingsStore`
+  (profile/usage writers), and fixture-driven wizard-session tests.
 - No new NuGet packages. No alternative ADR: the profile schema is already approved (thinking-min
   per profile #476), and the provider/families model is shipped (#474/ADR-0029); the wizard
   is a consumer, not a new contract.
