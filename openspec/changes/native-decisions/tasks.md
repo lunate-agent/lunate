@@ -7,8 +7,8 @@
 - [x] OpenCode SystemOne: noul, image header requirement, 1.14 unavailable — live, recorded.
 - [x] Store TypeSafe's published OpenAPI as `fixtures/typesafe-openapi.json` and check the recorded
       fixtures against it in a contract test; a schema hash change fails with the diff.
-- [ ] TypeSafe direct is **deferred out of 0.3** (no key to verify it); add its preset only with a
-      recorded live fixture.
+- [x] TypeSafe direct's live probe is the first implementation task; ship no preset unless a live
+      fixture is recorded (defer the preset if the probe cannot be made).
 
 ## 2. Project split (before any System One code)
 
