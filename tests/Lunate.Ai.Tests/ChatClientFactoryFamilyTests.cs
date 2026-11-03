@@ -14,7 +14,8 @@ public sealed class ChatClientFactoryFamilyTests
     private const string OpenCodeApiKeyVariable = "OPENCODE_API_KEY";
 
     [Theory]
-    [InlineData("openai-chat", "OpenAI")]
+    [InlineData("openai-chat", "OpenAIChatClient")]
+    [InlineData("openai-responses", "OpenAIResponsesChatClient")]
     [InlineData("anthropic-messages", "Anthropic")]
     public void A_wired_family_routes_to_its_adapter_kind(string family, string adapterMarker)
     {
@@ -40,7 +41,6 @@ public sealed class ChatClientFactoryFamilyTests
     }
 
     [Theory]
-    [InlineData("openai-responses", "opencode-go")]
     [InlineData("google", "opencode-go")]
     [InlineData("google", "google")]
     public void A_family_without_a_wired_client_fails_naming_the_slice(
