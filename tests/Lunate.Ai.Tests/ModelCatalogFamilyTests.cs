@@ -10,7 +10,16 @@ public sealed class ModelCatalogFamilyTests
 
         foreach (ModelInfo model in catalog.Models)
         {
-            if (model.Provider is "opencode-go" or "google")
+            if (model.ApiFamily == "systemone")
+            {
+                // The decision models: catalog-declared native entries, not generated chat ones.
+                Assert.True(
+                    model.Id is "openrouter/typesafe/jev-1.14" or "opencode/jev-1.13",
+                    $"Unexpected systemone catalog entry: {model.Id}"
+                );
+                Assert.Equal("native", model.ApiType);
+            }
+            else if (model.Provider is "opencode-go" or "google" or "openrouter" or "opencode")
             {
                 Assert.Equal(ProviderApiFamilies.OpenAiChat, model.ApiFamily);
             }

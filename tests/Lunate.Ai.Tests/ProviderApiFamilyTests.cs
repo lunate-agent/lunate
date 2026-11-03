@@ -8,6 +8,7 @@ public sealed class ProviderApiFamilyTests
     [InlineData("openai-responses", ProviderApiFamily.OpenAiResponses)]
     [InlineData("anthropic-messages", ProviderApiFamily.AnthropicMessages)]
     [InlineData("google", ProviderApiFamily.Google)]
+    [InlineData("systemone", ProviderApiFamily.SystemOne)]
     public void A_wire_name_parses_to_its_family(string wireName, ProviderApiFamily family)
     {
         Assert.True(ProviderApiFamilies.TryParse(wireName, out ProviderApiFamily parsed));
@@ -40,7 +41,7 @@ public sealed class ProviderApiFamilyTests
     public void The_supported_list_names_every_family_in_declaration_order()
     {
         Assert.Equal(
-            "openai-chat, openai-responses, anthropic-messages, google",
+            "openai-chat, openai-responses, anthropic-messages, google, systemone",
             ProviderApiFamilies.Supported()
         );
     }

@@ -22,6 +22,7 @@ internal sealed partial class InteractiveSession
             _providerEntries,
             _catalog
         );
+        DecisionUsageModels.RequireChatFamily(chat, usage: "chat");
         var clientsByProfile = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal);
         var usages = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
         {
@@ -43,6 +44,11 @@ internal sealed partial class InteractiveSession
                     _providerEntries,
                     _catalog
                 );
+                if (usage != "decision")
+                {
+                    DecisionUsageModels.RequireChatFamily(profile, usage: usage);
+                }
+
                 usages[usage] = GetClient(profile);
             }
             catch (Exception exception)
@@ -123,45 +129,12 @@ internal sealed partial class InteractiveSession
     private IChatClient CreateUsageClient(ResolvedModelProfile profile)
     {
         RequestContext? context = SessionRequestContext();
-        string reference = profile.Provider.CredentialReference;
-        if (reference.StartsWith("auth:", StringComparison.Ordinal))
-        {
-            string keyName = reference["auth:".Length..];
-            ProviderPreset? preset = ProviderPresets.Find(profile.Provider.Kind);
-            string? environmentKey = preset is null
-                ? null
-                : _environment(preset.KeyVariable)
-                    ?? (preset.KeyVariableAlias is { } alias ? _environment(alias) : null);
-            if (!string.IsNullOrWhiteSpace(environmentKey))
-            {
-                return _factory.Create(profile.Model, environmentKey, context);
-            }
-
-            string? storedKey = _auth.TryGet(keyName);
-            if (!string.IsNullOrWhiteSpace(storedKey))
-            {
-                return _factory.Create(profile.Model, storedKey, context);
-            }
-
-            return _factory.Create(profile.Model with { AuthRef = keyName }, context);
-        }
-
-        if (reference.StartsWith("env:", StringComparison.Ordinal))
-        {
-            string variable = reference["env:".Length..];
-            string? environmentKey = _environment(variable);
-            if (!string.IsNullOrWhiteSpace(environmentKey))
-            {
-                return _factory.Create(profile.Model, environmentKey, context);
-            }
-
-            throw new InvalidOperationException(
-                $"The environment credential '{variable}' for provider '{profile.Provider.Name}' is not set. Set {variable} before using this profile."
-            );
-        }
-
-        throw new InvalidOperationException(
-            $"The credential helper '{reference["helper:".Length..]}' for provider '{profile.Provider.Name}' cannot be resolved by this host. Use an auth or env credential reference."
+        return DecisionUsageModels.CreateUsageClient(
+            profile,
+            _auth,
+            _environment,
+            _factory,
+            context
         );
     }
 }

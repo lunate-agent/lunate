@@ -4,7 +4,8 @@ namespace Lunate.Ai;
 /// The wire API on a provider's endpoint. Not a wire protocol per preset but per endpoint: a
 /// provider - and every model on it - serves exactly one family unless it declares per-family
 /// URLs. Family names are stable wire names in settings, presets and catalogs; every reader
-/// refuses an unknown one by name.
+/// refuses an unknown one by name. <c>SystemOne</c> is the decision-only family: it is never
+/// served by the chat client factory, and a profile on it resolves the native decision transport.
 /// </summary>
 public enum ProviderApiFamily
 {
@@ -12,12 +13,14 @@ public enum ProviderApiFamily
     OpenAiResponses,
     AnthropicMessages,
     Google,
+    SystemOne,
 }
 
 /// <summary>
 /// Wire-name parse and format for <see cref="ProviderApiFamily"/>: <c>openai-chat</c>,
-/// <c>openai-responses</c>, <c>anthropic-messages</c>, <c>google</c>. Parsing is exact-match so a
-/// typo never silently maps to another family; the supported set is named in every refusal.
+/// <c>openai-responses</c>, <c>anthropic-messages</c>, <c>google</c>, <c>systemone</c>. Parsing
+/// is exact-match so a typo never silently maps to another family; the supported set is named in
+/// every refusal.
 /// </summary>
 public static class ProviderApiFamilies
 {
@@ -25,6 +28,7 @@ public static class ProviderApiFamilies
     public const string OpenAiResponses = "openai-responses";
     public const string AnthropicMessages = "anthropic-messages";
     public const string Google = "google";
+    public const string SystemOne = "systemone";
 
     private static readonly (string Name, ProviderApiFamily Family)[] Known =
     [
@@ -32,6 +36,7 @@ public static class ProviderApiFamilies
         (OpenAiResponses, ProviderApiFamily.OpenAiResponses),
         (AnthropicMessages, ProviderApiFamily.AnthropicMessages),
         (Google, ProviderApiFamily.Google),
+        (SystemOne, ProviderApiFamily.SystemOne),
     ];
 
     /// <summary>The known families in declaration order; list errors in this order.</summary>
@@ -46,6 +51,7 @@ public static class ProviderApiFamilies
             ProviderApiFamily.OpenAiResponses => OpenAiResponses,
             ProviderApiFamily.AnthropicMessages => AnthropicMessages,
             ProviderApiFamily.Google => Google,
+            ProviderApiFamily.SystemOne => SystemOne,
             _ => throw new ArgumentOutOfRangeException(nameof(family)),
         };
 

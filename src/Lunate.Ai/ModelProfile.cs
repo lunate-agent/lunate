@@ -2,8 +2,9 @@ namespace Lunate.Ai;
 
 /// <summary>A named model choice and the optional settings validated against its catalog model.
 /// <see cref="ApiFamily"/> is the optional wire-name override (<c>openai-chat</c>,
-/// <c>openai-responses</c>, <c>anthropic-messages</c>, <c>google</c>) that pins which API family
-/// the model resolves to; it wins over discovery and the catalog.</summary>
+/// <c>openai-responses</c>, <c>anthropic-messages</c>, <c>google</c>, <c>systemone</c>) that pins
+/// which API family the model resolves to; it wins over discovery and the catalog. A
+/// <c>systemone</c> profile names the native decision transport and is refused as a chat usage.</summary>
 internal sealed record ModelProfile(
     string Name,
     string Provider,
@@ -78,14 +79,17 @@ internal static class ModelProfileResolver
         try
         {
             // Precedence: profile override, then the already-merged discovery/catalog family,
-            // then the provider's single family; the provider entry must declare a URL for it.
+            // then the provider's single family; the provider entry must declare a URL for it,
+            // or its kind preset does (a preset-provided entry can stay minimal while the
+            // preset's per-family URLs — System One among them — still route).
             family = ProviderFamilyResolver.Resolve(
                 profile.ApiFamily ?? model.ApiFamily,
                 provider.Families,
                 provider.Name,
                 model.Id
             );
-            endpoint = provider.UrlFor(family);
+            endpoint =
+                provider.UrlFor(family) ?? ProviderPresets.Find(provider.Kind)?.UrlFor(family);
         }
         catch (InvalidOperationException exception)
         {
@@ -99,6 +103,11 @@ internal static class ModelProfileResolver
                 "apiFamily",
                 $"provider '{provider.Name}' declares no URL for family '{ProviderApiFamilies.Name(family)}'; add \"baseUrls.{ProviderApiFamilies.Name(family)}\" to the provider entry"
             );
+        }
+
+        if (family == ProviderApiFamily.SystemOne)
+        {
+            RefuseSystemOneAlias(profile, model, catalog);
         }
 
         ValidateReasoning(profile, model);
@@ -218,6 +227,81 @@ internal static class ModelProfileResolver
         }
 
         return window;
+    }
+
+    /// <summary>
+    /// A System One profile names an exact version: an alias — a tilde-prefixed id or an id
+    /// ending in <c>latest</c> — resolves to whatever the provider serves today, and a provider
+    /// upgrade can change probabilities behind it. The refusal names the alias and the exact
+    /// version the catalog records for it, so the fix is a one-word edit.
+    /// </summary>
+    private static void RefuseSystemOneAlias(
+        ModelProfile profile,
+        ModelInfo model,
+        ModelCatalog catalog
+    )
+    {
+        foreach (string alias in new[] { model.Id, model.WireId }.OfType<string>())
+        {
+            string? resolved = ResolvedAliasVersion(catalog, model.Provider, alias);
+            if (resolved is null)
+            {
+                throw Invalid(
+                    profile,
+                    "model",
+                    $"'{alias}' is an alias; System One decision profiles must pin an exact version, "
+                        + "and the catalog does not record which one it resolves to. Name the exact "
+                        + "version the provider serves."
+                );
+            }
+
+            throw Invalid(
+                profile,
+                "model",
+                $"'{alias}' is an alias and currently resolves to '{resolved}'; pin that exact "
+                    + "version, because a provider upgrade can change probabilities behind the alias."
+            );
+        }
+    }
+
+    /// <summary>
+    /// The exact version behind an alias, from the catalog: the same provider's entry whose id or
+    /// wire id extends the alias's non-<c>latest</c> prefix. Unknown when more than one entry
+    /// competes or none exists — the refusal then says so instead of guessing.
+    /// </summary>
+    private static string? ResolvedAliasVersion(
+        ModelCatalog catalog,
+        string providerKind,
+        string alias
+    )
+    {
+        if (!alias.EndsWith("latest", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        string prefix = alias[..^"latest".Length].TrimStart('~').TrimEnd('-');
+        if (prefix.Length == 0)
+        {
+            return null;
+        }
+
+        string[] versions =
+        [
+            .. catalog
+                .Models.Where(candidate =>
+                    string.Equals(candidate.Provider, providerKind, StringComparison.Ordinal)
+                    && !candidate.Id.EndsWith("latest", StringComparison.Ordinal)
+                )
+                .Select(candidate => candidate.WireId ?? candidate.Id)
+                .Distinct(StringComparer.Ordinal)
+                .Where(version =>
+                    version.StartsWith(prefix, StringComparison.Ordinal)
+                    && version.Length > prefix.Length
+                    && version[prefix.Length] is '.' or '-' or >= '0' and <= '9'
+                ),
+        ];
+        return versions is [string version] ? version : null;
     }
 
     private static InvalidDataException Invalid(

@@ -16,7 +16,9 @@ public sealed record ProviderEntry(
     string? Region = null,
     IReadOnlyDictionary<ProviderApiFamily, Uri>? BaseUrls = null,
     Uri? ModelsUrl = null,
-    IReadOnlyDictionary<ProviderApiFamily, CredentialPlacement>? CredentialPlacements = null
+    IReadOnlyDictionary<ProviderApiFamily, CredentialPlacement>? CredentialPlacements = null,
+    IReadOnlyDictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>? FamilyHeaders =
+        null
 )
 {
     /// <summary>
@@ -28,12 +30,19 @@ public sealed record ProviderEntry(
         ProviderPresets.Find(Kind)?.DefaultFamily ?? ProviderApiFamily.OpenAiChat;
 
     /// <summary>
-    /// The families this entry serves: the declared <see cref="BaseUrls"/> keys (in stable
-    /// declaration order) when present, otherwise just <see cref="DefaultFamily"/>.
+    /// The families this entry serves: the declared <see cref="BaseUrls"/> keys, plus
+    /// <see cref="DefaultFamily"/> when only the <c>baseUrl</c> shorthand declares it (families
+    /// may share a URL, and a per-family URL never removes the shorthand's family), in stable
+    /// declaration order; otherwise just <see cref="DefaultFamily"/>.
     /// </summary>
     public IReadOnlyList<ProviderApiFamily> Families =>
-        BaseUrls is { Count: > 0 }
-            ? [.. ProviderApiFamilies.All.Where(BaseUrls.ContainsKey)]
+        BaseUrls is { Count: > 0 } declaredUrls
+            ?
+            [
+                .. ProviderApiFamilies.All.Where(family =>
+                    declaredUrls.ContainsKey(family) || family == DefaultFamily
+                ),
+            ]
             : [DefaultFamily];
 
     /// <summary>
@@ -59,6 +68,15 @@ public sealed record ProviderEntry(
 
         return ProviderPresets.Find(Kind)?.PlacementFor(family) ?? CredentialPlacement.Bearer;
     }
+
+    /// <summary>
+    /// The headers a family's wire sends on its own: the entry's declaration, or the kind
+    /// preset's when the entry declares none. Image-only headers (System One's
+    /// <c>TypeSafe-Danger-Zone-Images</c>) live here, so a family's headers never reach another
+    /// family's wire.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? HeadersFor(ProviderApiFamily family) =>
+        FamilyHeaders?.GetValueOrDefault(family) ?? ProviderPresets.Find(Kind)?.HeadersFor(family);
 
     internal static bool TryCreate(
         string? name,
@@ -120,6 +138,35 @@ public sealed record ProviderEntry(
         IReadOnlyDictionary<ProviderApiFamily, Uri>? baseUrls,
         Uri? modelsUrl,
         IReadOnlyDictionary<ProviderApiFamily, CredentialPlacement>? credentialPlacements,
+        out ProviderEntry? entry,
+        out string? error
+    ) =>
+        TryCreate(
+            name,
+            kind,
+            baseUrl,
+            credentialReference,
+            headers,
+            region,
+            baseUrls,
+            modelsUrl,
+            credentialPlacements,
+            familyHeaders: null,
+            out entry,
+            out error
+        );
+
+    internal static bool TryCreate(
+        string? name,
+        string? kind,
+        Uri? baseUrl,
+        string? credentialReference,
+        IReadOnlyDictionary<string, string>? headers,
+        string? region,
+        IReadOnlyDictionary<ProviderApiFamily, Uri>? baseUrls,
+        Uri? modelsUrl,
+        IReadOnlyDictionary<ProviderApiFamily, CredentialPlacement>? credentialPlacements,
+        IReadOnlyDictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>? familyHeaders,
         out ProviderEntry? entry,
         out string? error
     )
@@ -215,6 +262,42 @@ public sealed record ProviderEntry(
             copiedPlacements = new(credentialPlacements);
         }
 
+        Dictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>? copiedFamilyHeaders =
+            null;
+        if (familyHeaders is { Count: > 0 })
+        {
+            copiedFamilyHeaders =
+                new Dictionary<ProviderApiFamily, IReadOnlyDictionary<string, string>>();
+            foreach (
+                (
+                    ProviderApiFamily family,
+                    IReadOnlyDictionary<string, string> familyHeaderValues
+                ) in familyHeaders
+            )
+            {
+                var copiedValues = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach ((string header, string reference) in familyHeaderValues)
+                {
+                    if (
+                        !ProviderHeaderValues.TryValidate(
+                            header,
+                            reference,
+                            out string? headerError
+                        )
+                    )
+                    {
+                        error =
+                            $"providers.{name}.familyHeaders.{ProviderApiFamilies.Name(family)}.{header} {headerError}";
+                        return false;
+                    }
+
+                    copiedValues.Add(header, reference);
+                }
+
+                copiedFamilyHeaders.Add(family, copiedValues);
+            }
+        }
+
         if (region is not null && region is not ("eu" or "us" or "local"))
         {
             error = $"providers.{name}.region must be 'eu', 'us', or 'local'";
@@ -230,7 +313,8 @@ public sealed record ProviderEntry(
             region,
             copiedFamilyUrls,
             modelsUrl,
-            copiedPlacements
+            copiedPlacements,
+            copiedFamilyHeaders
         );
         error = null;
         return true;
