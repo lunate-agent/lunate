@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "id": "claude-wire",
+      "api": {
+        "messages": {
+          "base_url": "https://elsewhere.example/v1"
+        }
+      }
+    }
+  ]
+}

@@ -5,15 +5,19 @@ namespace Lunate.Ai.Tests;
 
 /// <summary>
 /// Live provider contract tests, gated by <c>LUNATE_LIVE=1</c>. Required environment variables:
-/// <c>LUNATE_LIVE=1</c> plus the provider key (<c>OPENAI_API_KEY</c> for the OpenAI-compatible path,
-/// <c>ANTHROPIC_API_KEY</c> for Anthropic). Without <c>LUNATE_LIVE=1</c> these tests are skipped and
-/// never touch the network.
+/// <c>LUNATE_LIVE=1</c> plus the provider key (<c>OPENAI_API_KEY</c> for the OpenAI-compatible and
+/// Responses paths, <c>ANTHROPIC_API_KEY</c> for Anthropic, <c>GOOGLE_API_KEY</c>/<c>GEMINI_API_KEY</c>
+/// for the native Google family, <c>OPENCODE_API_KEY</c> for the OpenCode Go paths). Without
+/// <c>LUNATE_LIVE=1</c> these tests are skipped and never touch the network.
 /// </summary>
 public sealed class LiveContractTests
 {
     private const string LiveVariable = "LUNATE_LIVE";
     private const string OpenAiApiKeyVariable = "OPENAI_API_KEY";
     private const string AnthropicApiKeyVariable = "ANTHROPIC_API_KEY";
+    private const string GoogleApiKeyVariable = "GOOGLE_API_KEY";
+    private const string GoogleApiKeyAliasVariable = "GEMINI_API_KEY";
+    private const string OpenCodeApiKeyVariable = "OPENCODE_API_KEY";
 
     [Fact]
     public async Task OpenAi_streamed_round_trip_returns_meai_updates()
@@ -185,6 +189,52 @@ public sealed class LiveContractTests
             $"Expected a prompt-cache read on the second turn. Usage: {turnTwo.Usage}; cached input tokens: {cached}."
         );
     }
+
+    /// <summary>
+    /// The Google family's live smoke through the native API: a streamed round trip with the API
+    /// key placed as the query parameter the preset declares.
+    /// </summary>
+    [Fact]
+    public async Task Google_streamed_round_trip_returns_meai_updates()
+    {
+        Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
+        Assert.SkipWhen(
+            string.IsNullOrEmpty(LiveGoogleKey()),
+            "Set GOOGLE_API_KEY (or GEMINI_API_KEY) for the native Google smoke."
+        );
+
+        await RunStreamedRoundTrip(
+            new ModelInfo("gemini-2.5-flash", "google", null, 1_048_576, true)
+            {
+                ApiFamily = ProviderApiFamilies.Google,
+            }
+        );
+    }
+
+    /// <summary>
+    /// The Google family's live smoke through OpenCode Go's Google endpoint: the gateway URL the
+    /// preset declares, one Go key, the same family client.
+    /// </summary>
+    [Fact]
+    public async Task OpenCodeGo_google_streamed_round_trip_returns_meai_updates()
+    {
+        Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
+        Assert.SkipWhen(
+            string.IsNullOrEmpty(Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable)),
+            $"{OpenCodeApiKeyVariable} is not set."
+        );
+
+        await RunStreamedRoundTrip(
+            new ModelInfo("gemini-2.5-flash", "opencode-go", null, 1_048_576, true)
+            {
+                ApiFamily = ProviderApiFamilies.Google,
+            }
+        );
+    }
+
+    private static string? LiveGoogleKey() =>
+        Environment.GetEnvironmentVariable(GoogleApiKeyVariable)
+        ?? Environment.GetEnvironmentVariable(GoogleApiKeyAliasVariable);
 
     private static async Task RunStreamedRoundTrip(ModelInfo model)
     {

@@ -4,8 +4,9 @@ using Microsoft.Extensions.AI;
 namespace Lunate.Ai.Tests;
 
 /// <summary>
-/// The client factory's family routing: adapter selection by family, and the failures a family
-/// without a wired client (or without any answer) produces instead of silently using chat.
+/// The client factory's family routing: adapter selection by family, and the failure an
+/// unanswerable two-family provider (or an unknown family value) produces instead of silently
+/// using chat.
 /// </summary>
 [Collection(ChatClientFactoryEnvCollection.Name)]
 public sealed class ChatClientFactoryFamilyTests
@@ -17,11 +18,13 @@ public sealed class ChatClientFactoryFamilyTests
     [InlineData("openai-chat", "OpenAIChatClient")]
     [InlineData("openai-responses", "OpenAIResponsesChatClient")]
     [InlineData("anthropic-messages", "Anthropic")]
+    [InlineData("google", "GoogleGenAIChatClient")]
     public void A_wired_family_routes_to_its_adapter_kind(string family, string adapterMarker)
     {
         using var environment = new EnvironmentScope(
             (OpenAiApiKeyVariable, "fixture-only-key"),
             (OpenCodeApiKeyVariable, "fixture-only-key"),
+            ("GOOGLE_API_KEY", null),
             ("LUNATE_OTEL", null),
             ("OTEL_EXPORTER_OTLP_ENDPOINT", null)
         );
@@ -41,31 +44,27 @@ public sealed class ChatClientFactoryFamilyTests
     }
 
     [Theory]
-    [InlineData("google", "opencode-go")]
-    [InlineData("google", "google")]
-    public void A_family_without_a_wired_client_fails_naming_the_slice(
-        string family,
-        string providerId
-    )
+    [InlineData("google")]
+    [InlineData("opencode-go")]
+    public void A_google_family_model_routes_to_the_native_client_by_name(string providerId)
     {
+        using var environment = new EnvironmentScope(
+            ("GOOGLE_API_KEY", "fixture-only-key"),
+            ("OPENCODE_API_KEY", "fixture-only-key"),
+            ("LUNATE_OTEL", null),
+            ("OTEL_EXPORTER_OTLP_ENDPOINT", null)
+        );
         var factory = new ChatClientFactory(new MarkingLoggerFactory(static () => { }));
         ProviderPreset preset = ProviderPresets.Find(providerId)!;
         var model = new ModelInfo("m", providerId, preset.BaseUrl, ContextWindow: 8192, true)
         {
-            ApiFamily = family,
+            ApiFamily = "google",
         };
 
-        NotSupportedException exception = Assert.Throws<NotSupportedException>(() =>
-            factory.Create(model)
-        );
+        IChatClient client = factory.Create(model);
 
-        Assert.Contains(family, exception.Message, StringComparison.Ordinal);
-        Assert.Contains(
-            "not implemented in this slice",
-            exception.Message,
-            StringComparison.Ordinal
-        );
-        Assert.Contains($"'{providerId}'", exception.Message, StringComparison.Ordinal);
+        string leaf = WalkChain(client)[^1].GetType().Name;
+        Assert.Contains("GoogleGenAIChatClient", leaf, StringComparison.Ordinal);
     }
 
     [Fact]

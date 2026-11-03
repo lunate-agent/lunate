@@ -76,6 +76,44 @@ shown are the documented defaults the store applies when a key is missing.
 | `verify` | string | block | user | How staged writes behave when a write verifier refuses the content: refuse, write and report unverified, or skip verifier selection. File-only; no environment override. Values: `block`, `warn`, `off`. |
 <!-- /docs-sync: settings -->
 
+## Custom provider entry v2
+
+The `providers.<id>` settings block describes one user-owned custom endpoint and serves exactly one
+API family. New entries use `baseUrls` keyed by family; the accepted names are `openai-chat`,
+`openai-responses`, `anthropic-messages` and `google`. The older `baseUrl` spelling remains readable
+as the `openai-chat` family and loading it does not rewrite the file. New writes use `baseUrls`.
+
+```json settings
+{
+  "schemaVersion": 2,
+  "providers": {
+    "my-gemini": {
+      "baseUrls": { "google": "https://gemini.example/v1beta" },
+      "modelsUrl": "https://gemini.example/v1beta/models",
+      "credentialPlacement": "query:key",
+      "model": "gemini-example"
+    }
+  },
+  "profiles": {
+    "chat": { "provider": "my-gemini", "model": "my-gemini/gemini-example" }
+  }
+}
+```
+
+For built-in provider presets, each model's discovery `api` object selects its family and its
+`base_url` supplies that model's endpoint. The discovery family keys map as follows: `chat-completions`
+to `openai-chat`, `responses` to `openai-responses`, `messages` to `anthropic-messages`, and
+`generate-content` to `google`. Discovery also records input/output modalities, tool and reasoning
+capabilities, reasoning efforts, context limits, and output limits. A profile's `apiFamily` override
+wins over discovery metadata and the catalog. A custom provider's discovered endpoint and redirects
+must stay on its configured host; a preset may use its first-party per-family endpoints. See
+[ADR-0029](../adr/0029-provider-api-families.md) for the accepted provider-family decision.
+
+Headers may be literal values or templates over `{session.id}`, `{run.id}`, and `{lunate.version}`.
+The credential is separate: `credentialPlacement` selects the default bearer header, a named header
+such as `x-api-key`, or a query parameter such as Google's `key`. Templates cannot read credentials;
+invalid placeholders and placements are rejected when the provider loads.
+
 ## Where thinking resolves from
 
 The session's thinking level resolves once at start, from the most specific fact available: the

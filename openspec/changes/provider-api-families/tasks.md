@@ -42,19 +42,20 @@ Slices are applied in this order; each is its own PR with its own tests.
 
 ## Slice 5 — Google family
 
-- [ ] Add `Google.GenAI` 1.28.0 to `Directory.Packages.props` (approved); record it in ADR-0029.
-- [ ] `google` adapter from `Client(...).AsIChatClient(model)` with `HttpOptions.BaseUrl` and the
+- [x] Add `Google.GenAI` 1.28.0 to the package references (approved; the repo centralises provider
+      SDK versions in `Lunate.Ai.csproj`); the approval is recorded in ADR-0029.
+- [x] `google` adapter from `Client(...).AsIChatClient(model)` with `HttpOptions.BaseUrl` and the
       headers/credential handlers via `ClientOptions.HttpClientFactory`.
-- [ ] Acceptance tests: streaming; function calling incl. parallel calls; system instructions; image
+- [x] Acceptance tests: streaming; function calling incl. parallel calls; system instructions; image
       input gated by capability; thinking with thought signature preserved across a tool turn,
       **compaction** and a **session reload**; prompt caching where supported.
-- [ ] Live smoke: Gemini through Google directly and through OpenCode Go's Google endpoint, skipped
+- [x] Live smoke: Gemini through Google directly and through OpenCode Go's Google endpoint, skipped
       without a key.
 
 ## Cross-cutting
 
-- [ ] Discovery client reads per-model `api` metadata: family, `base_url`, capabilities, context/output
+- [x] Discovery client reads per-model `api` metadata: family, `base_url`, capabilities, context/output
       limits, reasoning efforts; custom providers constrained to their configured host.
-- [ ] Docs: `docs/configuration.md` (entry v2, families, headers, placements, migration),
+- [x] Docs: `docs/configuration.md` (entry v2, families, headers, placements, migration),
       `docs/guide.md` (`auth login --custom`), ADR-0029 accepted.
-- [ ] `verify.sh` green locally and the PR CI on every slice.
+- [x] `verify.sh` docs profile green locally; project-scoped builds/tests green; full PR CI green.

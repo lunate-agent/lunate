@@ -729,6 +729,87 @@ public sealed class DiscoverCommandTests
         Assert.Equal("relay-key", handler.Requests[1].Headers.GetValues("x-api-key").Single());
     }
 
+    [Fact]
+    [Trait("Discovery", "ProviderApi")]
+    public async Task OpenCode_Go_discovery_maps_api_families_and_model_metadata()
+    {
+        using var temp = new TempDirectory();
+        string response = File.ReadAllText(Fixture("opencode-go-models.json"));
+        using var handler = new FakeHandler(_ => Json(HttpStatusCode.OK, response));
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "opencode-go",
+            Catalog(temp),
+            handler,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Succeeded, result.Error);
+        using JsonDocument draft = JsonDocument.Parse(result.Draft);
+        JsonElement[] models = [.. draft.RootElement.GetProperty("models").EnumerateArray()];
+        Assert.Equal(
+            ["openai-chat", "openai-responses", "anthropic-messages", "google"],
+            models.Select(model => model.GetProperty("apiFamily").GetString())
+        );
+        Assert.Equal(
+            [
+                "https://opencode.ai/inference/go/openai/v1",
+                "https://opencode.ai/inference/go/openai/v1",
+                "https://opencode.ai/inference/go/anthropic/v1",
+                "https://opencode.ai/inference/go/google/v1beta",
+            ],
+            models.Select(model => model.GetProperty("endpoint").GetString())
+        );
+
+        JsonElement google = models[3];
+        Assert.True(
+            Guid.TryParse(
+                handler.Requests[0].Headers.GetValues("x-opencode-session").Single(),
+                out _
+            )
+        );
+        Assert.Equal(1_048_576, google.GetProperty("contextWindow").GetInt32());
+        Assert.Equal(65_536, google.GetProperty("maxOutput").GetInt32());
+        Assert.True(google.GetProperty("supportsTools").GetBoolean());
+        Assert.True(google.GetProperty("supportsVision").GetBoolean());
+        Assert.Equal("effort", google.GetProperty("reasoning").GetString());
+        JsonElement capabilities = google.GetProperty("capabilities");
+        Assert.Contains(
+            "image",
+            capabilities
+                .GetProperty("inputModalities")
+                .EnumerateArray()
+                .Select(item => item.GetString())
+        );
+        Assert.Contains(
+            "reasoning-effort:high",
+            capabilities.GetProperty("features").EnumerateArray().Select(item => item.GetString())
+        );
+    }
+
+    [Fact]
+    [Trait("Discovery", "ProviderApi")]
+    public async Task Custom_provider_discovery_rejects_a_model_base_url_on_another_host()
+    {
+        using var temp = new TempDirectory();
+        string response = File.ReadAllText(Fixture("custom-discovery-cross-host.json"));
+        using var handler = new FakeHandler(_ => Json(HttpStatusCode.OK, response));
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "relay/claude-wire",
+            CustomCatalog(temp, CredentialPlacement.XApiKey),
+            handler,
+            namedKeySource: id => id == "relay" ? "relay-key" : null,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("elsewhere.example", result.Error, StringComparison.Ordinal);
+        Assert.Contains("configured host", result.Error, StringComparison.Ordinal);
+    }
+
     private static ModelCatalog CustomCatalog(TempDirectory temp, CredentialPlacement placement)
     {
         string settingsPath = temp.File("settings.json");
@@ -749,6 +830,9 @@ public sealed class DiscoverCommandTests
 
     private static ModelCatalog Catalog(TempDirectory temp) =>
         ModelCatalog.Load(temp.File("models.json"));
+
+    private static string Fixture(string name) =>
+        Path.Combine(RepositoryRoot.Find(), "tests", "fixtures", "discovery", name);
 
     private static string WriteCatalog(TempDirectory temp, string model)
     {

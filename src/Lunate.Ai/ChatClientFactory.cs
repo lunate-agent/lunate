@@ -162,13 +162,15 @@ public sealed class ChatClientFactory : IChatClientFactory
         );
 
         // An unwired family is a slice error before it is an auth error: the check owns the
-        // message naming the family and the families this slice serves.
+        // message naming the family. All four families have clients since the provider-families
+        // change completed; the check is the load-time guard against a future fifth family.
         if (
             family
             is not (
                 ProviderApiFamily.OpenAiChat
                 or ProviderApiFamily.OpenAiResponses
                 or ProviderApiFamily.AnthropicMessages
+                or ProviderApiFamily.Google
             )
         )
         {
@@ -205,6 +207,9 @@ public sealed class ChatClientFactory : IChatClientFactory
 #pragma warning restore OPENAI001
             case ProviderApiFamily.AnthropicMessages:
                 return CreateAnthropicClient(model, preset, headersHandler, credentialHandler)
+                    .AsIChatClient(wireId);
+            case ProviderApiFamily.Google:
+                return CreateGoogleClient(model, preset, headersHandler, credentialHandler)
                     .AsIChatClient(wireId);
             default:
                 throw NotImplementedFamily(family, model, model.Provider);
@@ -279,14 +284,12 @@ public sealed class ChatClientFactory : IChatClientFactory
         string provider
     ) =>
         new(
-            $"API family '{ProviderApiFamilies.Name(family)}' is not implemented in this slice of the "
-                + "provider-families change: model '"
+            $"API family '{ProviderApiFamilies.Name(family)}' has no client in this build: model '"
                 + model.Id
                 + "' on provider '"
                 + provider
-                + "' resolves to it, but only 'openai-chat', 'openai-responses' and "
-                + "'anthropic-messages' have clients. Pick a model of a wired family, or wait for "
-                + "the family's client."
+                + "' resolves to it, but only 'openai-chat', 'openai-responses', "
+                + "'anthropic-messages' and 'google' have clients. Pick a model of a wired family."
         );
 
     /// <summary>
@@ -469,6 +472,85 @@ public sealed class ChatClientFactory : IChatClientFactory
 
     private static ProviderPreset PresetFor(ModelInfo model) =>
         ProviderPresets.Find(model.Provider) ?? throw UnsupportedProvider(model.Provider);
+
+    /// <summary>
+    /// The Google family's SDK client: <c>Client(...).AsIChatClient(model)</c> (ADR-0029 point 5)
+    /// against the resolved model's family base URL, with the headers and credential handlers
+    /// sitting in the transport through <c>ClientOptions.HttpClientFactory</c> — the same pipeline
+    /// the other families ride. The SDK holds only the non-secret sentinel key at construction;
+    /// the credential handler removes the <c>x-goog-api-key</c> header it builds and places the
+    /// real value in the declared place (the presets declare query <c>key</c>).
+    /// </summary>
+    private Google.GenAI.Client CreateGoogleClient(
+        ModelInfo model,
+        ProviderPreset preset,
+        DelegatingHandler headersHandler,
+        DelegatingHandler credentialHandler
+    )
+    {
+        // A supported preset routes the Google family's own URL; a compatible preset falls back
+        // to its base URL, exactly like the compatible OpenAI families above.
+        Uri familyUrl =
+            model.Endpoint
+            ?? (
+                preset.Adapter == ProviderAdapter.OpenAiCompatible
+                    ? preset.UrlFor(ProviderApiFamily.Google) ?? preset.BaseUrl
+                    : preset.BaseUrl
+            );
+
+        // The Gemini HTTP API paths are {BaseUrl}/{apiVersion}/models/..., and the family URLs
+        // carry the version as their last path segment (both presets end in v1beta). Splitting
+        // hands the SDK the artifact it assembles; a URL without a version segment declares no
+        // version, so nothing is appended.
+        (Uri baseUrl, string apiVersion) = SplitApiVersion(familyUrl);
+        var clientOptions = new Google.GenAI.Types.ClientOptions
+        {
+            HttpClientFactory = () =>
+                TransportHttpClient(headersHandler, credentialHandler, BaseTransportFactory),
+        };
+        return new Google.GenAI.Client(
+            vertexAI: false,
+            apiKey: SentinelCredential,
+            httpOptions: new Google.GenAI.Types.HttpOptions
+            {
+                BaseUrl = baseUrl.AbsoluteUri,
+                ApiVersion = apiVersion,
+            },
+            clientOptions: clientOptions
+        );
+    }
+
+    /// <summary>
+    /// Splits a family URL into the SDK's <c>HttpOptions.BaseUrl</c> and <c>ApiVersion</c>: a
+    /// last path segment that starts a Google API version (<c>v1beta</c>, <c>v1</c>, …) becomes
+    /// the version, everything before it the base URL; an empty version selects no segment.
+    /// </summary>
+    internal static (Uri BaseUrl, string ApiVersion) SplitApiVersion(Uri familyUrl)
+    {
+        string path = familyUrl.AbsolutePath.TrimEnd('/');
+        int lastSlash = path.LastIndexOf('/');
+        string segment = lastSlash < 0 ? path : path[(lastSlash + 1)..];
+        if (
+            segment.Length == 0
+            || segment[0] != 'v'
+            || segment.Length < 2
+            || !char.IsAsciiDigit(segment[1])
+        )
+        {
+            return (StripEmptyPath(familyUrl), string.Empty);
+        }
+
+        string baseAbsoluteUri =
+            lastSlash <= 0
+                ? $"{familyUrl.Scheme}://{familyUrl.Authority}"
+                : familyUrl.AbsoluteUri[
+                    ..(familyUrl.AbsoluteUri.IndexOf(path, StringComparison.Ordinal) + lastSlash)
+                ];
+        return (new Uri(baseAbsoluteUri), segment);
+    }
+
+    private static Uri StripEmptyPath(Uri familyUrl) =>
+        new($"{familyUrl.Scheme}://{familyUrl.Authority}{familyUrl.AbsolutePath}");
 
     /// <summary>
     /// Resolves the credential for a model. A declared <see cref="ModelInfo.AuthRef"/> resolves the
