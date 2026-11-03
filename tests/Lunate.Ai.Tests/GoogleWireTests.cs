@@ -24,7 +24,11 @@ public sealed class GoogleWireTests
         ChatClientFactory factory = GeminiFactory(handler);
         IChatClient client = factory.Create(GeminiModel);
 
-        await StreamAsync(client, options: null, new ChatMessage(ChatRole.User, "Reply with the single word: pong"));
+        await StreamAsync(
+            client,
+            options: null,
+            new ChatMessage(ChatRole.User, "Reply with the single word: pong")
+        );
 
         RequestCapture capture = handler.Captures.Single();
         HttpRequestMessage request = capture.Request;
@@ -34,7 +38,11 @@ public sealed class GoogleWireTests
             StringComparison.Ordinal
         );
         Assert.Equal("alt=sse&key=gem-probe-key", request.RequestUri.Query.TrimStart('?'));
-        Assert.StartsWith("lunate/", request.Headers.UserAgent.ToString(), StringComparison.Ordinal);
+        Assert.StartsWith(
+            "lunate/",
+            request.Headers.UserAgent.ToString(),
+            StringComparison.Ordinal
+        );
         // The SDK's own key header is removed: the sentinel never reaches the provider, and the
         // declared query placement carries the real value.
         Assert.False(request.Headers.Contains("x-goog-api-key"));
@@ -47,7 +55,13 @@ public sealed class GoogleWireTests
         using var environment = new EnvironmentScope(("OPENCODE_API_KEY", "go-probe-key"));
         var handler = new ScriptedGeminiHandler(GoogleWirePayloads.TextTurn);
         ChatClientFactory factory = GeminiFactory(handler);
-        var model = new ModelInfo("gemini-beam", "opencode-go", Endpoint: null, ContextWindow: 8192, true)
+        var model = new ModelInfo(
+            "gemini-beam",
+            "opencode-go",
+            Endpoint: null,
+            ContextWindow: 8192,
+            true
+        )
         {
             ApiFamily = "google",
         };
@@ -401,9 +415,7 @@ internal sealed class ScriptedGeminiHandler(params string[] payloads) : HttpMess
         _captures.Add(new RequestCapture(request, body));
         var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StreamContent(
-                new MemoryStream(Encoding.UTF8.GetBytes(payloads[index]))
-            ),
+            Content = new StreamContent(new MemoryStream(Encoding.UTF8.GetBytes(payloads[index]))),
         };
         response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/event-stream");
         return response;

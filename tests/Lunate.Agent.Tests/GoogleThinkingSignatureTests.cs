@@ -36,9 +36,9 @@ public sealed class GoogleThinkingSignatureTests
             new AgentHarnessOptions { Session = session, ModelId = ModelId }
         );
 
-        await harness.RunAsync("go", TestContext.Current.CancellationToken).ToListAsync(
-            TestContext.Current.CancellationToken
-        );
+        await harness
+            .RunAsync("go", TestContext.Current.CancellationToken)
+            .ToListAsync(TestContext.Current.CancellationToken);
 
         ChatMessage assistant = RequestAssistantMessage(client);
         TextReasoningContent signature = Assert.Single(
@@ -183,5 +183,9 @@ public sealed class GoogleThinkingSignatureTests
             message => message.Role == ChatRole.Assistant
         );
 
-    private sealed record Scenario(Session Session, ScriptedChatClient Client, AgentHarness Harness);
+    private sealed record Scenario(
+        Session Session,
+        ScriptedChatClient Client,
+        AgentHarness Harness
+    );
 }

@@ -530,13 +530,22 @@ public sealed class ChatClientFactory : IChatClientFactory
         string path = familyUrl.AbsolutePath.TrimEnd('/');
         int lastSlash = path.LastIndexOf('/');
         string segment = lastSlash < 0 ? path : path[(lastSlash + 1)..];
-        if (segment.Length == 0 || segment[0] != 'v' || segment.Length < 2 || !char.IsAsciiDigit(segment[1]))
+        if (
+            segment.Length == 0
+            || segment[0] != 'v'
+            || segment.Length < 2
+            || !char.IsAsciiDigit(segment[1])
+        )
         {
             return (StripEmptyPath(familyUrl), string.Empty);
         }
 
         string baseAbsoluteUri =
-            lastSlash <= 0 ? $"{familyUrl.Scheme}://{familyUrl.Authority}" : familyUrl.AbsoluteUri[..(familyUrl.AbsoluteUri.IndexOf(path, StringComparison.Ordinal) + lastSlash)];
+            lastSlash <= 0
+                ? $"{familyUrl.Scheme}://{familyUrl.Authority}"
+                : familyUrl.AbsoluteUri[
+                    ..(familyUrl.AbsoluteUri.IndexOf(path, StringComparison.Ordinal) + lastSlash)
+                ];
         return (new Uri(baseAbsoluteUri), segment);
     }
 

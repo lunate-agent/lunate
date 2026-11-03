@@ -88,7 +88,11 @@ public sealed class GoogleFixtureTests
     internal static async Task<ToolLoopTurns> RunToolLoop(IChatClient client)
     {
         ChatMessage textPrompt = new(ChatRole.User, "Reply with the single word: pong");
-        List<ChatResponseUpdate> textUpdates = await StreamAsync(client, [textPrompt], options: null);
+        List<ChatResponseUpdate> textUpdates = await StreamAsync(
+            client,
+            [textPrompt],
+            options: null
+        );
 
         ChatMessage toolPrompt = new(ChatRole.User, "Use the echo tool to echo the word ping.");
         ChatOptions toolOptions = GoogleWireTests.GeminiToolOptions();
