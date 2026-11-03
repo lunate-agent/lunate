@@ -54,8 +54,8 @@ Slices are applied in this order; each is its own PR with its own tests.
 
 ## Cross-cutting
 
-- [ ] Discovery client reads per-model `api` metadata: family, `base_url`, capabilities, context/output
+- [x] Discovery client reads per-model `api` metadata: family, `base_url`, capabilities, context/output
       limits, reasoning efforts; custom providers constrained to their configured host.
-- [ ] Docs: `docs/configuration.md` (entry v2, families, headers, placements, migration),
+- [x] Docs: `docs/configuration.md` (entry v2, families, headers, placements, migration),
       `docs/guide.md` (`auth login --custom`), ADR-0029 accepted.
 - [ ] `verify.sh` green locally and the PR CI on every slice.

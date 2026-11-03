@@ -463,14 +463,19 @@ write-verification mode, plus `projection.batchTurns` (default 4;
 `LUNATE_PROJECTION_BATCH_TURNS` overrides it) and the observation-mask windows
 `projection.maskTurns` (default 8) and `projection.maskErrorTurns` (default 32);
 `~/.lunate/providers.json` holds named provider instances; and `~/.lunate/auth.json` holds stored
-keys. Provider instances select one of the twelve built-in kinds as a template and may override its
-endpoint. Credentials and optional header values are references (`auth:` or `env:`), not
-literal values. Legacy stored keys migrate idempotently, without copying secrets; environment
-credentials retain precedence. Project settings may reference existing user providers/profiles and
-lower limits, but cannot define endpoints or credential references. Provider `region` is metadata,
-not a routing or residency policy. See [first run](first-run.md) for setup and examples. The
-generated [configuration reference](configuration.md) lists every settings key with its type,
-default, scope and allowed values, and is the page `--check` keeps from going stale.
+keys. Provider instances select one of the twelve built-in kinds as a template and may declare one
+base URL per API family. The four families are `openai-chat`, `openai-responses`,
+`anthropic-messages` and `google`; a model's family comes from a profile override, discovery, the
+catalog, or the provider's only family. Credentials are references (`auth:` or `env:`), never literal
+secrets; header values may be literals or references. Header templates are limited to `{session.id}`,
+`{run.id}` and `{lunate.version}`; credential placement is declared separately. Legacy stored keys
+migrate idempotently, without copying secrets; environment credentials retain precedence. Project
+settings may reference existing user providers/profiles and lower limits, but cannot define endpoints
+or credential references. Provider `region` is metadata, not a routing or residency policy. See
+[first run](first-run.md) for setup and examples. For a custom wire API, `lunate auth login --custom`
+accepts `--api-family`, `--credential-placement` and `--models-url`; omitted family keeps the existing
+`openai-chat` default. The generated [configuration reference](configuration.md) lists every settings
+key with its type, default, scope and allowed values, and is the page `--check` keeps from going stale.
 
 Profiles bind a name to a provider and catalog model with validated reasoning, output, temperature,
 context-window, decision-threshold and capability-override settings. Capability sets are open strings

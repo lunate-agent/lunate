@@ -240,7 +240,8 @@ public static class DiscoverCommand
                 customEndpoint,
                 baseUrl,
                 qualified,
-                authRef
+                authRef,
+                pinnedToHost
             );
         }
     }
@@ -252,7 +253,8 @@ public static class DiscoverCommand
         bool customEndpoint,
         string baseUrl,
         bool qualified,
-        string? authRef
+        string? authRef,
+        bool pinnedToHost
     )
     {
         JsonDocument document;
@@ -297,21 +299,53 @@ public static class DiscoverCommand
                 }
 
                 string listed = id.GetString()!;
+                if (
+                    !DiscoveryModelMetadataReader.TryRead(
+                        entry,
+                        baseUrl,
+                        pinnedToHost,
+                        out DiscoveryModelMetadata? metadata,
+                        out string? metadataError
+                    )
+                )
+                {
+                    return Failure($"Model '{listed}' {metadataError}.");
+                }
+
+                string? endpoint =
+                    metadata?.Endpoint?.AbsoluteUri.TrimEnd('/')
+                    ?? (customEndpoint ? baseUrl : null);
                 models.Add(
                     qualified
                         ? new DraftModel(
                             $"{provider}/{listed}",
                             provider,
-                            Endpoint: null,
+                            endpoint,
                             authRef,
-                            WireId: listed
+                            WireId: listed,
+                            metadata?.ApiFamily,
+                            metadata?.ContextWindow,
+                            metadata?.SupportsTools,
+                            metadata?.MaxOutput,
+                            metadata?.SupportsVision,
+                            metadata?.Reasoning,
+                            metadata?.Capabilities,
+                            metadata?.SupportsTemperature
                         )
                         : new DraftModel(
                             listed,
                             provider,
-                            customEndpoint ? baseUrl : null,
+                            endpoint,
                             authRef,
-                            WireId: null
+                            WireId: null,
+                            metadata?.ApiFamily,
+                            metadata?.ContextWindow,
+                            metadata?.SupportsTools,
+                            metadata?.MaxOutput,
+                            metadata?.SupportsVision,
+                            metadata?.Reasoning,
+                            metadata?.Capabilities,
+                            metadata?.SupportsTemperature
                         )
                 );
             }
@@ -379,7 +413,7 @@ public static class DiscoverCommand
 
         var headers = new ProviderHeadersHandler(
             declared,
-            context: null,
+            context: new RequestContext(Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)),
             namedKeySource: namedKeySource,
             environment: environment ?? Environment.GetEnvironmentVariable
         );
@@ -594,6 +628,14 @@ public static class DiscoverCommand
         string? Provider,
         string? Endpoint,
         string? Auth,
-        string? WireId
+        string? WireId,
+        string? ApiFamily = null,
+        int? ContextWindow = null,
+        bool? SupportsTools = null,
+        int? MaxOutput = null,
+        bool? SupportsVision = null,
+        string? Reasoning = null,
+        ModelCapabilityDescriptor? Capabilities = null,
+        bool? SupportsTemperature = null
     );
 }
