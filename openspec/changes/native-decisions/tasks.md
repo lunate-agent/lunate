@@ -60,7 +60,10 @@
 - [ ] Approval mapping documented: `p ≥ t` ⇔ `confidence ≥ 2t − 1`, so existing thresholds are
       unchanged.
 - [ ] Routing profiles carry a `description` used as the option's criteria; missing description warns
-      once; options are sent sorted by name and the mapping is recorded.
+      once; strategy chosen by the catalog entry: one `choice` by default, one `noul` per profile when
+      `choiceOrderSensitive` (jev-1.13); provenance names the strategy.
+- [ ] The noul strategy gates on the winner's margin over the runner-up; a close call keeps the
+      configured chat profile.
 
 ## 6. Approval gate questions
 
@@ -68,7 +71,8 @@
       `writes_outside_workspace`, `network_access`, `irreversible_deletion`, `credential_exposure`.
 - [ ] State: `tool`, `arguments`, `workspace_root`, `risk_tier`, `untrusted_content`; untrusted content
       never in instructions or criteria.
-- [ ] Combine in code with the profile's risk-tier thresholds; shadow records every atomic answer.
+- [ ] Combine in code against one `decisions.approvalsThreshold` in confidence (default `2t − 1` of the
+      old probability threshold); any signal at or above it escalates; shadow records every answer.
 - [ ] Test: each single signal escalates on its own; an adversarial argument string stays data.
 
 ## 7. State size and truncation
@@ -119,7 +123,7 @@
 - [ ] Fixture replay per provider (success + error shapes), header-only-with-images, `usage.opencode`.
 - [ ] OpenAPI contract test over every fixture; schema hash pinned.
 - [ ] Confidence formulas against the documented examples; native vs adapter equality.
-- [ ] Routing below/at threshold; sorted options recorded.
+- [ ] Routing below/at threshold for both strategies (choice confidence, noul margin); strategy recorded.
 - [ ] Existing decision-layer tests green with a native profile replacing the adapter.
 - [ ] Layering graph test and the Contracts isolation test.
 - [ ] Live smoke: OpenRouter and OpenCode (skip without a key).

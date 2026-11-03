@@ -214,17 +214,38 @@ the value the public contract exposes.
 ### Requirement: Confidence-gated routing
 
 When a decision routes to a chat profile, a result below `decisions.routingMinConfidence` (default
-`0.5`) SHALL NOT take the argmax: the configured chat profile stays in force. At or above the
-threshold the winning profile SHALL be used. The transcript SHALL record the distribution, the
-confidence and the gate outcome. Each routing option SHALL carry a short user-written description used
-as its criteria; a profile without a description is allowed with a one-time warning. Options SHALL be
-presented sorted by name, not in configuration order, so a positional bias cannot decide the route.
+`0.5`) SHALL NOT take the argmax: the configured chat profile stays in force. For the single-choice
+strategy the gate SHALL apply to the chosen option's confidence; for the per-profile noul strategy it
+SHALL apply to the winner's margin over the runner-up. At or above the gate the winning profile SHALL
+be used. The transcript SHALL record the distribution, the gate value and the outcome. Each routing
+option SHALL carry a short user-written description used as its criteria; a profile without a
+description is allowed with a one-time warning.
+
+The router SHALL pick its strategy from the decision model's catalog entry: a single `choice` question
+by default, and one `noul` question per routing profile in the same request when the entry is
+`choiceOrderSensitive` (jev-1.13), because sorting options by name only moves a positional bias to the
+alphabetically first profile. Provenance SHALL name the strategy used.
 
 #### Scenario: Low confidence keeps the chat profile
 
 - **GIVEN** a routing decision with confidence below the configured minimum
 - **WHEN** the route is applied
 - **THEN** the configured chat profile stays in force, and the transcript says why
+
+#### Scenario: A close call keeps the chat profile
+
+- **GIVEN** a `choiceOrderSensitive` model, four profiles with per-profile noul answers, and the two
+  leading probabilities `0.8` and `0.55`
+- **WHEN** the margin gate is applied at `0.5`
+- **THEN** the configured chat profile stays in force, and provenance records the `noul` strategy and
+  both probabilities
+
+#### Scenario: A positional bias is not mistaken for a decision
+
+- **GIVEN** a model whose catalog entry is `choiceOrderSensitive`
+- **WHEN** the router builds its questions
+- **THEN** it sends one noul question per profile in one request, not one choice question, and records
+  the strategy as `noul-per-profile`
 
 #### Scenario: A missing description warns once
 
@@ -239,8 +260,10 @@ The approval gate SHALL ask several atomic noul questions about one structured s
 covering at least writes outside the workspace, network access, irreversible deletion and credential
 exposure. The state SHALL carry only the fields those questions need — tool, arguments, workspace
 root, risk tier — with untrusted content in its own named field, and untrusted content SHALL NOT
-appear in any instruction or criteria. Code SHALL combine the atomic answers into the escalate
-decision using the decision profile's thresholds. Shadow mode SHALL record every atomic answer. No
+appear in any instruction or criteria. Code SHALL combine the atomic answers against one threshold,
+`decisions.approvalsThreshold`, expressed in confidence and defaulting to the mapping `2t − 1` of the
+existing probability threshold, so the shipped behaviour is unchanged. Any signal at or above it SHALL
+escalate; no risk-tier table is a design default. Shadow mode SHALL record every atomic answer. No
 answer SHALL approve a tool call; a decision can only tighten the gate.
 
 #### Scenario: Four signals, one request

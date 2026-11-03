@@ -144,9 +144,10 @@ The computed value — not the provider's field where they differ — is recorde
 the distribution, for native and adapter results alike.
 
 **Routing gates on confidence.** A routing decision below `decisions.routingMinConfidence` (default
-`0.5`) does not take the argmax: the configured chat profile stays in force. At or above it, the
-winning profile is used. The transcript records the distribution, the confidence and the gate result,
-so a wrong route is explainable.
+`0.5`) does not take the argmax: the configured chat profile stays in force. For the single-choice
+strategy the gate applies to the chosen option's confidence; for the per-profile noul strategy it
+applies to the winner's margin over the runner-up (§7). The transcript records the distribution, the
+gate value and the outcome, so a wrong route is explainable.
 
 **Approvals stay on the existing threshold.** Approval gates are binary; the existing probability
 threshold `p ≥ t` maps exactly to `confidence ≥ 2t − 1` for `t ≥ 0.5`, so the shipped approval
@@ -167,9 +168,13 @@ The state holds only what the questions need, in named fields: `tool`, `argument
 content never goes into the question text or criteria — it is referenced by field name, which also
 keeps the questions short and literal (jev-1.13 reads what is written, not what is meant).
 
-Code combines the four answers into the escalate decision using the profile's thresholds (a risk-tier
-table, not one number). Shadow mode records **every** atomic answer, so an escalation can be traced to
-the signal that drove it. A decision can only tighten the gate; no answer here approves a tool call.
+Code combines the four answers into the escalate decision against **one threshold**,
+`decisions.approvalsThreshold`, expressed in confidence; its default maps the existing probability
+threshold `t` to `2t − 1`, so shipped behaviour is unchanged. Any of the four signals at or above the
+threshold escalates. Shadow mode records **every** atomic answer, so an escalation can be traced to
+the signal that drove it. If one signal later proves to need its own threshold, that is a follow-up
+with data behind it, not a design default. A decision can only tighten the gate; no answer here
+approves a tool call.
 
 ## 7. Routing options carry their own descriptions
 
@@ -179,9 +184,19 @@ description is still allowed, with a one-time transcript warning that routing qu
 The wizard (#475) asks for the description when routing is enabled; a custom provider's profile can
 inherit the provider's description.
 
-Option order is not meaningful to the model and jev-1.13 leans toward the first option, so the router
-sorts options by name before sending and records the mapping, rather than letting configuration order
-bias the answer.
+Option order is not meaningful to the model, and jev-1.13 leans toward the first option: sorting by
+name only moves the bias to the alphabetically first profile, so it does not solve it. The router has
+two strategies, chosen by the decision model's catalog entry:
+
+- **Default** — one `choice` question over the routing profiles, as before.
+- **`choiceOrderSensitive` (jev-1.13)** — one `noul` question per routing profile in the same request,
+  each asking "does this request fit <profile>: <description>?"; code picks the highest probability.
+  The confidence gate applies to the winner's margin over the runner-up
+  (`p_max − p_second ≥ decisions.routingMinConfidence`), so a runaway winner passes and a close call
+  keeps the configured chat profile.
+
+The provenance records which strategy ran, with the distribution or the two leading probabilities
+behind the decision.
 
 ## 8. State size and request limits
 
@@ -249,8 +264,9 @@ Read from TypeSafe's page (last reviewed 2026-10-02) and folded in where it chan
   instructions; criteria are explicit.
 - **Contradictory instructions/criteria** — criteria extend the instruction instead of restating it;
   a test rejects a noul whose `true` criterion reads negative.
-- **Choice order bias** — options are sorted by name in the router (§7); the quirk is recorded on the
-  `jev-1.13` catalog entry (`choiceOrderSensitive: true`) so a provider that fixes it can drop it.
+- **Choice order bias** — jev-1.13 leans toward the first option; the router switches to one noul per
+  profile when the catalog entry sets `choiceOrderSensitive: true` (§7), rather than pretending that
+  sorting removes the bias.
 - **No generation** — the layer never asks Jev to write text; open-ended output stays with the chat
   model.
 
@@ -276,11 +292,12 @@ questions:
   hash mismatch fails loudly with the diff.
 - Confidence: the three formulas against the documented examples (choice 3-option, score
   `(0, 0.57, 0.43) → 0.35`, noul 0.5/0/1), and native-vs-adapter equality for one distribution.
-- Routing: below-threshold keeps the chat profile; at/above takes the argmax; options are sent sorted
-  by name and the mapping is recorded.
-- Approval gate: four atomic questions in one request; every answer recorded in shadow; an untrusted
-  string in state never appears in any instruction or criteria; escalation driven by each single
-  signal in turn.
+- Routing: both strategies — the single choice question by default, one noul per profile when the
+  catalog entry is `choiceOrderSensitive`; below-threshold keeps the chat profile (chosen-option
+  confidence, or winner margin for noul), at/above takes the winner; provenance names the strategy.
+- Approval gate: four atomic questions in one request against the single `approvalsThreshold`; every
+  answer recorded in shadow; an untrusted string in state never appears in any instruction or
+  criteria; escalation driven by each single signal in turn.
 - Limits: 32 MiB/413, 64 nesting, non-finite number, gzip above the threshold, 429/529 backoff with
   `retry-after`, 422 field surfacing, `max_tokens_exceeded` message.
 - Decision layer: the existing suite runs with a native profile in place of the adapter; provenance

@@ -38,7 +38,9 @@ chat families would misrepresent it.
    `Lunate.Contracts` is unchanged until the 1.16.0 bump. Neither new project is packed.
 7. **Confidence is one definition** computed from the distribution (noul/choice/score formulas), used
    by routing — below `decisions.routingMinConfidence` (default 0.5) the configured chat profile stays
-   — and exposed at 1.16.0. Approval thresholds keep their current probability meaning.
+   — and exposed at 1.16.0. The single `choice` route switches to one noul per profile on a
+   `choiceOrderSensitive` model (jev-1.13), so a positional bias cannot decide it. Approvals use one
+   `decisions.approvalsThreshold` in confidence (`2t − 1` of the old probability value).
 8. **The approval gate asks four atomic questions in one request** (writes outside the workspace,
    network, irreversible deletion, credential exposure) over a structured state with untrusted content
    in its own field; shadow records every answer, and no answer approves a tool call.
