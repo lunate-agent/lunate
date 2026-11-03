@@ -121,8 +121,12 @@ public sealed class ChatClientFactoryFamilyTests
         IChatClient client = factory.Create(model);
 
         var metadata = (ChatClientMetadata)client.GetService(typeof(ChatClientMetadata))!;
+        // The Anthropic SDK assembles the version path itself (messages), so the base it holds
+        // is the family URL stripped of its trailing version segment — the wire the request
+        // eventually builds is pinned by the messages-family URL test in OpenCodeGoWireTests.
+        Uri messagesFamily = preset.UrlFor(ProviderApiFamily.AnthropicMessages)!;
         Assert.Equal(
-            preset.UrlFor(ProviderApiFamily.AnthropicMessages),
+            ChatClientFactory.SplitApiVersion(messagesFamily).BaseUrl,
             metadata.ProviderUri
         );
     }

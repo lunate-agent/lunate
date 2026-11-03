@@ -65,6 +65,9 @@ public static class DiscoverCommand
             credentialPreset = presetTarget;
             qualified = presetTarget.Adapter == ProviderAdapter.OpenAiCompatible;
             baseUrl = TrimTrailingSlash(presetTarget.BaseUrl.AbsoluteUri);
+            // The preset's discovery URL is authoritative for its own provider: a per-family
+            // base URL is a chat path that answers a listing with 404 (OpenCode Go).
+            modelsUrl = presetTarget.ModelsUrl;
         }
         else
         {
@@ -120,6 +123,9 @@ public static class DiscoverCommand
                     // The provider's own endpoint keeps the preset's credential precedence; a
                     // declared endpoint anywhere else only gets a key through an explicit auth ref.
                     credentialPreset = endpointPreset;
+                    // The endpoint is a chat path; discovery rides the preset's own listing URL
+                    // when it declares one, so a per-family endpoint does not 404.
+                    modelsUrl = endpointPreset.ModelsUrl;
                 }
             }
             else if (ProviderPresets.Find(model.Provider) is { } modelPreset)
@@ -128,6 +134,7 @@ public static class DiscoverCommand
                 credentialPreset = modelPreset;
                 qualified = modelPreset.Adapter == ProviderAdapter.OpenAiCompatible;
                 baseUrl = TrimTrailingSlash(modelPreset.BaseUrl.AbsoluteUri);
+                modelsUrl = modelPreset.ModelsUrl;
             }
             else
             {

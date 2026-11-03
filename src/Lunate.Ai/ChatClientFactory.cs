@@ -15,6 +15,14 @@ public sealed class ChatClientFactory : IChatClientFactory
     internal const string PlaceholderCredential = "unused-local-endpoint";
 
     /// <summary>
+    /// The Anthropic SDK's default base URL: what an unset <c>AnthropicClient.BaseUrl</c> resolves
+    /// to (the <see cref="ChatClientMetadata.ProviderUri"/> a default-endpoint messages client
+    /// reports). Explicit because the property is init-only and non-nullable, so the no-endpoint
+    /// case sets the same value the SDK would.
+    /// </summary>
+    internal static readonly Uri AnthropicDefaultEndpoint = new("https://api.anthropic.com/");
+
+    /// <summary>
     /// The non-secret key an SDK client receives at construction: the credential is then placed
     /// only by <see cref="ProviderCredentialHandler"/>, so the value never sits in an SDK object
     /// (a log, an error option, a retry) — the wire is the only place it exists.
@@ -206,7 +214,13 @@ public sealed class ChatClientFactory : IChatClientFactory
                     .AsIChatClient(wireId);
 #pragma warning restore OPENAI001
             case ProviderApiFamily.AnthropicMessages:
-                return CreateAnthropicClient(model, preset, headersHandler, credentialHandler)
+                return CreateAnthropicClient(
+                        model,
+                        preset,
+                        headersHandler,
+                        credentialHandler,
+                        BaseTransportFactory
+                    )
                     .AsIChatClient(wireId);
             case ProviderApiFamily.Google:
                 return CreateGoogleClient(model, preset, headersHandler, credentialHandler)
@@ -434,26 +448,48 @@ public sealed class ChatClientFactory : IChatClientFactory
         ModelInfo model,
         ProviderPreset? preset,
         DelegatingHandler? headersHandler,
-        DelegatingHandler? credentialHandler
+        DelegatingHandler? credentialHandler,
+        Func<HttpMessageHandler>? baseTransport = null
     )
     {
-        if (model.Endpoint is null)
-        {
-            return new AnthropicClient
+        // The native preset keeps the SDK default endpoint; a declared endpoint keeps itself and
+        // a compatible preset routes the URL the Anthropic-messages family declares (the sibling
+        // paths above do the same for the OpenAI and Google families). A trailing API-version
+        // segment is the SDK's own path element it appends (v1/messages), so the split hands the
+        // SDK the artifact it assembles — the same rule the Google path applies via
+        // <see cref="SplitApiVersion"/>.
+        Uri? familyUrl =
+            model.Endpoint
+            ?? (
+                preset is { Adapter: ProviderAdapter.OpenAiCompatible }
+                    ? preset.UrlFor(ProviderApiFamily.AnthropicMessages)
+                    : null
+            );
+        bool wired = headersHandler is not null && credentialHandler is not null;
+        string baseUrl = SplitApiVersion(familyUrl ?? AnthropicDefaultEndpoint).BaseUrl.AbsoluteUri;
+        AnthropicClient client = wired
+            ? new AnthropicClient
             {
                 ApiKey = SentinelCredential,
                 MaxRetries = 0,
-                Handlers = WireHandlers(headersHandler, credentialHandler),
+                BaseUrl = baseUrl,
+                // Our transport chain (headers outermost, credential innermost) rides the
+                // transport, exactly like the OpenAI options.Transport and the Google
+                // HttpClientFactory seams; the SDK's Handlers would wrap the same chain
+                // a second time.
+                HttpClient = TransportHttpClient(
+                    headersHandler!,
+                    credentialHandler!,
+                    baseTransport
+                ),
+            }
+            : new AnthropicClient
+            {
+                ApiKey = SentinelCredential,
+                MaxRetries = 0,
+                BaseUrl = baseUrl,
             };
-        }
-
-        return new AnthropicClient
-        {
-            ApiKey = SentinelCredential,
-            MaxRetries = 0,
-            BaseUrl = model.Endpoint.AbsoluteUri,
-            Handlers = WireHandlers(headersHandler, credentialHandler),
-        };
+        return client;
     }
 
     /// <summary>

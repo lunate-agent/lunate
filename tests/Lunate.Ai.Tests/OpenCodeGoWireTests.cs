@@ -12,26 +12,46 @@ public sealed class OpenCodeGoWireTests
 {
     private const string OpenCodeApiKeyVariable = "OPENCODE_API_KEY";
 
-    internal static readonly ModelInfo GoChatModel = new(
-        "beam",
-        "opencode-go",
-        null,
-        8_192,
-        true
-    )
+    internal static readonly ModelInfo GoChatModel = new("beam", "opencode-go", null, 8_192, true)
     {
         ApiFamily = "openai-chat",
     };
 
     private static readonly ChatMessage Prompt = new(ChatRole.User, "Hi");
 
+    [Theory]
+    [InlineData("openai-chat")]
+    [InlineData("anthropic-messages")]
+    public async Task A_family_model_sends_the_family_url_that_preset_declares(string family)
+    {
+        using var environment = new EnvironmentScope((OpenCodeApiKeyVariable, "wire-probe-key"));
+        CapturingWire wire =
+            family == "anthropic-messages" ? CapturingWire.Anthropic() : CapturingWire.OpenAi();
+        ChatClientFactory factory = wire.Factory();
+        var model = GoChatModel with { ApiFamily = family, Id = "wire-model" };
+
+        IChatClient client = factory.Create(model, new RequestContext("wire-probe-session"));
+        await client.GetResponseAsync(
+            [Prompt],
+            options: null,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.NotNull(wire.Last);
+        string expected =
+            family == "anthropic-messages"
+                ? "https://opencode.ai/inference/go/anthropic/v1/messages"
+                : "https://opencode.ai/inference/go/openai/v1/chat/completions";
+        Assert.Equal(expected, wire.Last.RequestUri!.AbsoluteUri);
+        Assert.StartsWith("lunate/", wire.Last.Headers.UserAgent.ToString());
+    }
+
     [Fact]
     public async Task The_session_header_names_the_parent_then_the_child_run_activated_on_the_flow()
     {
         using var environment = new EnvironmentScope((OpenCodeApiKeyVariable, "wire-probe-key"));
         CapturingWire wire = CapturingWire.OpenAi();
-        IChatClient client = wire
-            .Factory()
+        IChatClient client = wire.Factory()
             .Create(GoChatModel, new RequestContext("session-parent"));
 
         // No ambient run: the context the factory call carried names the header.
