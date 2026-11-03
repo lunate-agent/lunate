@@ -17,16 +17,16 @@ Slices are applied in this order; each is its own PR with its own tests.
 
 ## Slice 2 — headers and credential placement
 
-- [ ] Header model: literal or template over `{session.id}`, `{run.id}`, `{lunate.version}`; validate
+- [x] Header model: literal or template over `{session.id}`, `{run.id}`, `{lunate.version}`; validate
       name, value, placeholders at load; keep `auth:`/`env:`/`helper:` references.
-- [ ] `ProviderHeadersHandler`: `User-Agent: lunate/<version>` on every request, provider headers,
+- [x] `ProviderHeadersHandler`: `User-Agent: lunate/<version>` on every request, provider headers,
       template substitution, missing session id fails loudly.
-- [ ] `ProviderCredentialHandler`: bearer (default), `x-api-key`, named header, query parameter;
+- [x] `ProviderCredentialHandler`: bearer (default), `x-api-key`, named header, query parameter;
       removes SDK-added credential headers first; sentinel-key support for SDKs.
-- [ ] `RequestContext(SessionId, RunId)` through `IChatClientFactory.Create`; session and child
+- [x] `RequestContext(SessionId, RunId)` through `IChatClientFactory.Create`; session and child
       session pass their own id.
-- [ ] `CredentialRedactor` learns header values and the placement.
-- [ ] Tests: every placement, template cannot reference the credential, SDK header removed,
+- [x] `CredentialRedactor` learns header values and the placement.
+- [x] Tests: every placement, template cannot reference the credential, SDK header removed,
       parent/child session ids, discovery carries the same headers.
 
 ## Slice 3 — OpenAI Responses family
