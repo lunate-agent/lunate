@@ -106,6 +106,9 @@ public static partial class SettingsStore
                 ContextWindow = overlay.ContextWindow ?? existing.ContextWindow,
                 CapabilitiesOverride =
                     overlay.CapabilitiesOverride ?? existing.CapabilitiesOverride,
+                // The API family selects one of the user provider's own URLs; a project override
+                // would redirect the family this entry resolves to, so it stays user-owned.
+                ApiFamily = existing.ApiFamily,
             };
 
     private static void EnsureProjectLimitDoesNotRise(

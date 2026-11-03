@@ -33,6 +33,7 @@ shown are the documented defaults the store applies when a key is missing.
 | `model` | string | unset | user | The default model id. `LUNATE_MODEL` overrides it. |
 | `output.spillThresholdTokens` | integer | 2000 | user, project | The estimated-token threshold (UTF-8 bytes / 4) above which a tool result is spilled. A project file may lower it, never raise it. `LUNATE_TOOL_SPILL_THRESHOLD` overrides it. |
 | `output.toolResultLimit` | integer | 30000 | user, project | Characters of one tool result before truncation. A project file may lower it, never raise it. `LUNATE_TOOL_OUTPUT_LIMIT` overrides it. |
+| `profiles.<id>.apiFamily` | string | unset | user | The API family the model must resolve to (`openai-chat`, `openai-responses`, `anthropic-messages` or `google`); it wins over discovery and the catalog and selects one of the provider's own URLs. User scope only. |
 | `profiles.<id>.capabilities.apis` | string array | unset | user | API identifiers the profile declares itself able to speak; open strings, unknown facts stay allowed. User scope only. |
 | `profiles.<id>.capabilities.features` | string array | unset | user | Feature names the profile declares supported; open strings, unknown facts stay allowed. User scope only. |
 | `profiles.<id>.capabilities.inputModalities` | string array | unset | user | Input modalities the profile declares supported, for example `text` or `image`; open strings. User scope only. |

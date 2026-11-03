@@ -32,6 +32,14 @@ public sealed record ModelInfo(
     /// <summary>Decision request path label: <c>native</c> or <c>adapter</c>; it is not a gate.</summary>
     public string? ApiType { get; init; }
 
+    /// <summary>
+    /// The model's API family as a wire name (<c>openai-chat</c>, <c>openai-responses</c>,
+    /// <c>anthropic-messages</c>, <c>google</c>): the catalog's annotation, a discovery hint or
+    /// a profile override; null lets the resolver decide from the provider. An unknown value is
+    /// refused by name when it is mapped to the family enum.
+    /// </summary>
+    public string? ApiFamily { get; init; }
+
     internal bool SupportsTemperature { get; init; }
 
     public string? WireId { get; init; }

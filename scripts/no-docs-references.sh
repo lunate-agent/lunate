@@ -36,16 +36,13 @@ DOCS_PATH='"docs[/"\\]'
 ROOT_MARKERS='lunate\.sln|FindRepositoryRoot|RepositoryRoot'
 FILESYSTEM_CALL='(File|Directory)\.[A-Za-z]+\([^;]*"docs[/"\\]'
 
-# The one test allowed to read the docs tree, repository-relative. Issue #267's card asks the
+# The tests allowed to read the docs tree, repository-relative. Issue #267's card asks the
 # guide's key table to be checked against the key binding catalog; that check reads
 # docs/guide.md and is the guide's page-level guard inside `dotnet test`, where the docs-sync
 # region check does not run (it is a docs-profile step, not a full-matrix one).
 ALLOWED_DOCS_READERS=(
   tests/Lunate.Tui.Tests/GuideKeyTableTests.cs
   tests/Lunate.Coding.Tests/DocsConfigExamplesTests.cs
-  # Asserts the brand icon every package packs exists at its docs path — the same packaged asset the
-  # build-file allowance above covers, checked from the test side.
-  tests/Lunate.Extensibility.Tests/ExtensionContractPackages.cs
 )
 
 findings=0
@@ -75,26 +72,6 @@ scan_build_file() {
     [ -n "$hit" ] || continue
     number="${hit%%:*}"
     text="${hit#*:}"
-    # An item can split Include and Pack across lines; the continuation is part of the same item.
-    text_with_continuation="$text $(sed -n "$((number + 1)),$((number + 3))p" "$file" | tr '\n' ' ')"
-    case "$text_with_continuation" in
-      # A packaged asset is a build input, but the only one the repository needs from docs/: the
-      # brand icon every package carries on its feed page. It is allowed only while the file is
-      # really there — the check that used to catch this shape by blanket refusal now asserts the
-      # asset exists, so a docs pull request that deletes the icon still fails here instead of at
-      # pack time on a tag. Moving the icon out of docs/ is the better fix and is tracked separately.
-      *'Pack="true"'*)
-        packed="$(printf '%s' "$text" | sed -n 's/.*Include="\([^"]*\)".*/\1/p')"
-        if [ -n "$packed" ] && [ -f "$(dirname "$file")/$packed" ]; then
-          printf 'no-docs-references: note: %s:%s packs %s, which exists\n' \
-            "${file#"${root}"/}" "$number" "$packed"
-          continue
-        fi
-        report "FAIL: ${file#"${root}"/}:${number} packs a docs file that does not exist: ${text}"
-        findings=$((findings + 1))
-        continue
-        ;;
-    esac
     report "FAIL: ${file#"${root}"/}:${number} makes the docs tree a build input: ${text}"
     findings=$((findings + 1))
   done <<<"$hits"
@@ -331,7 +308,40 @@ _self_test_cases() {
     return 1
   fi
 
-  echo "self-test: 10/10"
+  # 11. A csproj that packs a docs file is a build input even when the file exists: since #430 the
+  #     brand assets live in assets/, and no Pack="true" item may name a docs path.
+  case_dir="${scratch}/packed-icon"
+  _fixture_tree "$case_dir"
+  mkdir -p "$case_dir/docs/media"
+  printf 'x' >"$case_dir/docs/media/lunate-logo-dark.png"
+  printf '<Project>\n    <ItemGroup>\n        <None Include="../../docs/media/lunate-logo-dark.png" Pack="true" PackagePath="/" />\n    </ItemGroup>\n</Project>\n' \
+    >"$case_dir/src/App/App.csproj"
+  if out="$(check_tree "$case_dir" 2>&1)"; then
+    echo "self-test: a csproj that packs a docs file must fail" >&2
+    return 1
+  fi
+  case "$out" in
+    *"makes the docs tree a build input"*) ;;
+    *)
+      printf 'self-test: the failure must name the build input, said: %s\n' "$out" >&2
+      return 1
+      ;;
+  esac
+
+  # 12. The same item with the include on its own line (the XML shape the extension project files
+  #     use) fails like its single-line shape: an item is one build input however it is formatted.
+  case_dir="${scratch}/multiline-pack"
+  _fixture_tree "$case_dir"
+  mkdir -p "$case_dir/docs/media"
+  printf 'x' >"$case_dir/docs/media/lunate-logo-dark.png"
+  printf '<Project>\n    <ItemGroup>\n        <None\n            Include="../../docs/media/lunate-logo-dark.png"\n            Pack="true"\n        />\n    </ItemGroup>\n</Project>\n' \
+    >"$case_dir/src/App/App.csproj"
+  if check_tree "$case_dir" >/dev/null 2>&1; then
+    echo "self-test: a multi-line Pack item naming docs/ must fail" >&2
+    return 1
+  fi
+
+  echo "self-test: 12/12"
 }
 
 case "${1:-}" in

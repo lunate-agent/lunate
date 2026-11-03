@@ -230,6 +230,14 @@ public sealed class ModelCatalog
             );
         }
 
+        if (entry.ApiFamily is { } family && !ProviderApiFamilies.IsKnown(family))
+        {
+            throw new InvalidDataException(
+                $"Model '{entry.Id}' in {source} has unknown apiFamily '{family}'; "
+                    + $"supported families: {ProviderApiFamilies.Supported()}."
+            );
+        }
+
         return new ModelInfo(
             entry.Id,
             entry.Provider,
@@ -245,6 +253,7 @@ public sealed class ModelCatalog
             SupportsVision = entry.SupportsVision,
             Capabilities = entry.Capabilities,
             ApiType = entry.ApiType,
+            ApiFamily = entry.ApiFamily,
             SupportsTemperature = entry.SupportsTemperature,
             WireId = string.IsNullOrEmpty(entry.WireId) ? null : entry.WireId,
         };
@@ -255,7 +264,8 @@ public sealed class ModelCatalog
     /// the lower entry completely (pricing and capabilities included); a schema-1 upper entry cannot
     /// express <see cref="ModelInfo.Pricing"/>, <see cref="ModelInfo.MaxOutput"/>,
     /// <see cref="ModelInfo.SupportsVision"/>, <see cref="ModelInfo.Capabilities"/>,
-    /// <see cref="ModelInfo.ApiType"/> or <see cref="ModelInfo.WireId"/>, so overriding an existing
+    /// <see cref="ModelInfo.ApiType"/>, <see cref="ModelInfo.ApiFamily"/> or
+    /// <see cref="ModelInfo.WireId"/>, so overriding an existing
     /// id keeps those values from the lower entry while taking the upper entry's routing fields.
     /// </summary>
     private static List<ModelInfo> Merge(List<ModelInfo> lower, CatalogLayer? upper)
@@ -285,6 +295,7 @@ public sealed class ModelCatalog
                         SupportsVision = model.SupportsVision,
                         Capabilities = model.Capabilities,
                         ApiType = model.ApiType,
+                        ApiFamily = model.ApiFamily,
                         WireId = model.WireId,
                     }
                 );
@@ -336,6 +347,8 @@ public sealed class ModelCatalog
         public ModelCapabilityDescriptor? Capabilities { get; set; }
 
         public string? ApiType { get; set; }
+
+        public string? ApiFamily { get; set; }
 
         public string? WireId { get; set; }
     }

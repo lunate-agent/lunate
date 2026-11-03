@@ -76,6 +76,7 @@ public static partial class SettingsStore
             decimal? temperature = null;
             int? contextWindow = null;
             ModelCapabilityDescriptor? capabilities = null;
+            string? apiFamily = null;
             foreach (JsonProperty field in property.Value.EnumerateObject())
             {
                 switch (field.Name)
@@ -103,6 +104,9 @@ public static partial class SettingsStore
                         break;
                     case "capabilities":
                         capabilities = ReadProfileCapabilities(field.Value, name, problems);
+                        break;
+                    case "apiFamily":
+                        apiFamily = ReadProfileFamily(field.Value, name, problems);
                         break;
                     default:
                         problems.Add($"unknown key 'profiles.{name}.{field.Name}'");
@@ -133,7 +137,8 @@ public static partial class SettingsStore
                         maxOutput,
                         temperature,
                         contextWindow,
-                        capabilities
+                        capabilities,
+                        apiFamily
                     )
                 );
             }
@@ -191,6 +196,35 @@ public static partial class SettingsStore
         }
 
         return value.GetString();
+    }
+
+    /// <summary>
+    /// The profile's API-family override. A value that does not name a known family is refused by
+    /// name with the supported set, so a typo never silently resolves to another endpoint.
+    /// </summary>
+    private static string? ReadProfileFamily(
+        JsonElement value,
+        string profile,
+        List<string> problems
+    )
+    {
+        if (value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()))
+        {
+            problems.Add("'profiles." + profile + ".apiFamily' must be a non-empty string");
+            return null;
+        }
+
+        string family = value.GetString()!;
+        if (!ProviderApiFamilies.TryParse(family, out _))
+        {
+            problems.Add(
+                $"'profiles.{profile}.apiFamily' is '{family}'; "
+                    + $"supported families: {ProviderApiFamilies.Supported()}"
+            );
+            return null;
+        }
+
+        return family;
     }
 
     private static int? ReadProfileInt(

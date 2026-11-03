@@ -84,6 +84,106 @@ public sealed class ProviderStoreSettingsTests
     }
 
     [Fact]
+    public void A_declared_base_urls_map_and_models_url_round_trip_with_the_entry()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("providers.json");
+        string authPath = temp.File("auth.json");
+        AuthStore auth = AuthStore.Load(authPath, _ => null);
+        ProviderEntry entry = CreateEntry(
+            "go",
+            new Uri("https://go.example.test/openai/v1"),
+            "auth:go",
+            (IReadOnlyDictionary<string, string>?)null,
+            "eu",
+            "opencode-go",
+            baseUrls: new Dictionary<ProviderApiFamily, string>
+            {
+                [ProviderApiFamily.OpenAiChat] = "https://go.example.test/openai/v1",
+                [ProviderApiFamily.OpenAiResponses] = "https://go.example.test/openai/v1",
+                [ProviderApiFamily.AnthropicMessages] = "https://go.example.test/anthropic/v1",
+            },
+            modelsUrl: "https://go.example.test/v1/models"
+        );
+
+        ProviderStore.Save(path, [entry]);
+        ProviderStore store = ProviderStore.Load(path, auth, []);
+
+        ProviderEntry loaded = Assert.Single(store.Entries);
+        Assert.Equal(
+            [
+                ProviderApiFamily.OpenAiChat,
+                ProviderApiFamily.OpenAiResponses,
+                ProviderApiFamily.AnthropicMessages,
+            ],
+            loaded.Families
+        );
+        Assert.Equal(
+            new Uri("https://go.example.test/anthropic/v1"),
+            loaded.UrlFor(ProviderApiFamily.AnthropicMessages)
+        );
+        Assert.Equal("https://go.example.test/v1/models", loaded.ModelsUrl!.AbsoluteUri);
+    }
+
+    [Fact]
+    public void An_unknown_api_family_key_in_base_urls_is_refused_by_name()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("providers.json");
+        File.WriteAllText(
+            path,
+            """{ "schemaVersion": 1, "providers": [ { "name": "go", "kind": "opencode-go", "baseUrl": "https://go.example.test/openai/v1", "credentialReference": "auth:go", "baseUrls": { "chat": "https://go.example.test/openai/v1" } } ] }"""
+        );
+        string authPath = temp.File("auth.json");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ProviderStore.Load(path, AuthStore.Load(authPath, _ => null), [])
+        );
+
+        Assert.Contains("'chat'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("supported families", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("providers.go.baseUrls", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_base_urls_entry_without_a_shorthand_still_loads()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("providers.json");
+        File.WriteAllText(
+            path,
+            """{ "schemaVersion": 1, "providers": [ { "name": "go", "kind": "opencode-go", "credentialReference": "auth:go", "baseUrls": { "anthropic-messages": "https://go.example.test/anthropic/v1" } } ] }"""
+        );
+        string authPath = temp.File("auth.json");
+
+        // Only the default family may stand in for the shorthand; 'anthropic-messages' alone with
+        // no 'baseUrl' is refused, keeping the entry's meaning explicit.
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ProviderStore.Load(path, AuthStore.Load(authPath, _ => null), [])
+        );
+
+        Assert.Contains("openai-chat", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_models_url_of_the_wrong_shape_is_refused_naming_the_field()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("providers.json");
+        File.WriteAllText(
+            path,
+            """{ "schemaVersion": 1, "providers": [ { "name": "go", "kind": "opencode-go", "baseUrl": "https://go.example.test/openai/v1", "credentialReference": "auth:go", "modelsUrl": "not a url" } ] }"""
+        );
+        string authPath = temp.File("auth.json");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ProviderStore.Load(path, AuthStore.Load(authPath, _ => null), [])
+        );
+
+        Assert.Contains("modelsUrl", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Auth_list_never_prints_provider_or_header_secret_values()
     {
         using var temp = new TempDirectory();
@@ -134,17 +234,32 @@ public sealed class ProviderStoreSettingsTests
         string name,
         Uri baseUrl,
         string credentialReference,
-        IReadOnlyDictionary<string, string> headers,
-        string region
+        IReadOnlyDictionary<string, string>? headers,
+        string region,
+        string kind = "openai",
+        IReadOnlyDictionary<ProviderApiFamily, string>? baseUrls = null,
+        string? modelsUrl = null
     )
     {
+        Dictionary<ProviderApiFamily, Uri>? familyUrls = null;
+        if (baseUrls is { Count: > 0 } declared)
+        {
+            familyUrls = [];
+            foreach ((ProviderApiFamily family, string urlValue) in declared)
+            {
+                familyUrls.Add(family, new Uri(urlValue));
+            }
+        }
+
         bool created = ProviderEntry.TryCreate(
             name,
-            "openai",
+            kind,
             baseUrl,
             credentialReference,
             headers,
             region,
+            familyUrls,
+            modelsUrl is null ? null : new Uri(modelsUrl),
             out ProviderEntry? entry,
             out string? error
         );

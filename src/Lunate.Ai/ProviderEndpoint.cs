@@ -1,13 +1,18 @@
 namespace Lunate.Ai;
 
 /// <summary>
-/// Whether a declared endpoint belongs to a provider preset's own base URL: the same scheme, host
-/// and port, with a path at or under the preset's base path. Scheme and host compare
-/// case-insensitively and trailing slashes are ignored; a path prefix only counts at a segment
-/// boundary, so <c>/v1beta</c> is not under <c>/v1</c>.
+/// Whether a declared endpoint belongs to a provider preset: the same scheme, host and port,
+/// with a path at or under the preset's base path or one of its per-family URLs. Scheme and host
+/// compare case-insensitively and trailing slashes are ignored; a path prefix only counts at a
+/// segment boundary, so <c>/v1beta</c> is not under <c>/v1</c>.
 /// </summary>
 internal static class ProviderEndpoint
 {
+    internal static bool IsOwn(Uri endpoint, ProviderPreset preset) =>
+        IsOwn(endpoint, preset.BaseUrl)
+        || preset.BaseUrls is { Count: > 0 } familyUrls
+            && familyUrls.Values.Any(familyUrl => IsOwn(endpoint, familyUrl));
+
     internal static bool IsOwn(Uri endpoint, Uri baseUrl)
     {
         ArgumentNullException.ThrowIfNull(endpoint);

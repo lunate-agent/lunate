@@ -165,10 +165,14 @@ public static partial class SettingsStore
                 if (
                     property.Name
                     is "baseUrl"
+                        or "baseUrls"
+                        or "modelsUrl"
                         or "endpoint"
                         or "credentialReference"
                         or "headers"
                         or "kind"
+                        or "apiFamily"
+                        or "credentialPlacement"
                 )
                 {
                     problems.Add(

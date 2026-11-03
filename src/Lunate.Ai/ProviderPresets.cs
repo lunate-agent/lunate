@@ -4,14 +4,23 @@ using System.Text.Json;
 namespace Lunate.Ai;
 
 /// <summary>
-/// The provider presets embedded in the build, read once on first use in file order. A preset
-/// is the only source of a provider's base URL and key variable.
+/// The provider presets embedded in the build, read once on first use in file order. A preset is
+/// the only source of a provider's family URLs and key variable. The embedded file is schema 2:
+/// per-family URLs, an optional discovery <c>modelsUrl</c> and declared headers; schema 1 files
+/// carry only the <c>baseUrl</c> shorthand. Unknown family names are refused by name.
 /// </summary>
 public static class ProviderPresets
 {
     private const string EmbeddedResourceName = "Lunate.Ai.providers.json";
-    private const int SupportedSchemaVersion = 1;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const int OldestSupportedSchemaVersion = 1;
+    private const int SupportedSchemaVersion = 2;
+    private const string SupportedSchemaVersions = "1 or 2";
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        // The embedded file carries the audit comments next to the values they explain; they
+        // are documentation, not data, and are skipped on read.
+        ReadCommentHandling = JsonCommentHandling.Skip,
+    };
     private static readonly Lazy<PresetTable> Table = new(Load);
 
     public static IReadOnlyList<ProviderPreset> All => Table.Value.All;
@@ -41,22 +50,26 @@ public static class ProviderPresets
             );
         }
 
-        if (file?.SchemaVersion != SupportedSchemaVersion)
+        if (
+            file?.SchemaVersion is not int schemaVersion
+            || schemaVersion < OldestSupportedSchemaVersion
+            || schemaVersion > SupportedSchemaVersion
+        )
         {
             string version = file?.SchemaVersion is int value
                 ? value.ToString(CultureInfo.InvariantCulture)
                 : "missing";
             throw new InvalidDataException(
-                $"Unsupported schemaVersion '{version}' in {source}; expected {SupportedSchemaVersion}."
+                $"Unsupported schemaVersion '{version}' in {source}; expected {SupportedSchemaVersions}."
             );
         }
 
-        List<ProviderEntry> entries = file.Providers ?? [];
-        var presets = new List<ProviderPreset>(entries.Count);
+        List<PresetRow>? entries = file.Providers;
+        var presets = new List<ProviderPreset>(entries?.Count ?? 0);
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (ProviderEntry entry in entries)
+        foreach (PresetRow row in entries ?? [])
         {
-            ProviderPreset preset = ToPreset(entry, source);
+            ProviderPreset preset = ToPreset(row, source);
             if (!ids.Add(preset.Id))
             {
                 throw new InvalidDataException($"Duplicate provider id '{preset.Id}' in {source}.");
@@ -84,29 +97,136 @@ public static class ProviderPresets
         return new PresetTable(Parse(reader.ReadToEnd(), "built-in providers.json"));
     }
 
-    private static ProviderPreset ToPreset(ProviderEntry entry, string source)
+    private static ProviderPreset ToPreset(PresetRow row, string source)
     {
-        string id = Require(entry.Id, "an id", providerId: null, source);
-        string name = Require(entry.Name, "a name", id, source);
-        string adapter = Require(entry.Adapter, "an adapter", id, source);
-        string baseUrlValue = Require(entry.BaseUrl, "a base URL", id, source);
-        string keyVariable = Require(entry.KeyVariable, "a keyVariable", id, source);
+        string id = Require(row.Id, "an id", null, source);
+        string name = Require(row.Name, "a name", id, source);
+        string adapter = Require(row.Adapter, "an adapter", id, source);
+        ProviderAdapter adapterValue = ParseAdapter(adapter, id, source);
+        string keyVariable = Require(row.KeyVariable, "a keyVariable", id, source);
 
-        if (!Uri.TryCreate(baseUrlValue, UriKind.Absolute, out Uri? baseUrl))
+        Dictionary<ProviderApiFamily, Uri>? familyUrls = ParseFamilyUrls(row.BaseUrls, id, source);
+        Uri? baseUrl = row.BaseUrl is { } baseUrlValue
+            ? ParseUrl(baseUrlValue, "'baseUrl'", id, source)
+            : null;
+        if (familyUrls is { Count: > 0 })
         {
-            throw new InvalidDataException(
-                $"Provider '{id}' in {source} has an invalid absolute base URL '{baseUrlValue}'."
-            );
+            baseUrl ??= familyUrls.GetValueOrDefault(DefaultFamily(adapterValue));
+            if (baseUrl is null)
+            {
+                throw new InvalidDataException(
+                    $"Provider '{id}' in {source} is missing a base URL: declare 'baseUrl' or 'baseUrls' with "
+                        + $"'{ProviderApiFamilies.Name(DefaultFamily(adapterValue))}'."
+                );
+            }
         }
+
+        if (baseUrl is null)
+        {
+            throw new InvalidDataException($"Provider '{id}' in {source} is missing a base URL.");
+        }
+
+        Uri? modelsUrl = row.ModelsUrl is { } modelsUrlValue
+            ? ParseUrl(modelsUrlValue, "'modelsUrl'", id, source)
+            : null;
+
+        Dictionary<string, string>? headers = ParseHeaders(row.Headers, id, source);
 
         return new ProviderPreset(
             id,
             name,
-            ParseAdapter(adapter, id, source),
+            adapterValue,
             baseUrl,
             keyVariable,
-            string.IsNullOrEmpty(entry.KeyVariableAlias) ? null : entry.KeyVariableAlias
+            string.IsNullOrEmpty(row.KeyVariableAlias) ? null : row.KeyVariableAlias,
+            familyUrls,
+            modelsUrl,
+            headers
         );
+    }
+
+    private static ProviderApiFamily DefaultFamily(ProviderAdapter adapter) =>
+        adapter == ProviderAdapter.Anthropic
+            ? ProviderApiFamily.AnthropicMessages
+            : ProviderApiFamily.OpenAiChat;
+
+    private static Dictionary<ProviderApiFamily, Uri>? ParseFamilyUrls(
+        Dictionary<string, string>? declared,
+        string id,
+        string source
+    )
+    {
+        if (declared is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var familyUrls = new Dictionary<ProviderApiFamily, Uri>();
+        foreach ((string familyName, string urlValue) in declared)
+        {
+            if (!ProviderApiFamilies.TryParse(familyName, out ProviderApiFamily family))
+            {
+                throw new InvalidDataException(
+                    $"Provider '{id}' in {source} has an unknown API family '{familyName}' in 'baseUrls'; "
+                        + $"supported families: {ProviderApiFamilies.Supported()}."
+                );
+            }
+
+            Uri url = ParseUrl(urlValue, $"'baseUrls.{familyName}'", id, source);
+            familyUrls.Add(family, url);
+        }
+
+        return familyUrls;
+    }
+
+    private static Uri ParseUrl(string? value, string what, string id, string source)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? url))
+        {
+            throw new InvalidDataException(
+                $"Provider '{id}' in {source} declares {what} '{value}', which is not a valid absolute URL."
+            );
+        }
+
+        return url;
+    }
+
+    private static Dictionary<string, string>? ParseHeaders(
+        Dictionary<string, string>? declared,
+        string id,
+        string source
+    )
+    {
+        if (declared is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var headers = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach ((string headerName, string headerValue) in declared)
+        {
+            if (
+                headerName.Length == 0
+                || headerName.Any(char.IsControl)
+                || headerName.Contains(':')
+            )
+            {
+                throw new InvalidDataException(
+                    $"Provider '{id}' in {source} has invalid headers: an invalid header name '{headerName}'."
+                );
+            }
+
+            if (headerValue.Length == 0 || headerValue.Any(char.IsControl))
+            {
+                throw new InvalidDataException(
+                    $"Provider '{id}' in {source} has invalid headers: header '{headerName}' has an empty or control-character value."
+                );
+            }
+
+            headers.Add(headerName, headerValue);
+        }
+
+        return headers;
     }
 
     private static string Require(string? value, string field, string? providerId, string source)
@@ -150,10 +270,10 @@ public static class ProviderPresets
     {
         public int? SchemaVersion { get; set; }
 
-        public List<ProviderEntry>? Providers { get; set; }
+        public List<PresetRow>? Providers { get; set; }
     }
 
-    private sealed class ProviderEntry
+    private sealed class PresetRow
     {
         public string? Id { get; set; }
 
@@ -162,6 +282,12 @@ public static class ProviderPresets
         public string? Adapter { get; set; }
 
         public string? BaseUrl { get; set; }
+
+        public Dictionary<string, string>? BaseUrls { get; set; }
+
+        public string? ModelsUrl { get; set; }
+
+        public Dictionary<string, string>? Headers { get; set; }
 
         public string? KeyVariable { get; set; }
 
