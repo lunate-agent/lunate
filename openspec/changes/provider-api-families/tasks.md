@@ -31,8 +31,8 @@ Slices are applied in this order; each is its own PR with its own tests.
 
 ## Slice 3 — OpenAI Responses family
 
-- [ ] `openai-responses` adapter via `GetResponsesClient().AsIChatClient()` (M.E.AI 10.10.1).
-- [ ] Fixture: streamed text, tool call, tool result; live smoke skipped without a key.
+- [x] `openai-responses` adapter via `GetResponsesClient().AsIChatClient()` (M.E.AI 10.10.1).
+- [x] Fixture: streamed text, tool call, tool result; live smoke skipped without a key.
 
 ## Slice 4 — Anthropic-compatible custom providers
 
