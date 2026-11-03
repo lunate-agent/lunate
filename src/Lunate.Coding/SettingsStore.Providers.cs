@@ -119,11 +119,7 @@ public static partial class SettingsStore
 
                 if (
                     baseUrl is not null
-                    && !string.Equals(
-                        baseUrl,
-                        declared.Values.First(),
-                        StringComparison.Ordinal
-                    )
+                    && !string.Equals(baseUrl, declared.Values.First(), StringComparison.Ordinal)
                 )
                 {
                     // The shorthand and the map are two spellings of one URL; a disagreement is

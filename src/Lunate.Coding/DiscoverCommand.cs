@@ -430,13 +430,7 @@ public static class DiscoverCommand
         {
             Uri baseUri = new(requestUrl);
             Uri target = location!.IsAbsoluteUri ? location : new Uri(baseUri, location);
-            if (
-                !string.Equals(
-                    target.Host,
-                    baseUri.Host,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
+            if (!string.Equals(target.Host, baseUri.Host, StringComparison.OrdinalIgnoreCase))
             {
                 response.Dispose();
                 return (
@@ -467,7 +461,10 @@ public static class DiscoverCommand
             HttpResponseMessage next;
             try
             {
-                next = await client.SendAsync(CreateRequest(target.AbsoluteUri, protocolPreset), ct);
+                next = await client.SendAsync(
+                    CreateRequest(target.AbsoluteUri, protocolPreset),
+                    ct
+                );
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

@@ -695,11 +695,7 @@ public sealed class DiscoverCommandTests
         Assert.Contains("configured host", result.Error, StringComparison.Ordinal);
         // The refused redirect never went out: only the request to the configured host exists.
         Assert.Single(handler.Requests);
-        Assert.Equal(
-            "relay.example",
-            handler.Requests[0].RequestUri!.Host,
-            ignoreCase: true
-        );
+        Assert.Equal("relay.example", handler.Requests[0].RequestUri!.Host, ignoreCase: true);
     }
 
     [Fact]
@@ -733,10 +729,7 @@ public sealed class DiscoverCommandTests
         Assert.Equal("relay-key", handler.Requests[1].Headers.GetValues("x-api-key").Single());
     }
 
-    private static ModelCatalog CustomCatalog(
-        TempDirectory temp,
-        CredentialPlacement placement
-    )
+    private static ModelCatalog CustomCatalog(TempDirectory temp, CredentialPlacement placement)
     {
         string settingsPath = temp.File("settings.json");
         var provider = new CustomProvider(

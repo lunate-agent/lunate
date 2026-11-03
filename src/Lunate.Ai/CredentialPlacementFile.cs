@@ -42,7 +42,10 @@ internal static class CredentialPlacementFile
             );
         }
 
-        if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty("in", out JsonElement target))
+        if (
+            element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("in", out JsonElement target)
+        )
         {
             return FromObject(element, target, out placement, out error);
         }

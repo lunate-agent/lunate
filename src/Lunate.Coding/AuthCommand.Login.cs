@@ -39,11 +39,11 @@ internal static partial class AuthCommand
                         custom = true;
                         continue;
                     case "--id"
-                        or "--base-url"
-                        or "--model"
-                        or "--api-family"
-                        or "--credential-placement"
-                        or "--models-url":
+                    or "--base-url"
+                    or "--model"
+                    or "--api-family"
+                    or "--credential-placement"
+                    or "--models-url":
                         if (index + 1 >= args.Length)
                         {
                             return UsageError();

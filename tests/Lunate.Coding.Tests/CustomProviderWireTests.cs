@@ -23,10 +23,7 @@ public sealed class CustomProviderWireTests : IDisposable
     public async Task An_x_api_key_placement_round_trips_from_settings_onto_the_wire()
     {
         using var wire = new CapturedWire(OpenAiChatCompletion);
-        ModelInfo model = StoredModel(
-            ProviderApiFamily.OpenAiChat,
-            CredentialPlacement.XApiKey
-        );
+        ModelInfo model = StoredModel(ProviderApiFamily.OpenAiChat, CredentialPlacement.XApiKey);
 
         IChatClient client = wire.Factory().Create(model);
         await client.GetResponseAsync(
