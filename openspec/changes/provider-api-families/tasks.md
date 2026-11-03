@@ -58,4 +58,4 @@ Slices are applied in this order; each is its own PR with its own tests.
       limits, reasoning efforts; custom providers constrained to their configured host.
 - [x] Docs: `docs/configuration.md` (entry v2, families, headers, placements, migration),
       `docs/guide.md` (`auth login --custom`), ADR-0029 accepted.
-- [ ] `verify.sh` green locally and the PR CI on every slice.
+- [x] `verify.sh` docs profile green locally; project-scoped builds/tests green; full PR CI green.
