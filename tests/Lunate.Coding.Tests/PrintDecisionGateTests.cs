@@ -12,7 +12,7 @@ namespace Lunate.Coding.Tests;
 public sealed class PrintDecisionGateTests
 {
     private const string DenyResponse =
-        """{"results":{"approval":{"answer":"deny","probabilities":{"approve":0.13,"deny":0.87}}}}""";
+        """{"results":{"writes_outside_workspace":{"answer":"yes","probabilities":{"yes":0.87,"no":0.13}},"network_access":{"answer":"no","probabilities":{"yes":0.05,"no":0.95}},"irreversible_deletion":{"answer":"no","probabilities":{"yes":0.05,"no":0.95}},"credential_exposure":{"answer":"no","probabilities":{"yes":0.05,"no":0.95}}}}""";
 
     [Fact]
     public async Task An_enforce_deny_above_the_threshold_is_denied_under_yolo_when_no_user_is_present()
