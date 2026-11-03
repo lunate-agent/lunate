@@ -20,17 +20,14 @@ internal sealed class ExtensionMcpServers : IAsyncDisposable
 {
     private readonly Dictionary<string, string> _extensionByServer;
     private readonly McpToolSet _set;
-    private readonly IReadOnlyList<string>? _withheldCredentialValues;
 
     internal ExtensionMcpServers(
         IExtensionLog log,
-        IReadOnlyList<RegisteredMcpServer> registrations,
-        IReadOnlyList<string>? withheldCredentialValues = null
+        IReadOnlyList<RegisteredMcpServer> registrations
     )
     {
         ArgumentNullException.ThrowIfNull(log);
         ArgumentNullException.ThrowIfNull(registrations);
-        _withheldCredentialValues = withheldCredentialValues;
         _extensionByServer = registrations.ToDictionary(
             registration => registration.Name,
             registration => registration.ExtensionId,
@@ -78,10 +75,7 @@ internal sealed class ExtensionMcpServers : IAsyncDisposable
             ),
             NamespaceName: registration.Name,
             Source: $"extension '{registration.ExtensionId}'"
-        )
-        {
-            WithheldCredentialValues = _withheldCredentialValues,
-        };
+        );
 
     private static AgentExposure MapExposure(ContractExposure exposure) =>
         exposure switch

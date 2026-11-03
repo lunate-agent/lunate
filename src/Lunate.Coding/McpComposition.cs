@@ -59,8 +59,7 @@ internal static class McpComposition
         IExtensionLog log,
         Action<UserNotice> notify,
         CancellationToken ct,
-        Action<int>? skippedServerQuestions = null,
-        IReadOnlyList<string>? withheldCredentialValues = null
+        Action<int>? skippedServerQuestions = null
     )
     {
         ArgumentNullException.ThrowIfNull(workspace);
@@ -126,20 +125,10 @@ internal static class McpComposition
 
         NotifyWarnings(servers, missingVariables, notify);
 
-        // The withheld values apply only to the merged result: the trust hash and the approval
-        // prompt throughout the composition above used the raw parsed definitions, and the mapping
-        // here must not change their identity. Since #472 the host no longer consults them — the
-        // child environment is allow-listed regardless — and the value flows only to keep the
-        // public option's wired behaviour until the property is removed.
-        IReadOnlyList<McpServerOptions> finalServers = withheldCredentialValues
-            is { Count: > 0 } withheld
-            ? [.. servers.Select(server => server with { WithheldCredentialValues = withheld })]
-            : servers;
-
-        return finalServers.Count == 0
+        return servers.Count == 0
             ? null
             : new McpToolSet(
-                finalServers,
+                servers,
                 log: log.Error,
                 serverLog: log.Warn,
                 missingVariables: missingVariables

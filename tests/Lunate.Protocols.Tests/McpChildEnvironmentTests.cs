@@ -111,12 +111,7 @@ public sealed class McpChildEnvironmentTests
             Command: TestMcpServer.DotnetPath,
             Arguments: ["exec", TestMcpServer.ServerDll],
             Environment: environment
-        )
-        {
-            // No withheld list is wired anywhere in these tests: the allow-list rule holds on its
-            // own, no matter what composition sets on the still-wired option.
-            WithheldCredentialValues = null,
-        };
+        );
     }
 
     private static async Task<string[]> NamesAsync(McpServerHost host)

@@ -10,10 +10,10 @@ using Lunate.TestSupport;
 namespace Lunate.Coding.Tests;
 
 /// <summary>
-/// #449/#455/#472 through the real composition: every server host builds the child environment
-/// through the allow-list scrubber, whatever a compose passes for the withheld values — the
-/// spawned TestMcpServer child sees only the base set plus its own declared <c>env</c> map. The
-/// fixture variables are set on the real process environment and restored afterwards.
+/// #472 through the real composition: every server host builds the child environment through the
+/// allow-list scrubber — the spawned TestMcpServer child sees only the base set plus its own
+/// declared <c>env</c> map. The fixture variables are set on the real process environment and
+/// restored afterwards.
 /// </summary>
 [Collection("mcp-processes")]
 public sealed class McpCompositionCredentialTests
@@ -45,20 +45,13 @@ public sealed class McpCompositionCredentialTests
             string agents = temp.File("user-agents-mcp.json");
             WriteConfig(config, marker);
             File.WriteAllText(agents, "{}");
-            CredentialRedactor redaction = CollectRedaction(temp, config);
 
-            await using McpToolSet set = Compose(
-                worktree,
-                config,
-                agents,
-                temp,
-                redaction: WithheldValuesOf(redaction)
-            )!;
+            await using McpToolSet set = Compose(worktree, config, agents, temp)!;
 
             string[] names = await NamesAsync(set);
 
-            // The allow-list rule holds with the withheld list wired too: composition setting the
-            // values on the options cannot add inheritance back.
+            // The allow-list rule holds through the full composition: nothing inherits beyond the
+            // base set and the server's declared env map, and PATH survives so the child runs.
             Assert.DoesNotContain(AnthropicVariable, names);
             Assert.DoesNotContain(ProviderVariable, names);
             Assert.DoesNotContain(ParentFlagVariable, names);
@@ -93,18 +86,11 @@ public sealed class McpCompositionCredentialTests
                 }
             );
             File.WriteAllText(agents, "{}");
-            CredentialRedactor redaction = CollectRedaction(temp, config);
 
-            await using McpToolSet set = Compose(
-                worktree,
-                config,
-                agents,
-                temp,
-                redaction: WithheldValuesOf(redaction)
-            )!;
+            await using McpToolSet set = Compose(worktree, config, agents, temp)!;
 
             // ${ANTHROPIC_API_KEY} expanded at config load, so the declared opt-in receives the
-            // real value; the name the server did not declare stays withheld.
+            // real value; the name the server did not declare stays absent.
             Assert.Equal(AnthropKeyValue, await ValueAsync(set, AnthropicVariable));
             string[] names = await NamesAsync(set);
             Assert.DoesNotContain(ProviderVariable, names);
@@ -114,39 +100,6 @@ public sealed class McpCompositionCredentialTests
             restore.Dispose();
         }
     }
-
-    [Fact]
-    public async Task A_compose_without_a_withheld_set_is_allow_listed_too()
-    {
-        using var temp = new TempDirectory();
-        IDisposable restore = SetTestEnvironment(
-            (AnthropicVariable, AnthropKeyValue),
-            (ParentFlagVariable, ParentFlagValue)
-        );
-        try
-        {
-            string worktree = NewWorktree(temp);
-            string marker = temp.File("marker.txt");
-            string config = temp.File("user-mcp.json");
-            string agents = temp.File("user-agents-mcp.json");
-            WriteConfig(config, marker);
-            File.WriteAllText(agents, "{}");
-
-            await using McpToolSet set = Compose(worktree, config, agents, temp, redaction: null)!;
-
-            // #472 made the allow-list unconditional: a compose passing no withheld values keeps
-            // the same scrubbed child, so the undeclared credential is absent without any list.
-            Assert.DoesNotContain(AnthropicVariable, await NamesAsync(set));
-            Assert.DoesNotContain(ParentFlagVariable, await NamesAsync(set));
-        }
-        finally
-        {
-            restore.Dispose();
-        }
-    }
-
-    private static string[] WithheldValuesOf(CredentialRedactor redaction) =>
-        [.. redaction.Values.Select(pair => pair.Value)];
 
     [Fact]
     public async Task Known_credential_values_do_not_reach_extension_registered_children()
@@ -177,8 +130,7 @@ public sealed class McpCompositionCredentialTests
                             )
                         )
                     ),
-                ],
-                withheldCredentialValues: [AnthropKeyValue, ProviderKeyValue]
+                ]
             );
 
             string[] names = await NamesAsync(servers);
@@ -186,7 +138,7 @@ public sealed class McpCompositionCredentialTests
             Assert.DoesNotContain(AnthropicVariable, names);
             Assert.DoesNotContain(ProviderVariable, names);
             // Same rule for extension-registered servers: nothing inherits beyond the base set
-            // and the registration's declared env, whatever the withheld values carry.
+            // and the registration's declared env.
             Assert.DoesNotContain(ParentFlagVariable, names);
         }
         finally
@@ -219,31 +171,11 @@ public sealed class McpCompositionCredentialTests
         }
     }
 
-    private static CredentialRedactor CollectRedaction(TempDirectory temp, string configPath)
-    {
-        string auth = temp.File("auth.json");
-        string store = temp.File("provider-store.json");
-        // The preset path brings ANTHROPIC_API_KEY out of the real process environment; the
-        // provider store's env: reference brings MY_PROVIDER_TOKEN. Both are session-known.
-        File.WriteAllText(
-            store,
-            """{ "providers": { "custom": { "apiKey": "env:MY_PROVIDER_TOKEN" } } }"""
-        );
-        return CredentialRedactorSource.Collect(
-            AuthStore.Load(auth),
-            Environment.GetEnvironmentVariable,
-            temp.Root,
-            [configPath],
-            store
-        );
-    }
-
     private static McpToolSet? Compose(
         string worktree,
         string configPath,
         string agentsPath,
-        TempDirectory temp,
-        IReadOnlyList<string>? redaction
+        TempDirectory temp
     )
     {
         var log = new RecordingExtensionLog();
@@ -257,8 +189,7 @@ public sealed class McpCompositionCredentialTests
                 new RefusingServerPrompt(),
                 log,
                 _ => { },
-                TestContext.Current.CancellationToken,
-                withheldCredentialValues: redaction
+                TestContext.Current.CancellationToken
             )
             .GetAwaiter()
             .GetResult();
