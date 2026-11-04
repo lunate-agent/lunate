@@ -16,7 +16,7 @@ public sealed class SetupWizardCollection
 [Collection("setup-wizard")]
 public sealed class SetupWizardModelTests
 {
-    [Fact]
+    [PosixFact]
     public void Fresh_walk_starts_at_the_provider_step_with_no_answers()
     {
         var model = new SetupWizardModel();
@@ -35,7 +35,7 @@ public sealed class SetupWizardModelTests
         Assert.False(model.HasStagedWrites);
     }
 
-    [Fact]
+    [PosixFact]
     public void Go_back_to_the_credential_step_clears_only_the_answers_behind_it()
     {
         SetupWizardModel model = FullyAnswered();
@@ -52,7 +52,7 @@ public sealed class SetupWizardModelTests
         Assert.NotNull(model.DecisionProfile);
     }
 
-    [Fact]
+    [PosixFact]
     public void Go_back_to_the_model_step_clears_the_model_check_only()
     {
         SetupWizardModel model = FullyAnswered();
@@ -69,7 +69,7 @@ public sealed class SetupWizardModelTests
         Assert.NotNull(model.DecisionProfile);
     }
 
-    [Fact]
+    [PosixFact]
     public void Skip_marks_the_step_and_the_summary_knows_it()
     {
         var model = new SetupWizardModel();
@@ -82,7 +82,7 @@ public sealed class SetupWizardModelTests
         Assert.Equal([SetupStep.ConnectionTest, SetupStep.ModelCheck], model.SkippedSteps);
     }
 
-    [Fact]
+    [PosixFact]
     public void Skip_everything_writes_nothing_but_the_walk_completes()
     {
         var model = new SetupWizardModel();
@@ -109,7 +109,7 @@ public sealed class SetupWizardModelTests
         );
     }
 
-    [Fact]
+    [PosixFact]
     public void Any_staged_answer_marks_the_summary_as_a_write()
     {
         var model = new SetupWizardModel();
@@ -123,7 +123,7 @@ public sealed class SetupWizardModelTests
         Assert.True(model.HasStagedWrites);
     }
 
-    [Fact]
+    [PosixFact]
     public void A_skipped_decision_profile_and_decisions_read_as_skipped()
     {
         var model = new SetupWizardModel();

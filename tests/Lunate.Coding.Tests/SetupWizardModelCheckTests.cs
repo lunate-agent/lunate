@@ -9,7 +9,7 @@ namespace Lunate.Coding.Tests;
 [Collection("setup-wizard")]
 public sealed class SetupWizardModelCheckTests
 {
-    [Fact]
+    [PosixFact]
     public async Task The_model_check_uses_the_family_selected_from_discovery()
     {
         var factory = new FakeChatClientFactory(
@@ -60,7 +60,7 @@ public sealed class SetupWizardModelCheckTests
         await run;
     }
 
-    [Fact]
+    [PosixFact]
     public async Task A_model_check_failure_names_the_model_family_and_status_and_can_go_back()
     {
         var client = new FailOnceChatClient();
@@ -98,7 +98,7 @@ public sealed class SetupWizardModelCheckTests
         await run;
     }
 
-    [Fact]
+    [PosixFact]
     public async Task A_custom_endpoint_is_preserved_when_the_model_id_exists_in_the_catalog()
     {
         var factory = new FakeChatClientFactory(

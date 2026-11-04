@@ -13,7 +13,7 @@ public sealed class AuthSecretContainmentTests
     private const string Secret = "containment-secret-value";
     private const string CustomLabel = "Custom OpenAI-compatible endpoint…";
 
-    [Theory]
+    [PosixTheory]
     [InlineData(true)]
     [InlineData(false)]
     public void Cli_login_writes_the_key_only_to_the_auth_store(bool terminal)
@@ -36,7 +36,7 @@ public sealed class AuthSecretContainmentTests
         AssertSecretOnlyInAuth(temp.Root, authPath);
     }
 
-    [Fact]
+    [PosixFact]
     public async Task The_auth_picker_never_commits_the_key_to_a_notice_history_or_session()
     {
         using var host = new InteractiveSessionHost(
@@ -67,7 +67,7 @@ public sealed class AuthSecretContainmentTests
         await QuitAsync(host, run);
     }
 
-    [Fact]
+    [PosixFact]
     public async Task The_wizard_credential_step_keeps_the_key_out_of_every_surface()
     {
         using var host = new InteractiveSessionHost(
@@ -102,7 +102,7 @@ public sealed class AuthSecretContainmentTests
         await QuitAsync(host, run);
     }
 
-    [Fact]
+    [PosixFact]
     public async Task The_custom_row_never_commits_the_key_to_a_notice_history_or_session()
     {
         using var host = new InteractiveSessionHost(

@@ -31,7 +31,7 @@ public sealed class SetupWizardSessionTests
     private static string ProviderPath(InteractiveSessionHost host) =>
         AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json"));
 
-    [Fact]
+    [PosixFact]
     public async Task A_fresh_machine_opens_the_wizard_and_the_header_prints_no_fix()
     {
         using var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true)
@@ -59,7 +59,7 @@ public sealed class SetupWizardSessionTests
         await run;
     }
 
-    [Fact]
+    [PosixFact]
     public async Task A_configured_machine_starts_with_no_wizard()
     {
         using var host = ConfiguredHost();
@@ -77,7 +77,7 @@ public sealed class SetupWizardSessionTests
         await run;
     }
 
-    [Fact]
+    [PosixFact]
     public async Task The_walk_writes_the_stores_only_at_the_confirmed_summary()
     {
         using var host = new InteractiveSessionHost(
@@ -114,7 +114,7 @@ public sealed class SetupWizardSessionTests
         Assert.DoesNotContain("gpt-3.5-turbo", providers, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [PosixFact]
     public async Task An_abort_at_the_summary_leaves_every_file_byte_identical()
     {
         using var host = new InteractiveSessionHost(
@@ -141,7 +141,7 @@ public sealed class SetupWizardSessionTests
         Assert.False(File.Exists(host.Temp.File("auth.json")), "an abort writes nothing");
     }
 
-    [Fact]
+    [PosixFact]
     public async Task A_discovery_failure_names_authentication_and_reopens_the_credential_step()
     {
         using var host = new InteractiveSessionHost(
@@ -179,7 +179,7 @@ public sealed class SetupWizardSessionTests
         Assert.False(File.Exists(ProviderPath(host)), "a cancelled walk writes nothing");
     }
 
-    [Fact]
+    [PosixFact]
     public async Task An_empty_credential_reference_is_refused_and_the_step_stays_open()
     {
         using var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);

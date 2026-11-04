@@ -10,7 +10,7 @@ public sealed class SetupWizardModelStepTests
 {
     private const string Credential = "model-step-test-key";
 
-    [Fact]
+    [PosixFact]
     public async Task The_model_picker_filters_discovery_results_and_shows_the_family()
     {
         using var host = new InteractiveSessionHost(
@@ -43,7 +43,7 @@ public sealed class SetupWizardModelStepTests
         await run;
     }
 
-    [Fact]
+    [PosixFact]
     public async Task Skipping_a_failed_discovery_allows_a_manually_entered_model_id()
     {
         using var host = new InteractiveSessionHost(

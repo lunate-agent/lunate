@@ -9,7 +9,7 @@ namespace Lunate.Coding.Tests;
 [Collection("setup-wizard")]
 public sealed class SetupWizardCredentialTests
 {
-    [Theory]
+    [PosixTheory]
     [InlineData("env:SETUP_WIZARD_TEST_KEY")]
     [InlineData("auth:stored-key")]
     public async Task A_named_credential_reference_is_accepted(string reference)
@@ -39,7 +39,7 @@ public sealed class SetupWizardCredentialTests
         Assert.False(File.Exists(host.Temp.File("auth.json")));
     }
 
-    [Fact]
+    [PosixFact]
     public async Task A_set_standard_environment_key_is_offered_first_and_stored_as_a_reference()
     {
         const string secret = "env-key-must-never-appear-in-output";

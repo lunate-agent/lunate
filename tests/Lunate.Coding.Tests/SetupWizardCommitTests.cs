@@ -20,7 +20,7 @@ public sealed class SetupWizardCommitTests : IDisposable
     private string SettingsPath => _temp.File("settings.json");
     private string ProviderStorePath => AuthStore.ProviderStoreFilePath(_temp.File("auth.json"));
 
-    [Fact]
+    [PosixFact]
     public void Staged_preset_walk_writes_credential_entry_profile_and_usage()
     {
         var model = new SetupWizardModel();
@@ -65,7 +65,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         );
     }
 
-    [Fact]
+    [PosixFact]
     public void An_environment_reference_stores_no_key()
     {
         var model = new SetupWizardModel();
@@ -95,7 +95,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         );
     }
 
-    [Fact]
+    [PosixFact]
     public void Skip_everything_confirm_is_a_no_op()
     {
         var model = new SetupWizardModel();
@@ -111,7 +111,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         Assert.Equal(settingsBefore, settingsAfter);
     }
 
-    [Fact]
+    [PosixFact]
     public void The_wizard_writes_through_the_store_only()
     {
         // The writer pinning test (3.7): the wizard's written file must be byte-equal to the
@@ -148,7 +148,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         Assert.Equal(File.ReadAllText(wizardPath), File.ReadAllText(SettingsPath));
     }
 
-    [Fact]
+    [PosixFact]
     public void The_custom_entry_and_auth_login_custom_produce_the_same_entry()
     {
         // Task 3.8: same answers, same providers.json entry — auth login --custom writes its
@@ -212,7 +212,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         Assert.Equal(wizardEntry.BaseUrls?.Count ?? 0, loginEntry.BaseUrls?.Count ?? 0);
     }
 
-    [Fact]
+    [PosixFact]
     public void Routing_switch_and_descriptions_are_written_through_the_writers()
     {
         var model = new SetupWizardModel();
@@ -262,7 +262,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         );
     }
 
-    [Fact]
+    [PosixFact]
     public void Accepting_the_decisions_defaults_writes_nothing_for_the_layer()
     {
         var model = new SetupWizardModel();

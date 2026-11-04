@@ -7,7 +7,7 @@ namespace Lunate.Coding.Tests;
 [Collection("setup-wizard")]
 public sealed class SetupWizardProviderStepTests
 {
-    [Fact]
+    [PosixFact]
     public async Task The_picker_keeps_preset_order_and_places_custom_last_at_eighty_columns()
     {
         using var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);
