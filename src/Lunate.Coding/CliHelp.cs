@@ -115,6 +115,28 @@ internal static class CliHelp
         output.WriteLine(
             "                                 the default provider and whether a credential exists"
         );
+        output.WriteLine("  lunate setup [flags]");
+        output.WriteLine(
+            "                                 the setup wizard's flag path: every answer is a flag"
+        );
+        output.WriteLine(
+            "                                 (--provider --endpoint --api-family --credential-placement"
+        );
+        output.WriteLine(
+            "                                 --models-url --credential --key-stdin --model --profile"
+        );
+        output.WriteLine(
+            "                                 --thinking --fast --as-decision --no-test"
+        );
+        output.WriteLine(
+            "                                 --no-model-check --force); absent flags skip their step;"
+        );
+        output.WriteLine(
+            "                                 the summary prints to stdout and never a credential;"
+        );
+        output.WriteLine(
+            "                                 on a terminal without flags the wizard opens"
+        );
         output.WriteLine(
             "  lunate install <package-id>[@<version>] [--project] [--dry-run] [--json] [--offline] [--force] [--yes]"
         );
