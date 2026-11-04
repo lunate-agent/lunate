@@ -338,11 +338,9 @@ internal static class Cli
             HardlinkScanFileSystem = options?.HardlinkScanFileSystem ?? hardlinkScanFileSystem,
         };
 
-        if (ConsoleSupport.Check(console) is not null)
+        if (ConsoleSupport.Check(console) is { } unsupportedMode)
         {
-            errors.WriteLine(
-                "lunate: interactive mode needs a terminal; use lunate -p \"<prompt>\""
-            );
+            errors.WriteLine($"lunate: {unsupportedMode}; use lunate -p \"<prompt>\"");
             return 2;
         }
 

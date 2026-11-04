@@ -45,6 +45,13 @@ public sealed class ModelCatalog
             : LoadLayered(managedFilePath: null, userFilePath: userFilePath);
     }
 
+    /// <summary>
+    /// A catalog of exactly the given entries: the setup wizard's discovery adapter targets one
+    /// entry so the discovery helper resolves the model's endpoint, auth reference, models URL
+    /// and credential placement without a user file. Internal: the wizard's seam is the only user.
+    /// </summary>
+    internal static ModelCatalog Single(params ModelInfo[] models) => new(models);
+
     internal static ModelCatalog LoadLayered(string? managedFilePath, string? userFilePath)
     {
         List<ModelInfo> models = ParseEmbedded().Models;

@@ -8,12 +8,13 @@ namespace Lunate.Coding.Tests;
 /// <c>/auth</c> picker once after composition, Esc dismisses it without a write, and every
 /// non-terminal path keeps the explicit missing-credential error instead of prompting.
 /// </summary>
+[Collection("setup-wizard")]
 public sealed class InteractiveSessionFirstRunTests
 {
-    [Fact]
+    [PosixFact]
     public async Task A_terminal_with_no_credential_opens_the_auth_picker()
     {
-        using var host = new InteractiveSessionHost();
+        using var host = new InteractiveSessionHost(freshInstall: true);
         host.Console.IsInteractive = true;
 
         Task run = host.RunAsync();
@@ -31,10 +32,10 @@ public sealed class InteractiveSessionFirstRunTests
         await run;
     }
 
-    [Fact]
+    [PosixFact]
     public async Task Escape_dismisses_the_first_run_offer_without_a_write()
     {
-        using var host = new InteractiveSessionHost();
+        using var host = new InteractiveSessionHost(freshInstall: true);
         host.Console.IsInteractive = true;
 
         Task run = host.RunAsync();
@@ -56,11 +57,27 @@ public sealed class InteractiveSessionFirstRunTests
         );
     }
 
-    [Fact]
+    [PosixFact]
     public async Task A_terminal_with_a_resolved_credential_opens_no_picker()
     {
         using var host = new InteractiveSessionHost(environment: name =>
             name == "OPENAI_API_KEY" ? "sk-test" : PrintModeTestSupport.Environment()(name)
+        );
+        bool valid = ProviderEntry.TryCreate(
+            "openai",
+            "openai",
+            new Uri("https://provider.example.test/v1"),
+            "env:OPENAI_API_KEY",
+            headers: null,
+            region: null,
+            out ProviderEntry? entry,
+            out string? error
+        );
+        Assert.True(valid, error);
+        ProviderStore.Save(AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json")), [entry!]);
+        File.WriteAllText(
+            host.Temp.File("settings.json"),
+            """{"schemaVersion":2,"model":"gpt-4o-mini"}"""
         );
         host.Console.IsInteractive = true;
 
@@ -73,7 +90,7 @@ public sealed class InteractiveSessionFirstRunTests
         Assert.DoesNotContain("Select provider", host.Frames, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [PosixFact]
     public async Task A_non_interactive_session_with_no_credential_opens_no_picker()
     {
         using var host = new InteractiveSessionHost();
@@ -87,11 +104,11 @@ public sealed class InteractiveSessionFirstRunTests
         Assert.DoesNotContain("Select provider", host.Frames, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [PosixFact]
     public async Task An_interactive_session_defers_the_missing_credential_until_the_first_request()
     {
         var factory = new ThrowingChatClientFactory();
-        using var host = new InteractiveSessionHost(factory: factory);
+        using var host = new InteractiveSessionHost(factory: factory, freshInstall: true);
         host.Console.IsInteractive = true;
 
         Task run = host.RunAsync();
@@ -120,7 +137,7 @@ public sealed class InteractiveSessionFirstRunTests
         await run;
     }
 
-    [Theory]
+    [PosixTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Print_mode_with_a_missing_credential_reports_the_error_without_prompting(

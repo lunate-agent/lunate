@@ -107,12 +107,35 @@ internal sealed partial class InteractiveSession
     /// </summary>
     private string? FirstRunFix(ModelInfo? model, string configured)
     {
+        // When the setup wizard applies the header prints no fix at all (spec: Welcome header,
+        // first run opens the wizard instead of a fix): the workspace line stays, the session
+        // opens the walk. The credential-missing /auth fix below is unchanged.
+        if (WantsSetupWizard())
+        {
+            return null;
+        }
+
         if (model is not null)
         {
             return ProviderKeyProbe.FixFor(model, _auth, _environment);
         }
 
         return configured.Length == 0 ? ProviderKeyProbe.ConfigureProviderFix : null;
+    }
+
+    /// <summary>
+    /// Whether the setup wizard applies at this session start (spec: The wizard trigger): the
+    /// shared configured-state check answers from configuration alone, and only an interactive TTY
+    /// may enter the walk — print mode, ACP, piped stdin and <c>TERM=dumb</c> keep their refusal.
+    /// </summary>
+    private bool WantsSetupWizard()
+    {
+        Func<string, string?> environment = _options.Environment ?? _environment;
+        return !_options.SuppressSetupWizard
+            && _console.IsInteractive
+            && string.IsNullOrWhiteSpace(environment("CI"))
+            && !string.Equals(environment("TERM"), "dumb", StringComparison.OrdinalIgnoreCase)
+            && SetupState.Check(_settings, _providerEntries) is not SetupState.Reason.NotApplicable;
     }
 
     private ModelInfo? HeaderModel() =>
