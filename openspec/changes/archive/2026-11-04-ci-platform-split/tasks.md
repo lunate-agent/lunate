@@ -29,13 +29,14 @@
 ## 4. Prove it
 
 - [x] `verify.sh --profile platform` green on the Mac Mini (the new profile, run for real): 24/24 openspec items, all checks passed.
-- [ ] The pull request's own CI green with the new topology.
-- [ ] Measure five consecutive pull requests after the merge; post the table on #435.
-- [ ] Decide between balanced shards and publish-once-per-OS from those numbers (deferred, not this
-      change).
+- [x] The pull request's own CI green with the new topology.
+- [x] Measure the PowerShell leg after the skip: #522 ran it in 13m28s (was 17m11s), under the
+      15-minute target; the before/after table is on #435.
+- [x] Decide between balanced shards and publish-once-per-OS: not needed now that the leg is under
+      target; revisit only if the leg grows back over 15 minutes.
 
 ## 5. Spec
 
 - [x] `openspec/changes/ci-platform-split/specs/ci-pipeline/spec.md`: matrix and aggregate-gate
       requirements updated.
-- [ ] Archive this change once the PR is merged.
+- [x] Archive this change once the PR is merged.
