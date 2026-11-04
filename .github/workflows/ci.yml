@@ -447,6 +447,9 @@ jobs:
     env:
       RID: win-x64
       BUDGET_MS: 350
+      # Formatting, docs lint and the public-API diff run once in the platform job; this leg
+      # skips the second copy (#435). A local Windows verify.ps1 keeps the full gate.
+      VERIFY_SKIP_PLATFORM_CHECKS: "1"
       # English-first CI logs (same rationale as the matrix job).
       DOTNET_CLI_UI_LANGUAGE: en
     steps:

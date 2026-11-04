@@ -7,6 +7,9 @@
 - [x] `scripts/verify.sh`: the packaging-file check moved into `platform_checks` (it is source-only).
 - [x] `.github/workflows/ci.yml`: `platform` job (restore, openspec, `verify.sh --profile platform`);
       `ci-ok` requires it; OS legs set `VERIFY_SKIP_PLATFORM_CHECKS=1`.
+- [x] `scripts/verify.ps1` honors `VERIFY_SKIP_PLATFORM_CHECKS=1`: the PowerShell leg skips
+      formatting, docs lint and the public-API diff, which run once in `platform` (#435); a local
+      Windows run keeps the full gate.
 
 ## 2. Path-filter the PowerShell leg
 
