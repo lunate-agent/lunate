@@ -1,0 +1,405 @@
+using System.Text.Json.Nodes;
+using Lunate.Ai;
+
+namespace Lunate.Coding;
+
+/// <summary>
+/// The setup wizard's one commit pass (design §5, spec: One settings writer), executed at the
+/// summary's confirmation: the credential through <see cref="AuthStore"/>, the provider entry
+/// through the provider entry's own writers — <see cref="SettingsStore.WriteProvider"/> for the
+/// custom entry a typed key pairs with, exactly what <c>auth login --custom</c> writes — and the
+/// profiles, usages and decisions keys through the <see cref="SettingsStore"/> writers the store
+/// itself owns. A preset entry, and any entry carrying an <c>env:</c>/<c>auth:</c> reference, is
+/// saved through <see cref="ProviderStore.Save"/>. The wizard keeps no JSON emitter; a walk that
+/// staged no change at all is a no-op, not a rewrite.
+/// </summary>
+internal static class SetupWizardCommit
+{
+    /// <summary>
+    /// Commits the staged answers. Nothing is written when the walk staged no change at all
+    /// (skip everything confirmed), so the three files stay byte-identical. A failed write
+    /// surfaces as one exception naming what failed; the credential save restores its previous
+    /// state, so a provider is never stored without its entry (the <c>auth login --custom</c>
+    /// contract).
+    /// </summary>
+    public static void Commit(
+        SetupWizardModel model,
+        CommitPaths paths,
+        Func<AuthStore> loadAuth,
+        Func<IReadOnlyList<ProviderEntry>> loadEntries
+    )
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(loadAuth);
+        ArgumentNullException.ThrowIfNull(loadEntries);
+
+        if (!model.HasStagedWrites)
+        {
+            return;
+        }
+
+        string? savedKeyName = null;
+        string? previousKey = null;
+        try
+        {
+            if (model.Provider is { } provider)
+            {
+                if (model.Credential is { Key: { Length: > 0 } secret })
+                {
+                    AuthStore auth = loadAuth();
+                    previousKey = auth.Keys.GetValueOrDefault(provider.Id);
+                    savedKeyName = provider.Id;
+                    auth.Set(provider.Id, secret);
+                    auth.Save();
+                }
+
+                WriteProviderEntry(model, paths, loadEntries);
+            }
+
+            WriteProfileAndUsages(model, paths);
+            WriteDecisions(model, paths);
+        }
+        catch (Exception)
+        {
+            if (savedKeyName is { } name)
+            {
+                AuthStore auth = loadAuth();
+                if (previousKey is { Length: > 0 } key)
+                {
+                    auth.Set(name, key);
+                }
+                else
+                {
+                    auth.Remove(name);
+                }
+            }
+
+            throw;
+        }
+    }
+
+    /// <summary>The paths a commit touches; tests pass temp paths, the session its stores.</summary>
+    internal sealed record CommitPaths(string SettingsPath, string ProviderStorePath);
+
+    // --- provider entry ---
+
+    private static void WriteProviderEntry(
+        SetupWizardModel model,
+        CommitPaths paths,
+        Func<IReadOnlyList<ProviderEntry>> loadEntries
+    )
+    {
+        WizardProviderChoice provider = model.Provider!;
+        if (provider.Custom)
+        {
+            // A typed custom key pairs with the settings-section entry: the writer is the one
+            // credential login uses, so the wizard's custom entry cannot drift from it. The
+            // section shape names its model, so this pair needs the model step answered; a
+            // skipped model (or a reference-form credential) writes an explicit provider-store
+            // entry instead — the same written shape, with the reference stored.
+            if (
+                model.Credential?.Key is { } secretKey
+                && !IsReference(model.Credential.Reference)
+                && model.Model is { } modelChoice
+            )
+            {
+                CommitTypedCustomEntry(provider, modelChoice, paths);
+            }
+            else
+            {
+                SaveEntry(CustomEntry(provider, model), paths, loadEntries);
+            }
+
+            return;
+        }
+
+        ProviderPreset? preset = ProviderPresets.Find(provider.Id);
+        if (preset is null)
+        {
+            throw new InvalidDataException(
+                $"setup: provider '{provider.Id}' is not a preset; its entry cannot be written."
+            );
+        }
+
+        SaveEntry(
+            CreateEntry(
+                provider.Id,
+                provider.Id,
+                preset.BaseUrl,
+                CredentialReferenceOf(model),
+                provider.ModelsUrl ?? preset.ModelsUrl
+            ),
+            paths,
+            loadEntries
+        );
+    }
+
+    private static void CommitTypedCustomEntry(
+        WizardProviderChoice provider,
+        WizardModelChoice modelChoice,
+        CommitPaths paths
+    )
+    {
+        if (
+            !CustomProvider.TryCreate(
+                provider.Id,
+                provider.Endpoint!.AbsoluteUri,
+                modelChoice.ModelId,
+                catalogName: null,
+                out CustomProvider? custom,
+                out string? error,
+                provider.ApiFamily,
+                provider.Placement,
+                provider.ModelsUrl?.AbsoluteUri,
+                null
+            ) || custom is null
+        )
+        {
+            throw new InvalidDataException(
+                $"setup: the custom provider entry was refused: {error}"
+            );
+        }
+
+        SettingsStore.WriteProvider(custom, paths.SettingsPath);
+    }
+
+    private static void SaveEntry(
+        ProviderEntry entry,
+        CommitPaths paths,
+        Func<IReadOnlyList<ProviderEntry>> loadEntries
+    )
+    {
+        IEnumerable<ProviderEntry> kept = loadEntries()
+            .Where(existing => !string.Equals(existing.Name, entry.Name, StringComparison.Ordinal));
+        ProviderStore.Save(
+            paths.ProviderStorePath,
+            [.. kept.Append(entry).OrderBy(candidate => candidate.Name, StringComparer.Ordinal)]
+        );
+    }
+
+    /// <summary>
+    /// The provider entry the walk writes. Name, kind and base URL come from the answer; the
+    /// credential reference is the staged reference (<c>env:&lt;VARIABLE&gt;</c> or
+    /// <c>auth:&lt;name&gt;</c>) or the provider id's stored key. An unknown family is refused by
+    /// name before anything is written.
+    /// </summary>
+    private static ProviderEntry CreateEntry(
+        string name,
+        string kind,
+        Uri baseUrl,
+        string credentialReference,
+        Uri? modelsUrl,
+        Uri? familyUrl = null,
+        ProviderApiFamily family = ProviderApiFamily.OpenAiChat,
+        CredentialPlacement? placement = null
+    )
+    {
+        Dictionary<ProviderApiFamily, Uri>? baseUrls = familyUrl is not null
+            ? new Dictionary<ProviderApiFamily, Uri> { [family] = familyUrl }
+            : null;
+        Dictionary<ProviderApiFamily, CredentialPlacement>? placements =
+            placement is not null && familyUrl is not null
+                ? new Dictionary<ProviderApiFamily, CredentialPlacement> { [family] = placement }
+                : null;
+        bool valid = ProviderEntry.TryCreate(
+            name,
+            kind,
+            baseUrl,
+            credentialReference,
+            headers: null,
+            region: null,
+            baseUrls,
+            modelsUrl,
+            placements,
+            out ProviderEntry? entry,
+            out string? error
+        );
+        if (!valid || entry is null)
+        {
+            throw new InvalidDataException(
+                $"setup: the provider entry '{name}' was refused: {error}"
+            );
+        }
+
+        return entry;
+    }
+
+    /// <summary>
+    /// The custom entry: the family's own URL keyed per family, the credential placement the walk
+    /// chose, its models URL, and the credential reference if the step picked one.
+    /// </summary>
+    private static ProviderEntry CustomEntry(WizardProviderChoice provider, SetupWizardModel model)
+    {
+        if (!ProviderApiFamilies.TryParse(provider.ApiFamily, out ProviderApiFamily family))
+        {
+            throw new InvalidDataException(
+                $"setup: API family '{provider.ApiFamily}' is not a supported family; "
+                    + $"supported families: {ProviderApiFamilies.Supported()}."
+            );
+        }
+
+        return CreateEntry(
+            provider.Id,
+            CustomProvider.KindFor(family),
+            provider.Endpoint!,
+            CredentialReferenceOf(model),
+            provider.ModelsUrl,
+            familyUrl: provider.Endpoint,
+            family: family,
+            placement: provider.Placement
+        );
+    }
+
+    /// <summary>
+    /// The credential reference the entry carries: the staged reference when the step picked one,
+    /// otherwise the provider id's key in the auth store (even for a custom provider — the custom
+    /// entry a typed key pairs with stores no reference of its own, and its loaded shape is
+    /// <c>auth:&lt;id&gt;</c>).
+    /// </summary>
+    private static string CredentialReferenceOf(SetupWizardModel model)
+    {
+        WizardProviderChoice provider = model.Provider!;
+        return model.Credential is { Key: null } referenced && IsReference(referenced.Reference)
+            ? referenced.Reference
+            : $"auth:{provider.Id}";
+    }
+
+    private static bool IsReference(string value) =>
+        value.StartsWith("env:", StringComparison.Ordinal)
+        || value.StartsWith("auth:", StringComparison.Ordinal);
+
+    // --- profiles and usages ---
+
+    private static void WriteProfileAndUsages(SetupWizardModel model, CommitPaths paths)
+    {
+        WizardDecisionsChoice? decisions = model.Decisions;
+        if (model.ChatProfile is { } chat)
+        {
+            // The chat profile's routing description is part of the same profile entry, so one
+            // writer pass carries both (settings: profiles.<name>.description).
+            SettingsStore.WriteProfile(
+                ToModelProfile(
+                    chat.Name,
+                    model,
+                    chat.ModelId,
+                    chat.ReasoningLevel,
+                    Description(decisions, chat.Name)
+                ),
+                paths.SettingsPath
+            );
+            SettingsStore.WriteUsage("chat", chat.Name, paths.SettingsPath);
+            if (model.FastProfile)
+            {
+                SettingsStore.WriteUsage("fast", chat.Name, paths.SettingsPath);
+            }
+        }
+
+        if (model.DecisionProfile is { } decision)
+        {
+            SettingsStore.WriteProfile(
+                ToModelProfile(
+                    decision.ProfileName,
+                    model,
+                    decision.ModelId,
+                    reasoningLevel: null,
+                    description: Description(decisions, decision.ProfileName),
+                    apiFamily: decision.Native ? ProviderApiFamilies.SystemOne : null
+                ),
+                paths.SettingsPath
+            );
+        }
+    }
+
+    private static ModelProfile ToModelProfile(
+        string name,
+        SetupWizardModel model,
+        string modelId,
+        string? reasoningLevel = null,
+        string? description = null,
+        string? apiFamily = null
+    ) =>
+        new(
+            name,
+            model.Provider!.Id,
+            modelId,
+            ReasoningLevel: reasoningLevel,
+            ApiFamily: apiFamily,
+            Description: description
+        );
+
+    private static string? Description(WizardDecisionsChoice? decisions, string profileName) =>
+        decisions?.RoutingDescriptions.TryGetValue(profileName, out string? description) == true
+        && !string.IsNullOrWhiteSpace(description)
+            ? description
+            : null;
+
+    private static void WriteDecisions(SetupWizardModel model, CommitPaths paths)
+    {
+        WizardDecisionChoice? decision = model.DecisionProfile;
+        if (decision is not null)
+        {
+            // Bind without enabling any consumer (spec: The full walk, step 7).
+            SettingsStore.WriteDecisionsKey("profile", decision.ProfileName, paths.SettingsPath);
+        }
+
+        if (model.Decisions is not { } choices)
+        {
+            // Accepting the defaults writes nothing for the layer.
+            return;
+        }
+
+        if (choices.Approvals is { } approvals)
+        {
+            SettingsStore.WriteDecisionsKey("approvals", approvals, paths.SettingsPath);
+        }
+
+        if (choices.Routing is { } routing)
+        {
+            SettingsStore.WriteDecisionsKey("routing", routing, paths.SettingsPath);
+            var list = new JsonArray([
+                .. RoutingProfiles(model, model.DecisionProfile).Select(name => (JsonNode)name),
+            ]);
+            SettingsStore.WriteDecisionsKey("routingProfiles", list, paths.SettingsPath);
+        }
+
+        if (choices.Tool is { } tool)
+        {
+            SettingsStore.WriteDecisionsKey("tool", tool, paths.SettingsPath);
+        }
+
+        if (choices.Questions is { } questions)
+        {
+            SettingsStore.WriteDecisionsKey("questions", questions, paths.SettingsPath);
+        }
+    }
+
+    /// <summary>The routing bound: the walk's chat and decision profiles, plus this walk's other
+    /// configured profiles the settings already name; empty means routing cannot turn on here.</summary>
+    private static IReadOnlyList<string> RoutingProfiles(
+        SetupWizardModel model,
+        WizardDecisionChoice? decision
+    )
+    {
+        List<string> names = [];
+        if (model.ChatProfile is { } chat)
+        {
+            names.Add(chat.Name);
+        }
+
+        if (decision is not null)
+        {
+            names.Add(decision.ProfileName);
+        }
+
+        foreach (string existing in model.ExistingRoutingProfiles)
+        {
+            if (!names.Contains(existing, StringComparer.Ordinal))
+            {
+                names.Add(existing);
+            }
+        }
+
+        return names;
+    }
+}

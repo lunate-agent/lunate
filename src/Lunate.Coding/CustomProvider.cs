@@ -175,7 +175,7 @@ public sealed record CustomProvider(
             _ => "openai",
         };
 
-    private static bool TryParseEndpoint(string value, out Uri? uri, out string? error)
+    internal static bool TryParseEndpoint(string value, out Uri? uri, out string? error)
     {
         uri = null;
         if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? parsed))

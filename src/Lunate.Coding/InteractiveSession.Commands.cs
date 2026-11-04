@@ -16,6 +16,9 @@ internal sealed partial class InteractiveSession
         Session,
         AuthProvider,
         AuthVerify,
+        WizardProvider,
+        WizardChoice,
+        WizardModel,
     }
 
     /// <summary>The cap on <c>/compact</c> focus instructions; a longer argument is refused.</summary>
@@ -898,8 +901,16 @@ internal sealed partial class InteractiveSession
         SetPicker(new SelectListModel(PickerTitle(selected, labels.Count), labels, selected));
     }
 
+    /// <summary>Whether the open picker filters as text is typed (the model and wizard pickers).</summary>
+    private bool PickerFiltersOn() =>
+        _pickerKind
+            is PickerKind.Model
+                or PickerKind.WizardModel
+                or PickerKind.WizardProvider
+                or PickerKind.WizardChoice;
+
     private bool PickerMatches(string label) =>
-        _pickerKind is not PickerKind.Model
+        !PickerFiltersOn()
         || _pickerFilter.Length == 0
         || label.Contains(_pickerFilter, StringComparison.OrdinalIgnoreCase);
 
@@ -948,7 +959,7 @@ internal sealed partial class InteractiveSession
                 await ConfirmPicker(ct).ConfigureAwait(false);
                 break;
             case KeyKind.Escape:
-                if (_pickerKind is PickerKind.Model && _pickerFilter.Length > 0)
+                if (PickerFiltersOn() && _pickerFilter.Length > 0)
                 {
                     _pickerFilter = string.Empty;
                     ShowPicker(SelectedPickerValue(), fallback: 0);
@@ -958,7 +969,7 @@ internal sealed partial class InteractiveSession
                 DismissPicker();
                 break;
             case KeyKind.Character when plain && key.Text is { Length: > 0 } text:
-                if (_pickerKind is PickerKind.Model)
+                if (PickerFiltersOn())
                 {
                     AppendPickerFilter(text);
                 }
@@ -983,7 +994,7 @@ internal sealed partial class InteractiveSession
 
     private void AppendPickerFilter(string text)
     {
-        if (_pickerKind is not PickerKind.Model)
+        if (!PickerFiltersOn())
         {
             return;
         }
@@ -1029,6 +1040,11 @@ internal sealed partial class InteractiveSession
         _pickerVisibleValues = [];
         _pickerFilter = string.Empty;
         _live.SetPicker(null);
+        // A wizard picker dismissed with Esc is the walk leaving the wizard: nothing is written.
+        if (_wizardPick is { Task.IsCompleted: false } pick)
+        {
+            pick.TrySetResult(null);
+        }
     }
 
     private async ValueTask ConfirmPicker(CancellationToken ct)
@@ -1043,6 +1059,14 @@ internal sealed partial class InteractiveSession
         {
             // An empty match has nothing to confirm: Enter is a no-op and the picker stays open.
             return;
+        }
+
+        // The wizard's pick completes before the dismissal clears it, so an Esc between frames
+        // and a confirm cannot race for the same pending answer (the dismissal only cancels an
+        // unanswered pick).
+        if (kind is PickerKind.WizardProvider or PickerKind.WizardChoice or PickerKind.WizardModel)
+        {
+            _wizardPick?.TrySetResult(value);
         }
 
         DismissPicker();

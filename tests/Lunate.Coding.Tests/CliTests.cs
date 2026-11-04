@@ -382,6 +382,7 @@ public sealed class CliTests
             new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop())
         );
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory);
+        Configure(options);
         using var output = new StringWriter();
         using var error = new StringWriter();
 
@@ -412,6 +413,7 @@ public sealed class CliTests
         var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
         var factory = new FakeChatClientFactory(client);
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory);
+        Configure(options);
         using var output = new StringWriter();
         using var error = new StringWriter();
 
@@ -441,6 +443,7 @@ public sealed class CliTests
         var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
         var factory = new FakeChatClientFactory(client);
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory);
+        Configure(options);
         using var output = new StringWriter();
         using var error = new StringWriter();
 
@@ -471,6 +474,7 @@ public sealed class CliTests
         var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
         var factory = new FakeChatClientFactory(client);
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory);
+        Configure(options);
         using var output = new StringWriter();
         using var error = new StringWriter();
 
@@ -501,6 +505,7 @@ public sealed class CliTests
             new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop())
         );
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory);
+        Configure(options);
         using var output = new StringWriter();
         using var error = new StringWriter();
 
@@ -1037,6 +1042,24 @@ public sealed class CliTests
         Assert.Equal(2, exitCode);
         Assert.Contains("Usage", error.ToString(), StringComparison.Ordinal);
         Assert.Empty(output.ToString());
+    }
+
+    /// <summary>Gives print-mode tests a configured install unless first-run refusal is under test.</summary>
+    private static void Configure(PrintModeOptions options)
+    {
+        File.WriteAllText(options.SettingsPath!, """{"schemaVersion":2,"model":"test-model"}""");
+        bool valid = ProviderEntry.TryCreate(
+            "openai",
+            "openai",
+            new Uri("https://provider.example.test/v1"),
+            "env:OPENAI_API_KEY",
+            headers: null,
+            region: null,
+            out ProviderEntry? entry,
+            out string? error
+        );
+        Assert.True(valid, error);
+        ProviderStore.Save(AuthStore.ProviderStoreFilePath(options.AuthPath), [entry!]);
     }
 
     private static LaunchOptions Parse(params string[] args)
