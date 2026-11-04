@@ -590,9 +590,7 @@ internal sealed class InteractiveSessionHost : IDisposable
         Action<AgentEvent>? eventObserverSuffix = null,
         GuardProbe? bashGuardProbe = null,
         string? hardlinkScanRoot = null,
-        IHardlinkScanFileSystem? hardlinkScanFileSystem = null,
-        HttpMessageHandler? discoveryTransport = null,
-        bool freshInstall = false
+        IHardlinkScanFileSystem? hardlinkScanFileSystem = null
     )
     {
         _eventObserverSuffix = eventObserverSuffix;
@@ -615,7 +613,6 @@ internal sealed class InteractiveSessionHost : IDisposable
                 HistoryPath = Temp.File("history"),
                 HomeDirectory = homeDirectory ?? Temp.File("home"),
                 Environment = environment ?? PrintModeTestSupport.Environment(),
-                SuppressSetupWizard = !freshInstall,
                 Console = Console,
                 Scheduler = Scheduler,
                 Scrollback = Scrollback,
@@ -642,7 +639,6 @@ internal sealed class InteractiveSessionHost : IDisposable
                 BashGuardProbe = bashGuardProbe ?? Fake.Unix(macOs: false),
                 HardlinkScanRoot = hardlinkScanRoot,
                 HardlinkScanFileSystem = hardlinkScanFileSystem,
-                DiscoveryTransport = discoveryTransport,
             }
         );
     }

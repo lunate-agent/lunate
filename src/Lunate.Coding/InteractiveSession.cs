@@ -31,12 +31,6 @@ internal sealed partial record InteractiveSessionOptions
 
     public Func<string, string?>? Environment { get; init; }
 
-    /// <summary>
-    /// Test seam: keeps the setup wizard's first-run offer out of a host that is exercising another
-    /// interaction surface. Production never sets it; first-run fixtures leave it false.
-    /// </summary>
-    internal bool SuppressSetupWizard { get; init; }
-
     /// <summary>The terminal the session reads keys from and paints the live area through.</summary>
     public required IConsoleIO Console { get; init; }
 
@@ -117,12 +111,6 @@ internal sealed partial record InteractiveSessionOptions
 
     /// <summary>The session store root for id and <c>--continue</c> lookup; null uses the profile.</summary>
     public string? SessionsRoot { get; init; }
-
-    /// <summary>
-    /// The transport the wizard's connection test rides; null is the real internet. Injected so
-    /// the fixture tests exercise every discovery shape offline without a live endpoint.
-    /// </summary>
-    public HttpMessageHandler? DiscoveryTransport { get; init; }
 }
 
 /// <summary>
@@ -350,12 +338,6 @@ internal sealed partial class InteractiveSession : IDisposable
                 if (_options.StartWithPicker || _options.Launch.Resume)
                 {
                     OpenSessionPicker();
-                }
-                else if (WantsSetupWizard())
-                {
-                    // The setup wizard replaces the first-run auth-picker offer (spec: The wizard
-                    // trigger): one offer per session start, nothing written before its summary.
-                    OpenSetupWizard();
                 }
                 else if (OffersFirstRunAuth())
                 {
@@ -684,19 +666,7 @@ internal sealed partial class InteractiveSession : IDisposable
         {
             _extensionModelId = null;
             _modelRoute = null;
-            try
-            {
-                _model = HarnessFactory.ResolveModel(configured, _catalog);
-            }
-            catch (InvalidOperationException exception)
-                when (WantsSetupWizard() && configured is null)
-            {
-                // A machine the setup wizard applies to (design §1) has no chat answer yet: the
-                // composition succeeds, the trigger opens the walk once the first frame is live,
-                // and the walk's commit re-resolves. The placeholder runs no request.
-                _model = new ModelInfo("(not configured)", string.Empty, Endpoint: null, 0, false);
-                _ = exception;
-            }
+            _model = HarnessFactory.ResolveModel(configured, _catalog);
         }
 
         _modelId = _model.Id;

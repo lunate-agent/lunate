@@ -7,13 +7,12 @@ namespace Lunate.Coding.Tests;
 /// Task 5.3's containment proof: the key typed on any login path reaches <c>auth.json</c> and
 /// nothing else — not a notice, a frame, the scrollback, the history file or a session file.
 /// </summary>
-[Collection("setup-wizard")]
 public sealed class AuthSecretContainmentTests
 {
     private const string Secret = "containment-secret-value";
     private const string CustomLabel = "Custom OpenAI-compatible endpoint…";
 
-    [PosixTheory]
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void Cli_login_writes_the_key_only_to_the_auth_store(bool terminal)
@@ -36,7 +35,7 @@ public sealed class AuthSecretContainmentTests
         AssertSecretOnlyInAuth(temp.Root, authPath);
     }
 
-    [PosixFact]
+    [Fact]
     public async Task The_auth_picker_never_commits_the_key_to_a_notice_history_or_session()
     {
         using var host = new InteractiveSessionHost(
@@ -67,42 +66,34 @@ public sealed class AuthSecretContainmentTests
         await QuitAsync(host, run);
     }
 
-    [PosixFact]
-    public async Task The_wizard_credential_step_keeps_the_key_out_of_every_surface()
+    [Fact]
+    public async Task The_first_run_offer_never_commits_the_key_to_a_notice_history_or_session()
     {
         using var host = new InteractiveSessionHost(
             launch: new LaunchOptions { Model = "gpt-4o-mini" },
-            chat: new ScriptedChatClient(),
-            freshInstall: true
+            chat: new ScriptedChatClient()
         );
         host.Console.IsInteractive = true;
         Task run = host.RunAsync();
         await WaitForFrameAsync(host, "Select provider");
 
         host.Console.SendEnter();
-        await WaitForFrameAsync(host, "Credential for openai");
-        host.Console.SendEnter(); // the "enter a key" row
         await WaitForFrameAsync(host, "API key for openai");
+
         await TypeSecretAsync(host, "API key for openai");
+        await WaitForFrameAsync(host, "logged in: openai");
 
-        await WaitForFrameAsync(host, "Connection test (one discovery request");
-        host.Console.SendEnter(); // run the test
-        await WaitForFrameAsync(host, "connection test failed");
-        Assert.DoesNotContain(Secret, host.Frames, StringComparison.Ordinal);
-        Assert.DoesNotContain(Secret, host.Scrollback.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain(Secret, HistoryText(host), StringComparison.Ordinal);
-        Assert.False(
-            File.Exists(host.Temp.File("auth.json")),
-            "the wizard writes only at the summary"
+        Assert.Equal(
+            Secret,
+            AuthStore.Load(host.Temp.File("auth.json"), _ => null).TryGet("openai")
         );
-        AssertSecretOnlyInAuth(host.Temp.Root, host.Temp.File("auth.json"));
+        AssertSecretNowhereButAuth(host);
 
-        host.Console.SendEscape();
-        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        await DismissVerificationAsync(host, "openai");
         await QuitAsync(host, run);
     }
 
-    [PosixFact]
+    [Fact]
     public async Task The_custom_row_never_commits_the_key_to_a_notice_history_or_session()
     {
         using var host = new InteractiveSessionHost(

@@ -26,13 +26,6 @@ public sealed class InteractiveSessionTuiSettingsCollection
 [Collection(InteractiveSessionTuiSettingsCollection.Name)]
 public sealed class InteractiveSessionTuiSettingsTests
 {
-    /// <summary>The refusal leaves no tui section; the test host's model default is not a tui edit.</summary>
-    private static void AssertNoTuiSettings(string path)
-    {
-        string json = File.Exists(path) ? File.ReadAllText(path) : string.Empty;
-        Assert.DoesNotContain("\"tui\"", json, StringComparison.Ordinal);
-    }
-
     [Fact]
     public async Task The_theme_edit_applies_persists_and_shows_in_the_settings_table()
     {
@@ -73,7 +66,7 @@ public sealed class InteractiveSessionTuiSettingsTests
         await WaitForFrameAsync(host, "tui.theme must be 'default', 'ansi16' or 'mono'");
 
         // The refusal left nothing behind: the settings file holds no tui section.
-        AssertNoTuiSettings(host.Temp.File("settings.json"));
+        Assert.False(File.Exists(host.Temp.File("settings.json")));
 
         host.Console.SendText("/quit");
         host.Console.SendEnter();
@@ -139,13 +132,13 @@ public sealed class InteractiveSessionTuiSettingsTests
             Task run = host.RunAsync();
             await host.WaitUntilAsync(() => host.Session.IsComposed);
             string settingsPath = host.Temp.File("settings.json");
-            AssertNoTuiSettings(settingsPath);
+            Assert.False(File.Exists(settingsPath));
 
             await host.SendLineAsync(command);
             await WaitForFrameAsync(host, expected);
 
             // Nothing was persisted and the binding's declared keys are unchanged.
-            AssertNoTuiSettings(settingsPath);
+            Assert.False(File.Exists(settingsPath));
             Assert.Equal(
                 declared.Keys,
                 KeyBindingCatalog.BindingsFor("ctrl-d.quit").Select(row => row.Key).ToArray()
