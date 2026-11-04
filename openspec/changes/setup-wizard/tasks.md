@@ -73,16 +73,16 @@ proposal, each with tests and a green gate before the next starts. The provider-
 
 ## 4. `lunate setup` — the CLI and the non-interactive path
 
-- [ ] 4.1 `lunate setup` routed in `Cli.Run` next to `auth`; on a terminal it opens the entry menu on
+- [x] 4.1 `lunate setup` routed in `Cli.Run` next to `auth`; on a terminal it opens the entry menu on
       a configured install and the full walk on a fresh one; committing without changes writes
       nothing.
 - [ ] 4.2 Non-interactive flags `--provider --endpoint --api-family --credential-placement
       --models-url --credential --key-stdin --model --profile --thinking --fast --as-decision
       --no-test --no-model-check --force`; absent flag = skipped step; no value invented.
-- [ ] 4.3 Exit codes: 0 after a real commit or a no-op; 2 with the missing answer named when a value
+- [x] 4.3 Exit codes: 0 after a real commit or a no-op; 2 with the missing answer named when a value
       needs interaction and stdin is not a terminal; the connection test and model check present
       unless `--no-test` / `--no-model-check`.
-- [ ] 4.4 CI no-TTY test: a scripted `lunate setup` run without a terminal writes the full
+- [x] 4.4 CI no-TTY test: a scripted `lunate setup` run without a terminal writes the full
       configuration through the store writers and prints no secret; plus the "needs interaction"
       exit-2 case and the flag hint in the message.
 

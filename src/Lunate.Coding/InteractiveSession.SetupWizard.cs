@@ -805,97 +805,25 @@ internal sealed partial class InteractiveSession
     }
 
     /// <summary>
-    /// The minimal request: one user message and one output token through the factory, the way
-    /// <c>/auth</c>'s verification sends it. A typed or referenced key stays in memory and is
-    /// redacted from any failure detail.
+    /// The minimal request through the shared check helper, so the wizard and the flag path
+    /// (<c>lunate setup</c>) verify exactly the same request shape.
     /// </summary>
-    private async Task<WizardCheckResult> RunModelCheckAsync(
+    private Task<WizardCheckResult> RunModelCheckAsync(
         SetupWizardModel wizard,
         CancellationToken ct
-    )
-    {
-        WizardModelChoice choice = wizard.Model!;
-        ModelInfo checkModel = CheckModel(wizard, choice);
-        string? credential = ResolveWizardCredential(wizard);
-        try
-        {
-            IChatClient client = credential is { Length: > 0 }
-                ? _factory.Create(checkModel, credential)
-                : _factory.Create(checkModel);
-            await client
-                .GetResponseAsync(
-                    [new ChatMessage(ChatRole.User, "Reply with OK.")],
-                    new ChatOptions { MaxOutputTokens = 1 },
-                    ct
-                )
-                .ConfigureAwait(false);
-            return new WizardCheckResult(WizardProgress.Passed);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            string reason = exception.Message;
-            if (credential is { Length: > 0 })
-            {
-                reason = reason.Replace(credential, "[redacted]", StringComparison.Ordinal);
-            }
-
-            return new WizardCheckResult(WizardProgress.Failed, reason);
-        }
-    }
+    ) =>
+        WizardModelCheck.RunAsync(
+            wizard,
+            _catalog,
+            _factory,
+            () => ResolveWizardCredential(wizard),
+            ct
+        );
 
     /// <summary>The request's model: a known catalog entry stays itself; the custom path builds
     /// the model on the entry's endpoint, placement and models URL; a preset rides its kind.</summary>
-    private ModelInfo CheckModel(SetupWizardModel wizard, WizardModelChoice choice)
-    {
-        WizardProviderChoice provider = wizard.Provider!;
-        ModelInfo? known = _catalog.Find(choice.ModelId);
-        if (provider.Custom)
-        {
-            _ = ProviderApiFamilies.TryParse(choice.ApiFamily, out ProviderApiFamily family);
-            return new ModelInfo(
-                choice.ModelId,
-                CustomProvider.KindFor(family),
-                provider.Endpoint,
-                known?.ContextWindow ?? 0,
-                known?.SupportsTools ?? false,
-                AuthRef: provider.Id,
-                Reasoning: known?.Reasoning
-            )
-            {
-                Pricing = known?.Pricing,
-                MaxOutput = known?.MaxOutput,
-                SupportsVision = known?.SupportsVision ?? false,
-                Capabilities = known?.Capabilities,
-                ApiFamily = choice.ApiFamily,
-                CredentialPlacement = provider.Placement.ToCompact(),
-                ModelsUrl = provider.ModelsUrl,
-                WireId = choice.ModelId,
-            };
-        }
-
-        if (known is not null)
-        {
-            return known with
-            {
-                Provider = provider.Id,
-                Endpoint = null,
-                AuthRef = null,
-                ApiFamily = choice.ApiFamily,
-                CredentialPlacement = null,
-                ProviderHeaders = null,
-                WireId = choice.ModelId,
-            };
-        }
-
-        return new ModelInfo(choice.ModelId, provider.Id, null, 0, false)
-        {
-            ApiFamily = choice.ApiFamily,
-        };
-    }
+    private ModelInfo CheckModel(SetupWizardModel wizard, WizardModelChoice choice) =>
+        WizardModelCheck.ModelFor(wizard, choice, _catalog);
 
     private string? ResolveWizardCredential(SetupWizardModel wizard)
     {

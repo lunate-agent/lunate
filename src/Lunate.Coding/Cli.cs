@@ -24,6 +24,8 @@ internal static class Cli
         bool? stdinIsTerminal = null,
         // The auth command's paths and boundaries; null uses the production defaults.
         AuthCommandSeams? authSeams = null,
+        // The setup command's paths, transport and client factory; null uses the production defaults.
+        SetupCommandSeams? setupSeams = null,
         string? hardlinkScanRoot = null,
         IHardlinkScanFileSystem? hardlinkScanFileSystem = null
     )
@@ -92,6 +94,17 @@ internal static class Cli
             }
 
             return AuthCommand.Run(args[1..], output, errors, auth);
+        }
+
+        if (args.Length > 0 && args[0] == "setup")
+        {
+            SetupCommandSeams setup = setupSeams ?? new SetupCommandSeams();
+            if (setup.StdinIsTerminal is null && stdinIsTerminal is { } setupTerminal)
+            {
+                setup = setup with { StdinIsTerminal = setupTerminal };
+            }
+
+            return SetupCommand.Run(args[1..], output, errors, setup, ct);
         }
 
         if (args.Length > 0 && args[0] == "cache")
