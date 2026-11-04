@@ -58,7 +58,7 @@ proposal, each with tests and a green gate before the next starts. The provider-
       accepting defaults writes nothing for the layer; when routing is enabled, ask each routing
       profile for a description (what it is for, what it is not, an example) and warn once if one is
       blank.
-- [ ] 3.4 Summary step: every collected value — including region, model-check result, decision
+- [x] 3.4 Summary step: every collected value — including region, model-check result, decision
       profile kind and routing descriptions — and every skipped step shown; nothing written before
       Enter.
 - [x] 3.5 Commit: one pass through `AuthStore`, the provider store save path and new
