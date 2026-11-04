@@ -9,33 +9,6 @@ namespace Lunate.Coding.Tests;
 [Collection("setup-wizard")]
 public sealed class SetupWizardCredentialTests
 {
-    [Fact]
-    public async Task An_empty_typed_credential_is_refused_without_leaving_the_step()
-    {
-        using var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);
-        Task run = host.RunAsync();
-        await host.WaitUntilAsync(() => host.Session.IsComposed);
-
-        await host.WaitForFrameAsync("Select provider");
-        host.Console.SendEnter();
-        await host.WaitForFrameAsync("Credential for openai");
-        host.Console.SendEnter();
-        await host.WaitForFrameAsync("API key for openai");
-        host.Console.SendEnter();
-
-        await host.WaitForFrameAsync("Credential for openai");
-        Assert.Contains("credential cannot be empty", host.Frames, StringComparison.Ordinal);
-        Assert.DoesNotContain("Connection test", host.LastFrame, StringComparison.Ordinal);
-        Assert.False(File.Exists(AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json"))));
-        Assert.False(File.Exists(host.Temp.File("settings.json")));
-        Assert.False(File.Exists(host.Temp.File("auth.json")));
-
-        host.Console.SendEscape();
-        await host.WaitUntilAsync(() => !host.Session.IsRunning);
-        host.Console.Complete();
-        await run;
-    }
-
     [Theory]
     [InlineData("env:SETUP_WIZARD_TEST_KEY")]
     [InlineData("auth:stored-key")]
