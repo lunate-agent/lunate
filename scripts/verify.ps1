@@ -430,39 +430,44 @@ try {
         Remove-Item -Recurse -Force -Path $contractTmp -ErrorAction SilentlyContinue
     }
 
-    Write-Host "`n==> format"
-    # CSharpier owns formatting; dotnet format keeps style and analyzer duties.
-    dotnet csharpier check .
-    if ($LASTEXITCODE -ne 0) { throw 'verify: format check failed (dotnet csharpier check .)' }
+    # Formatting, docs lint and the public-API diff are source-identical on every OS. CI runs
+    # them once in the `platform` job; an OS leg sets VERIFY_SKIP_PLATFORM_CHECKS=1 so it does not
+    # pay for a second copy (#435). A local Windows run keeps the full gate.
+    if ($env:VERIFY_SKIP_PLATFORM_CHECKS -ne '1') {
+        Write-Host "`n==> format"
+        # CSharpier owns formatting; dotnet format keeps style and analyzer duties.
+        dotnet csharpier check .
+        if ($LASTEXITCODE -ne 0) { throw 'verify: format check failed (dotnet csharpier check .)' }
 
-    dotnet format style lunate.slnx --verify-no-changes --no-restore
-    if ($LASTEXITCODE -ne 0) { throw 'verify: style check failed' }
+        dotnet format style lunate.slnx --verify-no-changes --no-restore
+        if ($LASTEXITCODE -ne 0) { throw 'verify: style check failed' }
 
-    dotnet format analyzers lunate.slnx --verify-no-changes --no-restore
-    if ($LASTEXITCODE -ne 0) { throw 'verify: analyzers check failed' }
+        dotnet format analyzers lunate.slnx --verify-no-changes --no-restore
+        if ($LASTEXITCODE -ne 0) { throw 'verify: analyzers check failed' }
 
-    Write-Host "`n==> docs lint"
-    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        throw 'verify: Node.js is required for the documentation lint step; install Node.js (npx runs the pinned markdownlint-cli2)'
+        Write-Host "`n==> docs lint"
+        if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+            throw 'verify: Node.js is required for the documentation lint step; install Node.js (npx runs the pinned markdownlint-cli2)'
+        }
+        npx --yes markdownlint-cli2@0.23.3
+        if ($LASTEXITCODE -ne 0) { throw 'verify: documentation lint failed' }
+
+        Write-Host "`n==> public API"
+        # Compare against the merge base with origin/main, then main, then HEAD
+        # (working tree only) when neither exists.
+        $base = git merge-base HEAD origin/main 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            $base = git merge-base HEAD main 2>$null
+        }
+        if ($LASTEXITCODE -ne 0) {
+            $base = 'HEAD'
+            [Console]::Error.WriteLine('note: no main ref found; comparing the working tree only')
+        }
+        # Edits and deletions of existing Shipped files fail; a newly added
+        # tracking file is the bootstrap path and does not trip the gate.
+        git diff --exit-code --diff-filter=MD $base -- '*PublicAPI.Shipped.txt'
+        if ($LASTEXITCODE -ne 0) { throw "verify: PublicAPI.Shipped.txt changed relative to $base" }
     }
-    npx --yes markdownlint-cli2@0.23.3
-    if ($LASTEXITCODE -ne 0) { throw 'verify: documentation lint failed' }
-
-    Write-Host "`n==> public API"
-    # Compare against the merge base with origin/main, then main, then HEAD
-    # (working tree only) when neither exists.
-    $base = git merge-base HEAD origin/main 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        $base = git merge-base HEAD main 2>$null
-    }
-    if ($LASTEXITCODE -ne 0) {
-        $base = 'HEAD'
-        [Console]::Error.WriteLine('note: no main ref found; comparing the working tree only')
-    }
-    # Edits and deletions of existing Shipped files fail; a newly added
-    # tracking file is the bootstrap path and does not trip the gate.
-    git diff --exit-code --diff-filter=MD $base -- '*PublicAPI.Shipped.txt'
-    if ($LASTEXITCODE -ne 0) { throw "verify: PublicAPI.Shipped.txt changed relative to $base" }
 
     Write-Host 'verify: OK'
 }
