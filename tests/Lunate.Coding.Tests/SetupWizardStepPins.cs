@@ -293,6 +293,8 @@ public sealed class SetupWizardStepPins
                 host.Console.SendText("for staged edit batches");
             }
 
+            // Typing restarts the arm window too; advance past it before Enter.
+            host.Advance(500);
             host.Console.SendEnter();
         }
 
