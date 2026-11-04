@@ -725,6 +725,8 @@ internal sealed partial class InteractiveSession
             WizardModelListing entry = _listing[values.IndexOf(chosen)];
             modelId = entry.Id;
             familyName = entry.ApiFamily ?? provider.ApiFamily;
+            wizard.RecordModel(new WizardModelChoice(modelId, familyName, entry.Reasoning));
+            return WizardMove.Advance;
         }
 
         wizard.RecordModel(new WizardModelChoice(modelId, familyName));
@@ -964,8 +966,11 @@ internal sealed partial class InteractiveSession
         }
 
         ModelInfo model = CheckModel(wizard, choice);
+        // The model declares its reasoning style in the discovery listing's per-model metadata
+        // when it served one; the catalog's entries carry the same declaration for known models.
+        string? declared = choice.Reasoning ?? model.Reasoning;
         string? level = null;
-        if (model.Reasoning is "effort" or "budget")
+        if (declared is "effort" or "budget")
         {
             string? selected = await PickAsync(
                     $"Thinking level for {choice.ModelId}",

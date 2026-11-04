@@ -270,5 +270,9 @@ public sealed class SetupWizardSessionTests
 
         await host.WaitForFrameAsync("Decisions settings");
         host.Console.SendEnter(); // accept the defaults (nothing written for the layer)
+
+        // gpt-3.5-turbo declares no reasoning style in the listing or the catalog, so the walk
+        // never asks the thinking question (spec: Thinking offers only supported levels).
+        Assert.DoesNotContain("Thinking level for", host.Frames, StringComparison.Ordinal);
     }
 }

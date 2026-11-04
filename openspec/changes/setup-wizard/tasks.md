@@ -26,7 +26,7 @@ proposal, each with tests and a green gate before the next starts. The provider-
       (endpoint, API family defaulting to `openai-chat`, credential placement defaulting per family,
       optional models URL, region — shown from the preset, asked for custom; unknown family refused
       by name).
-- [ ] 2.3 Credential step: when the provider's standard variable is set (`OPENAI_API_KEY`,
+- [x] 2.3 Credential step: when the provider's standard variable is set (`OPENAI_API_KEY`,
       `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, …), offer
       "use `<VAR>` from the environment" first and store `env:<VARIABLE>`; otherwise the masked
       prompt, `env:` / `auth:` reference forms and the `--key-stdin`-equivalent script answer. The
@@ -47,14 +47,14 @@ proposal, each with tests and a green gate before the next starts. The provider-
 
 ## 3. Wizard steps — profiles, decisions, summary, commit
 
-- [ ] 3.1 Chat profile step: name (validated like `SettingsStore.Profiles` names) and thinking level
+- [x] 3.1 Chat profile step: name (validated like `SettingsStore.Profiles` names) and thinking level
       restricted to the levels the chosen model declares; the question is skipped for a model with no
       reasoning style; writing `profiles.*.reasoningLevel`.
-- [ ] 3.2 Optional fast and decision profile steps default to skip; a decision profile is offered as
+- [x] 3.2 Optional fast and decision profile steps default to skip; a decision profile is offered as
       native Jev with the preset's pinned version when the provider exposes the `systemone` family,
       otherwise as an adapter labelled in the picker and summary; a chosen profile binds
       `decisions.profile` without enabling any consumer.
-- [ ] 3.3 Decisions step: every switch shown with its `off`/unset default and one explanatory line;
+- [x] 3.3 Decisions step: every switch shown with its `off`/unset default and one explanatory line;
       accepting defaults writes nothing for the layer; when routing is enabled, ask each routing
       profile for a description (what it is for, what it is not, an example) and warn once if one is
       blank.
@@ -64,7 +64,7 @@ proposal, each with tests and a green gate before the next starts. The provider-
 - [x] 3.5 Commit: one pass through `AuthStore`, the provider store save path and new
       `SettingsStore` profile/usage writers (`WriteTui`-style read-parse-write preserving untouched
       sections and `schemaVersion`); no wizard-owned JSON emitter.
-- [ ] 3.6 The abort test: skip everything, abort at the summary, `providers.json`, `settings.json`
+- [x] 3.6 The abort test: skip everything, abort at the summary, `providers.json`, `settings.json`
       and `auth.json` byte-identical; and the skip-everything-confirm case writes nothing and loads
       as a valid empty configuration.
 - [x] 3.7 A settings-writer pinning test fails if the wizard grows a second writer for its keys.

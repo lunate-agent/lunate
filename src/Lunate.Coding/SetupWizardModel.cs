@@ -58,9 +58,15 @@ internal sealed record WizardCredentialChoice(string Reference, string? Key = nu
 
 /// <summary>
 /// The model step's answer: the model id (from discovery's listing, or typed manually when
-/// discovery is unavailable or skipped) and the resolved API family shown beside it.
+/// discovery is unavailable or skipped), the resolved API family shown beside it, and the
+/// reasoning style the model declares — the discovery listing's per-model metadata when it
+/// declared one, falling back to the catalog's. A manually typed id carries none.
 /// </summary>
-internal sealed record WizardModelChoice(string ModelId, string ApiFamily);
+internal sealed record WizardModelChoice(
+    string ModelId,
+    string ApiFamily,
+    string? Reasoning = null
+);
 
 /// <summary>
 /// The chat profile step's answer: the profile name, the model it runs, and the reasoning level
