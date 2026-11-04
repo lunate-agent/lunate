@@ -8,7 +8,6 @@ public sealed class SetupWizardCollection
     public const string Name = "setup-wizard";
 }
 
-
 /// <summary>
 /// The wizard's staged-state rules (spec: The full walk; Nothing written before the summary
 /// confirms): answers stage in memory, a step failed by a check goes back without losing later

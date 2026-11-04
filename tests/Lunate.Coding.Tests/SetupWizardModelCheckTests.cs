@@ -125,7 +125,9 @@ public sealed class SetupWizardModelCheckTests
         await host.WaitForFrameAsync("Select provider");
         for (var row = 0; row < ProviderPresets.All.Count; row++)
         {
-            host.Console.Send(new Lunate.Tui.KeyEvent(Lunate.Tui.KeyKind.Down, null, false, false, false));
+            host.Console.Send(
+                new Lunate.Tui.KeyEvent(Lunate.Tui.KeyKind.Down, null, false, false, false)
+            );
         }
 
         await host.WaitForFrameAsync("> Custom OpenAI-compatible endpoint…");
