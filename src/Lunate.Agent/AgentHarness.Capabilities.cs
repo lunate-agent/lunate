@@ -42,11 +42,19 @@ public sealed partial class AgentHarness
     {
         if (known is not null && !known.Contains(required))
         {
-            throw new InvalidOperationException(
+            throw new CapabilityRequirementException(
                 $"model {model.Id} doesn't support required {category} '{required}'."
             );
         }
     }
+
+    /// <summary>
+    /// A known capability fact rules out the usage its profile was resolved for. Consumers catch
+    /// it to record the refusal and leave the ordinary flow in charge, so a misconfigured profile
+    /// degrades to "the layer is off" instead of a tool or turn failure.
+    /// </summary>
+    private sealed class CapabilityRequirementException(string message)
+        : InvalidOperationException(message) { }
 
     private static bool HasImageContent(IEnumerable<ChatMessage> messages) =>
         messages

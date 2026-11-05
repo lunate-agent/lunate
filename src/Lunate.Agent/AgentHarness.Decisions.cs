@@ -26,20 +26,20 @@ public sealed partial class AgentHarness
 
         bool native =
             model.Model.ApiType == "native" && DecisionClientResolver.HasNativeClient(model.Client);
-        if (!native)
-        {
-            RequireCapability(
-                model.Model,
-                model.Model.Capabilities?.Features,
-                "structured-output",
-                "feature"
-            );
-        }
-
         string modelId = model.Model.Id;
         string method = native ? "native" : "adapter";
         try
         {
+            if (!native)
+            {
+                RequireCapability(
+                    model.Model,
+                    model.Model.Capabilities?.Features,
+                    "structured-output",
+                    "feature"
+                );
+            }
+
             DecisionResponse response = await DecisionEngine.EvaluateAsync(
                 request,
                 model.Client,
@@ -84,18 +84,14 @@ public sealed partial class AgentHarness
         {
             throw;
         }
+        catch (CapabilityRequirementException exception)
+        {
+            EmitDecisionFailures(runId, modelId, request, exception.Message, channel);
+            throw;
+        }
         catch (InvalidDataException exception)
         {
-            foreach (DecisionQuestion question in request.Questions)
-            {
-                channel.Emit(
-                    new DecisionFailed(runId, modelId, exception.Message)
-                    {
-                        QuestionId = question.Id,
-                    }
-                );
-            }
-
+            EmitDecisionFailures(runId, modelId, request, exception.Message, channel);
             throw;
         }
     }
@@ -111,6 +107,19 @@ public sealed partial class AgentHarness
         string reason =
             exception is DecisionTransportException ? exception.Message : "provider request failed";
         return _options.Session?.Redactor.Redact(reason) ?? reason;
+
+    private static void EmitDecisionFailures(
+        string runId,
+        string modelId,
+        DecisionRequest request,
+        string reason,
+        AgentEventChannel channel
+    )
+    {
+        foreach (DecisionQuestion question in request.Questions)
+        {
+            channel.Emit(new DecisionFailed(runId, modelId, reason) { QuestionId = question.Id });
+        }
     }
 
     private static string? DecisionStateSizeWarning(JsonElement state)
