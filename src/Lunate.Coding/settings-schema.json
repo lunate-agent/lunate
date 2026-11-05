@@ -242,7 +242,7 @@
       "type": "string",
       "default": "bearer",
       "scope": "user",
-      "description": "How the credential is sent: `bearer`, `x-api-key`, `header:<name>` or `query:<name>` (or the equivalent object form). Definitions live in user settings only."
+      "description": "How the credential is sent: `bearer`, `x-api-key`, `header:<name>`, `header:<name>;scheme=<scheme>` (for example `header:Authorization;scheme=Token`) or `query:<name>` (or the equivalent object form). Definitions live in user settings only."
     },
     {
       "name": "providers.*.headers",

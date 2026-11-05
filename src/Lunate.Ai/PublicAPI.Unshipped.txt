@@ -121,6 +121,7 @@ Lunate.Ai.ProviderEntry.CredentialReference.get -> string!
 Lunate.Ai.ProviderEntry.CredentialReference.init -> void
 Lunate.Ai.ProviderEntry.DefaultFamily.get -> Lunate.Ai.ProviderApiFamily
 Lunate.Ai.ProviderEntry.Equals(Lunate.Ai.ProviderEntry? other) -> bool
+Lunate.Ai.ProviderEntry.ChatFamilies.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.ProviderApiFamily>!
 Lunate.Ai.ProviderEntry.Families.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.ProviderApiFamily>!
 Lunate.Ai.ProviderEntry.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 Lunate.Ai.ProviderEntry.Headers.init -> void
@@ -144,6 +145,7 @@ Lunate.Ai.ProviderPreset.BaseUrls.get -> System.Collections.Generic.IReadOnlyDic
 Lunate.Ai.ProviderPreset.BaseUrls.init -> void
 Lunate.Ai.ProviderPreset.DefaultFamily.get -> Lunate.Ai.ProviderApiFamily
 Lunate.Ai.ProviderPreset.Equals(Lunate.Ai.ProviderPreset? other) -> bool
+Lunate.Ai.ProviderPreset.ChatFamilies.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.ProviderApiFamily>!
 Lunate.Ai.ProviderPreset.Families.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.ProviderApiFamily>!
 Lunate.Ai.ProviderPreset.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 Lunate.Ai.ProviderPreset.Headers.init -> void

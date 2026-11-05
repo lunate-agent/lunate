@@ -123,6 +123,7 @@ public sealed class ProviderHeaderModelTests
     [InlineData("x-api-key")]
     [InlineData("query:key")]
     [InlineData("header:api-key")]
+    [InlineData("header:Authorization;scheme=Token")]
     public void Compact_placement_forms_parse(string compact)
     {
         bool parsed = CredentialPlacement.TryParseCompact(
@@ -166,6 +167,8 @@ public sealed class ProviderHeaderModelTests
         CredentialPlacement placement = placements![ProviderApiFamily.OpenAiChat];
         Assert.Equal("api-key", placement.Name);
         Assert.Equal("Shared ", placement.Scheme); // One trailing space, as the header value needs.
+        // The compact form keeps the scheme for the profile path: only the name would send a bare key.
+        Assert.Equal("header:api-key;scheme=Shared", placement.ToCompact());
     }
 
     [Fact]

@@ -156,6 +156,82 @@ public sealed class ChatClientFactoryFamilyTests
         Assert.Equal("stored-key", credential);
     }
 
+    [Theory]
+    [InlineData("openrouter", "OPENROUTER_API_KEY")]
+    [InlineData("opencode", "OPENCODE_API_KEY")]
+    public void A_model_without_a_family_on_a_systemone_preset_resolves_the_single_chat_family(
+        string providerId,
+        string keyVariable
+    )
+    {
+        using var environment = new EnvironmentScope(
+            (keyVariable, "fixture-only-key"),
+            ("LUNATE_OTEL", null),
+            ("OTEL_EXPORTER_OTLP_ENDPOINT", null)
+        );
+        var factory = new ChatClientFactory(new MarkingLoggerFactory(static () => { }));
+        var model = new ModelInfo("foo", providerId, Endpoint: null, ContextWindow: 8192, true)
+        {
+            ApiFamily = null,
+        };
+
+        IChatClient client = factory.Create(model);
+
+        string leaf = WalkChain(client)[^1].GetType().FullName ?? "";
+        Assert.Contains("OpenAIChatClient", leaf, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_chat_families_view_excludes_only_the_decision_family()
+    {
+        ProviderPreset openrouter = ProviderPresets.Find("openrouter")!;
+        ProviderPreset opencode = ProviderPresets.Find("opencode")!;
+        ProviderPreset go = ProviderPresets.Find("opencode-go")!;
+
+        Assert.Equal([ProviderApiFamily.OpenAiChat], openrouter.ChatFamilies);
+        Assert.Equal([ProviderApiFamily.OpenAiChat], opencode.ChatFamilies);
+        Assert.Equal(
+            [
+                ProviderApiFamily.OpenAiChat,
+                ProviderApiFamily.OpenAiResponses,
+                ProviderApiFamily.AnthropicMessages,
+                ProviderApiFamily.Google,
+            ],
+            go.ChatFamilies
+        );
+        Assert.Contains(ProviderApiFamily.SystemOne, openrouter.Families);
+    }
+
+    [Fact]
+    public void A_multi_chat_family_ambiguity_names_models_json()
+    {
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            ProviderFamilyResolver.Resolve(
+                declaredFamily: null,
+                [ProviderApiFamily.OpenAiChat, ProviderApiFamily.Google],
+                "gateway",
+                "m"
+            )
+        );
+
+        Assert.Contains("chat API family", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("models.json", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("systemone", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_systemone_family_in_the_offered_set_never_counts_as_a_chat_answer()
+    {
+        ProviderApiFamily family = ProviderFamilyResolver.Resolve(
+            declaredFamily: null,
+            [ProviderApiFamily.OpenAiChat, ProviderApiFamily.SystemOne],
+            "openrouter",
+            "openrouter/foo"
+        );
+
+        Assert.Equal(ProviderApiFamily.OpenAiChat, family);
+    }
+
     private static IChatClient[] WalkChain(IChatClient client)
     {
         var chain = new List<IChatClient>();
