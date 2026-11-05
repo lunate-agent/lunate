@@ -176,7 +176,8 @@ public sealed class NoExtensionsTests
                 NoExtensions = true,
             },
             mcpConfigPath: config,
-            mcpAgentsConfigPath: temp.File("agents-mcp.json")
+            mcpAgentsConfigPath: temp.File("agents-mcp.json"),
+            launch: new LaunchOptions { Model = PrintModeTestSupport.ModelId }
         );
 
         Assert.Equal(0, exitCode);

@@ -42,11 +42,16 @@ internal static class SetupState
         ArgumentNullException.ThrowIfNull(providers);
 
         return providers.Count == 0 ? Reason.NoProvider
-            : ResolvableChat(settings) ? Reason.NotApplicable
+            : HasChatAnswer(settings) ? Reason.NotApplicable
             : Reason.NoChatProfile;
     }
 
-    private static bool ResolvableChat(AgentSettings settings) =>
+    /// <summary>
+    /// Whether a chat model resolves at all: <c>usages.chat</c> names a profile the settings file
+    /// configures, or a <c>model</c> default exists. The machine modes ask this one question before
+    /// they start — a machine without a chat answer is the one the configure-it refusal names.
+    /// </summary>
+    internal static bool HasChatAnswer(AgentSettings settings) =>
         (
             settings.Usages.TryGetValue(ChatUsage, out string? profileName)
             && settings.Profiles.ContainsKey(profileName)

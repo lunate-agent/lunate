@@ -104,6 +104,25 @@ internal static class Cli
                 setup = setup with { StdinIsTerminal = setupTerminal };
             }
 
+            // `lunate setup` on a terminal with no flags is the wizard (spec: Setup command line):
+            // the entry menu `/setup` opens on a configured install, the walk bare `lunate` opens
+            // on a first run. Flags keep the scripted walk; a flagless run without a terminal
+            // refuses inside SetupCommand instead of opening a wizard nobody can answer.
+            if (args.Length == 1 && (setup.StdinIsTerminal ?? !Console.IsInputRedirected))
+            {
+                return RunInteractive(
+                    errors,
+                    ct,
+                    interactiveOptions,
+                    noExtensions ? Suppress(extensions) : extensions,
+                    new LaunchOptions(),
+                    updateCheck,
+                    hardlinkScanRoot,
+                    hardlinkScanFileSystem,
+                    setupOnStart: true
+                );
+            }
+
             return SetupCommand.Run(args[1..], output, errors, setup, ct);
         }
 
@@ -312,7 +331,8 @@ internal static class Cli
         LaunchOptions launch,
         UpdateCheckSeams? updateCheck,
         string? hardlinkScanRoot,
-        IHardlinkScanFileSystem? hardlinkScanFileSystem
+        IHardlinkScanFileSystem? hardlinkScanFileSystem,
+        bool setupOnStart = false
     )
     {
         IConsoleIO console;
@@ -349,10 +369,20 @@ internal static class Cli
             UpdateCheck = updateSeams,
             HardlinkScanRoot = options?.HardlinkScanRoot ?? hardlinkScanRoot,
             HardlinkScanFileSystem = options?.HardlinkScanFileSystem ?? hardlinkScanFileSystem,
+            SetupOnStart = setupOnStart || resolved.SetupOnStart,
         };
 
         if (ConsoleSupport.Check(console) is { } unsupportedMode)
         {
+            // A piped start on a machine with no chat answer is the configure-it case: the one
+            // refusal names `lunate setup` and its flags and exits 2, instead of sending the user
+            // to print mode on a machine print mode cannot run either (spec: The wizard trigger).
+            if (NeedsSetup(options))
+            {
+                errors.WriteLine($"lunate: {SetupRefusal.Text}");
+                return SetupRefusal.ExitCode;
+            }
+
             errors.WriteLine($"lunate: {unsupportedMode}; use lunate -p \"<prompt>\"");
             return 2;
         }
@@ -360,6 +390,25 @@ internal static class Cli
         using var session = new InteractiveSession(resolved);
         session.RunAsync(ct).GetAwaiter().GetResult();
         return session.ExitCode;
+    }
+
+    /// <summary>
+    /// The piped/interactive refusal's one question, asked from configuration alone: does this
+    /// machine have a chat answer at all? A settings file that does not load is the session's own
+    /// error to report, so the terminal hint stands and composition reports it.
+    /// </summary>
+    private static bool NeedsSetup(InteractiveSessionOptions? options)
+    {
+        try
+        {
+            return SetupRefusal.Applies(
+                SettingsStore.Resolve(options?.SettingsPath, options?.Environment)
+            );
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return false;
+        }
     }
 
     private static int Discover(string target, TextWriter output, TextWriter errors)

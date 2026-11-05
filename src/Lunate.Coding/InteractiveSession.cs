@@ -37,6 +37,14 @@ internal sealed partial record InteractiveSessionOptions
     /// </summary>
     internal bool SuppressSetupWizard { get; init; }
 
+    /// <summary>
+    /// <c>lunate setup</c> on a terminal: the session opens the setup wizard once the first frame
+    /// is live — the entry menu on a configured install, the full walk on a first run — instead of
+    /// waiting for input. The CLI sets it from the setup dispatch; a bare <c>lunate</c> leaves it
+    /// false and keeps the trigger's own rule.
+    /// </summary>
+    internal bool SetupOnStart { get; init; }
+
     /// <summary>The terminal the session reads keys from and paints the live area through.</summary>
     public required IConsoleIO Console { get; init; }
 
@@ -133,6 +141,13 @@ internal sealed partial record InteractiveSessionOptions
 /// </summary>
 internal sealed partial class InteractiveSession : IDisposable
 {
+    /// <summary>
+    /// The model id a session runs with while the setup wizard applies and no chat answer exists
+    /// yet (spec: The wizard trigger): a placeholder, never a catalog entry, so no usage client,
+    /// no credential probe and no request can be built from it.
+    /// </summary>
+    internal const string NotConfiguredModelId = "(not configured)";
+
     private readonly InteractiveSessionOptions _options;
     private readonly IConsoleIO _console;
     private readonly IScheduler _scheduler;
@@ -350,6 +365,13 @@ internal sealed partial class InteractiveSession : IDisposable
                 if (_options.StartWithPicker || _options.Launch.Resume)
                 {
                     OpenSessionPicker();
+                }
+                else if (_options.SetupOnStart)
+                {
+                    // `lunate setup` on a terminal (spec: Setup command line): the same entry
+                    // `/setup` opens — the entry menu on a configured install, the full walk on a
+                    // first run — never the flag walk with every step skipped.
+                    HandleSetupCommand();
                 }
                 else if (WantsSetupWizard())
                 {
@@ -694,7 +716,13 @@ internal sealed partial class InteractiveSession : IDisposable
                 // A machine the setup wizard applies to (design §1) has no chat answer yet: the
                 // composition succeeds, the trigger opens the walk once the first frame is live,
                 // and the walk's commit re-resolves. The placeholder runs no request.
-                _model = new ModelInfo("(not configured)", string.Empty, Endpoint: null, 0, false);
+                _model = new ModelInfo(
+                    NotConfiguredModelId,
+                    string.Empty,
+                    Endpoint: null,
+                    0,
+                    false
+                );
                 _ = exception;
             }
         }
@@ -1008,11 +1036,15 @@ internal sealed partial class InteractiveSession : IDisposable
     /// creation to the first request, so composition finishes and the first-run auth picker can
     /// open; a saved key is then what the deferred factory resolves. Every other path creates
     /// eagerly, so a missing credential stays the explicit composition error it has always been.
+    /// The wizard's placeholder defers too: a request before the walk's commit explains itself
+    /// instead of failing on a model id the catalog never had.
     /// </summary>
     private IChatClient CreateSessionClient(ModelInfo model) =>
-        HasMissingCredential(model)
+        string.Equals(model.Id, NotConfiguredModelId, StringComparison.Ordinal)
+            ? new DeferredChatClient(() => throw new SetupRequiredException())
+        : HasMissingCredential(model)
             ? new DeferredChatClient(() => _factory.Create(model, SessionRequestContext()))
-            : _factory.Create(model, SessionRequestContext());
+        : _factory.Create(model, SessionRequestContext());
 
     /// <summary>The session's request identity: the id children and runs resolve their templates against.</summary>
     private RequestContext? SessionRequestContext() =>

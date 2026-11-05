@@ -17,7 +17,7 @@ the wizard opens instead of the prompt:
 - **Connection test** — one discovery request to the provider's models URL; skippable.
 - **Model** — search the discovered list or enter an id manually.
 - **Model check** — one minimal completion that verifies the resolved family; it costs one short
-  request, and `--no-model-check` / the skip row avoids it.
+  request, and `--no-model-check`, `--no-test` or the skip row avoids it.
 - **Chat profile and thinking** — the name the session uses and the reasoning level the model
   declares.
 - **Fast and decision profiles** — optional; both default to skip.
@@ -30,8 +30,10 @@ several stores; the entry menu below writes only the answers it collects.
 ## `lunate setup` — non-interactive and scripted
 
 `lunate setup` runs the same walk without a TTY. Every answer is a flag; an absent flag skips its
-step and invents nothing. The connection test and model check run unless suppressed. The summary
-goes to stdout and never contains a credential.
+step and invents nothing. The connection test and the model check run unless suppressed: `--no-test`
+sends no provider request at all (it skips both), while `--no-model-check` skips only the paid model
+check and keeps the free discovery request. The summary goes to stdout and never contains a
+credential.
 
 ```bash
 printf '%s\n' "$OPENAI_API_KEY" |
@@ -42,9 +44,10 @@ printf '%s\n' "$OPENAI_API_KEY" |
 
 The flag set is `--provider`, `--endpoint`, `--api-family`, `--credential-placement`,
 `--models-url`, `--credential` (an `env:`/`auth:` reference), `--key-stdin`, `--model`, `--profile`,
-`--thinking`, `--fast`, `--as-decision`, `--no-test`, `--no-model-check`, and `--force`. A run
-without a terminal exits 2 and names the missing answer when a value needs interaction; 0 after a
-real commit or a no-op; 1 for a store/load failure.
+`--thinking`, `--fast`, `--as-decision`, `--no-test` (offline: skips the connection test and the
+model check, so no provider request is sent), `--no-model-check` (skips the model check only), and
+`--force`. A run without a terminal exits 2 and names the missing answer when a value needs
+interaction; 0 after a real commit or a no-op; 1 for a store/load failure.
 
 ## `/setup` — re-run from a session
 
