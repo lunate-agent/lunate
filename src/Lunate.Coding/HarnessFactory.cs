@@ -329,10 +329,9 @@ internal static class HarnessFactory
     {
         if (string.IsNullOrWhiteSpace(modelId))
         {
-            throw new InvalidOperationException(
-                "No model is configured. Set 'model' in ~/.lunate/settings.json, set LUNATE_MODEL, "
-                    + "or run lunate --discover <name-or-url> to draft a catalog entry."
-            );
+            // The machine has no chat answer: name the command that configures one (spec: The
+            // wizard trigger), never the settings key the command writes.
+            throw new SetupRequiredException();
         }
 
         try

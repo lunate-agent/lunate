@@ -110,18 +110,29 @@ internal static partial class SetupCommand
         ModelCatalog catalog = HarnessFactory.LoadCatalog(settings, seams.ModelsPath);
         DecideAnswers(answers, wizard, catalog);
         IChatClientFactory factory = seams.ChatFactory ?? HarnessFactory.CreateFactory(auth);
-        if (wizard.Model is not null && !answers.NoModelCheck && wizard.Provider is not null)
+        if (wizard.Model is not null && wizard.Provider is not null)
         {
-            WizardCheckResult check = await WizardModelCheck
-                .RunAsync(
-                    wizard,
-                    catalog,
-                    factory,
-                    () => ResolveCredential(wizard.Credential, auth, environment.Resolve),
-                    ct
-                )
-                .ConfigureAwait(false);
-            wizard.RecordModelCheck(check);
+            if (answers.NoTest || answers.NoModelCheck)
+            {
+                // `--no-test` is the switch a script reaches for to keep a run offline: it skips
+                // the connection test and the paid model check together, and the summary names
+                // the model unverified. `--no-model-check` stays the narrower switch that skips
+                // only the check (S-19).
+                wizard.RecordModelCheck(new WizardCheckResult(WizardProgress.Skipped));
+            }
+            else
+            {
+                WizardCheckResult check = await WizardModelCheck
+                    .RunAsync(
+                        wizard,
+                        catalog,
+                        factory,
+                        () => ResolveCredential(wizard.Credential, auth, environment.Resolve),
+                        ct
+                    )
+                    .ConfigureAwait(false);
+                wizard.RecordModelCheck(check);
+            }
         }
 
         foreach (string line in SetupWizardSummary.Render(wizard))

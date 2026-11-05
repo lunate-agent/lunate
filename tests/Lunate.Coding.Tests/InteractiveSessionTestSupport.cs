@@ -603,51 +603,56 @@ internal sealed class InteractiveSessionHost : IDisposable
         // console in the constructor, so the tests that need a colour-sensing session pass
         // <c>interactiveConsole: true</c> and set their colour environment explicitly.
         Console = new ScriptedConsoleIO { IsInteractive = interactiveConsole };
-        Session = new InteractiveSession(
-            new InteractiveSessionOptions
-            {
-                Factory = factory ?? new FakeChatClientFactory(chat ?? Client),
-                SettingsPath = Temp.File("settings.json"),
-                ModelsPath = modelsPath ?? Temp.File("models.json"),
-                AuthPath = Temp.File("auth.json"),
-                SessionDirectory = Temp.File("sessions"),
-                WorkingDirectory = workingDirectory ?? Temp.Root,
-                HistoryPath = Temp.File("history"),
-                HomeDirectory = homeDirectory ?? Temp.File("home"),
-                Environment = environment ?? PrintModeTestSupport.Environment(),
-                SuppressSetupWizard = !freshInstall,
-                Console = Console,
-                Scheduler = Scheduler,
-                Scrollback = Scrollback,
-                Hooks = hooks,
-                ToolResultRenderers = toolResultRenderers,
-                StatusWidgets = statusWidgets,
-                Extensions = extensions ?? TestExtensionSeams.Empty(Temp),
-                McpConfigPath = mcpConfigPath ?? Temp.File("global-mcp.json"),
-                McpAgentsConfigPath = mcpAgentsConfigPath ?? Temp.File("agents-mcp.json"),
-                Diagnostics = _diagnostics,
-                ConfigureHarness = configureHarness,
-                WorkspaceFiles = workspaceFiles,
-                EventObserver = Observe,
-                Launch = launch ?? new LaunchOptions(),
-                StartSession = startSession,
-                StartWithPicker = startWithPicker,
-                SessionsRoot = sessionsRoot ?? Temp.File("sessions"),
-                SecretPrompt = secretPrompt,
-                Clipboard = clipboard,
-                TextClipboard = textClipboard,
-                Clock = clock,
-                EditorTempDirectory = editorTempDirectory,
-                UpdateCheck = updateCheck,
-                BashGuardProbe = bashGuardProbe ?? Fake.Unix(macOs: false),
-                HardlinkScanRoot = hardlinkScanRoot,
-                HardlinkScanFileSystem = hardlinkScanFileSystem,
-                DiscoveryTransport = discoveryTransport,
-            }
-        );
+        Options = new InteractiveSessionOptions
+        {
+            Factory = factory ?? new FakeChatClientFactory(chat ?? Client),
+            SettingsPath = Temp.File("settings.json"),
+            ModelsPath = modelsPath ?? Temp.File("models.json"),
+            AuthPath = Temp.File("auth.json"),
+            SessionDirectory = Temp.File("sessions"),
+            WorkingDirectory = workingDirectory ?? Temp.Root,
+            HistoryPath = Temp.File("history"),
+            HomeDirectory = homeDirectory ?? Temp.File("home"),
+            Environment = environment ?? PrintModeTestSupport.Environment(),
+            SuppressSetupWizard = !freshInstall,
+            Console = Console,
+            Scheduler = Scheduler,
+            Scrollback = Scrollback,
+            Hooks = hooks,
+            ToolResultRenderers = toolResultRenderers,
+            StatusWidgets = statusWidgets,
+            Extensions = extensions ?? TestExtensionSeams.Empty(Temp),
+            McpConfigPath = mcpConfigPath ?? Temp.File("global-mcp.json"),
+            McpAgentsConfigPath = mcpAgentsConfigPath ?? Temp.File("agents-mcp.json"),
+            Diagnostics = _diagnostics,
+            ConfigureHarness = configureHarness,
+            WorkspaceFiles = workspaceFiles,
+            EventObserver = Observe,
+            Launch = launch ?? new LaunchOptions(),
+            StartSession = startSession,
+            StartWithPicker = startWithPicker,
+            SessionsRoot = sessionsRoot ?? Temp.File("sessions"),
+            SecretPrompt = secretPrompt,
+            Clipboard = clipboard,
+            TextClipboard = textClipboard,
+            Clock = clock,
+            EditorTempDirectory = editorTempDirectory,
+            UpdateCheck = updateCheck,
+            BashGuardProbe = bashGuardProbe ?? Fake.Unix(macOs: false),
+            HardlinkScanRoot = hardlinkScanRoot,
+            HardlinkScanFileSystem = hardlinkScanFileSystem,
+            DiscoveryTransport = discoveryTransport,
+        };
+        Session = new InteractiveSession(Options);
     }
 
     public TempDirectory Temp { get; } = new();
+
+    /// <summary>
+    /// The options the host composed, for a test that drives a production entry (<c>Cli.Run</c>)
+    /// over the same temp paths and scripted console instead of constructing the session itself.
+    /// </summary>
+    public InteractiveSessionOptions Options { get; }
 
     public ScriptedConsoleIO Console { get; }
 
