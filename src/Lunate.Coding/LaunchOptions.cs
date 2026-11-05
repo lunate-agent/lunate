@@ -60,12 +60,6 @@ internal sealed record LaunchOptions
     /// <summary>Run the interactive session on the alternate screen; inline stays the default.</summary>
     public bool Fullscreen { get; init; }
 
-    /// <summary>
-    /// The user keymap file this run reads; null keeps the resolved default
-    /// (<c>LUNATE_KEYMAP</c>, else <c>keymap.json</c> in the home).
-    /// </summary>
-    public string? Keymap { get; init; }
-
     /// <summary>The print-mode prompt; null outside print mode.</summary>
     public string? Prompt { get; init; }
 
@@ -87,7 +81,6 @@ internal sealed record LaunchOptions
         var yolo = false;
         var offline = false;
         var fullscreen = false;
-        string? keymap = null;
         var resume = false;
         var noSession = false;
         var noTools = false;
@@ -135,12 +128,6 @@ internal sealed record LaunchOptions
                     break;
                 case "--fullscreen":
                     fullscreen = true;
-                    break;
-                case "--keymap":
-                    if (!TryValue(args, ref index, "--keymap", inline, out keymap, out error))
-                    {
-                        return false;
-                    }
                     break;
                 case "-c" or "--continue":
                     options = options with { Continue = true };
@@ -322,7 +309,6 @@ internal sealed record LaunchOptions
             Yolo = yolo,
             Offline = offline,
             Fullscreen = fullscreen,
-            Keymap = keymap,
             Prompt = print ? positional[0] : null,
         };
         return true;
