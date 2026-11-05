@@ -175,6 +175,30 @@ public sealed class InteractiveSessionFirstRunTests
             return !host.LastFrame.Contains(text, StringComparison.Ordinal);
         });
 
+    [PosixFact]
+    public async Task A_fresh_session_with_an_empty_model_value_opens_the_wizard_without_resolving_a_placeholder()
+    {
+        var factory = new ThrowingChatClientFactory();
+        using var host = new InteractiveSessionHost(
+            factory: factory,
+            freshInstall: true,
+            environment: _ => null
+        );
+        host.Console.IsInteractive = true;
+
+        Task run = host.RunAsync();
+        await WaitForFrameAsync(host, "setup: configure a provider");
+
+        Assert.Equal(0, factory.Creates);
+        Assert.DoesNotContain("not in the catalog", host.Frames, StringComparison.Ordinal);
+
+        host.Console.SendEscape();
+        await WaitForFrameGoneAsync(host, "setup: configure a provider");
+        host.Console.SendText("/quit");
+        host.Console.SendEnter();
+        await run;
+    }
+
     /// <summary>
     /// A factory whose creation fails the way a missing credential does; the deferred client makes
     /// the failure happen on the first request instead of during composition.

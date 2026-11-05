@@ -688,8 +688,8 @@ internal sealed partial class InteractiveSession : IDisposable
             {
                 _model = HarnessFactory.ResolveModel(configured, _catalog);
             }
-            catch (InvalidOperationException exception)
-                when (WantsSetupWizard() && configured is null)
+            catch (Exception exception)
+                when (WantsSetupWizard() && string.IsNullOrWhiteSpace(configured))
             {
                 // A machine the setup wizard applies to (design §1) has no chat answer yet: the
                 // composition succeeds, the trigger opens the walk once the first frame is live,
@@ -1021,10 +1021,12 @@ internal sealed partial class InteractiveSession : IDisposable
     /// <summary>
     /// Whether this terminal session's model has no usable credential, so the deferred client and
     /// the first-run offer apply. A non-terminal session keeps the eager creation and its explicit
-    /// composition error.
+    /// composition error. The setup placeholder has no provider to probe, so the wizard trigger
+    /// itself defers the client too: composition must finish before the walk can open.
     /// </summary>
     private bool HasMissingCredential(ModelInfo model) =>
-        _console.IsInteractive && ProviderKeyProbe.FixFor(model, _auth, _environment) is not null;
+        _console.IsInteractive
+        && (WantsSetupWizard() || ProviderKeyProbe.FixFor(model, _auth, _environment) is not null);
 
     /// <summary>
     /// The footer's model segment: for an extension-registered session model it shortens the

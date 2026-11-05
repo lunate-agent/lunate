@@ -15,6 +15,13 @@ internal sealed partial class InteractiveSession
             return null;
         }
 
+        // A first-run wizard session has no chat answer yet; the placeholder model is deferred
+        // until the walk commits, so there is no usage profile to resolve here.
+        if (WantsSetupWizard())
+        {
+            return null;
+        }
+
         string chatSelection = _settings.Usages.GetValueOrDefault("chat") ?? fallbackChat.Id;
         ResolvedModelProfile chat = ModelSelectionResolver.ResolveChatModel(
             chatSelection,
