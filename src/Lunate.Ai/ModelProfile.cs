@@ -84,7 +84,7 @@ internal static class ModelProfileResolver
             // preset's per-family URLs — System One among them — still route).
             family = ProviderFamilyResolver.Resolve(
                 profile.ApiFamily ?? model.ApiFamily,
-                provider.Families,
+                provider.ChatFamilies,
                 provider.Name,
                 model.Id
             );

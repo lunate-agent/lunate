@@ -51,6 +51,15 @@ public sealed record ProviderPreset(
             : [DefaultFamily];
 
     /// <summary>
+    /// The families a chat model may resolve to: <see cref="Families"/> without the decision-only
+    /// <see cref="ProviderApiFamily.SystemOne"/>. A provider that also offers System One serves
+    /// exactly one chat family that way, so an unannotated chat model still resolves instead of
+    /// failing as ambiguous.
+    /// </summary>
+    public IReadOnlyList<ProviderApiFamily> ChatFamilies =>
+        [.. Families.Where(static family => family != ProviderApiFamily.SystemOne)];
+
+    /// <summary>
     /// The URL a family routes to, or null when the preset does not declare it. Without
     /// <see cref="BaseUrls"/> only <see cref="DefaultFamily"/> resolves, to <see cref="BaseUrl"/>.
     /// </summary>

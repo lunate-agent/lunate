@@ -212,6 +212,55 @@ public sealed class ProviderWireTests
     }
 
     [Fact]
+    public async Task A_profile_placement_with_a_custom_scheme_keeps_the_scheme_on_the_wire()
+    {
+        using var environment = new EnvironmentScope(
+            ("OPENROUTER_API_KEY", "wire-probe-openrouter-key")
+        );
+        ModelCatalog catalog = ModelCatalog.Single(
+            new ModelInfo(
+                "openrouter/vendor/chat-model",
+                "openrouter",
+                Endpoint: null,
+                ContextWindow: 128_000,
+                true
+            )
+        );
+        var provider = new ProviderEntry(
+            "gateway",
+            "openrouter",
+            new Uri("https://openrouter.example.test/api/v1"),
+            "auth:gateway",
+            CredentialPlacements: new Dictionary<ProviderApiFamily, CredentialPlacement>
+            {
+                [ProviderApiFamily.OpenAiChat] = new(
+                    "Authorization",
+                    CredentialPlacementTarget.Header,
+                    "Token"
+                ),
+            }
+        );
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            new ModelProfile("main", "gateway", "openrouter/vendor/chat-model"),
+            [provider],
+            catalog
+        );
+
+        // The profile path carries the placement compactly; the scheme must survive that form.
+        Assert.Equal("header:Authorization;scheme=Token", resolved.Model.CredentialPlacement);
+
+        CapturingWire wire = CapturingWire.OpenAi();
+        IChatClient client = wire.Factory().Create(resolved.Model, "profile-key");
+        await client.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "Hi")],
+            options: null,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal("Token profile-key", wire.HeaderValues("Authorization").Single());
+    }
+
+    [Fact]
     public async Task The_anthropic_messages_wire_carries_x_api_key_and_drops_the_sdk_credential_header()
     {
         CapturingWire wire = CapturingWire.OpenAi();

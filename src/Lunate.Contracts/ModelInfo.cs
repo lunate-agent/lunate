@@ -53,7 +53,9 @@ public sealed record ModelInfo(
 
     /// <summary>
     /// The credential placement for the model's resolved API family, in the compact form
-    /// (<c>bearer</c>, <c>x-api-key</c>, <c>query:key</c>); null keeps the default bearer.
+    /// (<c>bearer</c>, <c>x-api-key</c>, <c>query:key</c>,
+    /// <c>header:Authorization;scheme=Token</c>); null keeps the default bearer. The scheme suffix
+    /// is what preserves a custom header scheme through the profile path.
     /// </summary>
     public string? CredentialPlacement { get; init; }
 

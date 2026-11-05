@@ -4,8 +4,10 @@ namespace Lunate.Ai;
 /// The family a model call routes through, shared by the profile resolver and the client
 /// factory. Precedence: an already-merged declared family (profile override, then discovery
 /// metadata, then the catalog annotation) wins; with nothing declared, the provider answers —
-/// and only when it serves exactly one family. Two families with no answer is an error naming
-/// the provider, the model and the families to choose from.
+/// and only when it serves exactly one chat family. Two chat families with no answer is an error
+/// naming the provider, the model and the families to choose from. The decision-only
+/// <c>systemone</c> family never counts as a chat answer, even when the caller hands in the
+/// provider's full family list.
 /// </summary>
 internal static class ProviderFamilyResolver
 {
@@ -29,15 +31,19 @@ internal static class ProviderFamilyResolver
             return family;
         }
 
-        if (offered is [ProviderApiFamily only])
+        IReadOnlyList<ProviderApiFamily> chatFamilies =
+        [
+            .. offered.Where(static family => family != ProviderApiFamily.SystemOne),
+        ];
+        if (chatFamilies is [ProviderApiFamily only])
         {
             return only;
         }
 
         throw new InvalidOperationException(
-            $"Model '{modelId}' on provider '{providerLabel}' serves more than one API family "
-                + $"({ProviderApiFamilies.NamesFor(offered)}); set 'apiFamily' on the model's profile "
-                + "or declare one family per provider entry."
+            $"Model '{modelId}' on provider '{providerLabel}' serves more than one chat API family "
+                + $"({ProviderApiFamilies.NamesFor(chatFamilies)}); set 'apiFamily' in the model's profile "
+                + "or models.json entry, or declare one family per provider entry."
         );
     }
 }
