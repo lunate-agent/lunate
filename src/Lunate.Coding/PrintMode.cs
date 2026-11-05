@@ -102,6 +102,9 @@ internal static class PrintMode
         AgentSettings settings;
         ModelInfo model;
         ModelCatalog catalog;
+        ChatModelSelection chat;
+        AuthStore auth;
+        IReadOnlyList<ProviderEntry> providers;
         IChatClientFactory factory;
         try
         {
@@ -117,10 +120,6 @@ internal static class PrintMode
             }
 
             catalog = HarnessFactory.LoadCatalog(settings, options.ModelsPath);
-            model = HarnessFactory.ResolveModel(settings.Model, catalog);
-            factory =
-                options.Factory
-                ?? HarnessFactory.CreateFactory(options.AuthPath, options.Environment);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -161,6 +160,13 @@ internal static class PrintMode
                 // This run creates a session file and reads its own settings and credentials under
                 // the store, so a root inside the workspace is refused before any of them.
                 LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
+                // The chat selection is the one every frontend resolves: usages.chat through the
+                // provider store, else the legacy top-level model. The provider entries load
+                // here, after the store guard, because both resolution paths may read them.
+                (auth, providers) = LoadProviderSources(options, settings);
+                chat = ChatModelResolver.Resolve(settings, providers, catalog);
+                model = chat.Model;
+                factory = options.Factory ?? HarnessFactory.CreateFactory(auth);
                 (Session? selected, string? selectionError) = ResolveSession(options, workspace);
                 if (selectionError is { } message)
                 {
@@ -279,6 +285,18 @@ internal static class PrintMode
             {
                 return 130;
             }
+            catch (UnknownModelException exception)
+            {
+                // An unknown --model is a launch usage error (design D1); an unknown configured
+                // model stays a run error.
+                interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
+                return options.Launch.Model is null ? 1 : 2;
+            }
+            catch (SetupRequiredException exception)
+            {
+                interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
+                return SetupRefusal.ExitCode;
+            }
             catch (Exception exception)
             {
                 interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
@@ -293,9 +311,11 @@ internal static class PrintMode
                     workspace,
                     session,
                     settings,
-                    model,
+                    chat,
                     catalog,
                     factory,
+                    auth,
+                    providers,
                     extensions,
                     mcpTools,
                     inheritedTools,
@@ -619,14 +639,34 @@ internal static class PrintMode
         }
     }
 
+    /// <summary>
+    /// The provider entries model resolution reads: the provider store layered over the auth
+    /// store, with the settings file's legacy <c>providers</c> section migrated in by the store.
+    /// </summary>
+    private static (AuthStore Auth, IReadOnlyList<ProviderEntry> Providers) LoadProviderSources(
+        PrintModeOptions options,
+        AgentSettings settings
+    )
+    {
+        AuthStore auth = AuthStore.Load(options.AuthPath, options.Environment);
+        ProviderStore providers = ProviderStore.Load(
+            AuthStore.ProviderStoreFilePath(options.AuthPath),
+            auth,
+            settings.Providers
+        );
+        return (auth, providers.Entries);
+    }
+
     private static AgentHarness CreateHarness(
         PrintModeOptions options,
         Workspace workspace,
         Session? session,
         AgentSettings settings,
-        ModelInfo model,
+        ChatModelSelection chat,
         ModelCatalog catalog,
         IChatClientFactory factory,
+        AuthStore auth,
+        IReadOnlyList<ProviderEntry> providers,
         ExtensionSession? extensions,
         IReadOnlyList<ITool> mcpTools,
         List<ITool> inheritedTools,
@@ -634,6 +674,7 @@ internal static class PrintMode
         Action<UserNotice> warn
     )
     {
+        ModelInfo model = chat.Model;
         var refusalTracker = new WriteVerificationRefusalTracker();
         CredentialRedactor redaction = HarnessFactory.CollectRedaction(
             options.AuthPath,
@@ -685,7 +726,7 @@ internal static class PrintMode
         // cannot resolve degrades to no gate with a visible warning, not a run error.
         UsageModelClient? decisionModel = DecisionUsageModels.ResolveDecisionModel(
             settings,
-            LoadSources,
+            () => (auth, providers),
             catalog,
             options.Environment ?? Environment.GetEnvironmentVariable,
             factory,
@@ -757,7 +798,12 @@ internal static class PrintMode
         };
 
         return new AgentHarness(
-            factory.Create(model, SessionContext(session)),
+            chat.CreateClient(
+                auth,
+                options.Environment ?? Environment.GetEnvironmentVariable,
+                factory,
+                SessionContext(session)
+            ),
             tools,
             harnessOptions
         );
@@ -765,17 +811,6 @@ internal static class PrintMode
         /// <summary>The session's request identity; a fileless run carries no id.</summary>
         RequestContext? SessionContext(Session? session) =>
             session is { } active ? new RequestContext(active.SessionId) : null;
-
-        (AuthStore, IReadOnlyList<ProviderEntry>) LoadSources()
-        {
-            AuthStore auth = AuthStore.Load(options.AuthPath, options.Environment);
-            ProviderStore providers = ProviderStore.Load(
-                AuthStore.ProviderStoreFilePath(options.AuthPath),
-                auth,
-                settings.Providers
-            );
-            return (auth, providers.Entries);
-        }
 
         // The profile clients load the stores only when routing is on, like the interactive
         // session's per-build resolution.
@@ -786,7 +821,6 @@ internal static class PrintMode
                 return null;
             }
 
-            (AuthStore auth, IReadOnlyList<ProviderEntry> providers) = LoadSources();
             return DecisionUsageModels.ResolveRoutingProfiles(
                 settings,
                 providers,

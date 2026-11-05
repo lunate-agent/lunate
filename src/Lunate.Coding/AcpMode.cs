@@ -275,13 +275,24 @@ internal static class AcpMode
             launch ?? new LaunchOptions()
         );
         ModelCatalog models = catalog ?? HarnessFactory.LoadCatalog(effective, null);
-        ModelInfo model = HarnessFactory.ResolveModel(effective.Model, models);
         IChatClientFactory clientFactory = factory ?? HarnessFactory.CreateFactory(null, null);
 
         var workspace = new Workspace(context.Cwd);
         // Every editor session may name its own root, so the refusal is re-asked here rather than
-        // trusted from serve start.
+        // trusted from serve start. The provider entries load only after it, because resolution
+        // reads the stores the guard protects.
         LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
+        AuthStore auth = AuthStore.Load(
+            authPath,
+            static name => Environment.GetEnvironmentVariable(name)
+        );
+        IReadOnlyList<ProviderEntry> providers = ProviderStore
+            .Load(AuthStore.ProviderStoreFilePath(authPath), auth, effective.Providers)
+            .Entries;
+        // The chat selection is the one every frontend resolves: usages.chat through the provider
+        // store, else the legacy top-level model.
+        ChatModelSelection chat = ChatModelResolver.Resolve(effective, providers, models);
+        ModelInfo model = chat.Model;
         CredentialRedactor redaction = HarnessFactory.CollectRedaction(
             authPath: null,
             environment: null,
@@ -334,7 +345,7 @@ internal static class AcpMode
         // resolve degrades to no gate with a visible warning, not a composition error.
         UsageModelClient? decisionModel = DecisionUsageModels.ResolveDecisionModel(
             effective,
-            LoadSources,
+            () => (auth, providers),
             models,
             name => Environment.GetEnvironmentVariable(name),
             clientFactory,
@@ -402,24 +413,15 @@ internal static class AcpMode
         };
 
         return new AgentHarness(
-            clientFactory.Create(model, new RequestContext(session.SessionId)),
+            chat.CreateClient(
+                auth,
+                static name => Environment.GetEnvironmentVariable(name),
+                clientFactory,
+                new RequestContext(session.SessionId)
+            ),
             tools,
             options
         );
-
-        (AuthStore, IReadOnlyList<ProviderEntry>) LoadSources()
-        {
-            AuthStore auth = AuthStore.Load(
-                authPath,
-                static name => Environment.GetEnvironmentVariable(name)
-            );
-            ProviderStore providers = ProviderStore.Load(
-                AuthStore.ProviderStoreFilePath(authPath),
-                auth,
-                effective.Providers
-            );
-            return (auth, providers.Entries);
-        }
 
         // The profile clients load the stores only when routing is on, like the interactive
         // session's per-build resolution.
@@ -430,7 +432,6 @@ internal static class AcpMode
                 return null;
             }
 
-            (AuthStore auth, IReadOnlyList<ProviderEntry> providers) = LoadSources();
             return DecisionUsageModels.ResolveRoutingProfiles(
                 effective,
                 providers,
