@@ -497,6 +497,7 @@ internal sealed partial class InteractiveSession : IDisposable
 
         ResolveBashGuard();
         ApplyTuiPresentation();
+        ApplyUserKeymap();
         _thinkingLevel = _settings.Thinking;
         _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
         _environment = _options.Environment ?? Environment.GetEnvironmentVariable;
