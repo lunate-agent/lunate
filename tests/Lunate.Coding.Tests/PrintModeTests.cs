@@ -933,6 +933,92 @@ public sealed class PrintModeTests
         Assert.Contains("--discover", errors, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_chat_usage_profile_runs_with_no_top_level_model()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(temp.File("settings.json"), ChatUsageProfileTestSupport.SettingsJson());
+        ChatUsageProfileTestSupport.SaveProvider(temp);
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        var factory = new FakeChatClientFactory(client);
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory) with
+        {
+            Prompt = "Hi",
+            Environment = PrintModeTestSupport.Environment(model: null),
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output);
+        Assert.Empty(errors);
+        ModelInfo model = Assert.IsType<ModelInfo>(factory.CreatedModel);
+        Assert.Equal(ChatUsageProfileTestSupport.ModelId, model.Id);
+        Assert.Equal(new Uri(ChatUsageProfileTestSupport.Endpoint), model.Endpoint);
+        Assert.Equal("openai-chat", model.ApiFamily);
+        Assert.Equal(
+            ChatUsageProfileTestSupport.HeaderValue,
+            model.ProviderHeaders![ChatUsageProfileTestSupport.HeaderName]
+        );
+        Assert.Equal(ChatUsageProfileTestSupport.CredentialPlacement, model.CredentialPlacement);
+        // The profile's reasoning level is the session's thinking level.
+        Assert.Equal(ReasoningEffort.High, Assert.Single(client.RequestOptions)?.Reasoning?.Effort);
+    }
+
+    [Fact]
+    public async Task A_chat_usage_profile_wins_over_a_top_level_model()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            ChatUsageProfileTestSupport.SettingsJson(ChatUsageProfileTestSupport.LegacyModelId)
+        );
+        ChatUsageProfileTestSupport.SaveProvider(temp);
+        var factory = new FakeChatClientFactory(
+            new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop())
+        );
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory) with
+        {
+            Prompt = "Hi",
+            Environment = PrintModeTestSupport.Environment(model: null),
+        };
+
+        (int exitCode, _, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(errors);
+        Assert.Equal(ChatUsageProfileTestSupport.ModelId, factory.CreatedModel?.Id);
+    }
+
+    [Fact]
+    public async Task A_legacy_top_level_model_still_runs_without_a_chat_usage()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            $$"""
+            { "schemaVersion": 2, "model": "{{ChatUsageProfileTestSupport.LegacyModelId}}" }
+            """
+        );
+        var factory = new FakeChatClientFactory(
+            new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop())
+        );
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory) with
+        {
+            Prompt = "Hi",
+            Environment = PrintModeTestSupport.Environment(model: null),
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output);
+        Assert.Empty(errors);
+        ModelInfo model = Assert.IsType<ModelInfo>(factory.CreatedModel);
+        Assert.Equal(ChatUsageProfileTestSupport.LegacyModelId, model.Id);
+        Assert.Null(model.Endpoint);
+    }
+
     private static void WriteAmbiguousCatalog(TempDirectory temp) =>
         File.WriteAllText(
             temp.File("models.json"),
