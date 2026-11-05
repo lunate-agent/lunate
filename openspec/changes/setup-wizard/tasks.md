@@ -88,19 +88,19 @@ proposal, each with tests and a green gate before the next starts. The provider-
 
 ## 5. `/setup` and the render contract
 
-- [ ] 5.1 `/setup` dispatches in the idle session (`/setup` refused while a turn is running, added
+- [x] 5.1 `/setup` dispatches in the idle session (`/setup` refused while a turn is running, added
       to the busy-refusal list; command registry entry with description; autocomplete row).
-- [ ] 5.2 `/setup` on a configured install opens the entry menu (add provider, add profile, change the
+- [x] 5.2 `/setup` on a configured install opens the entry menu (add provider, add profile, change the
       chat profile, decisions, walk everything), prefilled with current values; each entry writes only
       what changed and takes effect for the session's composition like an equivalent `/settings`
       change; a first run keeps the full walk.
-- [ ] 5.3 Fixture-driven full-walk test at 80 and 60 columns through the real component stack; both
+- [x] 5.3 Fixture-driven full-walk test at 80 and 60 columns through the real component stack; both
       render trees pinned; no line overflows either width.
-- [ ] 5.4 Docs: `docs/first-run.md` rewritten around the wizard (first run, `lunate setup`, `/setup`,
+- [x] 5.4 Docs: `docs/first-run.md` rewritten around the wizard (first run, `lunate setup`, `/setup`,
       the non-interactive flags, the model check and its cost); `docs/configuration.md` affected keys
       re-checked by the generated settings sync; `README.md` quick start if it names the old sequence.
 
 ## 6. Gate
 
-- [ ] 6.1 `openspec validate setup-wizard --type change --strict` passes before archive.
-- [ ] 6.2 `scripts/verify.sh` green on the final slice; PR records the run.
+- [x] 6.1 `openspec validate setup-wizard --type change --strict` passes before archive.
+- [x] 6.2 `scripts/verify.sh` green on the final slice; PR records the run.
