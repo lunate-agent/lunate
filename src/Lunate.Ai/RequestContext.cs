@@ -17,6 +17,15 @@ public sealed record RequestContext(string? SessionId, string? RunId = null)
 {
     private static readonly AsyncLocal<RequestContext?> Ambient = new();
 
+    /// <summary>
+    /// The conversation id a fileless run (<c>--no-session</c>) mints once per process: such a
+    /// run still has a conversation for a provider's session-scoped headers, so every request
+    /// names the same id instead of failing for a missing one. A call that carries no run context
+    /// at all still fails loudly — a probe outside any conversation has no identity to name.
+    /// </summary>
+    internal static string EphemeralSessionId { get; } =
+        Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+
     /// <summary>The context of the run currently executing on this async flow, or null.</summary>
     internal static RequestContext? Current => Ambient.Value;
 
@@ -31,12 +40,12 @@ public sealed record RequestContext(string? SessionId, string? RunId = null)
     /// <summary>
     /// Activates a run's context for the calling async flow; the returned scope restores the
     /// previous value, so nested (child) runs and sequential runs on shared flows each keep
-    /// their own pair.
+    /// their own pair. A run with no session activates the process's ephemeral conversation id.
     /// </summary>
     internal static Scope Activate(string? sessionId, string? runId)
     {
         RequestContext? previous = Ambient.Value;
-        Ambient.Value = new RequestContext(sessionId, runId);
+        Ambient.Value = new RequestContext(sessionId ?? EphemeralSessionId, runId);
         return new Scope(previous);
     }
 
