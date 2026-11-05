@@ -33,10 +33,11 @@ public sealed class AcpStdoutPurityTests
         };
         startInfo.ArgumentList.Add("--acp");
         // Isolate settings, models and sessions: a fresh home directory configures no model, so
-        // session/new fails fast and the test provably never reaches a provider.
+        // only the launch model makes the serve start succeed (spec: machine modes refuse a
+        // machine with no chat answer), and no prompt is ever sent, so no provider is reached.
         startInfo.Environment["HOME"] = temp.Root;
         startInfo.Environment["USERPROFILE"] = temp.Root;
-        startInfo.Environment.Remove("LUNATE_MODEL");
+        startInfo.Environment["LUNATE_MODEL"] = PrintModeTestSupport.ModelId;
         startInfo.Environment.Remove("LUNATE_APPROVAL");
 
         using Process process = Process.Start(startInfo)!;

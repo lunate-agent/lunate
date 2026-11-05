@@ -105,17 +105,17 @@ public sealed class SetupCommandTests : IDisposable
     }
 
     [PosixFact]
-    public void A_no_op_run_writes_nothing_and_names_every_step_skipped()
+    public void A_no_flag_run_without_a_terminal_exits_2_and_names_the_missing_answers()
     {
         (int exit, string output, string errors) = Run(["setup"], stdinIsTerminal: false);
 
-        Assert.Equal(0, exit);
-        Assert.Contains(
-            "written: nothing — every step was skipped",
-            output,
-            StringComparison.Ordinal
-        );
-        Assert.False(File.Exists(SettingsPath), "a no-op run rewrites nothing");
+        Assert.Equal(2, exit);
+        Assert.Empty(output);
+        Assert.Contains("interactive setup wizard", errors, StringComparison.Ordinal);
+        Assert.Contains("--provider", errors, StringComparison.Ordinal);
+        Assert.Contains("--credential", errors, StringComparison.Ordinal);
+        Assert.Contains("--model", errors, StringComparison.Ordinal);
+        Assert.False(File.Exists(SettingsPath), "a refused run writes nothing");
         Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
     }
 

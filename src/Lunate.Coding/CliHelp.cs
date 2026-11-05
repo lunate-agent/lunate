@@ -117,7 +117,7 @@ internal static class CliHelp
         );
         output.WriteLine("  lunate setup [flags]");
         output.WriteLine(
-            "                                 the setup wizard's flag path: every answer is a flag"
+            "                                 the setup wizard; every answer can be a flag"
         );
         output.WriteLine(
             "                                 (--provider --endpoint --api-family --credential-placement"
