@@ -770,7 +770,24 @@ internal sealed partial class InteractiveSession : IDisposable
                         decisionModel.Client,
                         decisionModel.Model.Id,
                         decisionModel.Model.ApiType == "native" ? "native" : "adapter",
-                        DecisionClientResolver.SupportsImageInput(decisionModel.Model)
+                        DecisionClientResolver.SupportsImageInput(decisionModel.Model),
+                        // Question suggestions and extension decisions are paid provider calls too:
+                        // the same recording the harness's decision consumers get.
+                        recordUsage: (
+                            details,
+                            resolvedModelId,
+                            method,
+                            probability,
+                            providerCost
+                        ) =>
+                            RecordServiceDecisionUsage(
+                                details,
+                                resolvedModelId,
+                                decisionModel,
+                                method,
+                                probability,
+                                providerCost
+                            )
                     ),
                 };
             }
