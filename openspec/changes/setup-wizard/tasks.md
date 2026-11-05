@@ -103,4 +103,4 @@ proposal, each with tests and a green gate before the next starts. The provider-
 ## 6. Gate
 
 - [x] 6.1 `openspec validate setup-wizard --type change --strict` passes before archive.
-- [ ] 6.2 `scripts/verify.sh` green on the final slice; PR records the run.
+- [x] 6.2 `scripts/verify.sh` green on the final slice; PR records the run.
