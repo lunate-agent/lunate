@@ -217,7 +217,14 @@ public static partial class SettingsStore
     /// <summary>The literals a boolean switch setting accepts, as the error message lists them.</summary>
     private const string SwitchLiterals = "true, false, 1 or 0";
 
-    private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions WriteOptions = new()
+    {
+        WriteIndented = true,
+
+        // Lunate owns settings.json: its bytes must not depend on where it was written
+        // (AGENTS.md), so the indented form always uses LF instead of Environment.NewLine.
+        NewLine = "\n",
+    };
 
     /// <summary>
     /// Serializes every read and write of a settings file in this process. Windows refuses to rename
@@ -305,7 +312,7 @@ public static partial class SettingsStore
         JsonNode? node;
         try
         {
-            node = JsonNode.Parse(ReadAllTextShared(path));
+            node = JsonNode.Parse(StoreFile.ReadAllText(path));
             if (node is JsonObject root)
             {
                 // JsonNode.Parse is lazy: a duplicate property surfaces only when the object is
@@ -326,24 +333,6 @@ public static partial class SettingsStore
             ?? throw new InvalidDataException(
                 $"Invalid settings in '{path}': the root must be a JSON object. No settings were written."
             );
-    }
-
-    /// <summary>
-    /// Reads a settings file without holding a share mode that would block a replace elsewhere: on
-    /// Windows the default read share denies delete, so another process could not replace the file
-    /// while this read is open. Reads in this process take <see cref="Gate"/> first, so a save never
-    /// has to wait for the reader that is inside this method.
-    /// </summary>
-    private static string ReadAllTextShared(string path)
-    {
-        using var stream = new FileStream(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete
-        );
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
     }
 
     private static void WriteAtomically(string path, string content)
@@ -391,7 +380,7 @@ public static partial class SettingsStore
             return new AgentSettings();
         }
 
-        return ParseJson(ReadAllTextShared(path), problems);
+        return ParseJson(StoreFile.ReadAllText(path), problems);
     }
 
     private static AgentSettings ParseJson(string json, List<string> problems)

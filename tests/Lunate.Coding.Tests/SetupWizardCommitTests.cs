@@ -15,6 +15,13 @@ public sealed class SetupWizardCommitTests : IDisposable
 {
     private readonly TempDirectory _temp = new();
 
+    /// <summary>The entries auth.json already names, so loading it migrates nothing into the store.</summary>
+    private static readonly ProviderEntry[] SeedEntries =
+    [
+        new("anthropic", "anthropic", new Uri("https://api.anthropic.com/v1"), "auth:anthropic"),
+        new("openai", "openai", new Uri("https://api.openai.com/v1"), "auth:openai"),
+    ];
+
     public void Dispose() => _temp.Dispose();
 
     private string SettingsPath => _temp.File("settings.json");
@@ -285,6 +292,162 @@ public sealed class SetupWizardCommitTests : IDisposable
 
         // No staged profile or decisions answer: the settings file is not written at all.
         Assert.True(!File.Exists(SettingsPath), "the defaults write nothing for the layer");
+    }
+
+    [PosixFact]
+    public void A_failure_after_the_auth_stage_leaves_every_file_byte_identical()
+    {
+        // B-5: the credential used to be saved before the entry and "restored" in memory only, so
+        // a later failure left the new key on disk and the previous key gone. The commit now
+        // stages the key and touches no target until every body is ready.
+        var model = PresetWalk("new-secret");
+        string authPath = _temp.File("auth.json");
+        Seed(
+            authPath,
+            """{"schemaVersion": 1, "keys": {"anthropic": "other-secret", "openai": "previous-secret"}}"""
+        );
+        ProviderStore.Save(ProviderStorePath, SeedEntries);
+        Seed(SettingsPath, """{"schemaVersion": 2, "model": "gpt-4o"}""");
+        byte[] authBefore = File.ReadAllBytes(authPath);
+        byte[] providersBefore = File.ReadAllBytes(ProviderStorePath);
+        byte[] settingsBefore = File.ReadAllBytes(SettingsPath);
+
+        // The injected provider read runs after the credential has been written to the stage, so
+        // the commit fails after the auth write and before any target file is replaced.
+        var injected = new InvalidOperationException("injected failure after the auth write");
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() =>
+            SetupWizardCommit.Commit(model, Paths(), LoadAuth, () => throw injected)
+        );
+
+        Assert.Same(injected, failure);
+        Assert.Equal(authBefore, File.ReadAllBytes(authPath));
+        Assert.Equal(providersBefore, File.ReadAllBytes(ProviderStorePath));
+        Assert.Equal(settingsBefore, File.ReadAllBytes(SettingsPath));
+        Assert.Contains("previous-secret", File.ReadAllText(authPath), StringComparison.Ordinal);
+        Assert.DoesNotContain("new-secret", File.ReadAllText(authPath), StringComparison.Ordinal);
+        Assert.Empty(Directory.GetDirectories(_temp.Root, ".setup-*"));
+    }
+
+    [PosixFact]
+    public void A_failed_replace_restores_every_file_already_written()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        // The other half of the transaction: when a replace itself fails, the files replaced
+        // before it go back to their exact previous bytes. The provider store lives in a read-only
+        // directory, so it is the second replace — after auth.json — and the commit must undo it.
+        string locked = Path.Combine(_temp.Root, "locked");
+        Directory.CreateDirectory(locked);
+        string providersPath = Path.Combine(locked, "providers.json");
+
+        // The seeded openai entry differs from the one the walk writes (it carries a region), so
+        // the provider store is a real pending replace and not an unchanged no-op.
+        ProviderStore.Save(providersPath, [SeedEntries[0], SeedEntries[1] with { Region = "eu" }]);
+        var model = PresetWalk("new-secret");
+        string authPath = _temp.File("auth.json");
+        Seed(
+            authPath,
+            """{"schemaVersion": 1, "keys": {"anthropic": "other-secret", "openai": "previous-secret"}}"""
+        );
+        Seed(SettingsPath, """{"schemaVersion": 2, "favorites": ["gpt-5"]}""");
+        byte[] authBefore = File.ReadAllBytes(authPath);
+        byte[] providersBefore = File.ReadAllBytes(providersPath);
+        byte[] settingsBefore = File.ReadAllBytes(SettingsPath);
+
+        UnixFileMode mode = File.GetUnixFileMode(locked);
+        File.SetUnixFileMode(locked, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try
+        {
+            Exception? failure = Record.Exception(() =>
+                SetupWizardCommit.Commit(
+                    model,
+                    new SetupWizardCommit.CommitPaths(SettingsPath, providersPath),
+                    LoadAuth,
+                    () => ProviderStore.Load(providersPath, LoadAuth(), []).Entries
+                )
+            );
+            Assert.True(
+                failure is IOException or UnauthorizedAccessException,
+                $"expected a failed replace, got {failure?.GetType().Name ?? "none"}"
+            );
+        }
+        finally
+        {
+            File.SetUnixFileMode(locked, mode);
+        }
+
+        Assert.Equal(authBefore, File.ReadAllBytes(authPath));
+        Assert.Equal(providersBefore, File.ReadAllBytes(providersPath));
+        Assert.Equal(settingsBefore, File.ReadAllBytes(SettingsPath));
+        Assert.Contains("previous-secret", File.ReadAllText(authPath), StringComparison.Ordinal);
+        Assert.DoesNotContain("new-secret", File.ReadAllText(authPath), StringComparison.Ordinal);
+        Assert.Empty(Directory.GetDirectories(_temp.Root, ".setup-*"));
+    }
+
+    [PosixFact]
+    public void A_commit_replaces_the_three_files_and_keeps_the_sections_it_did_not_touch()
+    {
+        var model = PresetWalk("new-secret");
+        string authPath = _temp.File("auth.json");
+        Seed(
+            authPath,
+            """{"schemaVersion": 1, "keys": {"anthropic": "other-secret", "openai": "previous-secret"}}"""
+        );
+        Seed(SettingsPath, """{"schemaVersion": 2, "favorites": ["gpt-5"]}""");
+        ProviderStore.Save(ProviderStorePath, SeedEntries);
+
+        Commit(model);
+
+        using JsonDocument auth = JsonDocument.Parse(File.ReadAllText(authPath));
+        Assert.Equal(
+            "new-secret",
+            auth.RootElement.GetProperty("keys").GetProperty("openai").GetString()
+        );
+        Assert.Equal(
+            "other-secret",
+            auth.RootElement.GetProperty("keys").GetProperty("anthropic").GetString()
+        );
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+        Assert.Equal("gpt-5", settings.RootElement.GetProperty("favorites")[0].GetString());
+        Assert.Equal(
+            "chat-main",
+            settings.RootElement.GetProperty("usages").GetProperty("chat").GetString()
+        );
+        using JsonDocument providers = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
+        Assert.Equal(
+            ["anthropic", "openai"],
+            providers
+                .RootElement.GetProperty("providers")
+                .EnumerateArray()
+                .Select(entry => entry.GetProperty("name").GetString()!)
+        );
+        Assert.Empty(Directory.GetDirectories(_temp.Root, ".setup-*"));
+        Assert.Empty(Directory.GetFiles(_temp.Root, "*.tmp"));
+    }
+
+    private static SetupWizardModel PresetWalk(string secret)
+    {
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "openai",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "openai-chat",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("openai", Key: secret));
+        model.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
+        model.RecordChatProfile(
+            new WizardProfileChoice("chat-main", "gpt-5", ReasoningLevel: null)
+        );
+        return model;
     }
 
     private void Commit(SetupWizardModel model) =>

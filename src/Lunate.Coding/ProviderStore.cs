@@ -13,6 +13,10 @@ internal sealed class ProviderStore
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
+
+        // Lunate owns providers.json: its bytes must not depend on where it was written, so the
+        // indented form always uses LF instead of Environment.NewLine.
+        NewLine = "\n",
     };
 
     private ProviderStore(IReadOnlyList<ProviderEntry> entries) => Entries = entries;
@@ -178,7 +182,7 @@ internal sealed class ProviderStore
         try
         {
             ProviderFile? file = JsonSerializer.Deserialize<ProviderFile>(
-                File.ReadAllText(path),
+                StoreFile.ReadAllText(path),
                 JsonOptions
             );
             if (file is null || file.SchemaVersion != SchemaVersion || file.Providers is null)
@@ -448,7 +452,16 @@ internal sealed class ProviderStore
         try
         {
             File.WriteAllText(temp, json, new UTF8Encoding(false));
-            File.Move(temp, path, overwrite: true);
+
+            // A rename through the shared replacement, not a bare File.Move: Windows denies the
+            // rename while another handle holds the destination, and the shared helper retries a
+            // transient lock instead of failing the wizard's commit on the first attempt.
+            if (!OperatingSystem.IsWindows() && File.Exists(path))
+            {
+                File.SetUnixFileMode(temp, File.GetUnixFileMode(path));
+            }
+
+            FileReplacement.Replace(temp, path);
         }
         finally
         {

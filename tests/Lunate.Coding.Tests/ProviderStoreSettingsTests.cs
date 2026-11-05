@@ -317,6 +317,47 @@ public sealed class ProviderStoreSettingsTests
         Assert.Equal("x-api-key", keyed.GetString());
     }
 
+    [Fact]
+    public void A_save_replaces_the_store_and_keeps_the_existing_posix_mode()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var temp = new TempDirectory();
+        string path = temp.File("providers.json");
+        AuthStore auth = AuthStore.Load(temp.File("auth.json"), _ => null);
+        ProviderStore.Save(
+            path,
+            [CreateEntry("work", new Uri("https://work.example.test/v1"), "auth:work", null, "eu")]
+        );
+        File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        // The replacement goes through FileReplacement and keeps the target's mode; a bare
+        // File.Move (the pre-S-10 writer) did neither.
+        ProviderStore.Save(
+            path,
+            [
+                CreateEntry(
+                    "work-anthropic",
+                    new Uri("https://work.example.test/anthropic/v1"),
+                    "auth:work",
+                    null,
+                    "eu",
+                    "anthropic"
+                ),
+            ]
+        );
+
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
+        Assert.Empty(Directory.GetFiles(temp.Root, "*.tmp"));
+        Assert.Equal(
+            "work-anthropic",
+            Assert.Single(ProviderStore.Load(path, auth, []).Entries).Name
+        );
+    }
+
     private static ProviderEntry CreateEntry(
         string name,
         Uri baseUrl,
