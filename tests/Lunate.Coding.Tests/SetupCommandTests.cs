@@ -287,6 +287,58 @@ public sealed class SetupCommandTests : IDisposable
         Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
     }
 
+    [PosixFact]
+    public void No_test_sends_no_provider_request()
+    {
+        using var output = new StringWriter();
+        using var errors = new StringWriter();
+        // The check would create a client and ask it for a completion; the discovery transport is
+        // what the connection test would use. Neither may be touched by an offline run.
+        var factory = new FakeChatClientFactory(new ScriptedChatClient());
+        var discovery = new RecordingHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(
+                            """{"data":[{"id":"gpt-5"}]}""",
+                            Encoding.UTF8,
+                            "application/json"
+                        ),
+                    }
+                )
+        );
+
+        int exit = Cli.Run(
+            ["setup", "--provider", "openai", "--model", "gpt-5", "--profile", "main", "--no-test"],
+            output,
+            errors,
+            TestContext.Current.CancellationToken,
+            stdinIsTerminal: false,
+            setupSeams: new SetupCommandSeams
+            {
+                AuthPath = _temp.File("auth.json"),
+                Environment = name => name == "OPENAI_API_KEY" ? "no-test-key-not-echoed" : null,
+                DiscoveryTransport = discovery,
+                ChatFactory = factory,
+            }
+        );
+
+        Assert.Equal(0, exit);
+        Assert.Empty(discovery.Requests);
+        Assert.Null(factory.CreatedModel);
+        string summary = output.ToString();
+        Assert.Contains("connection test: skipped", summary, StringComparison.Ordinal);
+        Assert.Contains(
+            "model check: skipped — the model stays unverified",
+            summary,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain("connection test: passed", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("model check: passed", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, summary + errors.ToString(), StringComparison.Ordinal);
+    }
+
     private (int Exit, string Output, string Errors) Run(
         string[] args,
         bool stdinIsTerminal,
