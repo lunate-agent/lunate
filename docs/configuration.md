@@ -101,6 +101,14 @@ A decision profile must name an exact version. An alias — an id starting with 
 can change probabilities behind the alias. Chat usage with a `systemone` profile is refused by name;
 use `decisions.profile` for decisions and an ordinary chat profile for chat.
 
+Decision profiles resolve credentials exactly like chat profiles. For a provider entry whose
+`credentialReference` is `auth:<key>`, the provider kind's environment variable — `OPENROUTER_API_KEY`
+for an `openrouter` entry, `OPENCODE_API_KEY` for an `opencode` one, and so on — wins over the key
+stored under `<key>`, on the native System One transport and on an adapter alike. An
+`env:<VARIABLE>` reference reads only that variable and refuses when it is unset. This precedence is
+deliberate: an exported key in a CI environment replaces a stale stored key without editing
+`auth.json`; `lunate auth list` shows the source in use.
+
 ```json settings
 {
   "schemaVersion": 2,
@@ -134,6 +142,9 @@ The `providers.<id>` settings block describes one user-owned custom endpoint and
 API family. New entries use `baseUrls` keyed by family; the accepted names are `openai-chat`,
 `openai-responses`, `anthropic-messages` and `google`. The older `baseUrl` spelling remains readable
 as the `openai-chat` family and loading it does not rewrite the file. New writes use `baseUrls`.
+An entry whose resolved family is `anthropic-messages` gets the same prompt-cache breakpoints and
+turn merge as the native Anthropic preset; the resolved family selects the wire behavior, not the
+provider name or its kind.
 
 ```json settings
 {
@@ -157,14 +168,20 @@ For built-in provider presets, each model's discovery `api` object selects its f
 to `openai-chat`, `responses` to `openai-responses`, `messages` to `anthropic-messages`, and
 `generate-content` to `google`. Discovery also records input/output modalities, tool and reasoning
 capabilities, reasoning efforts, context limits, and output limits. A profile's `apiFamily` override
-wins over discovery metadata and the catalog. A custom provider's discovered endpoint and redirects
-must stay on its configured host; a preset may use its first-party per-family endpoints. See
+wins over discovery metadata and the catalog. Endpoint precedence follows the same intent: a
+provider entry's declared `baseUrls` URL for the resolved family (or its `baseUrl` for the default
+family) wins, otherwise the model's discovered `endpoint` is kept, and only then does the preset's
+family URL apply. A custom provider's discovered endpoint and redirects must stay on its configured
+host; a preset may use its first-party per-family endpoints. See
 [ADR-0029](../adr/0029-provider-api-families.md) for the accepted provider-family decision.
 
 Headers may be literal values or templates over `{session.id}`, `{run.id}`, and `{lunate.version}`.
-The credential is separate: `credentialPlacement` selects the default bearer header, a named header
-such as `x-api-key`, or a query parameter such as Google's `key`. Templates cannot read credentials;
-invalid placeholders and placements are rejected when the provider loads.
+A run without a session (`--no-session`) still resolves `{session.id}` to an ephemeral per-process
+conversation id, so a header-templated provider works fileless; a call that carries no run context
+at all still fails instead of sending an empty value. The credential is separate:
+`credentialPlacement` selects the default bearer header, a named header such as `x-api-key`, or a
+query parameter such as Google's `key`. Templates cannot read credentials; invalid placeholders and
+placements are rejected when the provider loads.
 
 ## Where thinking resolves from
 
@@ -172,7 +189,10 @@ The session's thinking level resolves once at start, from the most specific fact
 `--thinking` launch flag wins over the chat profile's `profiles.<chat>.reasoningLevel`, which wins
 over the file's global `thinking` key, and without any of them the level is `off` — a profile
 without a reasoning setting falls back to `thinking` exactly as before. `/thinking <level>` changes
-the running session only: the settings file and the profile stay as they are. `/settings thinking
+the running session only: the settings file and the profile stay as they are. Switching to another
+model or profile re-seeds the level: the newly selected profile's `reasoningLevel` (or the resolved
+`thinking` default when it has none) replaces the previous level before the harness is rebuilt, so
+the next request, the footer and `/thinking` agree. `/settings thinking
 <level>` is what persists — it writes the chat profile's `reasoningLevel` (`off` removes the key,
 because a profile has no `off`), and a chat selection that is not a configured profile in the user
 settings file is refused. A model whose catalog entry declares no reasoning style refuses a level by
