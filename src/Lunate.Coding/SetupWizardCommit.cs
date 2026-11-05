@@ -12,15 +12,21 @@ namespace Lunate.Coding;
 /// itself owns. A preset entry, and any entry carrying an <c>env:</c>/<c>auth:</c> reference, is
 /// saved through <see cref="ProviderStore.Save"/>. The wizard keeps no JSON emitter; a walk that
 /// staged no change at all is a no-op, not a rewrite.
+/// <para>
+/// The commit is one transaction over the three files a walk can touch: every new body is built
+/// in a staging directory by those same writers, the files are then replaced one after another,
+/// and a failure anywhere restores each file already replaced byte for byte. A credential
+/// therefore never reaches auth.json unless its provider entry, the profiles and the decisions
+/// keys land beside it, and a failed commit leaves the previous configuration exactly as it was.
+/// </para>
 /// </summary>
 internal static class SetupWizardCommit
 {
     /// <summary>
     /// Commits the staged answers. Nothing is written when the walk staged no change at all
     /// (skip everything confirmed), so the three files stay byte-identical. A failed write
-    /// surfaces as one exception naming what failed; the credential save restores its previous
-    /// state, so a provider is never stored without its entry (the <c>auth login --custom</c>
-    /// contract).
+    /// surfaces as one exception naming what failed, and no target file keeps a partial commit:
+    /// auth.json, providers.json and settings.json are unchanged byte for byte.
     /// </summary>
     public static void Commit(
         SetupWizardModel model,
@@ -39,44 +45,69 @@ internal static class SetupWizardCommit
             return;
         }
 
-        string? savedKeyName = null;
-        string? previousKey = null;
-        try
+        AuthStore live = loadAuth();
+        string? credentialProvider = null;
+        string? credentialSecret = null;
+        if (
+            model.Provider is { } provider
+            && !model.IsCarried(SetupStep.Provider)
+            && model.Credential is { Key: { Length: > 0 } secret }
+        )
         {
-            if (model.Provider is { } provider && !model.IsCarried(SetupStep.Provider))
-            {
-                if (model.Credential is { Key: { Length: > 0 } secret })
-                {
-                    AuthStore auth = loadAuth();
-                    previousKey = auth.Keys.GetValueOrDefault(provider.Id);
-                    savedKeyName = provider.Id;
-                    auth.Set(provider.Id, secret);
-                    auth.Save();
-                }
+            credentialProvider = provider.Id;
+            credentialSecret = secret;
+        }
 
-                WriteProviderEntry(model, paths, loadEntries);
+        using SetupWizardTransaction transaction = SetupWizardTransaction.Create(
+            paths.SettingsPath,
+            credentialSecret is null ? null : live.FilePath
+        );
+
+        // Every writer is a read-modify-write, so a staged file starts from the bytes it has
+        // today: the sections the walk does not touch survive the commit.
+        SetupWizardTransaction.Seed(live.FilePath, transaction.Auth);
+        SetupWizardTransaction.Seed(paths.SettingsPath, transaction.Settings);
+
+        WriteStaged(model, transaction, credentialProvider, credentialSecret, loadEntries);
+        transaction.Commit([
+            new(transaction.Auth, live.FilePath),
+            new(transaction.Providers, paths.ProviderStorePath),
+            new(transaction.Settings, paths.SettingsPath),
+        ]);
+
+        // The session's in-memory store follows the file only once every file is in place:
+        // nothing is applied to memory that a failed commit would have to undo.
+        if (credentialProvider is not null && credentialSecret is not null)
+        {
+            live.Set(credentialProvider, credentialSecret);
+        }
+    }
+
+    private static void WriteStaged(
+        SetupWizardModel model,
+        SetupWizardTransaction transaction,
+        string? credentialProvider,
+        string? credentialSecret,
+        Func<IReadOnlyList<ProviderEntry>> loadEntries
+    )
+    {
+        var stagedPaths = new CommitPaths(transaction.Settings, transaction.Providers);
+        if (model.Provider is not null && !model.IsCarried(SetupStep.Provider))
+        {
+            if (credentialProvider is not null && credentialSecret is not null)
+            {
+                // The credential is staged like every other file: the wizard's key reaches
+                // auth.json in one replace, never before the rest of the commit.
+                AuthStore auth = AuthStore.Load(transaction.Auth);
+                auth.Set(credentialProvider, credentialSecret);
+                auth.Save();
             }
 
-            WriteProfileAndUsages(model, paths);
-            WriteDecisions(model, paths);
+            WriteProviderEntry(model, stagedPaths, loadEntries);
         }
-        catch (Exception)
-        {
-            if (savedKeyName is { } name)
-            {
-                AuthStore auth = loadAuth();
-                if (previousKey is { Length: > 0 } key)
-                {
-                    auth.Set(name, key);
-                }
-                else
-                {
-                    auth.Remove(name);
-                }
-            }
 
-            throw;
-        }
+        WriteProfileAndUsages(model, stagedPaths);
+        WriteDecisions(model, stagedPaths);
     }
 
     /// <summary>The paths a commit touches; tests pass temp paths, the session its stores.</summary>
