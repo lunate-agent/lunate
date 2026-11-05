@@ -109,23 +109,25 @@ Contributor setup — the gate, the repository map and the OpenSpec workflow —
 
 ## Quick start
 
-**1. Pick a model and a credential.** The catalog comes from models.dev, so its model ids are the
-ones your provider serves — `claude-sonnet-5-5` and `claude-opus-5-5` are current examples. Put the
-default in `~/.lunate/settings.json`:
+**1. Complete the setup wizard.** Run `lunate` in a repository. On a fresh install it opens the
+setup wizard: provider, credential, connection test, model, model check, chat profile, the optional
+fast/decision profiles, the decisions layer, and a summary. Nothing is written until you confirm
+the summary, and `Esc` leaves without changing anything. Re-run it later with `/setup`; on a
+configured install that opens the entry menu (add a provider, add a profile, change the chat
+profile, edit decisions, walk everything).
 
-```json settings
-{ "schemaVersion": 2, "profiles": { "chat-main": { "provider": "anthropic", "model": "claude-sonnet-5-5" } }, "usages": { "chat": "chat-main" } }
-```
-
-Then store that provider's key with the auth command:
+For a script or CI, use the same answers without a TTY:
 
 ```bash
-lunate auth login anthropic
+printf '%s\n' "$ANTHROPIC_API_KEY" |
+  lunate setup --provider anthropic --credential env:ANTHROPIC_API_KEY \
+    --model claude-sonnet-5-5 --profile chat-main
 ```
 
-The prompt is masked. `lunate auth login` with no provider lists every preset, and
-[`docs/first-run.md`](docs/first-run.md) covers the first-run `/auth` picker, custom
-OpenAI-compatible endpoints and the environment-variable override. A model with a declared
+The manual JSON/key path still works: put the profile in `~/.lunate/settings.json` and store the key
+with `lunate auth login anthropic`. The prompt is masked; `lunate auth login` with no provider lists
+every preset. [`docs/first-run.md`](docs/first-run.md) covers the wizard, `lunate setup`, `/setup`,
+custom OpenAI-compatible endpoints and the environment-variable override. A model with a declared
 `endpoint` — a local server or any OpenAI-compatible API — needs no key at all;
 `lunate --discover <name-or-url>` drafts a catalog entry for one.
 
