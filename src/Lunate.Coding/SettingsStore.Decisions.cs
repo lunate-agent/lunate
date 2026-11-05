@@ -134,7 +134,7 @@ public static partial class SettingsStore
             return threshold;
         }
 
-        problems.Add("'decisions.approvalsThreshold' must be a finite number from 0 through 1");
+        problems.Add("'decisions.approvalsThreshold' must be a finite confidence from 0 through 1");
         return DecisionsSettings.DefaultApprovalsThreshold;
     }
 

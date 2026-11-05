@@ -23,7 +23,7 @@ shown are the documented defaults the store applies when a key is missing.
 | `approval` | string | ask | user | The approval policy: `ask` sends writes, edits and commands to the approval flow; `auto-edit` runs file writes and edits and still asks for commands. `LUNATE_APPROVAL` overrides it. Values: `ask`, `auto-edit`. |
 | `bashGuard` | boolean | true | user | Guards bash commands against edits outside the trusted working directory. There is no environment-variable override. |
 | `decisions.approvals` | string | off | user | The approval-gate consumer; a deny recommendation reaching `approvalsThreshold` escalates the ask when `enforce`. Decision consumers are enabled by the user only. Values: `off`, `shadow`, `enforce`. |
-| `decisions.approvalsThreshold` | number | 0.5 | user | A finite probability from 0 through 1: what a deny recommendation must reach to escalate the approval ask. |
+| `decisions.approvalsThreshold` | number | 0 | user | A finite confidence from 0 through 1: what a risk signal's chosen answer must reach to escalate the approval ask. Confidence, not probability, is the scale; 0 is the shipped 0.5 probability gate (confidence = 2 x probability - 1). |
 | `decisions.profile` | string | unset | user | The decision profile the layer runs on; without it the layer is unavailable and nothing is offered, never erroring. |
 | `decisions.questions` | string | off | user | Adds a probability marker beside the top option of a question; always display-only, the user still chooses. Values: `off`, `suggest`. |
 | `decisions.routing` | string | off | user | The model-routing consumer; applies the most probable profile only when its confidence meets routingMinConfidence, otherwise keeps the configured chat profile. Values: `off`, `shadow`, `enforce`. |
@@ -119,10 +119,13 @@ use `decisions.profile` for decisions and an ordinary chat profile for chat.
 
 Confidence is computed from the answer distribution (`|2p − 1|` for yes/no, the choice/score
 normalisation, or the box confidence) and recorded on every decision. Routing changes the chat
-profile only when confidence reaches `decisions.routingMinConfidence` (default `0.5`); the approval
-gate maps `decisions.approvalsThreshold` to confidence the same way. A request above roughly 28k
-tokens of the 32k per-question budget warns before sending, and tool results are bounded to head and
-tail rather than trimmed to a single edge.
+profile only when confidence reaches `decisions.routingMinConfidence` (default `0.5`). The approval
+gate reads `decisions.approvalsThreshold` on the same confidence scale: a risk signal escalates when
+the model chose `yes` and that answer's confidence reaches the threshold, so `0.5` means a `0.75`
+probability of the risk. The default `0` is the confidence form of the previously shipped `0.5`
+probability gate (`confidence = 2 × probability − 1`), so behaviour is unchanged unless the key is
+set. A request above roughly 28k tokens of the 32k per-question budget warns before sending, and
+tool results are bounded to head and tail rather than trimmed to a single edge.
 
 Decision usage records the provider's `usage` block, including OpenCode's `usage.opencode` block, and
 marks the cost provider-reported. `/cost` shows the decision line with model, method (`native` or

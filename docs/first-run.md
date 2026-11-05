@@ -153,7 +153,7 @@ generated [configuration reference](configuration.md). For example:
   "decisions": {
     "profile": "reviewer",
     "approvals": "enforce",
-    "approvalsThreshold": 0.5,
+    "approvalsThreshold": 0,
     "routing": "shadow",
     "routingProfiles": ["chat-main", "quick"],
     "tool": "off",
@@ -180,9 +180,11 @@ lists every accepted settings key with its type, default, scope and allowed valu
 the selected profile in enforce; routing picks the most probable profile and uses no threshold. An
 unavailable decision profile or an invalid response leaves the configured chat model in use.
 Decision spend is charged to the `decision` usage and `/cost` distinguishes the `native` and
-`adapter` methods. The approval gate acts by escalation only: with `enforce`, a `deny`
-recommendation whose probability reaches `approvalsThreshold` turns the ask into a user prompt (and
+`adapter` methods. The approval gate acts by escalation only: with `enforce`, a risk signal whose
+chosen `yes` answer reaches `approvalsThreshold` confidence turns the ask into a user prompt (and
 denies it when no user is present); below the threshold the ordinary approval flow runs unchanged.
+The key is a confidence, not a probability — `0.5` there means a `0.75` probability of the risk —
+and its default `0` is the confidence form of the shipped `0.5` probability gate.
 
 With `questions: suggest`, the decision model adds a probability marker beside its top option. The
 user still chooses; the suggestion never selects an option, answers a skipped question, or approves a

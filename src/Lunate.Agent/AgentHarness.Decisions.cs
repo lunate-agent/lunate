@@ -3,6 +3,7 @@ using System.Text.Json;
 using Lunate.Ai;
 using Lunate.Contracts;
 using Microsoft.Extensions.AI;
+using DecisionTransportException = Lunate.Ai.Decisions.DecisionTransportException;
 
 namespace Lunate.Agent;
 
@@ -97,6 +98,19 @@ public sealed partial class AgentHarness
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// The reason a failed decision exchange records. A native transport's own precise message (a
+    /// 422 field, a state past the model's budget) is kept, redacted against the session's known
+    /// credential values; an unexpected exception stays generic so it is never mistaken for a
+    /// provider refusal.
+    /// </summary>
+    private string DecisionFailureReason(Exception exception)
+    {
+        string reason =
+            exception is DecisionTransportException ? exception.Message : "provider request failed";
+        return _options.Session?.Redactor.Redact(reason) ?? reason;
     }
 
     private static string? DecisionStateSizeWarning(JsonElement state)

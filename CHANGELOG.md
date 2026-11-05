@@ -8,6 +8,23 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **`decisions.approvalsThreshold` is a confidence.** The key now carries what the spec always said it
+  did: the confidence a risk signal's chosen answer must reach to escalate. The default `0` is the
+  `2t − 1` form of the shipped `0.5` probability gate, so behaviour is unchanged unless the key is
+  set; an explicit `0.5` now means a `0.75` probability of the risk (#573).
+
+### Fixed
+
+- **A decision failure keeps the provider's own message.** A native transport refusal — a `422` field,
+  or the `max_tokens_exceeded` 400 — reaches `DecisionFailed` and the transcript notice as
+  "System One rejected field '…'" or "Decision state too large for this model: …" instead of
+  "provider request failed"; an unexpected exception stays generic (#562).
+- **The approval state carries the call's arguments once.** The untrusted argument text no longer
+  appears twice (a structured `arguments` copy beside `untrusted_content`), halving the state and
+  matching the spec's "only in `untrusted_content`" guarantee (#572).
+
 ## [0.3.0-rc.1] - 2026-11-05
 
 The quality release: the setup wizard gives a fresh install one guided path and gives a configured

@@ -45,7 +45,7 @@ public sealed class InteractiveSessionSettingsTests
         Assert.Contains("providers               none", scrollback, StringComparison.Ordinal);
         Assert.Contains("decisions.profile       none", scrollback, StringComparison.Ordinal);
         Assert.Contains("decisions.approvals     off", scrollback, StringComparison.Ordinal);
-        Assert.Contains("decisions.approvalsThreshold 0.5", scrollback, StringComparison.Ordinal);
+        Assert.Contains("decisions.approvalsThreshold 0", scrollback, StringComparison.Ordinal);
         Assert.Contains("decisions.routing       off", scrollback, StringComparison.Ordinal);
         Assert.Contains("decisions.routingMinConfidence 0.5", scrollback, StringComparison.Ordinal);
         Assert.Contains("decisions.routingProfiles none", scrollback, StringComparison.Ordinal);

@@ -366,7 +366,7 @@ configured decision profile SHALL be required for any decision to be proposed â€
 borrows the chat profile. The old flat keys (`decisionMode`, `routingMode`, `routingProfiles`) and
 the `usages.decision` assignment are refused like any unknown key. Validation SHALL refuse, with a
 message naming the field: unknown keys, unknown consumer literals, an out-of-range
-`approvalsThreshold` (a finite number from 0 through 1), unknown profile names behind
+`approvalsThreshold` (a finite confidence from 0 through 1), unknown profile names behind
 `decisions.profile` or `routingProfiles`, fewer than two `routingProfiles` when `routing` is on, and
 more than 255. Settings SHALL name only consumers this version defines: model routing, the approval
 gate, question suggestions and the `decide` tool. Settings SHALL NOT be able to name an acting
@@ -404,9 +404,9 @@ Each consumer SHALL have its own setting inside the `decisions` block, and enabl
 enable another. The approval gate (`approvals`) and model routing (`routing`) SHALL each offer a
 shadow setting as the user's try-out; question suggestions (`questions`) SHALL be display-only when
 enabled; the `decide` tool (`tool`) SHALL be offered only when `profile` resolves and `tool` is on.
-A deny recommendation that reaches `approvalsThreshold` SHALL escalate the approval ask; a deny
-below it SHALL leave the ordinary approval flow unchanged, and routing SHALL pick the most probable
-profile without consulting any threshold.
+A deny recommendation whose chosen answer's confidence reaches `approvalsThreshold` SHALL escalate
+the approval ask; a deny below it SHALL leave the ordinary approval flow unchanged, and routing SHALL
+pick the most probable profile without consulting any threshold.
 
 #### Scenario: Enabling routing does not enable the approval gate
 
