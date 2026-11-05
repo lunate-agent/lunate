@@ -284,11 +284,14 @@ public sealed class SetupWizardStepPins
         // The candidates are the walk's new chat profile plus the settings file's configured one;
         // each is asked what it is for, and the blank one is warned about exactly once. Each
         // prompt answers only after its 300 ms arm window has passed on the virtual scheduler.
-        for (int prompt = 0; prompt < 2; prompt++)
+        // Wait for each profile prompt by name. The old loop matched the generic prefix twice
+        // when the first answer had not been consumed yet, then typed into the same prompt again;
+        // that made the second Enter land on a stale frame and the walk never reached the summary.
+        foreach (string profile in new[] { "chat-main", "ops" })
         {
-            await host.WaitForFrameAsync("What is profile '");
+            await host.WaitForFrameAsync($"What is profile '{profile}'");
             host.Advance(500);
-            if (prompt == 0)
+            if (profile == "chat-main")
             {
                 host.Console.SendText("for staged edit batches");
             }
