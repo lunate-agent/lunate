@@ -37,7 +37,7 @@ proposal, each with tests and a green gate before the next starts. The provider-
       offline fixtures for each shape.
 - [x] 2.5 Model step: picker over discovery's models with type-ahead search; manual id entry when
       discovery is unavailable or skipped; the resolved API family shown beside the model.
-- [ ] 2.6 Model check: one minimal real request through the resolved family (short completion for a
+- [x] 2.6 Model check: one minimal real request through the resolved family (short completion for a
       chat profile, one tiny noul for a decision profile), cost stated before it runs, skippable and
       `--no-model-check` on the flag path; a wrong model id or family fails here with the model,
       family and status named, go-back to the model step; skipped/failed is marked unverified in the
@@ -76,7 +76,7 @@ proposal, each with tests and a green gate before the next starts. The provider-
 - [x] 4.1 `lunate setup` routed in `Cli.Run` next to `auth`; on a terminal it opens the entry menu on
       a configured install and the full walk on a fresh one; committing without changes writes
       nothing.
-- [ ] 4.2 Non-interactive flags `--provider --endpoint --api-family --credential-placement
+- [x] 4.2 Non-interactive flags `--provider --endpoint --api-family --credential-placement
       --models-url --credential --key-stdin --model --profile --thinking --fast --as-decision
       --no-test --no-model-check --force`; absent flag = skipped step; no value invented.
 - [x] 4.3 Exit codes: 0 after a real commit or a no-op; 2 with the missing answer named when a value

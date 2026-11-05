@@ -21,3 +21,13 @@ stops early.
 
 - Task 1.1: implemented (`src/Lunate.Coding/SetupState.cs`),
   tests `tests/Lunate.Coding.Tests/SetupStateTests.cs`.
+
+## Final slice (2026-11-05, branch `wt/issue-524-final`)
+
+Arrives after #531 (`c90b706f` = main) had left 2.6, 4.2, 5.1–5.4, 6.1–6.2 unchecked. Audit at that
+head: 2.6 and 4.2 were already implemented and pinned by the merged slices (`WizardModelCheck.cs` +
+`SetupWizardModelCheckTests.cs`; `SetupCommand.cs`/`SetupCommand.Walk.cs` + `SetupCommandTests.cs`),
+so the remaining real work is 5.1 (`/setup` dispatch), 5.2 (the entry menu and the scoped entry
+walks, with carried context so an entry writes only what changed), 5.3 (width fixtures), 5.4 (docs)
+and the 6.x gate. Ticks follow verification, in that order.
+
