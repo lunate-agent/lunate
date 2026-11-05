@@ -21,6 +21,9 @@ public sealed class AuthStore
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
+
+        // auth.json is Lunate-owned: LF on every platform, like settings.json and providers.json.
+        NewLine = "\n",
     };
 
     private readonly string _filePath;
@@ -40,6 +43,9 @@ public sealed class AuthStore
 
     /// <summary>The stored keys, without environment overrides applied.</summary>
     public IReadOnlyDictionary<string, string> Keys => _keys;
+
+    /// <summary>The auth file this store was loaded from; a staged store commits only after every sibling file is in place.</summary>
+    internal string FilePath => _filePath;
 
     /// <summary>Loads the store; a missing file yields an empty store, a malformed file one error listing every problem.</summary>
     public static AuthStore Load(string? filePath = null, Func<string, string?>? environment = null)
