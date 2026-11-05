@@ -44,6 +44,20 @@ internal static class AcpMode
             LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
             IExtensionLog log = extensions?.Log ?? new StderrExtensionLog(errors);
             AgentSettings settings = SettingsStore.Resolve(null, null);
+            // A machine with no chat answer never serves a frame: an editor session would fail
+            // every session/new, so the serve start refuses with the one configure-it message and
+            // the spec's exit code (spec: The wizard trigger — "machine modes never open the
+            // wizard"). Launch flags count, exactly as the per-session harness reads them.
+            if (
+                SetupRefusal.Applies(
+                    SettingsStore.ApplyLaunch(settings, launch ?? new LaunchOptions())
+                )
+            )
+            {
+                errors.WriteLine($"lunate: {SetupRefusal.Text}");
+                return SetupRefusal.ExitCode;
+            }
+
             if (settings.BashGuard)
             {
                 StateRootHardlinkScan.Report(

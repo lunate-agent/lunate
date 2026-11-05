@@ -133,6 +133,13 @@ internal static class PrintMode
             interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
             return options.Launch.Model is null ? 1 : 2;
         }
+        catch (SetupRequiredException exception)
+        {
+            // A machine with no chat answer is the configure-it case, not a run error: the one
+            // refusal names `lunate setup` and its flags, and the spec's exit code is 2.
+            interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
+            return SetupRefusal.ExitCode;
+        }
         catch (Exception exception)
         {
             interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));

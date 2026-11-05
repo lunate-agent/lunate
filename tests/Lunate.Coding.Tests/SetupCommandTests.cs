@@ -105,17 +105,17 @@ public sealed class SetupCommandTests : IDisposable
     }
 
     [PosixFact]
-    public void A_no_op_run_writes_nothing_and_names_every_step_skipped()
+    public void A_no_flag_run_without_a_terminal_exits_2_and_names_the_missing_answers()
     {
         (int exit, string output, string errors) = Run(["setup"], stdinIsTerminal: false);
 
-        Assert.Equal(0, exit);
-        Assert.Contains(
-            "written: nothing — every step was skipped",
-            output,
-            StringComparison.Ordinal
-        );
-        Assert.False(File.Exists(SettingsPath), "a no-op run rewrites nothing");
+        Assert.Equal(2, exit);
+        Assert.Empty(output);
+        Assert.Contains("interactive setup wizard", errors, StringComparison.Ordinal);
+        Assert.Contains("--provider", errors, StringComparison.Ordinal);
+        Assert.Contains("--credential", errors, StringComparison.Ordinal);
+        Assert.Contains("--model", errors, StringComparison.Ordinal);
+        Assert.False(File.Exists(SettingsPath), "a refused run writes nothing");
         Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
     }
 
@@ -285,6 +285,58 @@ public sealed class SetupCommandTests : IDisposable
             "--as-decision binds the profile in place of the chat usage"
         );
         Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
+    }
+
+    [PosixFact]
+    public void No_test_sends_no_provider_request()
+    {
+        using var output = new StringWriter();
+        using var errors = new StringWriter();
+        // The check would create a client and ask it for a completion; the discovery transport is
+        // what the connection test would use. Neither may be touched by an offline run.
+        var factory = new FakeChatClientFactory(new ScriptedChatClient());
+        var discovery = new RecordingHandler(
+            (_, _) =>
+                Task.FromResult(
+                    new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(
+                            """{"data":[{"id":"gpt-5"}]}""",
+                            Encoding.UTF8,
+                            "application/json"
+                        ),
+                    }
+                )
+        );
+
+        int exit = Cli.Run(
+            ["setup", "--provider", "openai", "--model", "gpt-5", "--profile", "main", "--no-test"],
+            output,
+            errors,
+            TestContext.Current.CancellationToken,
+            stdinIsTerminal: false,
+            setupSeams: new SetupCommandSeams
+            {
+                AuthPath = _temp.File("auth.json"),
+                Environment = name => name == "OPENAI_API_KEY" ? "no-test-key-not-echoed" : null,
+                DiscoveryTransport = discovery,
+                ChatFactory = factory,
+            }
+        );
+
+        Assert.Equal(0, exit);
+        Assert.Empty(discovery.Requests);
+        Assert.Null(factory.CreatedModel);
+        string summary = output.ToString();
+        Assert.Contains("connection test: skipped", summary, StringComparison.Ordinal);
+        Assert.Contains(
+            "model check: skipped — the model stays unverified",
+            summary,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain("connection test: passed", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("model check: passed", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, summary + errors.ToString(), StringComparison.Ordinal);
     }
 
     private (int Exit, string Output, string Errors) Run(
