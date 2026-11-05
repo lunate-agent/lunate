@@ -701,13 +701,14 @@ internal sealed partial class InteractiveSession : IDisposable
                 resolved.SupportsTools
             );
         }
-        else if (_settings.Usages.TryGetValue("chat", out string? chatProfile))
+        else if (
+            ChatModelResolver.ResolveChatProfile(_settings, _providerEntries, _catalog) is
+            { } chatProfile
+        )
         {
             _extensionModelId = null;
             _modelRoute = null;
-            _model = ModelSelectionResolver
-                .ResolveChatModel(chatProfile, _settings, _providerEntries, _catalog)
-                .Model;
+            _model = chatProfile.Model;
         }
         else
         {
