@@ -46,6 +46,14 @@ public sealed record ProviderEntry(
             : [DefaultFamily];
 
     /// <summary>
+    /// The families a chat model may resolve to: <see cref="Families"/> without the decision-only
+    /// <see cref="ProviderApiFamily.SystemOne"/>. A profile whose family is undeclared resolves
+    /// the single remaining chat family instead of failing as ambiguous.
+    /// </summary>
+    public IReadOnlyList<ProviderApiFamily> ChatFamilies =>
+        [.. Families.Where(static family => family != ProviderApiFamily.SystemOne)];
+
+    /// <summary>
     /// The URL a family routes to, or null when the entry does not declare it. Without
     /// <see cref="BaseUrls"/> only <see cref="DefaultFamily"/> resolves, to <see cref="BaseUrl"/>.
     /// </summary>

@@ -790,6 +790,60 @@ public sealed class DiscoverCommandTests
 
     [Fact]
     [Trait("Discovery", "ProviderApi")]
+    public async Task OpenCode_Go_live_listing_maps_current_models_to_their_native_families()
+    {
+        using var temp = new TempDirectory();
+        string response = File.ReadAllText(Fixture("opencode-go-live-models.json"));
+        using var handler = new FakeHandler(_ => Json(HttpStatusCode.OK, response));
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "opencode-go",
+            Catalog(temp),
+            handler,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Succeeded, result.Error);
+        using JsonDocument draft = JsonDocument.Parse(result.Draft);
+        Dictionary<string, JsonElement> models = draft
+            .RootElement.GetProperty("models")
+            .EnumerateArray()
+            .ToDictionary(model => model.GetProperty("id").GetString()!);
+
+        // One current model per native wire, captured from the live listing: the fixture is
+        // metadata only (no credential), so discovery's own reader is what the test exercises.
+        var expected = new Dictionary<string, (string Family, string Endpoint)>
+        {
+            ["opencode-go/deepseek-v4.1-flash"] = (
+                "openai-chat",
+                "https://opencode.ai/inference/go/openai/v1"
+            ),
+            ["opencode-go/gpt-6-luna"] = (
+                "openai-responses",
+                "https://opencode.ai/inference/go/openai/v1"
+            ),
+            ["opencode-go/claude-haiku-5-5"] = (
+                "anthropic-messages",
+                "https://opencode.ai/inference/go/anthropic/v1"
+            ),
+            ["opencode-go/gemini-4-argon"] = (
+                "google",
+                "https://opencode.ai/inference/go/google/v1beta"
+            ),
+        };
+        foreach ((string id, (string family, string endpoint)) in expected)
+        {
+            JsonElement model = models[id];
+            Assert.Equal(family, model.GetProperty("apiFamily").GetString());
+            Assert.Equal(endpoint, model.GetProperty("endpoint").GetString());
+        }
+
+        Assert.Equal(29, models.Count);
+    }
+
+    [Fact]
+    [Trait("Discovery", "ProviderApi")]
     public async Task OpenCode_Go_discovery_requests_the_preset_models_url_not_a_family_url()
     {
         using var temp = new TempDirectory();

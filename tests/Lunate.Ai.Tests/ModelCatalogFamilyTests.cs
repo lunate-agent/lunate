@@ -4,7 +4,7 @@ namespace Lunate.Ai.Tests;
 public sealed class ModelCatalogFamilyTests
 {
     [Fact]
-    public void Built_in_entries_for_multi_family_presets_are_annotated_with_the_default_family()
+    public void Built_in_entries_for_multi_family_presets_are_annotated_with_a_known_family()
     {
         ModelCatalog catalog = ModelCatalog.LoadLayered(managedFilePath: null, userFilePath: null);
 
@@ -19,7 +19,14 @@ public sealed class ModelCatalogFamilyTests
                 );
                 Assert.Equal("native", model.ApiType);
             }
-            else if (model.Provider is "opencode-go" or "google" or "openrouter" or "opencode")
+            else if (model.Provider == "opencode-go")
+            {
+                // One key, four native wires: every entry carries the family the live listing
+                // reports for that model, never the decision-only one.
+                Assert.True(ProviderApiFamilies.IsKnown(model.ApiFamily), model.Id);
+                Assert.NotEqual(ProviderApiFamilies.SystemOne, model.ApiFamily);
+            }
+            else if (model.Provider is "google" or "openrouter" or "opencode")
             {
                 Assert.Equal(ProviderApiFamilies.OpenAiChat, model.ApiFamily);
             }

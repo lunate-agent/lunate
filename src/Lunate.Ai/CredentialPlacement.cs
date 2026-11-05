@@ -30,9 +30,12 @@ public sealed record CredentialPlacement(
     internal string HeaderValue(string credential) => Scheme + credential;
 
     /// <summary>
-    /// Parses a compact declaration (<c>bearer</c>, <c>x-api-key</c>, <c>header:&lt;name&gt;</c>,
-    /// <c>query:&lt;name&gt;</c>). Anything else is refused naming the value, because an unknown
-    /// compact form today is a typo the wire would answer with an auth failure only.
+    /// Parses a compact declaration (<c>bearer</c>, <c>x-api-key</c>,
+    /// <c>header:&lt;name&gt;</c>, <c>header:&lt;name&gt;;scheme=&lt;scheme&gt;</c>,
+    /// <c>query:&lt;name&gt;</c>). A scheme suffix is what keeps a custom placement — a header with
+    /// scheme Token, say — from degrading to a bare key when the model carries the compact form.
+    /// Anything else is refused naming the value, because an unknown compact form today is a typo
+    /// the wire would answer with an auth failure only.
     /// </summary>
     internal static bool TryParseCompact(
         string? declared,
@@ -76,11 +79,21 @@ public sealed record CredentialPlacement(
 
         if (declared.StartsWith("header:", StringComparison.Ordinal))
         {
+            string header = declared["header:".Length..];
+            string? scheme = null;
+            const string SchemeSuffix = ";scheme=";
+            int separator = header.IndexOf(SchemeSuffix, StringComparison.Ordinal);
+            if (separator >= 0)
+            {
+                scheme = header[(separator + SchemeSuffix.Length)..];
+                header = header[..separator];
+            }
+
             if (
                 !TryCreate(
-                    declared["header:".Length..],
+                    header,
                     CredentialPlacementTarget.Header,
-                    null,
+                    scheme,
                     out placement,
                     out error
                 )
@@ -94,7 +107,7 @@ public sealed record CredentialPlacement(
         }
 
         error =
-            $"'{declared}' is not a placement: declare 'bearer', 'x-api-key', 'header:<name>' or 'query:<name>'.";
+            $"'{declared}' is not a placement: declare 'bearer', 'x-api-key', 'header:<name>', 'header:<name>;scheme=<scheme>' or 'query:<name>'.";
         return false;
     }
 
@@ -160,12 +173,18 @@ public sealed record CredentialPlacement(
         return scheme.EndsWith(' ') ? scheme : scheme + " ";
     }
 
-    /// <summary>The compact form the model and the auth wizard round-trip; null when Bearer.</summary>
-    internal string? ToCompact() =>
+    /// <summary>
+    /// The compact form the model and the auth wizard round-trip. A header's scheme rides the
+    /// suffix (<c>header:Authorization;scheme=Token</c>), so carrying the placement through
+    /// <see cref="ModelInfo.CredentialPlacement"/> cannot drop it; null is never returned because
+    /// <see cref="Bearer"/> compactly names itself.
+    /// </summary>
+    internal string ToCompact() =>
         this == Bearer ? "bearer"
         : this == XApiKey ? "x-api-key"
         : Target == CredentialPlacementTarget.Query ? "query:" + Name
-        : "header:" + Name;
+        : string.IsNullOrEmpty(Scheme) ? "header:" + Name
+        : "header:" + Name + ";scheme=" + Scheme.TrimEnd(' ');
 
     internal static bool IsValidHeaderName(string name)
     {

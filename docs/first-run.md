@@ -253,8 +253,9 @@ printf '%s\n' "$ANTHROPIC_KEY" |
     --model claude-example --key-stdin
 ```
 
-Placements are `bearer` (the default), `x-api-key`, `header:<name>` (for example Azure's `api-key`)
-and `query:<name>` (for example Google's `key`). The entry is written in the v2 shape — `baseUrls`
+Placements are `bearer` (the default), `x-api-key`, `header:<name>` (for example Azure's `api-key`),
+`header:<name>;scheme=<scheme>` (for example `header:Authorization;scheme=Token`) and `query:<name>`
+(for example Google's `key`). The entry is written in the v2 shape — `baseUrls`
 keyed by family, `credentialPlacement`, optional `modelsUrl`, headers — and the key stays in
 `auth.json`, never in `providers.json`.
 

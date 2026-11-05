@@ -196,11 +196,12 @@ public static class ModelsDevCatalog
             MaxOutput = ReadMaxOutput(entry),
             SupportsVision = ReadBoolean(entry, "attachment"),
             WireId = native ? null : modelKey,
-            // A preset that serves more than one family would leave every generated model
+            // A preset that serves more than one chat family would leave every generated model
             // ambiguous (nothing above it answers which family to use), so the entry carries the
-            // preset's default family, written as the wire name. Single-family presets resolve
-            // alone and stay unannotated.
-            ApiFamily = preset.Families is { Count: > 1 }
+            // preset's default family, written as the wire name. Single-chat-family presets
+            // resolve alone and stay unannotated, even when they add the decision-only System One
+            // family.
+            ApiFamily = preset.ChatFamilies is { Count: > 1 }
                 ? ProviderApiFamilies.Name(preset.DefaultFamily)
                 : null,
         };

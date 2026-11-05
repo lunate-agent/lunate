@@ -333,6 +333,45 @@ public sealed class ModelsDevCatalogTests
         Assert.ThrowsAny<ArgumentException>(() => ModelsDevCatalog.Generate("{}", []));
     }
 
+    [Fact]
+    public void Generate_leaves_a_single_chat_family_preset_unannotated_even_with_systemone()
+    {
+        var preset = new ProviderPreset(
+            "gateway",
+            "Gateway",
+            ProviderAdapter.OpenAiCompatible,
+            new Uri("https://gateway.example.test/v1"),
+            "GATEWAY_API_KEY",
+            BaseUrls: new Dictionary<ProviderApiFamily, Uri>
+            {
+                [ProviderApiFamily.OpenAiChat] = new("https://gateway.example.test/v1"),
+                [ProviderApiFamily.SystemOne] = new("https://gateway.example.test/v1/systemone"),
+            }
+        );
+        string json = """
+            { "gateway": { "models": { "m": { "limit": { "context": 1000 } } } } }
+            """;
+
+        CatalogSnapshot snapshot = ModelsDevCatalog.Generate(json, [preset]);
+
+        Assert.Null(snapshot.Models.Single().ApiFamily);
+    }
+
+    [Fact]
+    public void Generate_annotates_a_multi_chat_family_preset_with_its_default()
+    {
+        string json = """
+            { "opencode-go": { "models": { "m": { "limit": { "context": 1000 } } } } }
+            """;
+
+        CatalogSnapshot snapshot = ModelsDevCatalog.Generate(
+            json,
+            [ProviderPresets.Find("opencode-go")!]
+        );
+
+        Assert.Equal("openai-chat", snapshot.Models.Single().ApiFamily);
+    }
+
     private static CatalogSnapshot Generate() =>
         ModelsDevCatalog.Generate(SnapshotJson(), ProviderPresets.All);
 

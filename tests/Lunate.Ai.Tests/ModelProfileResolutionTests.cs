@@ -78,6 +78,46 @@ public sealed class ModelProfileResolutionTests
     }
 
     [Fact]
+    public void A_profile_on_a_systemone_capable_entry_resolves_the_single_chat_family()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = Catalog(
+            temp,
+            """
+            { "id": "openrouter/vendor-a/chat-model", "provider": "openrouter",
+              "contextWindow": 128000, "supportsTools": true }
+            """
+        );
+        var familyUrls = new Dictionary<ProviderApiFamily, Uri>
+        {
+            [ProviderApiFamily.OpenAiChat] = new("https://openrouter.ai/api/v1"),
+            [ProviderApiFamily.SystemOne] = new("https://openrouter.ai/api/v1/systemone"),
+        };
+        bool valid = ProviderEntry.TryCreate(
+            "gateway",
+            "openrouter",
+            baseUrl: new Uri("https://openrouter.ai/api/v1"),
+            "auth:gateway",
+            headers: null,
+            region: null,
+            familyUrls,
+            modelsUrl: null,
+            out ProviderEntry? provider,
+            out string? error
+        );
+        Assert.True(valid, error);
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            new ModelProfile("chat", "gateway", "openrouter/vendor-a/chat-model"),
+            [provider!],
+            catalog
+        );
+
+        Assert.Equal("openai-chat", resolved.Model.ApiFamily);
+        Assert.Equal(familyUrls[ProviderApiFamily.OpenAiChat], resolved.Model.Endpoint);
+    }
+
+    [Fact]
     public void Layers_capabilities_from_catalog_through_discovery_to_profile()
     {
         using var temp = new TempDirectory();

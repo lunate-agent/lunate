@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using Anthropic;
 using Microsoft.Extensions.AI;
@@ -164,7 +165,7 @@ public sealed class ChatClientFactory : IChatClientFactory
         string wireId = WireModelId(model, preset);
         ProviderApiFamily family = ProviderFamilyResolver.Resolve(
             model.ApiFamily,
-            preset.Families,
+            preset.ChatFamilies,
             model.Provider,
             model.Id
         );
@@ -194,41 +195,113 @@ public sealed class ChatClientFactory : IChatClientFactory
 
         switch (family)
         {
+            // Each family's construction lives in its own non-inlined method: JIT-compiling this
+            // dispatcher must not resolve a sibling family's SDK types, or every provider pays
+            // that assembly's load on the startup path (S-7, Google.GenAI in particular).
             // The native OpenAI preset keeps the SDK default endpoint; every compatible preset
             // routes to its own base URL unless the entry declares one. A preset that declares
             // per-family URLs routes the family's URL.
             case ProviderApiFamily.OpenAiChat:
-                return CreateOpenAiClient(model, preset, headersHandler, credentialHandler)
-                    .GetChatClient(wireId)
-                    .AsIChatClient();
+                return CreateOpenAiChatFamilyClient(
+                    model,
+                    preset,
+                    headersHandler,
+                    credentialHandler,
+                    wireId
+                );
             case ProviderApiFamily.OpenAiResponses:
-#pragma warning disable OPENAI001 // The Responses API is the family's own wire; the design pins it.
-                return CreateOpenAiClient(
-                        model,
-                        preset,
-                        headersHandler,
-                        credentialHandler,
-                        ProviderApiFamily.OpenAiResponses
-                    )
-                    .GetResponsesClient()
-                    .AsIChatClient(wireId);
-#pragma warning restore OPENAI001
+                return CreateOpenAiResponsesFamilyClient(
+                    model,
+                    preset,
+                    headersHandler,
+                    credentialHandler,
+                    wireId
+                );
             case ProviderApiFamily.AnthropicMessages:
-                return CreateAnthropicClient(
-                        model,
-                        preset,
-                        headersHandler,
-                        credentialHandler,
-                        BaseTransportFactory
-                    )
-                    .AsIChatClient(wireId);
+                return CreateAnthropicMessagesFamilyClient(
+                    model,
+                    preset,
+                    headersHandler,
+                    credentialHandler,
+                    wireId
+                );
             case ProviderApiFamily.Google:
-                return CreateGoogleClient(model, preset, headersHandler, credentialHandler)
-                    .AsIChatClient(wireId);
+                return CreateGoogleFamilyClient(
+                    model,
+                    preset,
+                    headersHandler,
+                    credentialHandler,
+                    wireId
+                );
             default:
                 throw NotImplementedFamily(family, model, model.Provider);
         }
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private IChatClient CreateOpenAiChatFamilyClient(
+        ModelInfo model,
+        ProviderPreset preset,
+        DelegatingHandler headersHandler,
+        DelegatingHandler credentialHandler,
+        string wireId
+    ) =>
+        CreateOpenAiClient(model, preset, headersHandler, credentialHandler)
+            .GetChatClient(wireId)
+            .AsIChatClient();
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private IChatClient CreateOpenAiResponsesFamilyClient(
+        ModelInfo model,
+        ProviderPreset preset,
+        DelegatingHandler headersHandler,
+        DelegatingHandler credentialHandler,
+        string wireId
+    )
+    {
+#pragma warning disable OPENAI001 // The Responses API is the family's own wire; the design pins it.
+        return CreateOpenAiClient(
+                model,
+                preset,
+                headersHandler,
+                credentialHandler,
+                ProviderApiFamily.OpenAiResponses
+            )
+            .GetResponsesClient()
+            .AsIChatClient(wireId);
+#pragma warning restore OPENAI001
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private IChatClient CreateAnthropicMessagesFamilyClient(
+        ModelInfo model,
+        ProviderPreset preset,
+        DelegatingHandler headersHandler,
+        DelegatingHandler credentialHandler,
+        string wireId
+    ) =>
+        CreateAnthropicClient(
+                model,
+                preset,
+                headersHandler,
+                credentialHandler,
+                BaseTransportFactory
+            )
+            .AsIChatClient(wireId);
+
+    /// <summary>
+    /// The Google family's own construction method. Non-inlined and separate from the dispatcher
+    /// so constructing an Anthropic or OpenAI client never JIT-compiles this body — and therefore
+    /// never loads Google.GenAI on the startup path (S-7).
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private IChatClient CreateGoogleFamilyClient(
+        ModelInfo model,
+        ProviderPreset preset,
+        DelegatingHandler headersHandler,
+        DelegatingHandler credentialHandler,
+        string wireId
+    ) => CreateGoogleClient(model, preset, headersHandler, credentialHandler).AsIChatClient(wireId);
 
     /// <summary>
     /// The placement the resolved family's wire uses: the entry's declaration (carried on the
