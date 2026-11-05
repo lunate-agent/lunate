@@ -48,12 +48,17 @@ public sealed class SetupWizardWidthTests
             Assert.Contains("Select provider", frames, StringComparison.Ordinal);
             Assert.Contains("Credential for openai", frames, StringComparison.Ordinal);
             Assert.Contains("provider: openai", flatSummary, StringComparison.Ordinal);
-            Assert.Contains("model: gpt-3.5-turbo (family openai-chat)", flatSummary, StringComparison.Ordinal);
+            Assert.Contains(
+                "model: gpt-3.5-turbo (family openai-chat)",
+                flatSummary,
+                StringComparison.Ordinal
+            );
             Assert.Contains("chat profile: chat-main", flatSummary, StringComparison.Ordinal);
 
             foreach (string raw in host.Frames.Split('\n'))
             {
-                string line = Regex.Replace(raw, "\x1b\\[[0-9;?]*[ -/]*[@-~]", string.Empty)
+                string line = Regex
+                    .Replace(raw, "\x1b\\[[0-9;?]*[ -/]*[@-~]", string.Empty)
                     .Replace("\r", string.Empty, StringComparison.Ordinal);
                 Assert.True(
                     line.Length <= width,

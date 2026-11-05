@@ -1,5 +1,5 @@
-using Lunate.Ai;
 using System.Text.Json;
+using Lunate.Ai;
 using Lunate.Tui;
 
 namespace Lunate.Coding.Tests;
@@ -16,8 +16,7 @@ public sealed class SetupWizardEntryMenuTests
 {
     private const string Credential = "entry-menu-test-key-please-never-echo";
 
-    private const string ConfiguredSettings =
-        """
+    private const string ConfiguredSettings = """
         {
           "schemaVersion": 2,
           "model": "gpt-4.1",
@@ -29,8 +28,7 @@ public sealed class SetupWizardEntryMenuTests
         }
         """;
 
-    private const string SoleSettings =
-        """
+    private const string SoleSettings = """
         {
           "schemaVersion": 2,
           "model": "gpt-4.1",
@@ -124,7 +122,11 @@ public sealed class SetupWizardEntryMenuTests
         string summary = await host.WaitForScrollbackAsync("skipped:");
         Assert.Contains("provider: deepseek", summary, StringComparison.Ordinal);
         Assert.Contains("credential: the key you typed", summary, StringComparison.Ordinal);
-        Assert.Contains("skipped: model, model check, chat profile, fast usage", summary, StringComparison.Ordinal);
+        Assert.Contains(
+            "skipped: model, model check, chat profile, fast usage",
+            summary,
+            StringComparison.Ordinal
+        );
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter(); // the default row writes
@@ -172,7 +174,11 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter(); // skip
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("model: gpt-4o-mini (family openai-chat)", summary, StringComparison.Ordinal);
+        Assert.Contains(
+            "model: gpt-4o-mini (family openai-chat)",
+            summary,
+            StringComparison.Ordinal
+        );
         Assert.Contains("credential: auth:openai", summary, StringComparison.Ordinal);
         Assert.Contains("chat profile: helper", summary, StringComparison.Ordinal);
         Assert.Contains(
@@ -197,7 +203,10 @@ public sealed class SetupWizardEntryMenuTests
         Assert.True(profiles.TryGetProperty("helper", out helper), raw);
         Assert.Equal("openai", helper.GetProperty("provider").GetString());
         Assert.Equal("gpt-4o-mini", helper.GetProperty("model").GetString());
-        Assert.Equal("chat-main", store.RootElement.GetProperty("usages").GetProperty("chat").GetString());
+        Assert.Equal(
+            "chat-main",
+            store.RootElement.GetProperty("usages").GetProperty("chat").GetString()
+        );
         Assert.Equal(providers, File.ReadAllBytes(ProviderPath(host)));
         Assert.Equal(auth, AuthSnapshot(host));
     }
@@ -233,7 +242,8 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.Complete();
         await run;
         await host.WaitUntilAsync(() =>
-            File.ReadAllText(SettingsPath(host)).Contains("\"chat\": \"chat-alt\"", StringComparison.Ordinal)
+            File.ReadAllText(SettingsPath(host))
+                .Contains("\"chat\": \"chat-alt\"", StringComparison.Ordinal)
         );
 
         string settings = File.ReadAllText(SettingsPath(host));
@@ -303,7 +313,11 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
-        Assert.Contains("skipped: provider, credential, connection test", summary, StringComparison.Ordinal);
+        Assert.Contains(
+            "skipped: provider, credential, connection test",
+            summary,
+            StringComparison.Ordinal
+        );
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();

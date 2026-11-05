@@ -133,63 +133,57 @@ internal sealed partial class InteractiveSession
     {
         wizard.Enter(wizard.FirstWalked);
         while (wizard.Step is not SetupStep.Summary)
+        {
+            WizardMove move = wizard.Step switch
             {
-                WizardMove move = wizard.Step switch
-                {
-                    SetupStep.Provider => await ProviderStepAsync(wizard, ct).ConfigureAwait(false),
-                    SetupStep.Credential => await CredentialStepAsync(wizard, ct)
-                        .ConfigureAwait(false),
-                    SetupStep.ConnectionTest => await ConnectionTestStepAsync(wizard, ct)
-                        .ConfigureAwait(false),
-                    SetupStep.Model => await ModelStepAsync(wizard, ct).ConfigureAwait(false),
-                    SetupStep.ModelCheck => await ModelCheckStepAsync(wizard, ct)
-                        .ConfigureAwait(false),
-                    SetupStep.ChatProfile =>
-                        wizard.Entry is WizardEntry.ChangeChatProfile
-                            ? await ChatUsageStepAsync(wizard, ct).ConfigureAwait(false)
-                            : await ChatProfileStepAsync(wizard, ct).ConfigureAwait(false),
-                    SetupStep.FastProfile => await FastStepAsync(wizard, ct).ConfigureAwait(false),
-                    SetupStep.DecisionProfile => await DecisionStepAsync(wizard, ct)
-                        .ConfigureAwait(false),
-                    SetupStep.Decisions => await DecisionsStepAsync(wizard, ct)
-                        .ConfigureAwait(false),
-                    _ => WizardMove.Advance,
-                };
+                SetupStep.Provider => await ProviderStepAsync(wizard, ct).ConfigureAwait(false),
+                SetupStep.Credential => await CredentialStepAsync(wizard, ct).ConfigureAwait(false),
+                SetupStep.ConnectionTest => await ConnectionTestStepAsync(wizard, ct)
+                    .ConfigureAwait(false),
+                SetupStep.Model => await ModelStepAsync(wizard, ct).ConfigureAwait(false),
+                SetupStep.ModelCheck => await ModelCheckStepAsync(wizard, ct).ConfigureAwait(false),
+                SetupStep.ChatProfile => wizard.Entry is WizardEntry.ChangeChatProfile
+                    ? await ChatUsageStepAsync(wizard, ct).ConfigureAwait(false)
+                    : await ChatProfileStepAsync(wizard, ct).ConfigureAwait(false),
+                SetupStep.FastProfile => await FastStepAsync(wizard, ct).ConfigureAwait(false),
+                SetupStep.DecisionProfile => await DecisionStepAsync(wizard, ct)
+                    .ConfigureAwait(false),
+                SetupStep.Decisions => await DecisionsStepAsync(wizard, ct).ConfigureAwait(false),
+                _ => WizardMove.Advance,
+            };
 
-                if (move == WizardMove.Abort)
-                {
-                    Notify("setup cancelled — nothing was changed", NoticeLevel.Info);
-                    return;
-                }
-
-                if (move == WizardMove.Stay)
-                {
-                    continue;
-                }
-
-                if (move == WizardMove.Back)
-                {
-                    wizard.Enter(BackWithinEntry(wizard, wizard.Step));
-                    continue;
-                }
-
-                wizard.Enter(
-                    wizard.Step == wizard.LastWalked ? SetupStep.Summary : Next(wizard.Step)
-                );
-            }
-
-            RenderSummary(wizard);
-            if (
-                await ConfirmAsync("Write this configuration? (Enter writes; Esc cancels)", ct)
-                is not true
-            )
+            if (move == WizardMove.Abort)
             {
-                Notify("setup cancelled — nothing was written", NoticeLevel.Info);
+                Notify("setup cancelled — nothing was changed", NoticeLevel.Info);
                 return;
             }
 
-            CommitWizard(wizard);
-            await ReconcileAsync(wizard, ct).ConfigureAwait(false);
+            if (move == WizardMove.Stay)
+            {
+                continue;
+            }
+
+            if (move == WizardMove.Back)
+            {
+                wizard.Enter(BackWithinEntry(wizard, wizard.Step));
+                continue;
+            }
+
+            wizard.Enter(wizard.Step == wizard.LastWalked ? SetupStep.Summary : Next(wizard.Step));
+        }
+
+        RenderSummary(wizard);
+        if (
+            await ConfirmAsync("Write this configuration? (Enter writes; Esc cancels)", ct)
+            is not true
+        )
+        {
+            Notify("setup cancelled — nothing was written", NoticeLevel.Info);
+            return;
+        }
+
+        CommitWizard(wizard);
+        await ReconcileAsync(wizard, ct).ConfigureAwait(false);
     }
 
     /// <summary>A go-back inside an entry's scope: the walk keeps re-running earlier steps of the

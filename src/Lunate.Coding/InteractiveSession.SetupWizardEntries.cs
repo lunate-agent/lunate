@@ -43,53 +43,59 @@ internal sealed partial class InteractiveSession
 
     private async Task RunSetupMenuAsync(SetupWizardModel wizard, CancellationToken ct) =>
         await RunWizardTaskAsync(
-            wizard,
-            async token =>
-            {
-                string? answer = await PickAsync(
-                        "Setup — what do you want to configure?",
-                        ["Add a provider", "Add a profile", "Change the chat profile", "Edit the decisions layer", "Walk everything"],
-                        ["provider", "profile", "chat", "decisions", "walk"],
-                        PickerKind.WizardChoice,
-                        token
-                    )
-                    .ConfigureAwait(false);
-                if (answer is null)
+                wizard,
+                async token =>
                 {
-                    Notify("setup closed — nothing was changed", NoticeLevel.Info);
-                    return;
-                }
-
-                WizardEntry entry = answer switch
-                {
-                    "provider" => WizardEntry.AddProvider,
-                    "profile" => WizardEntry.AddProfile,
-                    "chat" => WizardEntry.ChangeChatProfile,
-                    "decisions" => WizardEntry.EditDecisions,
-                    _ => WizardEntry.WalkEverything,
-                };
-                wizard.Begin(entry);
-                PrefillEntry(wizard, entry);
-                MarkEntrySkips(wizard);
-                Notify(
-                    entry switch
+                    string? answer = await PickAsync(
+                            "Setup — what do you want to configure?",
+                            [
+                                "Add a provider",
+                                "Add a profile",
+                                "Change the chat profile",
+                                "Edit the decisions layer",
+                                "Walk everything",
+                            ],
+                            ["provider", "profile", "chat", "decisions", "walk"],
+                            PickerKind.WizardChoice,
+                            token
+                        )
+                        .ConfigureAwait(false);
+                    if (answer is null)
                     {
-                        WizardEntry.AddProvider => "setup — add a provider; Esc ends this run",
-                        WizardEntry.AddProfile => "setup — add a profile; Esc ends this run",
-                        WizardEntry.ChangeChatProfile =>
-                            "setup — change the chat profile; Esc ends this run",
-                        WizardEntry.EditDecisions =>
-                            "setup — edit the decisions layer; Esc ends this run",
-                        _ =>
-                            "setup: configure a provider, a model and a profile — Esc at any prompt "
-                                + "ends the wizard, and nothing is written before the summary confirms",
-                    },
-                    NoticeLevel.Info
-                );
-                await WalkAsync(wizard, token).ConfigureAwait(false);
-            },
-            ct
-        )
+                        Notify("setup closed — nothing was changed", NoticeLevel.Info);
+                        return;
+                    }
+
+                    WizardEntry entry = answer switch
+                    {
+                        "provider" => WizardEntry.AddProvider,
+                        "profile" => WizardEntry.AddProfile,
+                        "chat" => WizardEntry.ChangeChatProfile,
+                        "decisions" => WizardEntry.EditDecisions,
+                        _ => WizardEntry.WalkEverything,
+                    };
+                    wizard.Begin(entry);
+                    PrefillEntry(wizard, entry);
+                    MarkEntrySkips(wizard);
+                    Notify(
+                        entry switch
+                        {
+                            WizardEntry.AddProvider => "setup — add a provider; Esc ends this run",
+                            WizardEntry.AddProfile => "setup — add a profile; Esc ends this run",
+                            WizardEntry.ChangeChatProfile =>
+                                "setup — change the chat profile; Esc ends this run",
+                            WizardEntry.EditDecisions =>
+                                "setup — edit the decisions layer; Esc ends this run",
+                            _ =>
+                                "setup: configure a provider, a model and a profile — Esc at any prompt "
+                                    + "ends the wizard, and nothing is written before the summary confirms",
+                        },
+                        NoticeLevel.Info
+                    );
+                    await WalkAsync(wizard, token).ConfigureAwait(false);
+                },
+                ct
+            )
             .ConfigureAwait(false);
 
     /// <summary>The steps the entry never walks and never carried are named skipped: the summary
@@ -197,8 +203,9 @@ internal sealed partial class InteractiveSession
             );
         }
 
-        ProviderApiFamily family =
-            entry.BaseUrls is { Count: > 0 } table ? table.Keys.First() : entry.DefaultFamily;
+        ProviderApiFamily family = entry.BaseUrls is { Count: > 0 } table
+            ? table.Keys.First()
+            : entry.DefaultFamily;
         return new WizardProviderChoice(
             entry.Name,
             Custom: true,
@@ -216,7 +223,11 @@ internal sealed partial class InteractiveSession
     {
         ModelInfo? known = _catalog.Find(profile.Model);
         ProviderApiFamily family = entry.DefaultFamily;
-        return new WizardModelChoice(profile.Model, ProviderApiFamilies.Name(family), known?.Reasoning);
+        return new WizardModelChoice(
+            profile.Model,
+            ProviderApiFamilies.Name(family),
+            known?.Reasoning
+        );
     }
 
     /// <summary>The settings profile as the carried chat profile; the walk only names its kind.</summary>
@@ -241,10 +252,7 @@ internal sealed partial class InteractiveSession
 
     /// <summary>"Change the chat profile"'s answer: the configured profiles, the current binding
     /// highlighted. Choosing the current one changes nothing and ends the run.</summary>
-    private async Task<WizardMove> ChatUsageStepAsync(
-        SetupWizardModel wizard,
-        CancellationToken ct
-    )
+    private async Task<WizardMove> ChatUsageStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         List<string> names = [.. _settings.Profiles.Keys];
         if (names.Count == 0)

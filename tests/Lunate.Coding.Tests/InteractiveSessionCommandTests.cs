@@ -218,7 +218,9 @@ public sealed class InteractiveSessionCommandTests
         host.Console.SendEnter();
         await host.Client.WaitForCallAsync(1);
 
-        foreach (string command in new[] { "/new", "/resume", "/model", "/auth", "/compact", "/setup" })
+        foreach (
+            string command in new[] { "/new", "/resume", "/model", "/auth", "/compact", "/setup" }
+        )
         {
             host.Console.SendText(command);
             await host.WaitUntilAsync(() => host.Session.Input.Text == command);

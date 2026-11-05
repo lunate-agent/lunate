@@ -62,7 +62,6 @@ internal static class SetupWizardCommit
         }
         catch (Exception)
         {
-
             if (savedKeyName is { } name)
             {
                 AuthStore auth = loadAuth();
@@ -347,10 +346,7 @@ internal static class SetupWizardCommit
     private static void WriteDecisions(SetupWizardModel model, CommitPaths paths)
     {
         WizardDecisionChoice? decision = model.DecisionProfile;
-        if (
-            decision is not null
-            && !model.IsCarried(SetupStep.DecisionProfile)
-        )
+        if (decision is not null && !model.IsCarried(SetupStep.DecisionProfile))
         {
             // Bind without enabling any consumer (spec: The full walk, step 7).
             SettingsStore.WriteDecisionsKey("profile", decision.ProfileName, paths.SettingsPath);

@@ -45,7 +45,6 @@ internal sealed partial class InteractiveSession
 
     private void CommitWizard(SetupWizardModel wizard)
     {
-
         string settingsPath = _options.SettingsPath ?? AuthStore.SettingsFilePath(null);
         string providerPath = AuthStore.ProviderStoreFilePath(_options.AuthPath);
         SetupWizardCommit.Commit(
