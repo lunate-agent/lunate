@@ -79,9 +79,11 @@ internal static class ModelProfileResolver
         try
         {
             // Precedence: profile override, then the already-merged discovery/catalog family,
-            // then the provider's single family; the provider entry must declare a URL for it,
-            // or its kind preset does (a preset-provided entry can stay minimal while the
-            // preset's per-family URLs — System One among them — still route).
+            // then the provider's single family. The endpoint follows the entry's own declared
+            // URL for the family — the user's explicit routing intent — and otherwise keeps a
+            // discovered per-model endpoint before falling back to the kind preset's family URL.
+            // A minimal preset-provided entry can therefore stay minimal while its per-family
+            // URLs (System One among them) still route.
             family = ProviderFamilyResolver.Resolve(
                 profile.ApiFamily ?? model.ApiFamily,
                 provider.ChatFamilies,
@@ -89,7 +91,9 @@ internal static class ModelProfileResolver
                 model.Id
             );
             endpoint =
-                provider.UrlFor(family) ?? ProviderPresets.Find(provider.Kind)?.UrlFor(family);
+                provider.UrlFor(family)
+                ?? model.Endpoint
+                ?? ProviderPresets.Find(provider.Kind)?.UrlFor(family);
         }
         catch (InvalidOperationException exception)
         {
