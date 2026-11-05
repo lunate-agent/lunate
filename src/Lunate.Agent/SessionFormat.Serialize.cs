@@ -148,6 +148,11 @@ internal static partial class SessionFormat
                 writer.WriteNumber("cacheWrite", cacheWrite);
             }
 
+            if (usage.Cost is { } cost)
+            {
+                writer.WriteNumber("cost", cost);
+            }
+
             if (usage.Attribution is { } attribution)
             {
                 writer.WritePropertyName("attribution");
