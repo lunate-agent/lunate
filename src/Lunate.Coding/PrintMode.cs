@@ -292,6 +292,11 @@ internal static class PrintMode
                 interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
                 return options.Launch.Model is null ? 1 : 2;
             }
+            catch (SetupRequiredException exception)
+            {
+                interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
+                return SetupRefusal.ExitCode;
+            }
             catch (Exception exception)
             {
                 interaction.Notify(new UserNotice(NoticeLevel.Error, exception.Message));
