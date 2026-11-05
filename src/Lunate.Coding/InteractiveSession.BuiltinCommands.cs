@@ -245,9 +245,6 @@ internal sealed partial class InteractiveSession
 
                     session.OpenSessionPicker();
                     return CommandResult.None;
-                case "/setup":
-                    session.HandleSetupCommand();
-                    return CommandResult.None;
                 default:
                     return CommandResult.Error("unknown command: " + name);
             }

@@ -129,7 +129,6 @@ public sealed class InteractiveSessionCommandTests
               /login      — store an API key for a provider preset
               /logout     — remove the stored API key for a provider preset
               /model      — pick a model or switch to one by id
-              /setup      — run the setup wizard (the entry menu on a configured install)
               /unfavorite — remove the active or named model from favorites
             extensions
               /extensions   — list the discovered extensions with their state
@@ -218,9 +217,7 @@ public sealed class InteractiveSessionCommandTests
         host.Console.SendEnter();
         await host.Client.WaitForCallAsync(1);
 
-        foreach (
-            string command in new[] { "/new", "/resume", "/model", "/auth", "/compact", "/setup" }
-        )
+        foreach (string command in new[] { "/new", "/resume", "/model", "/auth", "/compact" })
         {
             host.Console.SendText(command);
             await host.WaitUntilAsync(() => host.Session.Input.Text == command);

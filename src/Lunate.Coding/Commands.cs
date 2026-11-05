@@ -82,11 +82,6 @@ internal static class Commands
         new("/login", CommandGroup.Model, "store an API key for a provider preset"),
         new("/logout", CommandGroup.Model, "remove the stored API key for a provider preset"),
         new("/model", CommandGroup.Model, "pick a model or switch to one by id"),
-        new(
-            "/setup",
-            CommandGroup.Model,
-            "run the setup wizard (the entry menu on a configured install)"
-        ),
         new("/unfavorite", CommandGroup.Model, "remove the active or named model from favorites"),
         new(
             "/extensions",

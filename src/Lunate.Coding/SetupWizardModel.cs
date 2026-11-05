@@ -17,20 +17,6 @@ internal enum SetupStep
     Summary,
 }
 
-/// <summary>
-/// The entry a wizard run serves: the full walk on a first run, or one of the configured install's
-/// entry-menu choices (design §8) — a scoped walk that collects only the steps its entry names and
-/// writes only what it collected. The walk always ends at the summary and confirms before a write.
-/// </summary>
-internal enum WizardEntry
-{
-    WalkEverything,
-    AddProvider,
-    AddProfile,
-    ChangeChatProfile,
-    EditDecisions,
-}
-
 /// <summary>A check step's progress: pending, passed, failed with its named reason, or skipped.</summary>
 internal enum WizardProgress
 {
@@ -142,24 +128,6 @@ internal sealed class SetupWizardModel
 
     private readonly HashSet<SetupStep> _skipped = [];
 
-    /// <summary>The steps whose answer was carried in from the current configuration: an entry
-    /// run's prefill. Carried values drive the later steps and show in the summary, but they are
-    /// never staged writes — an entry writes only what it collected (spec: the entry menu).</summary>
-    private readonly HashSet<SetupStep> _carried = [];
-
-    /// <summary>The entry the walk serves; the driver asks it for the walked range.</summary>
-    public WizardEntry Entry { get; private set; } = WizardEntry.WalkEverything;
-
-    /// <summary>The chat usage an entry walk rebinds (<c>/setup</c>'s "change the chat profile"):
-    /// the profile the <c>chat</c> usage points at after this run, written alone — the profile
-    /// entries themselves stay as the settings file has them.</summary>
-    public string? ChatUsageBinding { get; private set; }
-
-    /// <summary>Whether the chat profile the walk stages also binds the <c>chat</c> usage. The
-    /// full walk rebinds; an "add a profile" entry adds the profile without switching the chat
-    /// usage (that switch is "change the chat profile"'s own answer).</summary>
-    public bool BindChatUsage { get; private set; } = true;
-
     /// <summary>The step the walk is at now; the driver re-enters steps on go-back.</summary>
     public SetupStep Step { get; private set; } = SetupStep.Provider;
 
@@ -216,105 +184,6 @@ internal sealed class SetupWizardModel
         }
     }
 
-    /// <summary>Names the entry whose walk this run serves and resets the walk to its first step.
-    /// Answered state stays untouched: the prefill (a carried walk's context) arrives before.</summary>
-    public void Begin(WizardEntry entry)
-    {
-        Entry = entry;
-        Step = FirstWalked;
-    }
-
-    /// <summary>The entry's first walked step; scoped entries begin where their scope begins.</summary>
-    internal SetupStep FirstWalked =>
-        Entry switch
-        {
-            WizardEntry.AddProfile => SetupStep.Model,
-            WizardEntry.ChangeChatProfile => SetupStep.ChatProfile,
-            WizardEntry.EditDecisions => SetupStep.Decisions,
-            _ => SetupStep.Provider,
-        };
-
-    /// <summary>The entry's last walked step; the walk goes to the summary after it.</summary>
-    internal SetupStep LastWalked =>
-        Entry switch
-        {
-            WizardEntry.AddProvider => SetupStep.ConnectionTest,
-            WizardEntry.AddProfile => SetupStep.DecisionProfile,
-            WizardEntry.ChangeChatProfile => SetupStep.ChatProfile,
-            WizardEntry.EditDecisions => SetupStep.Decisions,
-            _ => SetupStep.Decisions,
-        };
-
-    /// <summary>
-    /// Carries the current configuration's answers into the walk as an entry run's context. A
-    /// carried answer is not a write: the steps the entry walks consume it, the summary shows it,
-    /// and the commit never rewrites it (the stores already have it). Re-answering a carried step
-    /// un-carries it and the re-answer becomes this run's staged answer.
-    /// </summary>
-    internal void CarryContext(
-        WizardProviderChoice? provider,
-        WizardCredentialChoice? credential,
-        WizardModelChoice? model,
-        WizardProfileChoice? chat
-    )
-    {
-        if (provider is { } carriedProvider)
-        {
-            Provider = carriedProvider;
-            _carried.Add(SetupStep.Provider);
-        }
-
-        if (credential is { } carriedCredential)
-        {
-            Credential = carriedCredential;
-            _carried.Add(SetupStep.Credential);
-        }
-
-        if (model is { } carriedModel)
-        {
-            Model = carriedModel;
-            _carried.Add(SetupStep.Model);
-        }
-
-        if (chat is { } carriedChat)
-        {
-            ChatProfile = carriedChat;
-            _carried.Add(SetupStep.ChatProfile);
-        }
-    }
-
-    /// <summary>Whether the step's answer was carried from the current configuration, not
-    /// collected in this run. The summary names carried steps "current"; the commit skips them.</summary>
-    internal bool IsCarried(SetupStep step) => _carried.Contains(step);
-
-    /// <summary>
-    /// Stages the chat usage binding an entry walk collected ("change the chat profile"): the
-    /// <c>chat</c> usage re-points at a profile the settings file already configures. The profile
-    /// entries are not touched by this answer.
-    /// </summary>
-    public void RecordChatUsageBinding(string profileName)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(profileName);
-        ChatUsageBinding = profileName;
-    }
-
-    private void ClearSkipsForWalkedRange(SetupStep answered)
-    {
-        bool clearing = false;
-        foreach (SetupStep candidate in Order)
-        {
-            if (candidate == answered)
-            {
-                clearing = true;
-            }
-
-            if (clearing && candidate <= LastWalked)
-            {
-                _skipped.Remove(candidate);
-            }
-        }
-    }
-
     /// <summary>
     /// Stages the provider answer and clears the answers behind it: a changed provider re-asks the
     /// credential, the checks and the model, all of which the new provider's steps would answer
@@ -328,8 +197,11 @@ internal sealed class SetupWizardModel
         Model = null;
         ModelCheck = null;
         ChatProfile = null;
-        _carried.Remove(SetupStep.Provider);
-        ClearSkipsForWalkedRange(SetupStep.Provider);
+        _skipped.Remove(SetupStep.Credential);
+        _skipped.Remove(SetupStep.ConnectionTest);
+        _skipped.Remove(SetupStep.Model);
+        _skipped.Remove(SetupStep.ModelCheck);
+        _skipped.Remove(SetupStep.ChatProfile);
     }
 
     /// <summary>
@@ -343,8 +215,10 @@ internal sealed class SetupWizardModel
         Model = null;
         ModelCheck = null;
         ChatProfile = null;
-        _carried.Remove(SetupStep.Credential);
-        ClearSkipsForWalkedRange(SetupStep.Credential);
+        _skipped.Remove(SetupStep.ConnectionTest);
+        _skipped.Remove(SetupStep.Model);
+        _skipped.Remove(SetupStep.ModelCheck);
+        _skipped.Remove(SetupStep.ChatProfile);
     }
 
     public void RecordConnectionTest(WizardCheckResult result) => ConnectionTest = result;
@@ -356,19 +230,13 @@ internal sealed class SetupWizardModel
         Model = choice;
         ModelCheck = null;
         ChatProfile = null;
-        _carried.Remove(SetupStep.Model);
-        ClearSkipsForWalkedRange(SetupStep.Model);
+        _skipped.Remove(SetupStep.ModelCheck);
+        _skipped.Remove(SetupStep.ChatProfile);
     }
 
     public void RecordModelCheck(WizardCheckResult result) => ModelCheck = result;
 
-    public void RecordChatProfile(WizardProfileChoice choice)
-    {
-        ChatProfile = choice;
-        // The full walk (and the flag path) binds the chat usage; an "add a profile" entry adds
-        // the profile only — the chat usage switch is the entry menu's own answer.
-        BindChatUsage = Entry is WizardEntry.WalkEverything;
-    }
+    public void RecordChatProfile(WizardProfileChoice choice) => ChatProfile = choice;
 
     public void RecordFastProfile(bool include)
     {
@@ -412,15 +280,14 @@ internal sealed class SetupWizardModel
     /// <summary>
     /// Whether any staged answer would change a store: without one a confirmed summary is a valid
     /// but effectively empty configuration and writes nothing at all (spec: Nothing written before
-    /// the summary confirms). Carried values are not staged writes — the stores already have them.
+    /// the summary confirms).
     /// </summary>
     public bool HasStagedWrites =>
-        (Provider is not null && !IsCarried(SetupStep.Provider))
-        || (Credential is not null && !IsCarried(SetupStep.Credential))
-        || (Model is not null && !IsCarried(SetupStep.Model))
-        || (ChatProfile is not null && !IsCarried(SetupStep.ChatProfile))
-        || (FastProfile && !IsCarried(SetupStep.FastProfile))
-        || (DecisionProfile is not null && !IsCarried(SetupStep.DecisionProfile))
-        || (Decisions is not null && !IsCarried(SetupStep.Decisions))
-        || ChatUsageBinding is not null;
+        Provider is not null
+        || Credential is not null
+        || Model is not null
+        || ChatProfile is not null
+        || FastProfile
+        || DecisionProfile is not null
+        || Decisions is not null;
 }

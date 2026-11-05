@@ -40,7 +40,6 @@ public sealed class HelpViewTests
           /login      — store an API key for a provider preset
           /logout     — remove the stored API key for a provider preset
           /model      — pick a model or switch to one by id
-          /setup      — run the setup wizard (the entry menu on a configured install)
           /unfavorite — remove the active or named model from favorites
         extensions
           /extensions   — list the discovered extensions with their state

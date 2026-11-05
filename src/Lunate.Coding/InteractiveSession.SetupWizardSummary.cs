@@ -75,18 +75,12 @@ internal sealed partial class InteractiveSession
         _settings = SettingsStore.ApplyLaunch(_settings, _options.Launch);
         _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
 
-        // The chat profile a run staged: the full walk's profile (which also bound the usage),
-        // and the entry menu's own answer — "change the chat profile" rebinds the usage alone.
-        string? chatName =
-            wizard.ChatProfile is { } chat && wizard.BindChatUsage
-                ? chat.Name
-                : wizard.ChatUsageBinding;
-        if (chatName is { } bind)
+        if (wizard.ChatProfile is { } chat)
         {
             try
             {
                 ResolvedModelProfile resolved = ModelSelectionResolver.ResolveChatModel(
-                    bind,
+                    chat.Name,
                     _settings,
                     _providerEntries,
                     _catalog
@@ -281,11 +275,6 @@ internal static class SetupWizardSummary
                     + chat.Name
                     + (chat.ReasoningLevel is { } level ? $" (thinking {level})" : string.Empty)
             );
-        }
-
-        if (wizard.ChatUsageBinding is { } bound)
-        {
-            lines.Add("chat usage: " + bound);
         }
 
         if (wizard.FastProfile && wizard.ChatProfile is { } fastProfile)

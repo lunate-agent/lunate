@@ -1,69 +1,10 @@
 # First run
 
-Lunate's first run is the setup wizard. It walks provider, credential, connection test, model,
-model check, chat profile, optional fast/decision profiles, the decisions layer, and a summary;
-nothing is written until the summary is confirmed. Re-run it at any time with `/setup` in a session
-or `lunate setup` from a shell.
+Lunate needs a model profile and a credential source for its provider before the first prompt.
+Use the first-run picker for a built-in provider, or define a named provider instance and profile in
+your user configuration before starting the TUI.
 
-## The setup wizard
-
-Start `lunate` in a repository with no usable configuration. When stdin and stdout are terminals,
-the wizard opens instead of the prompt:
-
-- **Provider** — the twelve presets in [`providers.json`](../src/Lunate.Ai/providers.json) order,
-  plus a custom OpenAI-compatible endpoint.
-- **Credential** — type a key (masked, stored only in `auth.json`), name an `env:`/`auth:`
-  reference, or skip. A provider environment variable always wins over a stored key.
-- **Connection test** — one discovery request to the provider's models URL; skippable.
-- **Model** — search the discovered list or enter an id manually.
-- **Model check** — one minimal completion that verifies the resolved family; it costs one short
-  request, and `--no-model-check` / the skip row avoids it.
-- **Chat profile and thinking** — the name the session uses and the reasoning level the model
-  declares.
-- **Fast and decision profiles** — optional; both default to skip.
-- **Decisions** — each switch is shown with its off/unset default and one explanatory line.
-- **Summary** — every collected value, the connection/model-check results, and the skipped steps.
-
-`Esc` at any prompt ends the run with nothing written. The full walk is the only path that writes
-several stores; the entry menu below writes only the answers it collects.
-
-## `lunate setup` — non-interactive and scripted
-
-`lunate setup` runs the same walk without a TTY. Every answer is a flag; an absent flag skips its
-step and invents nothing. The connection test and model check run unless suppressed. The summary
-goes to stdout and never contains a credential.
-
-```bash
-printf '%s\n' "$OPENAI_API_KEY" |
-  lunate setup \
-    --provider openai --credential env:OPENAI_API_KEY \
-    --model gpt-4.1 --profile chat-main --thinking medium
-```
-
-The flag set is `--provider`, `--endpoint`, `--api-family`, `--credential-placement`,
-`--models-url`, `--credential` (an `env:`/`auth:` reference), `--key-stdin`, `--model`, `--profile`,
-`--thinking`, `--fast`, `--as-decision`, `--no-test`, `--no-model-check`, and `--force`. A run
-without a terminal exits 2 and names the missing answer when a value needs interaction; 0 after a
-real commit or a no-op; 1 for a store/load failure.
-
-## `/setup` — re-run from a session
-
-On a configured install, `/setup` opens the entry menu instead of the full walk:
-
-- add a provider,
-- add a profile,
-- change the chat profile,
-- edit the decisions layer,
-- walk everything.
-
-Each entry is prefilled with the current values and writes only what changed, through the same
-store writers as the full walk. `/setup` refuses while a turn is running. `/auth` remains the
-shorter path for a missing credential.
-
-## The manual `auth login` path
-
-The CLI path below stays available for scripted bootstrap and for users who prefer one command at
-a time.
+## The shortest path
 
 From a terminal:
 
