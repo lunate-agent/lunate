@@ -88,9 +88,9 @@ proposal, each with tests and a green gate before the next starts. The provider-
 
 ## 5. `/setup` and the render contract
 
-- [ ] 5.1 `/setup` dispatches in the idle session (`/setup` refused while a turn is running, added
+- [x] 5.1 `/setup` dispatches in the idle session (`/setup` refused while a turn is running, added
       to the busy-refusal list; command registry entry with description; autocomplete row).
-- [ ] 5.2 `/setup` on a configured install opens the entry menu (add provider, add profile, change the
+- [x] 5.2 `/setup` on a configured install opens the entry menu (add provider, add profile, change the
       chat profile, decisions, walk everything), prefilled with current values; each entry writes only
       what changed and takes effect for the session's composition like an equivalent `/settings`
       change; a first run keeps the full walk.

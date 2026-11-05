@@ -85,16 +85,54 @@ internal sealed partial class InteractiveSession
         LoginTask = _ = RunWizardAsync(wizard, _lifetime.Token);
     }
 
-    private async Task RunWizardAsync(SetupWizardModel wizard, CancellationToken ct)
+    private async Task RunWizardAsync(SetupWizardModel wizard, CancellationToken ct) =>
+        await RunWizardTaskAsync(
+                wizard,
+                async token =>
+                {
+                    Notify(
+                        "setup: configure a provider, a model and a profile — Esc at any prompt ends the "
+                            + "wizard, and nothing is written before the summary confirms"
+                    );
+                    await WalkAsync(wizard, token).ConfigureAwait(false);
+                },
+                ct
+            )
+            .ConfigureAwait(false);
+
+    /// <summary>The run's shared envelope: the notification paths the walk body throws into, and
+    /// the one cleanup every entry passes through.</summary>
+    private async Task RunWizardTaskAsync(
+        SetupWizardModel wizard,
+        Func<CancellationToken, Task> body,
+        CancellationToken ct
+    )
     {
         try
         {
-            Notify(
-                "setup: configure a provider, a model and a profile — Esc at any prompt ends the "
-                    + "wizard, and nothing is written before the summary confirms"
-            );
-            wizard.Enter(SetupStep.Provider);
-            while (wizard.Step is not SetupStep.Summary)
+            await body(ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // The session is quitting: nobody is reading a cancelled wizard's report.
+        }
+        catch (Exception exception)
+        {
+            Notify($"setup failed: {exception.Message}", NoticeLevel.Error);
+        }
+        finally
+        {
+            _wizard = null;
+            _wizardPick = null;
+            _turnActive = false;
+            LoginTask = null;
+        }
+    }
+
+    private async Task WalkAsync(SetupWizardModel wizard, CancellationToken ct)
+    {
+        wizard.Enter(wizard.FirstWalked);
+        while (wizard.Step is not SetupStep.Summary)
             {
                 WizardMove move = wizard.Step switch
                 {
@@ -106,8 +144,10 @@ internal sealed partial class InteractiveSession
                     SetupStep.Model => await ModelStepAsync(wizard, ct).ConfigureAwait(false),
                     SetupStep.ModelCheck => await ModelCheckStepAsync(wizard, ct)
                         .ConfigureAwait(false),
-                    SetupStep.ChatProfile => await ChatProfileStepAsync(wizard, ct)
-                        .ConfigureAwait(false),
+                    SetupStep.ChatProfile =>
+                        wizard.Entry is WizardEntry.ChangeChatProfile
+                            ? await ChatUsageStepAsync(wizard, ct).ConfigureAwait(false)
+                            : await ChatProfileStepAsync(wizard, ct).ConfigureAwait(false),
                     SetupStep.FastProfile => await FastStepAsync(wizard, ct).ConfigureAwait(false),
                     SetupStep.DecisionProfile => await DecisionStepAsync(wizard, ct)
                         .ConfigureAwait(false),
@@ -129,11 +169,13 @@ internal sealed partial class InteractiveSession
 
                 if (move == WizardMove.Back)
                 {
-                    wizard.Enter(Previous(wizard.Step));
+                    wizard.Enter(BackWithinEntry(wizard, wizard.Step));
                     continue;
                 }
 
-                wizard.Enter(Next(wizard.Step));
+                wizard.Enter(
+                    wizard.Step == wizard.LastWalked ? SetupStep.Summary : Next(wizard.Step)
+                );
             }
 
             RenderSummary(wizard);
@@ -148,22 +190,15 @@ internal sealed partial class InteractiveSession
 
             CommitWizard(wizard);
             await ReconcileAsync(wizard, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            // The session is quitting: nobody is reading a cancelled wizard's report.
-        }
-        catch (Exception exception)
-        {
-            Notify($"setup failed: {exception.Message}", NoticeLevel.Error);
-        }
-        finally
-        {
-            _wizard = null;
-            _wizardPick = null;
-            _turnActive = false;
-            LoginTask = null;
-        }
+    }
+
+    /// <summary>A go-back inside an entry's scope: the walk keeps re-running earlier steps of the
+    /// entry and never jumps before its first one (the earlier answers are the carried current
+    /// configuration there, not this run's to redo).</summary>
+    private static SetupStep BackWithinEntry(SetupWizardModel wizard, SetupStep step)
+    {
+        SetupStep previous = Previous(step);
+        return IndexOf(previous) < IndexOf(wizard.FirstWalked) ? wizard.FirstWalked : previous;
     }
 
     private static int IndexOf(SetupStep step)

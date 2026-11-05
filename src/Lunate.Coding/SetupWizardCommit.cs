@@ -43,7 +43,7 @@ internal static class SetupWizardCommit
         string? previousKey = null;
         try
         {
-            if (model.Provider is { } provider)
+            if (model.Provider is { } provider && !model.IsCarried(SetupStep.Provider))
             {
                 if (model.Credential is { Key: { Length: > 0 } secret })
                 {
@@ -62,6 +62,7 @@ internal static class SetupWizardCommit
         }
         catch (Exception)
         {
+
             if (savedKeyName is { } name)
             {
                 AuthStore auth = loadAuth();
@@ -274,7 +275,7 @@ internal static class SetupWizardCommit
     private static void WriteProfileAndUsages(SetupWizardModel model, CommitPaths paths)
     {
         WizardDecisionsChoice? decisions = model.Decisions;
-        if (model.ChatProfile is { } chat)
+        if (model.ChatProfile is { } chat && !model.IsCarried(SetupStep.ChatProfile))
         {
             // The chat profile's routing description is part of the same profile entry, so one
             // writer pass carries both (settings: profiles.<name>.description).
@@ -288,14 +289,23 @@ internal static class SetupWizardCommit
                 ),
                 paths.SettingsPath
             );
-            SettingsStore.WriteUsage("chat", chat.Name, paths.SettingsPath);
+            if (model.BindChatUsage)
+            {
+                SettingsStore.WriteUsage("chat", chat.Name, paths.SettingsPath);
+            }
+
             if (model.FastProfile)
             {
                 SettingsStore.WriteUsage("fast", chat.Name, paths.SettingsPath);
             }
         }
 
-        if (model.DecisionProfile is { } decision)
+        if (model.ChatUsageBinding is { } bound)
+        {
+            SettingsStore.WriteUsage(SetupState.ChatUsage, bound, paths.SettingsPath);
+        }
+
+        if (model.DecisionProfile is { } decision && !model.IsCarried(SetupStep.DecisionProfile))
         {
             SettingsStore.WriteProfile(
                 ToModelProfile(
@@ -337,7 +347,10 @@ internal static class SetupWizardCommit
     private static void WriteDecisions(SetupWizardModel model, CommitPaths paths)
     {
         WizardDecisionChoice? decision = model.DecisionProfile;
-        if (decision is not null)
+        if (
+            decision is not null
+            && !model.IsCarried(SetupStep.DecisionProfile)
+        )
         {
             // Bind without enabling any consumer (spec: The full walk, step 7).
             SettingsStore.WriteDecisionsKey("profile", decision.ProfileName, paths.SettingsPath);
