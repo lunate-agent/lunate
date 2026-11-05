@@ -49,13 +49,31 @@ internal static class DecisionEngine
             prepared.Select(question => ToInternalQuestion(question, questionCriteria)).ToArray()
         );
         IDecisionClient decisionClient = DecisionClientResolver.Resolve(client, method);
-        DecisionResult result = await decisionClient
-            .GetDecisionAsync(
-                internalRequest,
-                new DecisionOptions(ModelId: modelId),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        DecisionResult result;
+        try
+        {
+            result = await decisionClient
+                .GetDecisionAsync(
+                    internalRequest,
+                    new DecisionOptions(ModelId: modelId),
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+        catch (DecisionUsageAttemptsException exception)
+        {
+            // Both attempts were off-contract but both were paid for: record their tokens before
+            // the failure propagates, as 0.2.1 did.
+            if (recordUsage is not null)
+            {
+                foreach (DecisionUsageAttempt attempt in exception.Attempts)
+                {
+                    recordUsage(attempt.Usage, attempt.ModelId ?? modelId, null, null, null);
+                }
+            }
+
+            throw new InvalidDataException(exception.Message, exception);
+        }
 
         if (result.ChatUsageAttempts is { Count: > 0 } usages && recordUsage is not null)
         {
