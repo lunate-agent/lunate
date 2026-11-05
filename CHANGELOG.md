@@ -8,14 +8,63 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-rc.1] - 2026-11-05
+
+The quality release: the setup wizard gives a fresh install one guided path and gives a configured
+install a re-runnable entry menu; the provider model can route each model to its own native API
+family; and the decision layer's native System One transport lands behind the existing seam. The
+rest of the milestone is the fixes and proof the 0.3 cards asked for.
+
+### Added
+
+- **The setup wizard.** A fresh interactive install opens one nine-step walk — provider, credential,
+  connection test, model, a minimal model check, chat profile and thinking, optional fast and
+  decision profiles, the decisions layer, and a summary. Nothing is written before the summary
+  confirms, `Esc` writes nothing, an environment key is offered before typing one, and a skipped
+  model check never counts as verified. `lunate setup` runs the same walk non-interactively from
+  explicit flags and exits 2 naming the answer that only interaction can supply; `/setup` opens the
+  full walk on a first run and an entry menu (add a provider, add a profile, change the chat profile,
+  edit decisions, walk everything) on a configured install (#524).
+- **Provider API families.** A provider entry carries one base URL per family — `openai-chat`,
+  `openai-responses`, `anthropic-messages` and `google` — and a model's family comes from the
+  profile, discovery or the catalog. Custom providers can carry literal or templated headers
+  (`{session.id}`, `{run.id}`, `{lunate.version}`) and choose where the credential goes (`bearer`,
+  `x-api-key`, a named header or a query parameter); the value is never part of a header template.
+  The OpenAI Responses and Anthropic Messages paths are wired, and an Anthropic-compatible custom
+  provider is accepted (#474, #484, #490, #495, #498).
+- **Google Gemini directly.** The Google family ships with its native SDK adapter, per-family base
+  URL and query-string credential placement, so a Gemini model can run without an OpenAI-compatible
+  proxy (#474, #500).
+- **OpenCode Go routes each model to its native API.** Discovery reads
+  `https://opencode.ai/inference/go/v1/models`, and a request goes to the model's declared API
+  family — Chat Completions, Responses, Anthropic Messages or Google — with the session header
+  captured on the request (#473).
+- **Native System One decisions.** `systemone` is the fifth provider family, served by a native
+  decision transport rather than an `IChatClient`. It adds the four question kinds (noul, choice,
+  score, box), confidence computed from the distribution, confidence-gated routing, atomic approval
+  questions, provider-reported decision cost, exact-version profile pinning, request limits and
+  `429`/`529` backoff. Jev-1.14 is preset on OpenRouter, Jev-1.13 on OpenCode, and provider quirks
+  (criteria shape, image-only headers) stay preset data (#487).
+- **Thinking per profile.** A profile's `reasoningLevel` seeds every session that uses it;
+  `/thinking` changes the current session only, while `/settings thinking` and the wizard persist
+  the profile. An unsupported model refuses the level by name instead of silently accepting it
+  (#476).
+
 ### Changed
 
 - **MCP stdio child environment is allow-listed.** A stdio server no longer inherits the session
   environment minus Lunate's known credential values (the 0.2 behaviour of #449/#455); it receives
   exactly the base set the shared `EnvironmentScrubber` builds — `PATH`, `HOME`/`USERPROFILE`,
   `SystemRoot`, `TEMP`/`TMP`/`TMPDIR`, `LANG` — plus its own declared `env` map and nothing else,
-  configured or not (#472). The shared scrubber is annotated with the reason for each base
-  entry, and a source-scan test keeps it the only child-environment code path.
+  configured or not (#472). The shared scrubber is annotated with the reason for each base entry,
+  and a source-scan test keeps it the only child-environment code path.
+- **Question suggestions stay interactive.** The suggestion consumer is wired only where a person
+  answers; print mode and ACP have no surface to attach one to (#446).
+- **CI: one platform job, and PowerShell only when it can break.** The platform-independent checks
+  run once on Linux; the Windows PowerShell leg is path-filtered by a deny-by-default change
+  detector and skips when the platform job already proved the same checks (#435).
+- **The inert `McpServerOptions.WithheldCredentialValues` option is removed** from
+  `Lunate.Protocols`; the allow-list scrub is the only child-environment path (#483).
 
 ## [0.2.1] - 2026-11-02
 
@@ -203,6 +252,7 @@ verified against a real, versioned build; the first stable release is `0.1.0`.
 
 [0.1.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.2...v0.1.0
 [0.1.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.1...v0.1.0-rc.2
+[0.3.0-rc.1]: https://github.com/wdaniel1993/lunate/compare/v0.2.1...v0.3.0-rc.1
 [0.2.1]: https://github.com/wdaniel1993/lunate/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0
 [0.2.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.2.0-rc.1...v0.2.0-rc.2
