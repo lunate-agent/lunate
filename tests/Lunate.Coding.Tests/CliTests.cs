@@ -22,10 +22,15 @@ public sealed class CliTests
     {
         using var output = new StringWriter();
         using var error = new StringWriter();
+        using var temp = new TempDirectory();
         var options = new InteractiveSessionOptions
         {
             Console = new ScriptedConsoleIO(),
             Scheduler = new ManualScheduler(),
+            SettingsPath = temp.File("settings.json"),
+            AuthPath = temp.File("auth.json"),
+            WorkingDirectory = temp.Root,
+            Environment = _ => null,
         };
 
         var exitCode = Cli.Run(
@@ -37,7 +42,7 @@ public sealed class CliTests
         );
 
         Assert.Equal(2, exitCode);
-        Assert.Contains("lunate -p", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("lunate setup", error.ToString(), StringComparison.Ordinal);
         Assert.Empty(output.ToString());
     }
 

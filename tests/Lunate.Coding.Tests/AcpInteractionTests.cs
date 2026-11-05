@@ -53,7 +53,8 @@ public sealed class AcpInteractionTests
             TestContext.Current.CancellationToken,
             TestExtensionSeams.Empty(temp),
             mcpConfigPath: temp.File("global-mcp.json"),
-            mcpAgentsConfigPath: temp.File("agents-mcp.json")
+            mcpAgentsConfigPath: temp.File("agents-mcp.json"),
+            launch: new LaunchOptions { Model = PrintModeTestSupport.ModelId }
         );
 
         Assert.Equal(0, exitCode);
@@ -79,6 +80,7 @@ public sealed class AcpInteractionTests
             TestExtensionSeams.Empty(temp),
             mcpConfigPath: temp.File("global-mcp.json"),
             mcpAgentsConfigPath: temp.File("agents-mcp.json"),
+            launch: new LaunchOptions { Model = PrintModeTestSupport.ModelId },
             hardlinkScanRoot: state,
             hardlinkScanFileSystem: fileSystem
         );

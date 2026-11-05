@@ -463,7 +463,8 @@ public sealed class WelcomeHeaderSessionTests
             TestContext.Current.CancellationToken,
             TestExtensionSeams.Empty(temp),
             mcpConfigPath: temp.File("global-mcp.json"),
-            mcpAgentsConfigPath: temp.File("agents-mcp.json")
+            mcpAgentsConfigPath: temp.File("agents-mcp.json"),
+            launch: new LaunchOptions { Model = PrintModeTestSupport.ModelId }
         );
 
         Assert.Equal(0, exitCode);

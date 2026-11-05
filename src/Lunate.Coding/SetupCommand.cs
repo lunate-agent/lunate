@@ -45,6 +45,20 @@ internal static partial class SetupCommand
     {
         try
         {
+            if (args.Length == 0 && !IsTerminal(seams))
+            {
+                // The flagless run is the wizard, and the wizard needs a terminal (spec: Setup
+                // command line — a non-interactive run never waits for input, and anything that
+                // needs interaction exits 2 with the missing answer named).
+                errors.WriteLine(
+                    "lunate: `lunate setup` without flags opens the interactive setup wizard, and "
+                        + "that needs a terminal; with stdin piped, name the missing answers with "
+                        + "flags: --provider <preset-id> (or --endpoint <url> with --provider <id>), "
+                        + "--credential <env:VARIABLE|auth:name> (or --key-stdin), and --model <id>"
+                );
+                return ExitUsage;
+            }
+
             if (!Parse(args, out FlagAnswers answers, out string parseError))
             {
                 errors.WriteLine($"lunate: {parseError}");
@@ -129,6 +143,10 @@ internal static partial class SetupCommand
 
         return true;
     }
+
+    /// <summary>Whether this run may open the wizard: the injected seam, else the process stdin.</summary>
+    private static bool IsTerminal(SetupCommandSeams? seams) =>
+        seams?.StdinIsTerminal ?? !Console.IsInputRedirected;
 
     private static string Take(string[] args, int index)
     {

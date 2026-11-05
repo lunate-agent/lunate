@@ -884,7 +884,7 @@ public sealed class PrintModeTests
     }
 
     [Fact]
-    public async Task A_missing_model_is_an_actionable_error()
+    public async Task A_missing_model_is_the_configure_it_refusal()
     {
         using var temp = new TempDirectory();
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(
@@ -900,11 +900,14 @@ public sealed class PrintModeTests
 
         (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
 
-        Assert.Equal(1, exitCode);
+        // Spec (The wizard trigger): a machine mode never opens the wizard, and the configure-it
+        // refusal names `lunate setup` and its flags and exits 2 — not the pre-0.3 'model' text.
+        Assert.Equal(2, exitCode);
         Assert.Empty(output);
-        Assert.Contains("settings.json", errors, StringComparison.Ordinal);
-        Assert.Contains("LUNATE_MODEL", errors, StringComparison.Ordinal);
-        Assert.Contains("--discover", errors, StringComparison.Ordinal);
+        Assert.Contains("lunate setup", errors, StringComparison.Ordinal);
+        Assert.Contains("--provider", errors, StringComparison.Ordinal);
+        Assert.Contains("--model", errors, StringComparison.Ordinal);
+        Assert.Contains("--credential", errors, StringComparison.Ordinal);
     }
 
     [Fact]
