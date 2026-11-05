@@ -93,13 +93,21 @@ internal static partial class KeyBindingCatalog
 
             foreach (KeyPattern pattern in patterns)
             {
-                List<KeyBinding> claimed = Lost(rows, removed, pattern, contexts);
+                // The candidate owner is judged on the keys it will answer with after the load:
+                // its own file entry when it rebinds (so two of the file's bindings sharing a key
+                // meet, whatever each of them owned in the catalogue), else its catalogue rows.
+                List<KeyBinding> claimed = fileSets.TryGetValue(
+                    ownerId,
+                    out List<KeyPattern>? ownerPatterns
+                )
+                    ? LostProspect(ownerId, rows[0], ownerPatterns!, pattern, contexts)
+                    : Lost(rows, removed, pattern, contexts);
                 if (claimed.Count == 0)
                 {
                     continue;
                 }
 
-                if (fileSets.TryGetValue(ownerId, out List<KeyPattern>? _))
+                if (ownerPatterns is not null)
                 {
                     return $"keymap: two of the file's bindings answer "
                         + $"{KeyPatternFormatter.Describe(pattern)}: '{fileId}' and '{ownerId}'; "
@@ -122,6 +130,34 @@ internal static partial class KeyBindingCatalog
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// A file-rebound owner's prospective rows that would still answer one of the candidate's
+    /// patterns: the owner's own entry keys, in a context both bindings apply to.
+    /// </summary>
+    private static List<KeyBinding> LostProspect(
+        string ownerId,
+        KeyBinding anchor,
+        IReadOnlyList<KeyPattern> patterns,
+        KeyPattern pattern,
+        KeyContext contexts
+    )
+    {
+        return
+        [
+            .. patterns
+                .Where(candidate =>
+                    Overlaps(candidate, pattern) && ContextsOverlap(anchor.Contexts, contexts)
+                )
+                .Select(candidate => new KeyBinding(
+                    ownerId,
+                    candidate,
+                    anchor.Intent,
+                    anchor.Contexts,
+                    anchor.Description
+                )),
+        ];
     }
 
     /// <summary>
