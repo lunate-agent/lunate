@@ -134,6 +134,10 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.Complete();
         await run;
         await host.WaitUntilAsync(() => File.Exists(host.Temp.File("auth.json")));
+        await host.WaitUntilAsync(() =>
+            File.Exists(ProviderPath(host))
+            && File.ReadAllText(ProviderPath(host)).Contains("deepseek", StringComparison.Ordinal)
+        );
 
         string providers = File.ReadAllText(ProviderPath(host));
         string auth = File.ReadAllText(host.Temp.File("auth.json"));
