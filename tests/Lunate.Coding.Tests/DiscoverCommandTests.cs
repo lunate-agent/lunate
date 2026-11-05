@@ -699,6 +699,65 @@ public sealed class DiscoverCommandTests
     }
 
     [Fact]
+    public async Task A_custom_provider_discovery_refuses_a_same_host_scheme_downgrade()
+    {
+        using var temp = new TempDirectory();
+        using var handler = new FakeHandler(request =>
+            string.Equals(request.RequestUri!.Scheme, "https", StringComparison.OrdinalIgnoreCase)
+                ? new HttpResponseMessage(HttpStatusCode.MovedPermanently)
+                {
+                    Headers = { Location = new Uri("http://relay.example/v1/models") },
+                }
+                : Json(HttpStatusCode.OK, """{ "data": [] }""")
+        );
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "relay/claude-wire",
+            CustomCatalog(temp, CredentialPlacement.XApiKey),
+            handler,
+            namedKeySource: id => id == "relay" ? "relay-key" : null,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("scheme", result.Error, StringComparison.Ordinal);
+        Assert.Contains("cleartext", result.Error, StringComparison.Ordinal);
+        // The downgrade was refused before the credential could be resent over http.
+        Assert.Single(handler.Requests);
+        Assert.Equal("https", handler.Requests[0].RequestUri!.Scheme, ignoreCase: true);
+        Assert.Equal("relay-key", handler.Requests[0].Headers.GetValues("x-api-key").Single());
+    }
+
+    [Fact]
+    public async Task A_custom_provider_discovery_refuses_a_redirect_to_another_port()
+    {
+        using var temp = new TempDirectory();
+        using var handler = new FakeHandler(request =>
+            request.RequestUri!.Port == 443
+                ? new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers = { Location = new Uri("https://relay.example:8443/v2/models") },
+                }
+                : Json(HttpStatusCode.OK, """{ "data": [] }""")
+        );
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "relay/claude-wire",
+            CustomCatalog(temp, CredentialPlacement.XApiKey),
+            handler,
+            namedKeySource: id => id == "relay" ? "relay-key" : null,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("8443", result.Error, StringComparison.Ordinal);
+        Assert.Single(handler.Requests);
+        Assert.Equal(443, handler.Requests[0].RequestUri!.Port);
+    }
+
+    [Fact]
     public async Task A_custom_provider_discovery_follows_a_redirect_inside_its_host()
     {
         using var temp = new TempDirectory();

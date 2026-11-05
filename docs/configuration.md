@@ -176,7 +176,7 @@ wins over discovery metadata and the catalog. Endpoint precedence follows the sa
 provider entry's declared `baseUrls` URL for the resolved family (or its `baseUrl` for the default
 family) wins, otherwise the model's discovered `endpoint` is kept, and only then does the preset's
 family URL apply. A custom provider's discovered endpoint and redirects must stay on its configured
-host; a preset may use its first-party per-family endpoints. See
+host, scheme and port; a preset may use its first-party per-family endpoints. See
 [ADR-0029](../adr/0029-provider-api-families.md) for the accepted provider-family decision.
 
 Headers may be literal values or templates over `{session.id}`, `{run.id}`, and `{lunate.version}`.
