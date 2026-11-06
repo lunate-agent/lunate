@@ -8,6 +8,21 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-rc.2] - 2026-11-06
+
+The 0.3.0 quality wave: every rc.1 review finding is fixed and the specs, docs and tests now agree with the code. rc.2 is the release-candidate proof for the final 0.3.0 tag — no new product surface.
+
+### Fixed in this candidate
+
+- **Setup and settings.** The wizard now persists the chosen region, honours `--api-family` for presets, runs the decision-profile model check, refuses a thinking level that conflicts with an existing `reasoningBudget`, and merges a re-run profile instead of replacing it (#568, #569, #570, #579, #580).
+- **Runtime and providers.** `--no-session` with a `{session.id}` header resolves an ephemeral id; Anthropic prompt caching and turn merge follow the resolved family; a model/profile switch re-seeds thinking; a discovered endpoint survives profile resolution; the Windows MCP child environment includes `PATHEXT`, `ComSpec`, `APPDATA` and `LOCALAPPDATA` (#565, #571, #598, #599, #600).
+- **Decisions.** Failed adapter attempts still record their usage; question-suggestion and extension decisions record usage and cost; the provider cost is persisted and survives `--resume`; typed transport errors reach the operator; approval state carries the untrusted arguments once; `approvalsThreshold` is confidence; a shadow capability failure records the failure and leaves the call unchanged; discovery refuses a scheme or port redirect (#559–#562, #572, #573, #558, #563).
+- **Docs and specs.** `systemone` is the fifth API family everywhere; the architecture map and `AGENTS.md` record the 0.3 project graph; the guide no longer documents a `timeout_s` argument, `/shell` command or `shell` setting, and names `output.toolResultLimit` correctly (#574, #575, #577).
+
+### CI
+
+- The macOS `perf` leg runs on release events only; pull-request verify shards keep the startup budget, and gate self-tests retry once with a flake ledger.
+
 ### Changed
 
 - **`decisions.approvalsThreshold` is a confidence.** The key now carries what the spec always said it
@@ -269,6 +284,7 @@ verified against a real, versioned build; the first stable release is `0.1.0`.
 
 [0.1.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.2...v0.1.0
 [0.1.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.1...v0.1.0-rc.2
+[0.3.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.3.0-rc.1...v0.3.0-rc.2
 [0.3.0-rc.1]: https://github.com/wdaniel1993/lunate/compare/v0.2.1...v0.3.0-rc.1
 [0.2.1]: https://github.com/wdaniel1993/lunate/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0
