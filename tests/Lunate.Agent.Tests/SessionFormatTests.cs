@@ -117,6 +117,57 @@ public sealed class SessionFormatTests
     }
 
     [Fact]
+    public void Model_usage_serializes_the_provider_reported_cost_and_reads_it_back()
+    {
+        var attribution = new ModelUsageAttribution(
+            "decision",
+            "decision-profile",
+            "router",
+            "openrouter",
+            "native",
+            null
+        );
+        var entry = new SessionModelUsageEntry(
+            "e_03",
+            "e_02",
+            Recorded,
+            "router/model-x",
+            new SessionUsage(1000, 100) { Attribution = attribution, Cost = 0.0123m },
+            attribution
+        );
+
+        string line = SessionFormat.Serialize(entry);
+        SessionModelUsageEntry parsed = Assert.IsType<SessionModelUsageEntry>(
+            SessionFormat.Parse(line)
+        );
+
+        Assert.Contains("\"cost\":0.0123", line, StringComparison.Ordinal);
+        Assert.Equal(0.0123m, parsed.Usage!.Cost);
+        Assert.Equal(attribution, parsed.Attribution);
+    }
+
+    [Fact]
+    public void Usage_without_a_cost_keeps_the_field_out_of_the_file()
+    {
+        var entry = new SessionModelUsageEntry(
+            "e_03",
+            "e_02",
+            Recorded,
+            "router/model-x",
+            new SessionUsage(1000, 100),
+            new ModelUsageAttribution("decision", "decision-profile", "router", "openrouter")
+        );
+
+        string line = SessionFormat.Serialize(entry);
+        SessionModelUsageEntry parsed = Assert.IsType<SessionModelUsageEntry>(
+            SessionFormat.Parse(line)
+        );
+
+        Assert.DoesNotContain("\"cost\"", line, StringComparison.Ordinal);
+        Assert.Null(parsed.Usage!.Cost);
+    }
+
+    [Fact]
     public void Schema_four_usage_round_trips_profile_provider_and_decision_provenance()
     {
         var attribution = new ModelUsageAttribution(

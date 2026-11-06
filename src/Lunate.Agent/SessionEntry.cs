@@ -179,7 +179,8 @@ public sealed record SessionUsage(
 
     /// <summary>
     /// The provider-reported cost in US dollars when the provider reports one; null means the cost
-    /// is unknown or estimated, and a reader prices it from the catalog instead.
+    /// is unknown or estimated, and a reader prices it from the catalog instead. A non-null amount
+    /// is written to the session file, so a resumed session shows the same provider-reported sum.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public decimal? Cost { get; init; }
