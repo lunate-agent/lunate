@@ -15,8 +15,8 @@ namespace Lunate.Coding;
 /// </summary>
 public sealed record DecisionsSettings
 {
-    /// <summary>The documented default of <see cref="ApprovalsThreshold"/>.</summary>
-    public const double DefaultApprovalsThreshold = 0.5;
+    /// <summary>The documented default of <see cref="ApprovalsThreshold"/>: the <c>2t − 1</c> mapping of the shipped 0.5 probability gate.</summary>
+    public const double DefaultApprovalsThreshold = 0;
 
     /// <summary>The documented default of <see cref="RoutingMinConfidence"/>.</summary>
     public const double DefaultRoutingMinConfidence = 0.5;
@@ -28,8 +28,9 @@ public sealed record DecisionsSettings
     public DecisionMode Approvals { get; init; } = DecisionMode.Off;
 
     /// <summary>
-    /// The probability a <c>deny</c> recommendation must reach for the approval gate to
-    /// escalate; a deny below it stays an ordinary approval ask. Defaults to 0.5.
+    /// The confidence a risk signal's chosen answer must reach for the approval gate to escalate;
+    /// a signal below it stays an ordinary approval ask. Defaults to 0, the confidence form of the
+    /// shipped 0.5 probability gate (<c>2t − 1</c>).
     /// </summary>
     public double ApprovalsThreshold { get; init; } = DefaultApprovalsThreshold;
 

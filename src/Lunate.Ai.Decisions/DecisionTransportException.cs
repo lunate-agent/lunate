@@ -1,7 +1,13 @@
 using System.Net;
 
-namespace Lunate.Ai.SystemOne;
+namespace Lunate.Ai.Decisions;
 
+/// <summary>
+/// A deterministic transport failure from a native decision provider. It lives beside
+/// <see cref="IDecisionClient"/> rather than in the transport assembly so the agent harness can
+/// tell a precise provider refusal (a 422 field, a state past the model's budget) from an
+/// unexpected exception and keep that message in the decision failure it records.
+/// </summary>
 internal sealed class DecisionTransportException(
     HttpStatusCode statusCode,
     string providerMessage,

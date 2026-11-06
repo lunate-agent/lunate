@@ -27,9 +27,9 @@
     {
       "name": "decisions.approvalsThreshold",
       "type": "number",
-      "default": "0.5",
+      "default": "0",
       "scope": "user",
-      "description": "A finite probability from 0 through 1: what a deny recommendation must reach to escalate the approval ask."
+      "description": "A finite confidence from 0 through 1: what a risk signal's chosen answer must reach to escalate the approval ask. Confidence, not probability, is the scale; 0 is the shipped 0.5 probability gate (confidence = 2 x probability - 1)."
     },
     {
       "name": "decisions.profile",
