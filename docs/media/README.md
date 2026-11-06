@@ -13,8 +13,10 @@ replay committed fixtures through `LUNATE_REPLAY` with `LUNATE_DATE=2026-10-18` 
 provider is called during those renders.
 
 `setup-wizard.gif` was captured from the `v0.3.0-rc.2` release build
-(`0.3.0-rc.2+a8af348`) through the keyless local stub; it is the only asset here that drives
-the real setup wizard rather than a replay fixture.
+(`0.3.0-rc.2+a8af348`) through the keyless local stub. The stub serves a recorded
+OpenCode Go discovery response (`fixtures/setup-wizard-models.json`), so the picker and
+model check show real provider and model ids without a network call. It is the only asset
+captured from an rc build rather than the older feature-set build.
 
 ## Assets
 

@@ -40,7 +40,8 @@ SCRATCH=/tmp/lunate-media
 DEMO=/tmp/lunate-demo
 TRUST=/tmp/lunate-demo-trust
 DEMO_HOME=/tmp/lunate-demo-home
-BIN="$REPO/src/Lunate.Coding/bin/Release/net10.0/lunate"
+BIN="${LUNATE_BIN:-$REPO/src/Lunate.Coding/bin/Release/net10.0/lunate}"
+export LUNATE_BIN="$BIN"
 PINNED_DATE=2026-10-18
 # The request digest of the thinking tape (see the fixture block below): the digest of that
 # tape's own request in this pinned environment, not the digest committed in the 6.1 fixture.
@@ -202,6 +203,14 @@ for tape in tapes/${FILTER}*.tape; do
   esac
   "$VHS" "$tape"
 done
+
+# VHS tears the app down after the tape's last sleep, which repaints the setup summary's
+# Cancel choice. Keep the confirmed-values summary as the final frame of the wizard GIF;
+# this is part of the render, not a manual edit.
+if [ -f setup-wizard.gif ]; then
+  ffmpeg -y -loglevel error -i setup-wizard.gif -t 17.8 -c copy setup-wizard.trim.gif
+  mv setup-wizard.trim.gif setup-wizard.gif
+fi
 
 # --- size guard: README GIFs stay under 5 MB ---
 status=0

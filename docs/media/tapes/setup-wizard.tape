@@ -7,7 +7,7 @@ Set Theme "Dracula"
 
 # The stub is keyless and the home is throw-away; see scripts/render-setup-wizard.sh.
 Hide
-Type "clear; bash ../../scripts/render-setup-wizard.sh"
+Type "bash ../../scripts/render-setup-wizard.sh"
 Enter
 Sleep 4s
 Show
@@ -27,7 +27,7 @@ Down
 Down
 Enter
 Sleep 600ms
-Type "local-demo"
+Type "local-opencode-go"
 Enter
 Sleep 600ms
 Type "http://127.0.0.1:18081/v1"
@@ -48,12 +48,14 @@ Enter
 Sleep 1s
 Enter
 Sleep 2s
+Type "hy3"
+Sleep 500ms
 Enter
 Sleep 1s
 Up
 Enter
 Sleep 2s
-Type "demo"
+Type "chat-main"
 Enter
 Sleep 600ms
 Enter
@@ -65,6 +67,4 @@ Sleep 600ms
 Enter
 Sleep 2s
 Hide
-Type "/quit"
-Enter
-Sleep 1s
+Sleep 2s
