@@ -9,11 +9,26 @@ from __future__ import annotations
 
 import argparse
 import json
+import socketserver
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+DEFAULT_MODELS = Path(__file__).resolve().parent.parent / "fixtures" / "setup-wizard-models.json"
+
+
+class Server(ThreadingHTTPServer):
+    def server_bind(self) -> None:
+        # Avoid the reverse-DNS lookup in HTTPServer.server_bind: on a cold resolver it can
+        # block before the listen socket exists, and the wizard then reports a network failure.
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = port
 
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    models_payload = {"object": "list", "data": [{"id": "demo-model", "object": "model"}]}
 
     def log_message(self, format: str, *args: object) -> None:
         pass
@@ -28,7 +43,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         if self.path.startswith("/v1/models"):
-            self._json(200, {"object": "list", "data": [{"id": "demo-model", "object": "model"}]})
+            self._json(200, Handler.models_payload)
             return
         self._json(404, {"error": {"message": "not found"}})
 
@@ -69,8 +84,10 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=18081)
+    parser.add_argument("--models", type=Path, default=DEFAULT_MODELS)
     args = parser.parse_args()
-    ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
+    Handler.models_payload = json.loads(args.models.read_text(encoding="utf-8"))
+    Server(("127.0.0.1", args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
