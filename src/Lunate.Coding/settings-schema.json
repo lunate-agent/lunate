@@ -109,7 +109,7 @@
       "type": "string",
       "default": "unset",
       "scope": "user",
-      "description": "The API family the model must resolve to (`openai-chat`, `openai-responses`, `anthropic-messages` or `google`); it wins over discovery and the catalog and selects one of the provider's own URLs. User scope only."
+      "description": "The API family the model must resolve to (`openai-chat`, `openai-responses`, `anthropic-messages`, `google` or `systemone`); it wins over discovery and the catalog and selects one of the provider's own URLs. User scope only."
     },
     {
       "name": "profiles.*.capabilities.apis",
@@ -228,7 +228,7 @@
       "type": "object",
       "default": "unset",
       "scope": "user",
-      "description": "One base URL per API family, keyed by family name (`openai-chat`, `openai-responses`, `anthropic-messages`, `google`); a custom entry declares exactly one. Definitions live in user settings only."
+      "description": "One base URL per API family, keyed by family name (`openai-chat`, `openai-responses`, `anthropic-messages`, `google`, `systemone`); a custom entry declares exactly one. Definitions live in user settings only."
     },
     {
       "name": "providers.*.catalogName",

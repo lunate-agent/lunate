@@ -18,7 +18,12 @@ flowchart TD
     Coding -. "evaluates manifest rule" .-> ExtApi
     Protocols --> Agent
     Agent --> Ai["Lunate.Ai<br/>model pipeline, catalog"]
-    Ai --> Providers(["Provider APIs<br/>OpenAI-compatible, Anthropic"])
+    Agent --> Decisions["Lunate.Ai.Decisions<br/>decision engine, contracts"]
+    Agent --> Contracts["Lunate.Contracts<br/>shared wire contracts"]
+    Coding --> Decisions
+    Coding --> SystemOne["Lunate.Ai.SystemOne<br/>native System One transport"]
+    SystemOne --> Decisions
+    Ai --> Providers(["Provider APIs<br/>OpenAI-compatible, Anthropic, Google, System One"])
     Protocols -. "stdio / HTTP" .-> Mcp(["MCP servers<br/>separate process"])
     Protocols -. "ACP" .-> Editor(["Editor (ACP client)<br/>separate process"])
 ```
