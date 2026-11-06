@@ -135,6 +135,7 @@ internal static partial class SetupCommand
                         catalog,
                         factory,
                         () => ResolveCredential(wizard.Credential, auth, environment.Resolve),
+                        context: null,
                         ct
                     )
                     .ConfigureAwait(false);

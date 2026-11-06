@@ -12,7 +12,6 @@ namespace Lunate.Ai;
 
 public sealed class ChatClientFactory : IChatClientFactory
 {
-    private const string AnthropicProvider = "anthropic";
     internal const string PlaceholderCredential = "unused-local-endpoint";
 
     /// <summary>
@@ -125,10 +124,12 @@ public sealed class ChatClientFactory : IChatClientFactory
             inner = CreateInnerClient(model, apiKey, context);
         }
 
-        if (string.Equals(model.Provider, AnthropicProvider, StringComparison.OrdinalIgnoreCase))
+        if (ResolvesToAnthropicMessages(model))
         {
-            // Below the turn merge (the rolling marker lands on the merged last block) and above the
-            // recorder/provider (recordings see the wire request).
+            // By resolved family, not provider name: an Anthropic-compatible custom entry (or the
+            // OpenCode Go Messages family) gets the same cache markers and turn merge as the
+            // native preset. Below the turn merge (the rolling marker lands on the merged last
+            // block) and above the recorder/provider (recordings see the wire request).
             inner = new AnthropicPromptCache(inner);
             inner = new AnthropicTurnMerge(inner);
         }
@@ -153,6 +154,24 @@ public sealed class ChatClientFactory : IChatClientFactory
         _providerClientFactory is not null
             ? _providerClientFactory(model, apiKey)
             : CreateProviderClient(model, apiKey, context);
+
+    /// <summary>
+    /// Whether the model's resolved wire family is Anthropic Messages, the family whose request
+    /// shape the cache and turn-merge decorators understand. A declared family wins over the
+    /// provider preset; with none declared, only a preset serving exactly that one chat family
+    /// answers. An ambiguous or unknown provider answers false here — provider construction
+    /// names those failures with the actionable message.
+    /// </summary>
+    private static bool ResolvesToAnthropicMessages(ModelInfo model)
+    {
+        if (ProviderApiFamilies.TryParse(model.ApiFamily, out ProviderApiFamily declared))
+        {
+            return declared == ProviderApiFamily.AnthropicMessages;
+        }
+
+        return ProviderPresets.Find(model.Provider) is { } preset
+            && preset.ChatFamilies is [ProviderApiFamily.AnthropicMessages];
+    }
 
     private IChatClient CreateProviderClient(
         ModelInfo model,

@@ -862,6 +862,7 @@ internal sealed partial class InteractiveSession
             _catalog,
             _factory,
             () => ResolveWizardCredential(wizard),
+            SessionRequestContext(),
             ct
         );
 

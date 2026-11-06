@@ -227,23 +227,29 @@ internal static class WizardModelCheck
     /// <c>/auth</c>'s verification sends it. <paramref name="resolveCredential"/> supplies the
     /// resolved key (a typed or referenced value, never an argument); null builds the client
     /// without an explicit key, which resolves the credential the factory already knows.
+    /// <paramref name="context"/> names the identity the wire headers render over — the session's
+    /// when one exists, null for a fresh ephemeral id (the flag path runs with no session). It must
+    /// not be omitted: an OpenCode Go check outside a session otherwise throws on
+    /// <c>x-opencode-session: {session.id}</c> before the first byte.
     /// </summary>
     internal static async Task<WizardCheckResult> RunAsync(
         SetupWizardModel wizard,
         ModelCatalog catalog,
         IChatClientFactory factory,
         Func<string?> resolveCredential,
+        RequestContext? context,
         CancellationToken ct
     )
     {
         WizardModelChoice choice = wizard.Model!;
         ModelInfo checkModel = ModelFor(wizard, choice, catalog);
         string? credential = resolveCredential();
+        RequestContext identity = context ?? RequestContext.Ephemeral();
         try
         {
             IChatClient client = credential is { Length: > 0 }
-                ? factory.Create(checkModel, credential)
-                : factory.Create(checkModel);
+                ? factory.Create(checkModel, credential, identity)
+                : factory.Create(checkModel, identity);
             await client
                 .GetResponseAsync(
                     [new ChatMessage(ChatRole.User, "Reply with OK.")],

@@ -88,6 +88,31 @@ public sealed class McpChildEnvironmentTests
         }
     }
 
+    [Fact]
+    public async Task On_windows_the_stdio_child_keeps_the_variables_a_server_needs_to_start()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Skip("The Windows process variables exist only on Windows.");
+            return;
+        }
+
+        using var temp = new TempDirectory();
+        await using var host = new McpServerHost(EnvServerOptions(temp.File("marker.txt")));
+
+        // A real child handshake first: the tool listing only answers once the stdio
+        // initialize completed through the scrubbed environment.
+        string[] names = await NamesAsync(host);
+
+        foreach (string name in new[] { "PATHEXT", "ComSpec", "APPDATA", "LOCALAPPDATA" })
+        {
+            Assert.Contains(name, names);
+            string? expected = Environment.GetEnvironmentVariable(name);
+            Assert.False(string.IsNullOrEmpty(expected), $"{name} is not set in the test process");
+            Assert.Equal(expected, await ValueAsync(host, name));
+        }
+    }
+
     /// <summary>The env-reporting options: the marker and the tool gate are declared.</summary>
     private static McpServerOptions EnvServerOptions(
         string markerPath,

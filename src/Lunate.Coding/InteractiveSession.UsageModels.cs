@@ -18,21 +18,29 @@ internal sealed partial class InteractiveSession
         // The host composition asks this before a model resolves (a null fallback), and the setup
         // wizard's session carries a placeholder id until its commit: neither is a selection, so
         // no usage client is built for either (spec: The wizard trigger).
-        string? chatSelection = _settings.Usages.GetValueOrDefault("chat") ?? fallbackChat?.Id;
-        if (
-            string.IsNullOrWhiteSpace(chatSelection)
-            || string.Equals(chatSelection, NotConfiguredModelId, StringComparison.Ordinal)
-        )
-        {
-            return null;
-        }
-
-        ResolvedModelProfile chat = ModelSelectionResolver.ResolveChatModel(
-            chatSelection,
+        ResolvedModelProfile? chat = ChatModelResolver.ResolveChatProfile(
             _settings,
             _providerEntries,
             _catalog
         );
+        if (chat is null)
+        {
+            string? fallback = fallbackChat?.Id;
+            if (
+                string.IsNullOrWhiteSpace(fallback)
+                || string.Equals(fallback, NotConfiguredModelId, StringComparison.Ordinal)
+            )
+            {
+                return null;
+            }
+
+            chat = ModelSelectionResolver.ResolveChatModel(
+                fallback,
+                _settings,
+                _providerEntries,
+                _catalog
+            );
+        }
         DecisionUsageModels.RequireChatFamily(chat, usage: "chat");
         var clientsByProfile = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal);
         var usages = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)

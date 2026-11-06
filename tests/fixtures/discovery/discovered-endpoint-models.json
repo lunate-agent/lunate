@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "models": [
+    {
+      "id": "opencode-go/discovered-messages",
+      "provider": "opencode-go",
+      "wireId": "discovered-messages",
+      "endpoint": "https://relay.example/go/anthropic/v1",
+      "contextWindow": 200000,
+      "supportsTools": true,
+      "apiFamily": "anthropic-messages"
+    }
+  ]
+}

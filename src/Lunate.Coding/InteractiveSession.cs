@@ -200,6 +200,13 @@ internal sealed partial class InteractiveSession : IDisposable
     private Func<string, ToolRegistry>? _workspaceTools;
     private readonly List<ITool> _inheritedTools = [];
     private Session? _session;
+
+    /// <summary>
+    /// The identity a session without a stored id sends its requests under: a fileless session, or
+    /// one whose picker has not materialized it yet. One per session instance, so a header
+    /// template keeps the same value across requests while no session file exists.
+    /// </summary>
+    private RequestContext? _ephemeralContext;
     private bool _fileless;
     private SkillCatalog? _skills;
     private CommandRegistry _commands = CommandRegistry.Empty;
@@ -519,7 +526,6 @@ internal sealed partial class InteractiveSession : IDisposable
 
         ResolveBashGuard();
         ApplyTuiPresentation();
-        ApplyUserKeymap();
         _thinkingLevel = _settings.Thinking;
         _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
         _environment = _options.Environment ?? Environment.GetEnvironmentVariable;
@@ -695,13 +701,14 @@ internal sealed partial class InteractiveSession : IDisposable
                 resolved.SupportsTools
             );
         }
-        else if (_settings.Usages.TryGetValue("chat", out string? chatProfile))
+        else if (
+            ChatModelResolver.ResolveChatProfile(_settings, _providerEntries, _catalog) is
+            { } chatProfile
+        )
         {
             _extensionModelId = null;
             _modelRoute = null;
-            _model = ModelSelectionResolver
-                .ResolveChatModel(chatProfile, _settings, _providerEntries, _catalog)
-                .Model;
+            _model = chatProfile.Model;
         }
         else
         {
@@ -1047,9 +1054,13 @@ internal sealed partial class InteractiveSession : IDisposable
             ? new DeferredChatClient(() => _factory.Create(model, SessionRequestContext()))
         : _factory.Create(model, SessionRequestContext());
 
-    /// <summary>The session's request identity: the id children and runs resolve their templates against.</summary>
+    /// <summary>The session's request identity: the id children and runs resolve their templates
+    /// against. A fileless or not-yet-materialized session has no id, so it gets one ephemeral
+    /// identity for the instance — a header template still renders instead of failing.</summary>
     private RequestContext? SessionRequestContext() =>
-        _session?.SessionId is { Length: > 0 } sessionId ? new RequestContext(sessionId) : null;
+        _session?.SessionId is { Length: > 0 } sessionId
+            ? new RequestContext(sessionId)
+            : _ephemeralContext ??= RequestContext.Ephemeral();
 
     /// <summary>
     /// Whether this terminal session's model has no usable credential, so the deferred client and
