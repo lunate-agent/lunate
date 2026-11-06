@@ -14,19 +14,39 @@ public static class EnvironmentScrubber
     /// its reason (<c>read</c>'s names; only the parent's values are used, never defaults):
     /// <list type="bullet">
     /// <item><c>PATH</c> — the child must find its own commands and libraries.</item>
+    /// <item><c>PATHEXT</c> — Windows resolves a bare command through the extensions listed
+    /// here, so a server starting <c>node</c>, <c>npm</c> or a <c>.cmd</c> helper needs it.</item>
     /// <item><c>HOME</c> (POSIX home), <c>USERPROFILE</c> (the Windows name of the same) — config
     /// and caches under the user's home directory.</item>
     /// <item><c>SystemRoot</c> — Windows requires it for process startup itself; without it a
     /// child on Windows fails to start.</item>
+    /// <item><c>ComSpec</c> — the Windows command processor's path; a server's shell helper
+    /// starts <c>cmd.exe</c> through it.</item>
     /// <item><c>TEMP</c> and <c>TMP</c> (the Windows/temp-variable spellings), <c>TMPDIR</c> (the
     /// POSIX spelling) — a child writing scratch files needs a directory it is allowed to write.</item>
+    /// <item><c>APPDATA</c> and <c>LOCALAPPDATA</c> — where Windows applications keep their
+    /// per-user roaming and local data; package managers and runtimes read them to find or
+    /// create their caches.</item>
     /// <item><c>LANG</c> — the locale decides the child's output encoding, so its text parses.</item>
     /// </list>
     /// Everything the parent holds beyond these list is deliberately absent from the child —
     /// declare a variable in the caller's own environment map to pass one.
     /// </summary>
     public static IReadOnlyList<string> BaseNames { get; } =
-    ["PATH", "HOME", "USERPROFILE", "SystemRoot", "TEMP", "TMP", "TMPDIR", "LANG"];
+    [
+        "PATH",
+        "PATHEXT",
+        "HOME",
+        "USERPROFILE",
+        "SystemRoot",
+        "ComSpec",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "LANG",
+    ];
 
     /// <summary>
     /// Builds the exact environment: each base name present in the parent (read through

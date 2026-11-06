@@ -742,9 +742,11 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
 
 - Servers are configured in `~/.lunate/mcp.json` (command, args, env) and start on first use.
 - A stdio child does not inherit the session environment. It receives exactly the allow-list the
-  child-environment scrubber builds: `PATH`; `HOME` (`USERPROFILE` on Windows); `SystemRoot`
-  (required for Windows process startup); `TEMP`, `TMP` and `TMPDIR` (scratch directories); and
-  `LANG` (the locale) — each from Lunate's own environment when Lunate has it — plus the server's
+  child-environment scrubber builds: `PATH` and `PATHEXT` (command resolution); `HOME`
+  (`USERPROFILE` on Windows); `SystemRoot` and `ComSpec` (Windows process and shell startup);
+  `TEMP`, `TMP` and `TMPDIR` (scratch directories); `APPDATA` and `LOCALAPPDATA` (Windows
+  application data); and `LANG` (the locale) — each from Lunate's own environment when Lunate has
+  it — plus the server's
   declared `env` map, and nothing else. To give a server another variable, declare it in its
   `env`: `"env": {"SERVER_TOKEN": "${SERVER_TOKEN}"}` resolves from Lunate's environment when the
   file loads, so the value is passed explicitly and nothing reaches the child by omission.

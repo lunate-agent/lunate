@@ -741,6 +741,10 @@ internal sealed partial class InteractiveSession
         _contextWindow = model.ContextWindow;
         _extensionModelId = null;
         _modelRoute = null;
+        // The new chat profile is the session's default: its reasoningLevel seeds the level, and
+        // a profile without one falls back to the resolved settings default. Without this a
+        // switch kept the previous profile's level, which the new model never sent.
+        _thinkingLevel = SettingsStore.SeedReasoningLevel(_settings) ?? _settings.Thinking;
         _imageResolver = CreateImageResolver(model);
         _harness = BuildHarness(model);
         UpdateStatus();
