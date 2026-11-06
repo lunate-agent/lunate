@@ -150,7 +150,7 @@ internal sealed partial class InteractiveSession
     }
 
     private Task<string?> PromptAsync(string label, CancellationToken ct) =>
-        _secretPrompt.ReadAsync(label, ct);
+        _secretPrompt.ReadTextAsync(label, ct);
 
     /// <summary>One decision switch through the question component: Enter picks the selected row,
     /// Esc aborts (the walk's abort, never the session's). The selection lands on the default.</summary>

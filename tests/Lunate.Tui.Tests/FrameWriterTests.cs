@@ -76,6 +76,37 @@ public sealed class FrameWriterTests
         Assert.Equal(2, console.Writes.Count);
     }
 
+
+    [Fact]
+    public void Wrapped_lines_count_their_physical_rows_when_clearing()
+    {
+        using var console = new FakeConsoleIO();
+        console.PushResize(new ConsoleSize(10, 24));
+        var writer = new FrameWriter(console);
+
+        writer.Paint(new RenderedFrame(["0123456789ABCDEF", "status"], 1, 3));
+        writer.Paint(new RenderedFrame(["short", "status"], 1, 3));
+
+        string second = console.Writes[1];
+        // Two physical rows for the first line plus one for status: the repaint starts two rows
+        // above the cursor and clears three physical rows, not two logical ones.
+        Assert.StartsWith("\u001b[2A", second);
+        Assert.Equal(3, CountOccurrences(second, "\r\u001b[2K"));
+    }
+
+    [Fact]
+    public void Ansi_sequences_do_not_add_phantom_wrapped_rows()
+    {
+        using var console = new FakeConsoleIO();
+        console.PushResize(new ConsoleSize(10, 24));
+        var writer = new FrameWriter(console);
+
+        writer.Paint(new RenderedFrame(["[31mred[0m"], 0, 0));
+        writer.Paint(new RenderedFrame(["[31mred[0m"], 0, 0));
+
+        Assert.Equal(1, CountOccurrences(console.Writes[0], "\r\u001b[2K"));
+    }
+
     private static int CountOccurrences(string haystack, string needle)
     {
         var count = 0;

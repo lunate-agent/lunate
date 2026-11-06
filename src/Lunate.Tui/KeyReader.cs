@@ -6,7 +6,7 @@ namespace Lunate.Tui;
 
 internal sealed class KeyReader : IDisposable
 {
-    internal static readonly TimeSpan DefaultQuietWindow = TimeSpan.FromMilliseconds(75);
+    internal static readonly TimeSpan DefaultQuietWindow = TimeSpan.FromMilliseconds(50);
 
     private static readonly byte[] PasteStart = "\u001b[200~"u8.ToArray();
     private static readonly byte[] PasteEnd = "\u001b[201~"u8.ToArray();

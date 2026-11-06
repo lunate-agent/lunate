@@ -32,10 +32,10 @@
     { "id": "opencode", "name": "OpenCode", "adapter": "openai-compatible", "baseUrl": "https://opencode.ai/inference/openai/v1", "baseUrls": { "systemone": "https://opencode.ai/inference/systemone/v1/systemone" }, "familyHeaders": { "systemone": { "TypeSafe-Danger-Zone-Images": "true" } }, "keyVariable": "OPENCODE_API_KEY" },
     // opencode-go: one key across every wire API, declared per family (families may share a
     // URL): chat and responses share the OpenAI-compatible surface, messages the
-    // Anthropic-compatible one, google the Gemini-compatible one. modelsUrl is the discovery
-    // endpoint a later slice reads; x-opencode-session pins a request to a session and is sent
-    // by the headers pipeline (slice 2), not by this slice.
-    { "id": "opencode-go", "name": "OpenCode Go", "adapter": "openai-compatible", "baseUrls": { "openai-chat": "https://opencode.ai/inference/go/openai/v1", "openai-responses": "https://opencode.ai/inference/go/openai/v1", "anthropic-messages": "https://opencode.ai/inference/go/anthropic/v1", "google": "https://opencode.ai/inference/go/google/v1beta" }, "modelsUrl": "https://opencode.ai/inference/go/v1/models", "headers": { "x-opencode-session": "{session.id}" }, "keyVariable": "OPENCODE_API_KEY" },
+    // Anthropic-compatible one, google the Gemini-compatible one, and systemone the OpenCode
+    // System One surface. The Go key is accepted there but bills to the pay-as-you-go balance,
+    // not the Go plan; the preset pins jev-1.13. x-opencode-session pins a request to a session.
+    { "id": "opencode-go", "name": "OpenCode Go", "adapter": "openai-compatible", "baseUrls": { "openai-chat": "https://opencode.ai/inference/go/openai/v1", "openai-responses": "https://opencode.ai/inference/go/openai/v1", "anthropic-messages": "https://opencode.ai/inference/go/anthropic/v1", "google": "https://opencode.ai/inference/go/google/v1beta", "systemone": "https://opencode.ai/inference/systemone/v1/systemone" }, "modelsUrl": "https://opencode.ai/inference/go/v1/models", "headers": { "x-opencode-session": "{session.id}" }, "familyHeaders": { "systemone": { "TypeSafe-Danger-Zone-Images": "true" } }, "keyVariable": "OPENCODE_API_KEY" },
     // groq: OpenAI-compatible Chat Completions (https://console.groq.com/docs/openai).
     { "id": "groq", "name": "Groq", "adapter": "openai-compatible", "baseUrl": "https://api.groq.com/openai/v1", "keyVariable": "GROQ_API_KEY" },
     // togetherai: OpenAI-compatible Chat Completions (https://docs.together.ai/docs/openai-compatibility).

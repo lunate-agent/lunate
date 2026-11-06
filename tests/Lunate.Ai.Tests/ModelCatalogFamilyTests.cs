@@ -14,17 +14,24 @@ public sealed class ModelCatalogFamilyTests
             {
                 // The decision models: catalog-declared native entries, not generated chat ones.
                 Assert.True(
-                    model.Id is "openrouter/typesafe/jev-1.14" or "opencode/jev-1.13",
+                    model.Id
+                        is "openrouter/typesafe/jev-1.14"
+                            or "opencode/jev-1.13"
+                            or "opencode-go/jev-1.13",
                     $"Unexpected systemone catalog entry: {model.Id}"
                 );
                 Assert.Equal("native", model.ApiType);
             }
             else if (model.Provider == "opencode-go")
             {
-                // One key, four native wires: every entry carries the family the live listing
-                // reports for that model, never the decision-only one.
+                // One key, four chat wires plus the decision-only System One wire.
                 Assert.True(ProviderApiFamilies.IsKnown(model.ApiFamily), model.Id);
-                Assert.NotEqual(ProviderApiFamilies.SystemOne, model.ApiFamily);
+                Assert.True(
+                    model.ApiFamily == ProviderApiFamilies.SystemOne
+                        ? model.Id == "opencode-go/jev-1.13"
+                        : model.ApiFamily != ProviderApiFamilies.SystemOne,
+                    model.Id
+                );
             }
             else if (model.Provider is "google" or "openrouter" or "opencode")
             {

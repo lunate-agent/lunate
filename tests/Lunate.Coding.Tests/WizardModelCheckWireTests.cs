@@ -23,6 +23,8 @@ public sealed class WizardModelCheckWireTests
             OpenCodeGoWizard(),
             catalog,
             wire.Factory(),
+            AuthStore.Load(temp.File("auth.json"), _ => null),
+            _ => null,
             () => "sk-test",
             context: null,
             TestContext.Current.CancellationToken
@@ -49,6 +51,8 @@ public sealed class WizardModelCheckWireTests
             OpenCodeGoWizard(),
             catalog,
             wire.Factory(),
+            AuthStore.Load(temp.File("auth.json"), _ => null),
+            _ => null,
             () => "sk-test",
             new RequestContext("s_model-check"),
             TestContext.Current.CancellationToken

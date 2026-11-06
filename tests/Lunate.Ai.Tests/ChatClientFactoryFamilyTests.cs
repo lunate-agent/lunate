@@ -199,6 +199,16 @@ public sealed class ChatClientFactoryFamilyTests
             ],
             go.ChatFamilies
         );
+        Assert.Equal(
+            [
+                ProviderApiFamily.OpenAiChat,
+                ProviderApiFamily.OpenAiResponses,
+                ProviderApiFamily.AnthropicMessages,
+                ProviderApiFamily.Google,
+                ProviderApiFamily.SystemOne,
+            ],
+            go.Families
+        );
         Assert.Contains(ProviderApiFamily.SystemOne, openrouter.Families);
     }
 
