@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 
 namespace Lunate.Ai;
@@ -18,6 +19,14 @@ public sealed record RequestContext(string? SessionId, string? RunId = null)
 
     /// <summary>The context of the run currently executing on this async flow, or null.</summary>
     internal static RequestContext? Current => Ambient.Value;
+
+    /// <summary>
+    /// The request identity for a call that has no session — the setup model check, an
+    /// <c>/auth</c> verification before the first run: a random id, so a header template naming
+    /// <c>{session.id}</c> still renders. It names no stored session and is never resumed.
+    /// </summary>
+    internal static RequestContext Ephemeral() =>
+        new(Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
 
     /// <summary>
     /// Activates a run's context for the calling async flow; the returned scope restores the
