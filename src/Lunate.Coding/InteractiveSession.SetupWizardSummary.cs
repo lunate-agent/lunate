@@ -304,6 +304,28 @@ internal static class SetupWizardSummary
             );
         }
 
+        if (wizard.DecisionProfile is not null)
+        {
+            switch (wizard.DecisionCheck?.Outcome)
+            {
+                case WizardProgress.Passed:
+                    lines.Add("decision check: passed");
+                    break;
+                case WizardProgress.Skipped:
+                    lines.Add("decision check: skipped — the decision profile stays unverified");
+                    break;
+                case WizardProgress.Failed:
+                    lines.Add(
+                        $"decision check: failed ({wizard.DecisionCheck?.Detail}) — the decision "
+                            + "profile stays unverified"
+                    );
+                    break;
+                default:
+                    lines.Add("decision check: not run — the decision profile stays unverified");
+                    break;
+            }
+        }
+
         if (wizard.Decisions is { } decisions)
         {
             if (decisions.Approvals is { } approvals)

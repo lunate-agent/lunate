@@ -160,14 +160,17 @@ internal static class DecisionUsageModels
     /// provider's message. A <c>systemone</c> profile materializes the native decision transport
     /// instead — the decision-only chat facade over the System One HTTP client, which the shared
     /// header and credential handlers serve like the chat wires do. Shared by the interactive
-    /// session's own usage resolution, print mode and ACP.
+    /// session's own usage resolution, print mode and ACP. <paramref name="credentialOverride"/>
+    /// is a key the caller already holds — the setup check's typed key, which is not in the auth
+    /// store before the walk commits — and it wins over the reference.
     /// </summary>
     internal static IChatClient CreateUsageClient(
         ResolvedModelProfile profile,
         AuthStore auth,
         Func<string, string?> environment,
         IChatClientFactory factory,
-        RequestContext? context = null
+        RequestContext? context = null,
+        string? credentialOverride = null
     )
     {
         if (
@@ -178,7 +181,19 @@ internal static class DecisionUsageModels
             )
         )
         {
-            return CreateSystemOneClient(profile, environment, auth, factory, context);
+            return CreateSystemOneClient(
+                profile,
+                environment,
+                auth,
+                factory,
+                context,
+                credentialOverride
+            );
+        }
+
+        if (credentialOverride is { Length: > 0 } held)
+        {
+            return factory.Create(profile.Model, held, context);
         }
 
         string reference = profile.Provider.CredentialReference;
@@ -235,7 +250,8 @@ internal static class DecisionUsageModels
         Func<string, string?> environment,
         AuthStore auth,
         IChatClientFactory factory,
-        RequestContext? context
+        RequestContext? context,
+        string? credentialOverride
     )
     {
         ProviderPreset? preset = ProviderPresets.Find(profile.Provider.Kind);
@@ -265,6 +281,11 @@ internal static class DecisionUsageModels
             environment,
             auth
         );
+        if (credentialOverride is { Length: > 0 } held)
+        {
+            resolvedKey = held;
+        }
+
         HttpClient httpClient = concrete.CreateProviderHttpClient(
             wireModel,
             resolvedKey,

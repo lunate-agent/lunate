@@ -18,10 +18,13 @@ public static partial class SettingsStore
     internal static readonly IReadOnlyList<string> WizardUsages = ["chat", "fast"];
 
     /// <summary>
-    /// Writes one profile — creating it when absent, replacing its fields when present — where
-    /// every other profile and setting is preserved. The profile carries what the walk collected:
-    /// its provider and model, the reasoning level only when the model declares a style for one
-    /// (a profile has no <c>off</c>), and the routing description when one was asked.
+    /// Writes one profile — creating it when absent, merging into it when present — where every
+    /// other profile and setting is preserved. Only the keys the wizard owns are written
+    /// (<c>provider</c>, <c>model</c>, <c>reasoningLevel</c>, <c>apiFamily</c>,
+    /// <c>description</c>); a key the wizard has no value for is removed, because the walk owns
+    /// it, while every other key in the existing profile object — <c>maxOutput</c>,
+    /// <c>temperature</c>, <c>reasoningBudget</c>, <c>contextWindow</c>,
+    /// <c>capabilities</c> — survives a re-run (S-29).
     /// </summary>
     internal static void WriteProfile(ModelProfile profile, string? filePath = null)
     {
@@ -121,24 +124,52 @@ public static partial class SettingsStore
     private static void WriteProfileLocked(JsonObject root, ModelProfile profile)
     {
         JsonObject profiles = root["profiles"] as JsonObject ?? new JsonObject();
-        var entry = new JsonObject { ["provider"] = profile.Provider, ["model"] = profile.Model };
-        if (profile.ReasoningLevel is { } level)
-        {
-            entry["reasoningLevel"] = level;
-        }
+        // Merge into the existing object: a re-run replaces the values the wizard owns and leaves
+        // the hand-set ones a walk never collects in place.
+        JsonObject existing = profiles[profile.Name] as JsonObject ?? new JsonObject();
+        existing["provider"] = profile.Provider;
+        existing["model"] = profile.Model;
 
-        if (profile.ApiFamily is { } family)
-        {
-            entry["apiFamily"] = family;
-        }
+        // A level and a budget cannot be combined (ModelProfileResolver); the level wins because
+        // the level is what this write states, and the budget is dropped deterministically.
+        SetReasoningLevel(existing, profile.ReasoningLevel);
 
-        if (profile.Description is { Length: > 0 } description)
-        {
-            entry["description"] = description;
-        }
-
-        profiles[profile.Name] = entry;
+        SetOptionalString(existing, "apiFamily", profile.ApiFamily);
+        SetOptionalString(existing, "description", profile.Description);
+        profiles[profile.Name] = existing;
         root["profiles"] = profiles;
+    }
+
+    /// <summary>
+    /// Sets the profile's <c>reasoningLevel</c> — or removes the key when the walk carries no
+    /// level — and removes a <c>reasoningBudget</c> the level would make the profile refuse:
+    /// resolution treats the two as mutually exclusive, so an inherited budget would otherwise
+    /// turn a valid write into a profile the next load rejects (S-28).
+    /// </summary>
+    private static void SetReasoningLevel(JsonObject profile, string? level)
+    {
+        if (level is { } value)
+        {
+            profile["reasoningLevel"] = value;
+            profile.Remove("reasoningBudget");
+        }
+        else
+        {
+            profile.Remove("reasoningLevel");
+        }
+    }
+
+    /// <summary>Sets a wizard-owned string key, or removes it when the walk carries no value.</summary>
+    private static void SetOptionalString(JsonObject profile, string key, string? value)
+    {
+        if (value is { Length: > 0 } declared)
+        {
+            profile[key] = declared;
+        }
+        else
+        {
+            profile.Remove(key);
+        }
     }
 
     /// <summary>Serializes, parser-validates and atomically replaces the file; shared by the wizard writers.</summary>

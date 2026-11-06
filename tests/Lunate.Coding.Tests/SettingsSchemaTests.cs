@@ -73,6 +73,7 @@ public sealed partial class SettingsSchemaTests
         ["providers.*.headers"] = new Dictionary<string, string> { ["x-probe"] = "literal" },
         ["providers.*.model"] = ProbeModel,
         ["providers.*.catalogName"] = "Probe",
+        ["providers.*.region"] = "eu",
         ["profiles.*.apiFamily"] = "openai-chat",
         ["profiles.*.description"] = "A profile's purpose.",
         ["profiles.*.provider"] = ProbeProvider,

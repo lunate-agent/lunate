@@ -422,11 +422,27 @@ internal sealed partial class InteractiveSession
                 continue;
             }
 
-            string? region = await PromptAsync("Region (optional; Enter leaves it unset)", ct)
+            string? region = await PromptAsync(
+                    "Region (eu, us or local; Enter leaves it unset)",
+                    ct
+                )
                 .ConfigureAwait(false);
             if (region is null)
             {
                 return null;
+            }
+
+            string? declaredRegion = region.Trim() is { Length: > 0 } trimmedRegion
+                ? trimmedRegion
+                : null;
+            if (declaredRegion is not null && !ProviderEntry.IsKnownRegion(declaredRegion))
+            {
+                Notify(
+                    $"region '{declaredRegion}' is not a region: declare 'eu', 'us' or 'local', or "
+                        + "press Enter to leave it unset — the custom path asks again",
+                    NoticeLevel.Warning
+                );
+                continue;
             }
 
             string? modelsUrl = await PromptAsync(
@@ -461,7 +477,7 @@ internal sealed partial class InteractiveSession
             return new WizardProviderChoice(
                 id,
                 Custom: true,
-                Region: region.Trim().Length == 0 ? null : region.Trim(),
+                Region: declaredRegion,
                 endpoint,
                 family,
                 parsedPlacement!,
@@ -1061,8 +1077,99 @@ internal sealed partial class InteractiveSession
         wizard.RecordDecisionProfile(
             new WizardDecisionChoice("decisions", modelId, isNative, pinned)
         );
+        return await DecisionCheckAsync(wizard, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Step 7b's check: one tiny noul through the decision client the profile will use — the
+    /// native System One transport for a native profile, the adapter's chat client otherwise. The
+    /// cost is stated before it runs and the check is skippable; a skip or a failure leaves the
+    /// decision profile unverified in the summary (spec: The full walk, step 5).
+    /// </summary>
+    private async Task<WizardMove> DecisionCheckAsync(SetupWizardModel wizard, CancellationToken ct)
+    {
+        WizardDecisionChoice decision = wizard.DecisionProfile!;
+        ModelInfo checkModel = WizardModelCheck.DecisionModelFor(wizard, decision, _catalog);
+        string cost = CostCalculator.Compute(checkModel, inputTokens: 8, outputTokens: 1)
+            is decimal estimate
+            ? CostCalculator.Format(estimate)
+            : "not available (no published price)";
+        string kind = decision.Native ? "native" : "adapter";
+        string? answered = await PickAsync(
+                $"Decision check: estimated cost {cost}; one tiny noul to {decision.ModelId} ({kind}) — skippable",
+                ["Send the decision check", "Skip the decision check"],
+                ["send", "skip"],
+                PickerKind.WizardChoice,
+                ct,
+                "skip"
+            )
+            .ConfigureAwait(false);
+        if (answered is null)
+        {
+            return WizardMove.Abort;
+        }
+
+        if (answered == "skip")
+        {
+            wizard.RecordDecisionCheck(new WizardCheckResult(WizardProgress.Skipped));
+            return WizardMove.Advance;
+        }
+
+        WizardCheckResult check = await RunDecisionCheckAsync(wizard, ct).ConfigureAwait(false);
+        wizard.RecordDecisionCheck(check);
+        if (check.Outcome == WizardProgress.Passed)
+        {
+            Notify($"decision check passed: {decision.ModelId} ({kind})");
+            return WizardMove.Advance;
+        }
+
+        Notify(
+            $"the decision check failed for {decision.ModelId} ({kind}): "
+                + $"{check.Detail ?? "the request was refused"}. You can choose the decision "
+                + "profile again or keep it unverified",
+            NoticeLevel.Warning
+        );
+        string? after = await PickAsync(
+                "After the failed decision check",
+                [
+                    "Keep it (the decision profile stays unverified)",
+                    "Choose the decision profile again",
+                ],
+                ["keep", "again"],
+                PickerKind.WizardChoice,
+                ct,
+                "keep"
+            )
+            .ConfigureAwait(false);
+        if (after is null)
+        {
+            return WizardMove.Abort;
+        }
+
+        if (after == "again")
+        {
+            wizard.RecordDecisionProfile(null);
+            return WizardMove.Stay;
+        }
+
         return WizardMove.Advance;
     }
+
+    /// <summary>The shared decision-check helper, so the wizard and the flag path send the same
+    /// request through the same resolution.</summary>
+    private Task<WizardCheckResult> RunDecisionCheckAsync(
+        SetupWizardModel wizard,
+        CancellationToken ct
+    ) =>
+        WizardModelCheck.RunDecisionAsync(
+            wizard,
+            _catalog,
+            _factory,
+            _auth,
+            _environment,
+            () => ResolveWizardCredential(wizard),
+            ct
+        );
 
     private bool ProviderExposesSystemOne(SetupWizardModel wizard) =>
         wizard.Provider is { } provider

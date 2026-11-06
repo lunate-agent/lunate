@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Lunate.Agent;
 using Lunate.Ai;
 using Microsoft.Extensions.AI;
 
@@ -65,6 +67,160 @@ internal static class WizardModelCheck
             ApiFamily = choice.ApiFamily,
         };
     }
+
+    /// <summary>
+    /// The decision-profile check (S-13): one tiny noul through the decision client — the native
+    /// System One transport for a native profile, the chat client under the decision layer's
+    /// adapter for an adapter one. The request is the contract's own: a single yes/no question
+    /// with the fixed answers and an empty state, so nothing a model could read as instructions
+    /// rides along. A failure marks the profile unverified with the response's own words.
+    /// </summary>
+    internal static async Task<WizardCheckResult> RunDecisionAsync(
+        SetupWizardModel wizard,
+        ModelCatalog catalog,
+        IChatClientFactory factory,
+        AuthStore auth,
+        Func<string, string?> environment,
+        Func<string?> resolveCredential,
+        CancellationToken ct
+    )
+    {
+        ArgumentNullException.ThrowIfNull(wizard);
+        WizardDecisionChoice decision =
+            wizard.DecisionProfile
+            ?? throw new InvalidDataException(
+                "setup: the decision check needs the decision-profile answer."
+            );
+        ModelInfo checkModel = DecisionModelFor(wizard, decision, catalog);
+        ProviderEntry entry = SetupWizardCommit.StagedEntry(wizard);
+        string? credential = resolveCredential();
+        try
+        {
+            // The same resolution the session's decision usage takes, over the entry this walk is
+            // about to store: a native profile builds the System One transport, an adapter one
+            // the provider's chat client that the decision layer wraps.
+            ResolvedModelProfile profile = new(
+                new ModelProfile(
+                    decision.ProfileName,
+                    entry.Name,
+                    decision.ModelId,
+                    ApiFamily: decision.Native ? ProviderApiFamilies.SystemOne : null
+                ),
+                entry,
+                checkModel,
+                checkModel.ContextWindow,
+                checkModel.Capabilities ?? new ModelCapabilityDescriptor()
+            );
+            IChatClient client = DecisionUsageModels.CreateUsageClient(
+                profile,
+                auth,
+                environment,
+                factory,
+                context: null,
+                credentialOverride: credential
+            );
+            await DecisionEngine
+                .EvaluateAsync(
+                    DecisionCheckRequest(),
+                    client,
+                    checkModel.Id,
+                    decision.Native ? "native" : "chat",
+                    ct
+                )
+                .ConfigureAwait(false);
+            return new WizardCheckResult(WizardProgress.Passed);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            string reason = exception.Message;
+            if (credential is { Length: > 0 })
+            {
+                reason = reason.Replace(credential, "[redacted]", StringComparison.Ordinal);
+            }
+
+            return new WizardCheckResult(WizardProgress.Failed, reason);
+        }
+    }
+
+    /// <summary>
+    /// The decision check's request: one noul, the fixed yes/no answers the contract requires and
+    /// an empty state. The question id is the check's own, so a decision transport's reply is read
+    /// against exactly one question.
+    /// </summary>
+    private static Lunate.Contracts.DecisionRequest DecisionCheckRequest()
+    {
+        using JsonDocument state = JsonDocument.Parse("{}");
+        return new(
+            state.RootElement.Clone(),
+            [
+                new Lunate.Contracts.DecisionQuestion(
+                    "transport_reachable",
+                    "Answer yes when the decision transport answered this request.",
+                    Lunate.Contracts.DecisionQuestionKind.YesNo
+                ),
+            ]
+        );
+    }
+
+    /// <summary>
+    /// The model the decision check sends through: an adapter profile borrows the chat model's
+    /// choice (the chat client answers the decision JSON), while a native profile is the catalog's
+    /// Jev entry — its own wire id, the preset's System One URL and the decision-only family.
+    /// </summary>
+    internal static ModelInfo DecisionModelFor(
+        SetupWizardModel wizard,
+        WizardDecisionChoice decision,
+        ModelCatalog catalog
+    )
+    {
+        WizardProviderChoice provider = wizard.Provider!;
+        if (!decision.Native)
+        {
+            return ModelFor(
+                wizard,
+                new WizardModelChoice(decision.ModelId, AdapterFamily(wizard, provider)),
+                catalog
+            );
+        }
+
+        ProviderPreset? preset = ProviderPresets.Find(provider.Id);
+        if (preset is null)
+        {
+            throw new InvalidDataException(
+                $"setup: provider '{provider.Id}' is not a preset; its native decision profile "
+                    + "cannot resolve the System One transport."
+            );
+        }
+
+        ModelInfo model =
+            catalog.Find(decision.ModelId)
+            ?? new ModelInfo(decision.ModelId, provider.Id, null, 0, false);
+        return model with
+        {
+            Provider = provider.Id,
+            Endpoint = preset.UrlFor(ProviderApiFamily.SystemOne) ?? preset.BaseUrl,
+            ApiFamily = ProviderApiFamilies.SystemOne,
+            WireId = model.WireId ?? model.Id,
+            AuthRef = null,
+            CredentialPlacement = null,
+            ProviderHeaders = null,
+        };
+    }
+
+    /// <summary>The family an adapter decision profile answers on: the chat model's, falling back
+    /// to the provider answer's own when the walk recorded none.</summary>
+    private static string AdapterFamily(SetupWizardModel wizard, WizardProviderChoice provider) =>
+        wizard.Model?.ApiFamily
+        ?? (
+            provider.Custom ? provider.ApiFamily
+            : ProviderPresets.Find(provider.Id) is { } preset
+                ? ProviderApiFamilies.Name(preset.DefaultFamily)
+            : ProviderApiFamilies.Name(ProviderApiFamily.OpenAiChat)
+        );
 
     /// <summary>
     /// The minimal request: one user message and one output token through the factory, the way

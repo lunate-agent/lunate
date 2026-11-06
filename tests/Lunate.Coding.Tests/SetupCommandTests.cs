@@ -288,6 +288,89 @@ public sealed class SetupCommandTests : IDisposable
     }
 
     [PosixFact]
+    public void Api_family_overrides_the_presets_default_for_the_check_and_the_writes()
+    {
+        // S-12: the flag used to be validated and then ignored; the check, the entry and the
+        // profile must all use the family it named.
+        using var output = new StringWriter();
+        using var errors = new StringWriter();
+        var factory = new FakeChatClientFactory(
+            new ScriptedChatClient().Enqueue(Scripts.Text("OK"))
+        );
+        int exit = Cli.Run(
+            [
+                "setup",
+                "--provider",
+                "opencode-go",
+                "--api-family",
+                "anthropic-messages",
+                "--model",
+                "anthropic/claude-sonnet-5-5",
+                "--profile",
+                "main",
+            ],
+            output,
+            errors,
+            TestContext.Current.CancellationToken,
+            stdinIsTerminal: false,
+            setupSeams: new SetupCommandSeams
+            {
+                AuthPath = _temp.File("auth.json"),
+                Environment = name => name == "OPENCODE_API_KEY" ? "family-key-not-echoed" : null,
+                DiscoveryTransport = Discovery(),
+                ChatFactory = factory,
+            }
+        );
+
+        Assert.Equal(0, exit);
+        Assert.Equal("anthropic-messages", factory.CreatedModel?.ApiFamily);
+        using JsonDocument store = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
+        JsonElement entry = store.RootElement.GetProperty("providers")[0];
+        Assert.Equal(
+            "https://opencode.ai/inference/go/anthropic/v1",
+            entry.GetProperty("baseUrls").GetProperty("anthropic-messages").GetString()
+        );
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+        Assert.Equal(
+            "anthropic-messages",
+            settings
+                .RootElement.GetProperty("profiles")
+                .GetProperty("main")
+                .GetProperty("apiFamily")
+                .GetString()
+        );
+        Assert.DoesNotContain("family-key-not-echoed", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [PosixFact]
+    public void Api_family_outside_the_presets_families_is_refused_by_name()
+    {
+        (int exit, string _, string errors) = Run(
+            [
+                "setup",
+                "--provider",
+                "openai",
+                "--api-family",
+                "anthropic-messages",
+                "--model",
+                "gpt-5",
+                "--no-test",
+                "--no-model-check",
+            ],
+            stdinIsTerminal: false,
+            environment: name => name == "OPENAI_API_KEY" ? "refused-family-key" : null
+        );
+
+        Assert.Equal(2, exit);
+        Assert.Contains(
+            "provider 'openai' does not declare the API family 'anthropic-messages'",
+            errors,
+            StringComparison.Ordinal
+        );
+        Assert.False(File.Exists(ProviderStorePath), "a refused family writes nothing");
+    }
+
+    [PosixFact]
     public void No_test_sends_no_provider_request()
     {
         using var output = new StringWriter();
