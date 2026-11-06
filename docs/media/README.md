@@ -4,13 +4,17 @@ What `README.md` and the docs embed, where the frames come from, and which build
 them. The GIFs are manual artifacts in the repository — re-render them through the capture
 harness when the UI changes, never leave an asset showing a UI that no longer exists.
 
-## Capture build
+## Capture builds
 
-The current asset set was captured from a Release build of the repository at **`abb76346`**
+The feature and demo set was captured from a Release build of the repository at **`abb76346`**
 (the release notes themselves show `0.1.0+abb7634673df85d08bda7dc83837cbb3f130fc32`, so the
-welcome header in every GIF names this build). The scripted reasoning tape and the demo tape
+welcome header in those GIFs names this build). The scripted reasoning tape and the demo tape
 replay committed fixtures through `LUNATE_REPLAY` with `LUNATE_DATE=2026-10-18` pinned — no
-provider is called during a render.
+provider is called during those renders.
+
+`setup-wizard.gif` was captured from the `v0.3.0-rc.2` release build
+(`0.3.0-rc.2+a8af348`) through the keyless local stub; it is the only asset here that drives
+the real setup wizard rather than a replay fixture.
 
 ## Assets
 
@@ -28,6 +32,7 @@ provider is called during a render.
 | `features/thinking.gif` | `README.md` — reasoning streaming | [`tapes/features-thinking.tape`](tapes/features-thinking.tape) |
 | `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](tapes/features-bash.tape) |
 | `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](tapes/features-follow-up.tape) |
+| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) |
 | `first-run.gif` | not on disk yet — see [`first-run.md`](first-run.md) | recorded by hand with a real key |
 
 A note on the logo and social preview: the brand files do not live in this media set — the
@@ -48,3 +53,9 @@ Two tapes drive their moment deliberately: `features-input` filters by text (`/c
 `features-bash` and `features-follow-up` replay an exchange whose fixture digest no longer
 matches, so both show the app's own `run failed: fixture mismatch` notice — the same broken
 choreography the previous capture had, not a new defect.
+
+The setup wizard is keyless and isolated, so it has its own harness instead of a replay
+fixture: `scripts/render-setup-wizard.sh` starts a local OpenAI-compatible stub and gives
+`LUNATE_HOME` a throw-away directory. Render it from this directory with
+`LUNATE_BIN=/path/to/lunate vhs tapes/setup-wizard.tape`; the tape writes `setup-wizard.gif`
+here. Nothing in the recording reaches a real provider or reads a real key.

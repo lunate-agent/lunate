@@ -205,7 +205,7 @@ done
 
 # --- size guard: README GIFs stay under 5 MB ---
 status=0
-for gif in demo.gif features/*.gif; do
+for gif in demo.gif setup-wizard.gif features/*.gif; do
   bytes=$(stat -f%z "$gif" 2>/dev/null || stat -c%s "$gif")
   printf '%-28s %6.2f MB\n' "$gif" "$(echo "scale=2; $bytes / 1048576" | bc)"
   if [ "$bytes" -gt 5242880 ]; then echo "TOO BIG: $gif"; status=1; fi
