@@ -63,11 +63,12 @@ public sealed partial class AgentHarness
 
         string modelId = model.Model.Id;
         string method = native ? "native" : "adapter";
+        // The arguments are the untrusted content, so they live in exactly one field: repeating
+        // them as a structured copy doubles the state without adding a fact the questions need.
         var state = JsonSerializer.SerializeToElement(
             new
             {
                 tool = request.Tool.Name,
-                arguments = request.Args.Clone(),
                 workspace_root = request.WorkspaceRoot,
                 risk_tier = request.Tool.Risk.ToString().ToLowerInvariant(),
                 untrusted_content = request.Args.GetRawText(),
@@ -121,7 +122,6 @@ public sealed partial class AgentHarness
 
             DecisionAnswer? escalation = null;
             double? escalationProbability = null;
-            double confidenceThreshold = 2 * _options.ApprovalsThreshold - 1;
             foreach (ApprovalQuestion question in ApprovalQuestions)
             {
                 DecisionAnswer answer = response.Results[question.Id];
@@ -148,10 +148,14 @@ public sealed partial class AgentHarness
                         string.Equals(item.Answer, "yes", StringComparison.Ordinal)
                     )
                     .Probability;
+                // The configured threshold is confidence, one meaning shared with the spec: a risk
+                // signal escalates when the model chose "yes" and that answer's confidence reaches
+                // the threshold, which is the documented `p >= t` probability gate under
+                // `t = confidence / 2 + 0.5`. Direction still matters — a confident "no" is an
+                // approve signal, never an escalation.
                 bool escalates =
-                    _options.ApprovalsThreshold >= 0.5
-                        ? answer.Answer == "yes" && answer.Confidence >= confidenceThreshold
-                        : yesProbability >= _options.ApprovalsThreshold;
+                    string.Equals(answer.Answer, "yes", StringComparison.Ordinal)
+                    && answer.Confidence >= _options.ApprovalsThreshold;
                 if (escalates && escalation is null)
                 {
                     escalation = answer;
@@ -170,9 +174,9 @@ public sealed partial class AgentHarness
             EmitApprovalFailures(runId, modelId, exception.Message, channel);
             return new ApprovalDecisionResult(null, null);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
-            EmitApprovalFailures(runId, modelId, "provider request failed", channel);
+            EmitApprovalFailures(runId, modelId, DecisionFailureReason(exception), channel);
             return new ApprovalDecisionResult(null, null);
         }
     }
