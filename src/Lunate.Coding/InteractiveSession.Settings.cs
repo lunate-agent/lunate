@@ -422,11 +422,13 @@ internal sealed partial class InteractiveSession
         string chatProfile = _settings.Usages.TryGetValue("chat", out string? profile)
             ? profile ?? string.Empty
             : string.Empty;
+        bool removedBudget = false;
         try
         {
             string? problem = SettingsStore.WriteProfileReasoningLevel(
                 chatProfile,
                 level,
+                out removedBudget,
                 _options.SettingsPath
             );
             if (problem is not null)
@@ -445,7 +447,16 @@ internal sealed partial class InteractiveSession
         }
 
         UpdateStatus();
-        Notify($"thinking: {ThinkingLiteral(level)} (saved to {_options.SettingsPath})");
+        // One notice, and the budget's removal leads it: the live area has a single notice slot, so
+        // a separate warning would be replaced by this line before it was ever read — and the
+        // hand-set value the write dropped does not come back.
+        Notify(
+            removedBudget
+                ? $"thinking: {ThinkingLiteral(level)} — the reasoningBudget was removed because a "
+                    + $"level and a budget cannot be combined (saved to {_options.SettingsPath})"
+                : $"thinking: {ThinkingLiteral(level)} (saved to {_options.SettingsPath})",
+            removedBudget ? NoticeLevel.Warning : NoticeLevel.Info
+        );
     }
 
     /// <summary>
