@@ -320,14 +320,10 @@ platform_checks() {
   local include_openspec="${1:-0}"
 
   step "packaging files"
-  # A candidate is not a channel release: homebrew, scoop and winget keep pointing at the last stable
-  # version while the version under test carries a prerelease suffix, so only the files' presence is
-  # asserted here — a tag that produces 0.2.0 goes through the version match again.
-  local version packaging_requires_version=true
-  version="$(product_version)"
-  case "$version" in
-    *-*) packaging_requires_version=false ;;
-  esac
+  # Channel manifests carry the release archives' SHA-256 values, which exist only after
+  # the tag. They legitimately stay at the previous stable release on a release pull
+  # request; the post-tag channel PR moves them to the new release. The guard below
+  # compares them with the newest stable tag and that release's SHA256SUMS.
   for packaging_file in \
     packaging/homebrew/lunate.rb \
     packaging/scoop/lunate.json \
@@ -338,11 +334,13 @@ platform_checks() {
       echo "verify: missing packaging file: ${packaging_file}" >&2
       exit 1
     fi
-    if [ "$packaging_requires_version" = true ] && ! grep -Fq "$version" "$packaging_file"; then
-      echo "verify: ${packaging_file} does not carry the current version ${version}" >&2
-      exit 1
-    fi
   done
+
+  step "channel manifest guard self-test"
+  python3 "${SCRIPT_DIR}/check-channel-manifests.py" --self-test
+
+  step "channel manifests"
+  python3 "${SCRIPT_DIR}/check-channel-manifests.py" --root "$PWD"
 
   step "format"
   # CSharpier owns formatting; dotnet format keeps style and analyzer duties.

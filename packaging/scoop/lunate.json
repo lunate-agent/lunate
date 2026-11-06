@@ -7,7 +7,7 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/wdaniel1993/lunate/releases/download/v0.2.1/lunate-win-x64.zip",
-            "hash": "8c17b0aa6e62102c0fd425b07fb6e0bbf4983bded552de93f6eeaef0242eb12c"
+            "hash": "9a861ec235626cd3f4eadd0450c7169d439e3672426040169379a57b4e2639b2"
         }
     },
     "bin": "lunate.exe",
