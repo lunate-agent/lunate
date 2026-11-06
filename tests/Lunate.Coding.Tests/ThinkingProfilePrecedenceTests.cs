@@ -172,6 +172,82 @@ public sealed class ThinkingProfilePrecedenceTests
     }
 
     [Fact]
+    public async Task Settings_thinking_removes_an_inherited_budget_and_says_so()
+    {
+        // S-28: the level write removes the budget that resolution refuses beside a level, and
+        // reports the removal because the hand-set value does not come back.
+        using var host = new InteractiveSessionHost();
+        File.WriteAllText(
+            host.Temp.File("models.json"),
+            $$"""
+            {
+              "schemaVersion": 1,
+              "models": [
+                {
+                  "id": "{{PrintModeTestSupport.ModelId}}",
+                  "provider": "openai",
+                  "endpoint": null,
+                  "contextWindow": 128000,
+                  "supportsTools": true,
+                  "reasoning": "budget"
+                }
+              ]
+            }
+            """
+        );
+        File.WriteAllText(
+            host.Temp.File("settings.json"),
+            $$"""
+            {
+              "schemaVersion": 2,
+              "profiles": {
+                "chat-profile": {
+                  "provider": "chat-provider",
+                  "model": "{{PrintModeTestSupport.ModelId}}",
+                  "reasoningBudget": 4096
+                }
+              },
+              "usages": { "chat": "chat-profile" }
+            }
+            """
+        );
+        ProviderStore.Save(
+            AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json")),
+            [ProfileProvider()]
+        );
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("/settings thinking high");
+        host.Console.SendEnter();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "reasoningBudget was removed");
+
+        string file = File.ReadAllText(host.Temp.File("settings.json"));
+        Assert.Contains("\"reasoningLevel\": \"high\"", file, StringComparison.Ordinal);
+        Assert.DoesNotContain("reasoningBudget", file, StringComparison.Ordinal);
+
+        host.Console.SendText("/quit");
+        host.Console.SendEnter();
+        await run;
+
+        // The next start resolves the profile: the pair resolution refuses never reaches the file.
+        using var nextHost = new InteractiveSessionHost();
+        File.Copy(host.Temp.File("settings.json"), nextHost.Temp.File("settings.json"));
+        File.Copy(host.Temp.File("models.json"), nextHost.Temp.File("models.json"));
+        File.Copy(
+            AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json")),
+            AuthStore.ProviderStoreFilePath(nextHost.Temp.File("auth.json"))
+        );
+        Task nextRun = nextHost.RunAsync();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(nextHost, "think:high");
+        Assert.Contains("think:high", nextHost.LastFrame, StringComparison.Ordinal);
+
+        nextHost.Console.SendText("/quit");
+        nextHost.Console.SendEnter();
+        await nextRun;
+    }
+
+    [Fact]
     public async Task Settings_thinking_refuses_a_selection_derived_profile()
     {
         // A reasoning model with no profile configured at all: the chat selection resolves from

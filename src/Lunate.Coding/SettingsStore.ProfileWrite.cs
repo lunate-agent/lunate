@@ -14,13 +14,22 @@ public static partial class SettingsStore
     /// <c>schemaVersion: 2</c>. On any failure the old file is untouched. Returns the refusal —
     /// naming the profile and the file — when the file carries no such profile; nothing is written
     /// then.
+    /// <para>
+    /// A profile that already carries a <c>reasoningBudget</c> gets it removed: resolution refuses
+    /// a profile with both keys ("cannot be combined with reasoningLevel"), so keeping the budget
+    /// would write a profile the next load rejects. The explicit level wins because it is what
+    /// this command states; <paramref name="removedBudget"/> reports the removal so the session can
+    /// say so instead of dropping the value silently.
+    /// </para>
     /// </summary>
     internal static string? WriteProfileReasoningLevel(
         string? profileName,
         ThinkingLevel level,
+        out bool removedBudget,
         string? filePath = null
     )
     {
+        removedBudget = false;
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
@@ -42,6 +51,7 @@ public static partial class SettingsStore
             else
             {
                 profile["reasoningLevel"] = level.ToString().ToLowerInvariant();
+                removedBudget = profile.Remove("reasoningBudget");
             }
             root["schemaVersion"] = SupportedSchemaVersion;
 

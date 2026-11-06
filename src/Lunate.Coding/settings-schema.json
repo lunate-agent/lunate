@@ -266,6 +266,13 @@
       "description": "The models/discovery URL; absent means discovery derives `{base URL}/models`. Discovery never leaves the URL's host. Definitions live in user settings only."
     },
     {
+      "name": "providers.*.region",
+      "type": "string",
+      "default": "unset",
+      "scope": "user",
+      "description": "The provider's region metadata: `eu`, `us` or `local`. Preserved as metadata; it never routes data or enforces a region policy. Definitions live in user settings only."
+    },
+    {
       "name": "roslyn.maxLoadedWorkspaces",
       "type": "integer",
       "default": "2",

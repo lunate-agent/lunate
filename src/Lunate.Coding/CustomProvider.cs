@@ -9,7 +9,8 @@ namespace Lunate.Coding;
 /// family (<see cref="ApiFamily"/>, default <c>openai-chat</c> for the OpenAI-compatible path the
 /// entry shape grew out of), declares how the credential is sent
 /// (<see cref="CredentialPlacement"/>, default bearer) and may name a discovery
-/// <see cref="ModelsUrl"/>; the written shape is the provider entry v2 the presets use.
+/// <see cref="ModelsUrl"/>; the written shape is the provider entry v2 the presets use, which
+/// keeps an optional <see cref="Region"/> as metadata.
 /// </summary>
 public sealed record CustomProvider(
     string Id,
@@ -19,15 +20,17 @@ public sealed record CustomProvider(
     ProviderApiFamily ApiFamily = ProviderApiFamily.OpenAiChat,
     CredentialPlacement? CredentialPlacement = null,
     Uri? ModelsUrl = null,
-    IReadOnlyDictionary<string, string>? Headers = null
+    IReadOnlyDictionary<string, string>? Headers = null,
+    string? Region = null
 )
 {
     /// <summary>
     /// Validates and trims the entered fields. The URLs must be absolute and <c>https</c>, or
     /// <c>http</c> only for a loopback host; the provider id must not contain spaces or a slash
     /// (it prefixes the catalog name) and must not shadow a built-in preset; the API family and
-    /// credential placement parse by their wire names and an unknown one is refused by name.
-    /// Error messages never echo an entered value except the refused scheme.
+    /// credential placement parse by their wire names and an unknown one is refused by name; the
+    /// region is <c>eu</c>, <c>us</c> or <c>local</c> when declared. Error messages never echo an
+    /// entered value except the refused scheme.
     /// </summary>
     internal static bool TryCreate(
         string? id,
@@ -39,7 +42,8 @@ public sealed record CustomProvider(
         string? apiFamily = null,
         CredentialPlacement? credentialPlacement = null,
         string? modelsUrl = null,
-        IReadOnlyDictionary<string, string>? headers = null
+        IReadOnlyDictionary<string, string>? headers = null,
+        string? region = null
     )
     {
         provider = null;
@@ -123,6 +127,15 @@ public sealed record CustomProvider(
         string resolvedCatalogName = catalogName?.Trim() is { Length: > 0 } explicitName
             ? explicitName
             : $"{trimmedId}/{trimmedModel}";
+        string? trimmedRegion = region?.Trim() is { Length: > 0 } declaredRegion
+            ? declaredRegion
+            : null;
+        if (trimmedRegion is not null && !ProviderEntry.IsKnownRegion(trimmedRegion))
+        {
+            error = "the region must be 'eu', 'us', or 'local'";
+            return false;
+        }
+
         provider = new CustomProvider(
             trimmedId,
             uri!,
@@ -131,7 +144,8 @@ public sealed record CustomProvider(
             family,
             credentialPlacement,
             parsedModelsUrl,
-            copiedHeaders
+            copiedHeaders,
+            trimmedRegion
         );
         error = null;
         return true;

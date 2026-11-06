@@ -178,6 +178,10 @@ internal sealed class SetupWizardModel
     /// <summary>The model check's result, or null before it ran (its Pending state).</summary>
     public WizardCheckResult? ModelCheck { get; private set; }
 
+    /// <summary>The decision-profile check's result — one tiny noul through the decision client —
+    /// or null before it ran (its Pending state, or no decision profile in this walk).</summary>
+    public WizardCheckResult? DecisionCheck { get; private set; }
+
     /// <summary>The chat profile answer, or null while the step has not been answered.</summary>
     public WizardProfileChoice? ChatProfile { get; private set; }
 
@@ -327,6 +331,7 @@ internal sealed class SetupWizardModel
         ConnectionTest = null;
         Model = null;
         ModelCheck = null;
+        DecisionCheck = null;
         ChatProfile = null;
         _carried.Remove(SetupStep.Provider);
         ClearSkipsForWalkedRange(SetupStep.Provider);
@@ -342,6 +347,7 @@ internal sealed class SetupWizardModel
         ConnectionTest = null;
         Model = null;
         ModelCheck = null;
+        DecisionCheck = null;
         ChatProfile = null;
         _carried.Remove(SetupStep.Credential);
         ClearSkipsForWalkedRange(SetupStep.Credential);
@@ -355,12 +361,20 @@ internal sealed class SetupWizardModel
     {
         Model = choice;
         ModelCheck = null;
+        DecisionCheck = null;
         ChatProfile = null;
         _carried.Remove(SetupStep.Model);
         ClearSkipsForWalkedRange(SetupStep.Model);
     }
 
     public void RecordModelCheck(WizardCheckResult result) => ModelCheck = result;
+
+    /// <summary>
+    /// Stages the decision-profile check's result. A new provider, credential or model answer
+    /// clears it with the decision profile that answered it: the check verifies that profile's
+    /// model, family and credential, so an answer that changes any of them must re-check.
+    /// </summary>
+    public void RecordDecisionCheck(WizardCheckResult result) => DecisionCheck = result;
 
     public void RecordChatProfile(WizardProfileChoice choice)
     {
@@ -386,6 +400,7 @@ internal sealed class SetupWizardModel
     public void RecordDecisionProfile(WizardDecisionChoice? choice)
     {
         DecisionProfile = choice;
+        DecisionCheck = null;
         if (choice is null)
         {
             _skipped.Add(SetupStep.DecisionProfile);
