@@ -41,13 +41,13 @@ public sealed class SettingsDecisionsTests
         """{"schemaVersion": 2, """ + decisions.Trim() + "}";
 
     [Fact]
-    public void Decisions_default_to_off_with_a_half_threshold_and_no_profile()
+    public void Decisions_default_to_off_with_a_zero_confidence_threshold_and_no_profile()
     {
         AgentSettings defaults = SettingsStore.Resolve(null, _ => null);
 
         Assert.Null(defaults.Decisions.Profile);
         Assert.Equal(DecisionMode.Off, defaults.Decisions.Approvals);
-        Assert.Equal(0.5, defaults.Decisions.ApprovalsThreshold);
+        Assert.Equal(0, defaults.Decisions.ApprovalsThreshold);
         Assert.Equal(DecisionMode.Off, defaults.Decisions.Routing);
         Assert.Equal(0.5, defaults.Decisions.RoutingMinConfidence);
         Assert.Empty(defaults.Decisions.RoutingProfiles);
@@ -150,7 +150,7 @@ public sealed class SettingsDecisionsTests
         );
 
         Assert.Contains(
-            "'decisions.approvalsThreshold' must be a finite number from 0 through 1",
+            "'decisions.approvalsThreshold' must be a finite confidence from 0 through 1",
             exception.Message,
             StringComparison.Ordinal
         );

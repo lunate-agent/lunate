@@ -14,8 +14,12 @@ public sealed class DecisionApprovalTests
             )
             .Enqueue(LoopScripts.Text("done"), LoopScripts.Stop());
         var decision = new ScriptedChatClient()
-            .Enqueue(LoopScripts.Text("not json"), LoopScripts.Stop())
-            .Enqueue(LoopScripts.Text("still not json"), LoopScripts.Stop());
+            .Enqueue(LoopScripts.Text("not json"), LoopScripts.Usage(120, 8), LoopScripts.Stop())
+            .Enqueue(
+                LoopScripts.Text("still not json"),
+                LoopScripts.Usage(130, 9),
+                LoopScripts.Stop()
+            );
         var approver = new RecordingApprover(decision: true);
         int executions = 0;
         var tool = new ScriptedTool(
@@ -62,6 +66,27 @@ public sealed class DecisionApprovalTests
         Assert.Single(approver.Requests);
         Assert.Equal(1, executions);
         Assert.Equal(4, events.OfType<DecisionFailed>().Count());
+        // Both paid attempts were off-contract; each one's tokens still reach the event stream,
+        // the run budget and (with a session) the usage record.
+        UsageUpdated[] decisionUsage =
+        [
+            .. events.OfType<UsageUpdated>().Where(usage => usage.Attribution?.Usage == "decision"),
+        ];
+        Assert.Collection(
+            decisionUsage,
+            first =>
+            {
+                Assert.Equal(120, first.Usage.InputTokenCount);
+                Assert.Equal(8, first.Usage.OutputTokenCount);
+                Assert.Equal("decision-model", first.ModelId);
+            },
+            second =>
+            {
+                Assert.Equal(130, second.Usage.InputTokenCount);
+                Assert.Equal(9, second.Usage.OutputTokenCount);
+                Assert.Equal("decision-model", second.ModelId);
+            }
+        );
     }
 
     [Fact]

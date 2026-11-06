@@ -100,7 +100,7 @@ public sealed class SettingsProfileCapabilitiesTests
 
         AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
 
-        Assert.Equal(0.5, settings.Decisions.ApprovalsThreshold);
+        Assert.Equal(0, settings.Decisions.ApprovalsThreshold);
         Assert.Equal(DecisionMode.Enforce, settings.Decisions.Routing);
     }
 

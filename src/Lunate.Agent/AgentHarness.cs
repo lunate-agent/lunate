@@ -232,7 +232,7 @@ public sealed partial class AgentHarness
             throw new ArgumentOutOfRangeException(
                 nameof(AgentHarnessOptions.ApprovalsThreshold),
                 options.ApprovalsThreshold,
-                "The approval decision threshold must be a finite probability from 0 through 1."
+                "The approval decision threshold must be a finite confidence from 0 through 1."
             );
         }
 

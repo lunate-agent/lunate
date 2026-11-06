@@ -17,10 +17,12 @@ public sealed record AgentHarnessOptions
     public DecisionMode DecisionMode { get; init; } = DecisionMode.Off;
 
     /// <summary>
-    /// The probability a <c>deny</c> recommendation must reach for the approval-gate consumer
-    /// to escalate; a deny below it leaves the ordinary approval flow unchanged (default 0.5).
+    /// The confidence a risk signal's chosen answer must reach for the approval-gate consumer to
+    /// escalate; a signal below it leaves the ordinary approval flow unchanged. Confidence is the
+    /// spec's one scale, so the shipped probability gate of 0.5 is the default 0 here
+    /// (<c>2t − 1</c>).
     /// </summary>
-    public double ApprovalsThreshold { get; init; } = 0.5;
+    public double ApprovalsThreshold { get; init; }
 
     /// <summary>Whether the configured decision profile can choose a model profile for this exchange.</summary>
     public DecisionMode RoutingMode { get; init; } = DecisionMode.Off;

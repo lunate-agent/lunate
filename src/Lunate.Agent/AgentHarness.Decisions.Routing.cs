@@ -126,10 +126,10 @@ public sealed partial class AgentHarness
             );
             return configuredModel;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
             channel.Emit(
-                new DecisionFailed(runId, modelId, "provider request failed")
+                new DecisionFailed(runId, modelId, DecisionFailureReason(exception))
                 {
                     QuestionId = questionId,
                 }

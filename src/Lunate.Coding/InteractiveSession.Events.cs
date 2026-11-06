@@ -375,19 +375,28 @@ internal sealed partial class InteractiveSession
     /// (subagent) run is part of the turn's cumulative usage but not of the root run's own delta.
     /// Every record also feeds the turn's cost, keyed by its resolved model or the session model.
     /// </summary>
-    private void AddUsage(UsageUpdated usage, bool root)
+    private void AddUsage(UsageUpdated usage, bool root) =>
+        AddUsage(usage.Usage, usage.ModelId, root);
+
+    /// <summary>
+    /// Rolls one usage record into the footer and the turn cost. Only the root run feeds the
+    /// activity line's deltas: a child (subagent) run is part of the turn's cumulative usage but
+    /// not of the root run's own delta. A decision the extension service evaluated outside the
+    /// harness loop records through here too, with its resolved model id and decision attribution.
+    /// </summary>
+    private void AddUsage(UsageDetails details, string? modelId, bool root)
     {
-        _inputTokens += usage.Usage.InputTokenCount ?? 0;
-        _outputTokens += usage.Usage.OutputTokenCount ?? 0;
+        _inputTokens += details.InputTokenCount ?? 0;
+        _outputTokens += details.OutputTokenCount ?? 0;
         // Cache counts are read-only metadata for /context: InputTokenCount already includes the
         // cached and cache-creation tokens, so they never join the budget totals or the footer.
-        if (usage.Usage.CachedInputTokenCount is { } cacheRead && cacheRead > 0)
+        if (details.CachedInputTokenCount is { } cacheRead && cacheRead > 0)
         {
             _cacheReadTokens = (_cacheReadTokens ?? 0) + cacheRead;
         }
 
         if (
-            usage.Usage.AdditionalCounts is { } counts
+            details.AdditionalCounts is { } counts
             && counts.TryGetValue(CacheCreationInputTokensKey, out long cacheWrite)
             && cacheWrite > 0
         )
@@ -395,7 +404,7 @@ internal sealed partial class InteractiveSession
             _cacheWriteTokens = (_cacheWriteTokens ?? 0) + cacheWrite;
         }
 
-        _turnUsage.Add((usage.ModelId ?? _modelId, UsageLanes.From(usage.Usage)));
+        _turnUsage.Add((modelId ?? _modelId, UsageLanes.From(details)));
         _turnCost = UsageCost.Summarize(_catalog, _turnUsage)?.Total;
 
         if (root)
