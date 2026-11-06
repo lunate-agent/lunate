@@ -105,6 +105,60 @@ public sealed class DecisionUsageModelsTests
         Assert.Contains("decision-only", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_decision_profile_with_known_missing_structured_output_is_refused()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("models.json"),
+            """
+            {
+              "schemaVersion": 2,
+              "models": [
+                { "id": "adapter-test", "provider": "google", "contextWindow": 64000,
+                  "supportsTools": true,
+                  "capabilities": { "features": ["tools"] } }
+              ]
+            }
+            """
+        );
+        bool valid = ProviderEntry.TryCreate(
+            "google-provider",
+            "google",
+            new Uri("https://provider.example.test/v1"),
+            "auth:google-key",
+            headers: null,
+            region: null,
+            out ProviderEntry? provider,
+            out string? error
+        );
+        Assert.True(valid, error);
+
+        var settings = new AgentSettings
+        {
+            Decisions = new DecisionsSettings { Profile = "decision-profile" },
+            Profiles = new Dictionary<string, ModelProfile>(StringComparer.Ordinal)
+            {
+                ["decision-profile"] = new("decision-profile", "google-provider", "adapter-test"),
+            },
+        };
+        List<UserNotice> warnings = [];
+        UsageModelClient? decision = DecisionUsageModels.ResolveDecisionModel(
+            settings,
+            () => (AuthStore.Load(environment: _ => null), [provider!]),
+            ModelCatalog.Load(temp.File("models.json")),
+            _ => null,
+            new RecordingFactory(new ScriptedChatClient()),
+            warnings.Add,
+            []
+        );
+
+        Assert.Null(decision);
+        UserNotice warning = Assert.Single(warnings);
+        Assert.Contains("structured-output", warning.Message, StringComparison.Ordinal);
+        Assert.Contains("the decision layer is off", warning.Message, StringComparison.Ordinal);
+    }
+
     private sealed class RecordingFactory(IChatClient client) : IChatClientFactory
     {
         public string? ApiKey { get; private set; }

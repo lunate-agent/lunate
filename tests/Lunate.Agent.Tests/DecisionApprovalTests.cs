@@ -254,6 +254,139 @@ public sealed class DecisionApprovalTests
         Assert.Equal(2, executions);
     }
 
+    [Fact]
+    public async Task Shadow_capability_failure_records_the_failure_and_leaves_the_call_unchanged()
+    {
+        CapabilityFailureRun run = await RunCapabilityFailureAsync(
+            DecisionMode.Shadow,
+            userApproval: true
+        );
+
+        Assert.Empty(run.Decision.Requests);
+        DecisionFailed[] failures = [.. run.Events.OfType<DecisionFailed>()];
+        Assert.Equal(4, failures.Length);
+        Assert.All(
+            failures,
+            failure =>
+                Assert.Contains("structured-output", failure.Reason, StringComparison.Ordinal)
+        );
+        Assert.Empty(run.Events.OfType<DecisionEvaluated>());
+        Assert.Single(run.Approver.Requests);
+        Assert.Equal(1, run.Executions);
+        ToolCallResult toolResult = Assert.Single(run.Events.OfType<ToolCallResult>());
+        Assert.False(toolResult.IsError);
+        Assert.Equal("written", toolResult.Output);
+        Assert.Empty(run.Events.OfType<RunError>());
+    }
+
+    [Theory]
+    [InlineData(true, 1, false)]
+    [InlineData(false, 0, true)]
+    public async Task Enforce_capability_failure_falls_back_to_the_ordinary_approval_flow(
+        bool userApproval,
+        int expectedExecutions,
+        bool expectedError
+    )
+    {
+        CapabilityFailureRun run = await RunCapabilityFailureAsync(
+            DecisionMode.Enforce,
+            userApproval
+        );
+
+        Assert.Empty(run.Decision.Requests);
+        DecisionFailed[] failures = [.. run.Events.OfType<DecisionFailed>()];
+        Assert.Equal(4, failures.Length);
+        Assert.All(
+            failures,
+            failure =>
+                Assert.Contains("structured-output", failure.Reason, StringComparison.Ordinal)
+        );
+        Assert.Empty(run.Events.OfType<DecisionEvaluated>());
+        Assert.Single(run.Approver.Requests);
+        Assert.Equal(expectedExecutions, run.Executions);
+        ToolCallResult toolResult = Assert.Single(run.Events.OfType<ToolCallResult>());
+        Assert.Equal(expectedError, toolResult.IsError);
+        Assert.DoesNotContain("Approval for tool", toolResult.Output, StringComparison.Ordinal);
+        Assert.Empty(run.Events.OfType<RunError>());
+    }
+
+    private static async Task<CapabilityFailureRun> RunCapabilityFailureAsync(
+        DecisionMode mode,
+        bool userApproval
+    )
+    {
+        var chat = new ScriptedChatClient()
+            .Enqueue(
+                LoopScripts.Call("call_1", "write", LoopScripts.Args()),
+                LoopScripts.ToolCalls()
+            )
+            .Enqueue(LoopScripts.Text("done"), LoopScripts.Stop());
+        var decision = new ScriptedChatClient().Enqueue(
+            LoopScripts.Text(DecisionApprovalResponse.Create(affirmativeProbability: 0.1)),
+            LoopScripts.Stop()
+        );
+        var approver = new RecordingApprover(userApproval);
+        int executions = 0;
+        var tool = new ScriptedTool(
+            "write",
+            "Writes a file.",
+            """{"type":"object"}""",
+            ToolRisk.Write
+        );
+        tool.OnExecuteAsync = (_, _, _) =>
+        {
+            executions++;
+            return Task.FromResult(new ToolResult("written", IsError: false));
+        };
+        var registry = new ToolRegistry();
+        registry.Add(tool);
+        var decisionModel = new ModelInfo(
+            "decision-model",
+            "openai",
+            null,
+            64000,
+            SupportsTools: false
+        )
+        {
+            Capabilities = new ModelCapabilityDescriptor(
+                features: new HashSet<string>(StringComparer.Ordinal)
+            ),
+        };
+        var harness = new AgentHarness(
+            chat,
+            registry,
+            new AgentHarnessOptions
+            {
+                DecisionMode = mode,
+                Approver = approver,
+                UsageModels = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
+                {
+                    ["chat"] = new(
+                        chat,
+                        "chat-profile",
+                        "openai",
+                        new ModelInfo("chat-model", "openai", null, 64000, SupportsTools: true)
+                    ),
+                    ["decision"] = new(decision, "decision-profile", "openai", decisionModel),
+                },
+            }
+        );
+
+        return new CapabilityFailureRun(
+            await AgentTestSupport.Run(harness),
+            decision,
+            approver,
+            executions
+        );
+    }
+
+    private sealed record CapabilityFailureRun(
+        List<AgentEvent> Events,
+        ScriptedChatClient Decision,
+        RecordingApprover Approver,
+        int Executions
+    );
+
     private static async Task<DecisionRun> RunApprovalAsync(
         string response,
         DecisionMode mode,

@@ -74,6 +74,7 @@ internal static class DecisionUsageModels
                 providers,
                 catalog
             );
+            RequireDecisionCapability(resolved);
             return BuildClient(resolved, auth, environment, factory, context);
         }
         catch (Exception exception)
@@ -96,6 +97,39 @@ internal static class DecisionUsageModels
             }
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Refuses a decision profile whose known capabilities rule out structured output. The adapter
+    /// decision path needs JSON mode; a System One profile uses the native transport and needs no
+    /// such feature. Unknown features stay accepted: an unknown capability is not a known failure,
+    /// and the harness records a <c>DecisionFailed</c> if the model later refuses the request.
+    /// </summary>
+    internal static void RequireDecisionCapability(ResolvedModelProfile profile)
+    {
+        if (
+            string.Equals(
+                profile.Model.ApiFamily,
+                ProviderApiFamilies.SystemOne,
+                StringComparison.Ordinal
+            )
+        )
+        {
+            return;
+        }
+
+        if (
+            profile.Capabilities.Features is { } features
+            && !features.Contains("structured-output")
+        )
+        {
+            throw new InvalidDataException(
+                $"Profile '{profile.Profile.Name}' resolves model '{profile.Model.Id}', whose "
+                    + "known capabilities do not include 'structured-output'; the decision layer "
+                    + "needs structured output on an adapter model. Choose a model that supports "
+                    + "structured output for 'decisions.profile'."
+            );
         }
     }
 

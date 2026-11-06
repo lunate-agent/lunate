@@ -161,8 +161,9 @@ public static class DiscoverCommand
             key = PresetKey(credentialPreset, environment, namedKeySource);
         }
 
-        // A self-declared endpoint stays inside its host: the credential may only go where the
-        // entry points, so redirects off the configured host are refused before they are sent.
+        // A self-declared endpoint stays on its configured host, scheme and port: the credential
+        // may only go where the entry points, so any redirect that changes one is refused before
+        // it is sent.
         bool pinnedToHost = customEndpoint && credentialPreset is null;
         string requestUrl = modelsUrl?.AbsoluteUri ?? $"{baseUrl}/models";
         // The protocol header a preset's SDK adds on its own (anthropic-version) is discovery's
@@ -523,9 +524,9 @@ public static class DiscoverCommand
     ) => declared ?? preset?.PlacementFor(preset.DefaultFamily) ?? CredentialPlacement.Bearer;
 
     /// <summary>
-    /// Follows redirects while they stay inside the request URL's host; a redirect to another
-    /// host is refused before anything is sent there, because a self-declared endpoint's
-    /// credential must not leave the host the entry configures.
+    /// Follows redirects while they stay on the request URL's host, scheme and port; anything else
+    /// is refused before a request is sent there, because a self-declared endpoint's credential
+    /// must only travel where the entry configures it — and never in cleartext across a downgrade.
     /// </summary>
     private static async Task<(
         HttpResponseMessage Response,
@@ -545,18 +546,10 @@ public static class DiscoverCommand
         {
             Uri baseUri = new(requestUrl);
             Uri target = location!.IsAbsoluteUri ? location : new Uri(baseUri, location);
-            if (!string.Equals(target.Host, baseUri.Host, StringComparison.OrdinalIgnoreCase))
+            if (RedirectRefusal(baseUri, target) is { } refusal)
             {
                 response.Dispose();
-                return (
-                    response,
-                    requestUrl,
-                    Failure(
-                        $"Discovering models from {requestUrl} was redirected to {target.Host}, which is "
-                            + "outside the custom provider's configured host; the redirect was refused "
-                            + "and no request was sent there."
-                    )
-                );
+                return (response, requestUrl, Failure(refusal));
             }
 
             if (++redirects > MaxRedirects)
@@ -608,6 +601,45 @@ public static class DiscoverCommand
         }
 
         return (response, requestUrl, null);
+    }
+
+    /// <summary>
+    /// The refusal for a redirect that leaves the configured endpoint. A changed host would send
+    /// the credential to another party; a changed scheme or port is outside what the entry
+    /// configures, and an <c>https</c>→<c>http</c> downgrade would resend the credential in
+    /// cleartext. Null means the hop stays on the same endpoint and may be followed.
+    /// </summary>
+    private static string? RedirectRefusal(Uri baseUri, Uri target)
+    {
+        if (!string.Equals(target.Host, baseUri.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Discovering models from {baseUri.AbsoluteUri} was redirected to {target.Host}, "
+                + "which is outside the custom provider's configured host; the redirect was refused "
+                + "and no request was sent there.";
+        }
+
+        if (!string.Equals(target.Scheme, baseUri.Scheme, StringComparison.OrdinalIgnoreCase))
+        {
+            string detail =
+                string.Equals(baseUri.Scheme, "https", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(target.Scheme, "http", StringComparison.OrdinalIgnoreCase)
+                    ? "which changes the configured scheme and would resend the provider credential in cleartext"
+                    : "which changes the custom provider's configured scheme";
+            return $"Discovering models from {baseUri.AbsoluteUri} was redirected from "
+                + $"'{baseUri.Scheme}' to '{target.Scheme}', {detail}; the redirect was refused and "
+                + "no request was sent there. Update the provider entry if the endpoint moved.";
+        }
+
+        if (target.Port != baseUri.Port)
+        {
+            return $"Discovering models from {baseUri.AbsoluteUri} was redirected to port "
+                + $"{target.Port.ToString(CultureInfo.InvariantCulture)}, which differs from the "
+                + "custom provider's configured port "
+                + $"{baseUri.Port.ToString(CultureInfo.InvariantCulture)}; the redirect was refused "
+                + "and no request was sent there. Update the provider entry if the endpoint moved.";
+        }
+
+        return null;
     }
 
     private static bool IsRedirect(HttpResponseMessage response, out Uri? location)
