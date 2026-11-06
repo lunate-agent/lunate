@@ -306,7 +306,7 @@ public sealed record ProviderEntry(
             }
         }
 
-        if (region is not null && region is not ("eu" or "us" or "local"))
+        if (region is not null && !IsKnownRegion(region))
         {
             error = $"providers.{name}.region must be 'eu', 'us', or 'local'";
             return false;
@@ -327,6 +327,13 @@ public sealed record ProviderEntry(
         error = null;
         return true;
     }
+
+    /// <summary>The region values a provider entry may declare; the store validates against them.</summary>
+    internal static readonly IReadOnlyList<string> KnownRegions = ["eu", "us", "local"];
+
+    /// <summary>Whether a declared region is one of <see cref="KnownRegions"/>.</summary>
+    internal static bool IsKnownRegion(string value) =>
+        KnownRegions.Contains(value, StringComparer.Ordinal);
 
     internal static bool IsCredentialReference(string? reference)
     {

@@ -165,7 +165,7 @@ internal sealed class ProviderStore
             custom.BaseUrl,
             $"auth:{name}",
             custom.Headers,
-            null,
+            custom.Region,
             familyUrls,
             custom.ModelsUrl,
             placements

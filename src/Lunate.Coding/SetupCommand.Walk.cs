@@ -68,6 +68,7 @@ internal static partial class SetupCommand
         }
 
         var wizard = new SetupWizardModel();
+        WizardDiscoveryResult? discovery = null;
         if (answers.Provider is { } providerId)
         {
             wizard.RecordProvider(ProviderChoice(answers, providerId));
@@ -87,6 +88,7 @@ internal static partial class SetupCommand
                         ct
                     )
                     .ConfigureAwait(false);
+                discovery = result;
                 wizard.RecordConnectionTest(
                     result.Passed
                         ? new WizardCheckResult(WizardProgress.Passed)
@@ -102,12 +104,17 @@ internal static partial class SetupCommand
             }
         }
 
+        ModelCatalog catalog = HarnessFactory.LoadCatalog(settings, seams.ModelsPath);
         if (answers.Model is { } modelId)
         {
-            wizard.RecordModel(new WizardModelChoice(modelId, FamilyOf(answers, wizard)));
+            wizard.RecordModel(
+                new WizardModelChoice(
+                    modelId,
+                    FamilyOf(answers, wizard, discovery, modelId, catalog)
+                )
+            );
         }
 
-        ModelCatalog catalog = HarnessFactory.LoadCatalog(settings, seams.ModelsPath);
         DecideAnswers(answers, wizard, catalog);
         IChatClientFactory factory = seams.ChatFactory ?? HarnessFactory.CreateFactory(auth);
         if (wizard.Model is not null && wizard.Provider is not null)
@@ -132,6 +139,32 @@ internal static partial class SetupCommand
                     )
                     .ConfigureAwait(false);
                 wizard.RecordModelCheck(check);
+            }
+        }
+
+        // A decision profile is verified by its own check: one tiny noul through the decision
+        // client, not a chat completion (spec: The full walk, step 5). `--no-test` and
+        // `--no-model-check` skip it with the rest, and the summary then names it unverified.
+        if (wizard.DecisionProfile is not null)
+        {
+            if (answers.NoTest || answers.NoModelCheck)
+            {
+                wizard.RecordDecisionCheck(new WizardCheckResult(WizardProgress.Skipped));
+            }
+            else
+            {
+                WizardCheckResult decisionCheck = await WizardModelCheck
+                    .RunDecisionAsync(
+                        wizard,
+                        catalog,
+                        factory,
+                        auth,
+                        environment.Resolve,
+                        () => ResolveCredential(wizard.Credential, auth, environment.Resolve),
+                        ct
+                    )
+                    .ConfigureAwait(false);
+                wizard.RecordDecisionCheck(decisionCheck);
             }
         }
 
@@ -370,16 +403,44 @@ internal static partial class SetupCommand
         return new WizardCredentialChoice(reference);
     }
 
-    private static string FamilyOf(FlagAnswers answers, SetupWizardModel wizard)
+    /// <summary>
+    /// The model's API family, in the ADR-0029 order: the <c>--api-family</c> flag (validated
+    /// against the preset's families when it was staged), then the discovery listing's per-model
+    /// family, then the catalog's, then the preset's default — so the family the check uses is the
+    /// family the profile and the provider entry record (S-12).
+    /// </summary>
+    private static string FamilyOf(
+        FlagAnswers answers,
+        SetupWizardModel wizard,
+        WizardDiscoveryResult? discovery,
+        string modelId,
+        ModelCatalog catalog
+    )
     {
-        if (wizard.Provider is { Custom: true })
+        if (answers.ApiFamily is { } declared)
         {
-            return answers.ApiFamily ?? "openai-chat";
+            return declared;
         }
 
-        return ProviderPresets.Find(wizard.Provider!.Id) is { } preset
-            ? ProviderApiFamilies.Name(preset.DefaultFamily)
-            : "openai-chat";
+        WizardProviderChoice provider = wizard.Provider!;
+        if (provider.Custom)
+        {
+            return provider.ApiFamily;
+        }
+
+        if (
+            discovery?.Models.FirstOrDefault(model =>
+                string.Equals(model.Id, modelId, StringComparison.Ordinal)
+            ) is
+            { ApiFamily: { Length: > 0 } listed }
+        )
+        {
+            return listed;
+        }
+
+        return catalog.Find(modelId)?.ApiFamily is { Length: > 0 } catalogued
+            ? catalogued
+            : provider.ApiFamily;
     }
 
     /// <summary>The profile flags: the name must parse the way the settings parser parses one,

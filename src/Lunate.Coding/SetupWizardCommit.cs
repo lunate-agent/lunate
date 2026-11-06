@@ -139,10 +139,33 @@ internal static class SetupWizardCommit
             }
             else
             {
-                SaveEntry(CustomEntry(provider, model), paths, loadEntries);
+                SaveEntry(StagedEntry(model), paths, loadEntries);
             }
 
             return;
+        }
+
+        SaveEntry(StagedEntry(model), paths, loadEntries);
+    }
+
+    /// <summary>
+    /// The provider entry the staged answer commits, built without writing anything: the check
+    /// steps resolve the same entry the commit will store, so a check cannot pass on an entry the
+    /// commit then writes differently. A custom provider is the family-keyed entry the same
+    /// answers write; a preset entry carries the preset's URL, the walk's region and — when the
+    /// walk resolved another family — that family's URL and placement.
+    /// </summary>
+    internal static ProviderEntry StagedEntry(SetupWizardModel model)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        WizardProviderChoice provider =
+            model.Provider
+            ?? throw new InvalidDataException(
+                "setup: the provider step has no answer; no provider entry can be built."
+            );
+        if (provider.Custom)
+        {
+            return CustomEntry(provider, model);
         }
 
         ProviderPreset? preset = ProviderPresets.Find(provider.Id);
@@ -153,16 +176,28 @@ internal static class SetupWizardCommit
             );
         }
 
-        SaveEntry(
-            CreateEntry(
-                provider.Id,
-                provider.Id,
-                preset.BaseUrl,
-                CredentialReferenceOf(model),
-                provider.ModelsUrl ?? preset.ModelsUrl
-            ),
-            paths,
-            loadEntries
+        // The family the walk answered: the preset's own default unless the flag or the wizard
+        // resolved another one for this model (#569). A declared override writes the family's URL
+        // and placement on the entry, so the entry declares the family the profile names.
+        if (!ProviderApiFamilies.TryParse(provider.ApiFamily, out ProviderApiFamily chosen))
+        {
+            throw new InvalidDataException(
+                $"setup: API family '{provider.ApiFamily}' is not a supported family; "
+                    + $"supported families: {ProviderApiFamilies.Supported()}."
+            );
+        }
+
+        bool overridesFamily = chosen != preset.DefaultFamily;
+        return CreateEntry(
+            provider.Id,
+            provider.Id,
+            preset.BaseUrl,
+            CredentialReferenceOf(model),
+            provider.ModelsUrl ?? preset.ModelsUrl,
+            familyUrl: overridesFamily ? preset.UrlFor(chosen) ?? preset.BaseUrl : null,
+            family: chosen,
+            placement: overridesFamily ? preset.PlacementFor(chosen) : null,
+            region: provider.Region
         );
     }
 
@@ -183,7 +218,8 @@ internal static class SetupWizardCommit
                 provider.ApiFamily,
                 provider.Placement,
                 provider.ModelsUrl?.AbsoluteUri,
-                null
+                null,
+                provider.Region
             ) || custom is null
         )
         {
@@ -212,8 +248,9 @@ internal static class SetupWizardCommit
     /// <summary>
     /// The provider entry the walk writes. Name, kind and base URL come from the answer; the
     /// credential reference is the staged reference (<c>env:&lt;VARIABLE&gt;</c> or
-    /// <c>auth:&lt;name&gt;</c>) or the provider id's stored key. An unknown family is refused by
-    /// name before anything is written.
+    /// <c>auth:&lt;name&gt;</c>) or the provider id's stored key; the optional region is the
+    /// answer's region, kept as the entry's metadata. An unknown family is refused by name before
+    /// anything is written.
     /// </summary>
     private static ProviderEntry CreateEntry(
         string name,
@@ -223,7 +260,8 @@ internal static class SetupWizardCommit
         Uri? modelsUrl,
         Uri? familyUrl = null,
         ProviderApiFamily family = ProviderApiFamily.OpenAiChat,
-        CredentialPlacement? placement = null
+        CredentialPlacement? placement = null,
+        string? region = null
     )
     {
         Dictionary<ProviderApiFamily, Uri>? baseUrls = familyUrl is not null
@@ -239,7 +277,7 @@ internal static class SetupWizardCommit
             baseUrl,
             credentialReference,
             headers: null,
-            region: null,
+            region: region,
             baseUrls,
             modelsUrl,
             placements,
@@ -278,7 +316,8 @@ internal static class SetupWizardCommit
             provider.ModelsUrl,
             familyUrl: provider.Endpoint,
             family: family,
-            placement: provider.Placement
+            placement: provider.Placement,
+            region: provider.Region
         );
     }
 
@@ -308,14 +347,17 @@ internal static class SetupWizardCommit
         if (model.ChatProfile is { } chat && !model.IsCarried(SetupStep.ChatProfile))
         {
             // The chat profile's routing description is part of the same profile entry, so one
-            // writer pass carries both (settings: profiles.<name>.description).
+            // writer pass carries both (settings: profiles.<name>.description). The family is
+            // written when the walk resolved one the entry would not resolve by itself (#569),
+            // so the family the model check used is the family the profile later resolves.
             SettingsStore.WriteProfile(
                 ToModelProfile(
                     chat.Name,
                     model,
                     chat.ModelId,
                     chat.ReasoningLevel,
-                    Description(decisions, chat.Name)
+                    Description(decisions, chat.Name),
+                    apiFamily: ChatFamily(model)
                 ),
                 paths.SettingsPath
             );
@@ -344,11 +386,32 @@ internal static class SetupWizardCommit
                     decision.ModelId,
                     reasoningLevel: null,
                     description: Description(decisions, decision.ProfileName),
-                    apiFamily: decision.Native ? ProviderApiFamilies.SystemOne : null
+                    apiFamily: decision.Native ? ProviderApiFamilies.SystemOne : ChatFamily(model)
                 ),
                 paths.SettingsPath
             );
         }
+    }
+
+    /// <summary>
+    /// The chat profile's <c>apiFamily</c>: the family the walk resolved for the model, written
+    /// only when it differs from what the provider entry resolves on its own — the preset's
+    /// default family, or the custom entry's one — so an ordinary single-family walk writes
+    /// nothing extra while an override is recorded where it applies.
+    /// </summary>
+    private static string? ChatFamily(SetupWizardModel model)
+    {
+        if (model.Provider is not { } provider || model.Model is not { } choice)
+        {
+            return null;
+        }
+
+        string? declared = ProviderPresets.Find(provider.Id) is { } preset
+            ? ProviderApiFamilies.Name(preset.DefaultFamily)
+            : null;
+        return string.Equals(choice.ApiFamily, declared, StringComparison.Ordinal)
+            ? null
+            : choice.ApiFamily;
     }
 
     private static ModelProfile ToModelProfile(

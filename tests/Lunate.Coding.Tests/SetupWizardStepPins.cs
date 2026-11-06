@@ -127,6 +127,8 @@ public sealed class SetupWizardStepPins
         host.Console.SendUp();
         await host.WaitForFrameAsync("> openrouter/typesafe/jev-1.14 (native Jev)");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("Decision check");
+        host.Console.SendEnter(); // the default row skips the check
         await host.WaitForFrameAsync("Decisions settings");
         host.Console.SendEnter(); // accept the defaults
 

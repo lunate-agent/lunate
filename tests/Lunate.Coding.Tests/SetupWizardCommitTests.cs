@@ -428,6 +428,181 @@ public sealed class SetupWizardCommitTests : IDisposable
         Assert.Empty(Directory.GetFiles(_temp.Root, "*.tmp"));
     }
 
+    [PosixFact]
+    public void The_walked_region_reaches_the_provider_entry_and_the_summary()
+    {
+        // S-11: the answer the summary prints is the metadata providers.json keeps.
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "openrouter",
+                Custom: false,
+                Region: "eu",
+                Endpoint: null,
+                ApiFamily: "openai-chat",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("env:OPENROUTER_API_KEY"));
+
+        Commit(model);
+
+        using JsonDocument providers = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
+        Assert.Equal(
+            "eu",
+            providers.RootElement.GetProperty("providers")[0].GetProperty("region").GetString()
+        );
+        Assert.Contains(
+            "provider: openrouter (region eu)",
+            string.Join("\n", SetupWizardSummary.Render(model)),
+            StringComparison.Ordinal
+        );
+    }
+
+    [PosixFact]
+    public void A_custom_providers_region_is_written_to_the_provider_store_entry()
+    {
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "homelab",
+                Custom: true,
+                Region: "local",
+                Endpoint: new Uri("http://localhost:8080/v1"),
+                ApiFamily: "openai-chat",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("env:HOMELAB_API_KEY"));
+
+        Commit(model);
+
+        using JsonDocument providers = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
+        Assert.Equal(
+            "local",
+            providers.RootElement.GetProperty("providers")[0].GetProperty("region").GetString()
+        );
+    }
+
+    [PosixFact]
+    public void A_typed_custom_providers_region_is_written_to_the_settings_entry()
+    {
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "homelab",
+                Custom: true,
+                Region: "eu",
+                Endpoint: new Uri("http://localhost:8080/v1"),
+                ApiFamily: "openai-chat",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("homelab", Key: "typed-secret"));
+        model.RecordModel(new WizardModelChoice("local-model", "openai-chat"));
+
+        Commit(model);
+
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+        Assert.Equal(
+            "eu",
+            settings
+                .RootElement.GetProperty("providers")
+                .GetProperty("homelab")
+                .GetProperty("region")
+                .GetString()
+        );
+    }
+
+    [PosixFact]
+    public void A_family_the_walk_resolved_is_written_to_the_entry_and_the_profile()
+    {
+        // S-12: the family the check used is the family the entry and the profile record.
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "opencode-go",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "anthropic-messages",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("env:OPENCODE_API_KEY"));
+        model.RecordModel(
+            new WizardModelChoice("anthropic/claude-sonnet-5-5", "anthropic-messages")
+        );
+        model.RecordChatProfile(
+            new WizardProfileChoice("main", "anthropic/claude-sonnet-5-5", ReasoningLevel: null)
+        );
+
+        Commit(model);
+
+        using JsonDocument providers = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
+        JsonElement entry = providers.RootElement.GetProperty("providers")[0];
+        Assert.Equal(
+            "https://opencode.ai/inference/go/anthropic/v1",
+            entry.GetProperty("baseUrls").GetProperty("anthropic-messages").GetString()
+        );
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+        Assert.Equal(
+            "anthropic-messages",
+            settings
+                .RootElement.GetProperty("profiles")
+                .GetProperty("main")
+                .GetProperty("apiFamily")
+                .GetString()
+        );
+        ProviderEntry written = ProviderStore
+            .Load(ProviderStorePath, LoadAuth(), [])
+            .Entries.Single(entry => entry.Name == "opencode-go");
+        Assert.Contains(ProviderApiFamily.AnthropicMessages, written.ChatFamilies);
+    }
+
+    [PosixFact]
+    public void A_rerun_keeps_the_profile_keys_the_wizard_does_not_own()
+    {
+        // S-29: a re-run that changes the model leaves the hand-set profile values alone.
+        Seed(
+            SettingsPath,
+            """
+            {
+              "schemaVersion": 2,
+              "profiles": {
+                "chat-main": {
+                  "provider": "openai",
+                  "model": "gpt-4o",
+                  "maxOutput": 4096,
+                  "temperature": 0.4,
+                  "contextWindow": 64000,
+                  "capabilities": { "inputModalities": ["text", "image"] }
+                }
+              },
+              "usages": { "chat": "chat-main" }
+            }
+            """
+        );
+        var model = PresetWalk("new-secret");
+
+        Commit(model);
+
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+        JsonElement profile = settings.RootElement.GetProperty("profiles").GetProperty("chat-main");
+        Assert.Equal("gpt-5", profile.GetProperty("model").GetString());
+        Assert.Equal(4096, profile.GetProperty("maxOutput").GetInt32());
+        Assert.Equal(0.4m, profile.GetProperty("temperature").GetDecimal());
+        Assert.Equal(64000, profile.GetProperty("contextWindow").GetInt32());
+        Assert.Equal(
+            "image",
+            profile.GetProperty("capabilities").GetProperty("inputModalities")[1].GetString()
+        );
+    }
+
     private static SetupWizardModel PresetWalk(string secret)
     {
         var model = new SetupWizardModel();

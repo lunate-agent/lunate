@@ -57,6 +57,7 @@ shown are the documented defaults the store applies when a key is missing.
 | `providers.<id>.headers` | object | unset | user | Headers sent with every request: literal values, `auth:`/`env:`/`helper:` references, or templates over `{session.id}`, `{run.id}` and `{lunate.version}`. Definitions live in user settings only. |
 | `providers.<id>.model` | string | unset | user | The model id requests use through the endpoint unless a selection overrides it. |
 | `providers.<id>.modelsUrl` | string | unset | user | The models/discovery URL; absent means discovery derives `{base URL}/models`. Discovery never leaves the URL's host. Definitions live in user settings only. |
+| `providers.<id>.region` | string | unset | user | The provider's region metadata: `eu`, `us` or `local`. Preserved as metadata; it never routes data or enforces a region policy. Definitions live in user settings only. |
 | `roslyn.maxLoadedWorkspaces` | integer | 2 | user | C# workspaces kept loaded across roots; a further root's load evicts the least-recently-used one. Never `unlimited`. |
 | `schemaVersion` | integer | 2 | user, project | Required; 1 or 2 are readable, 2 is written. |
 | `startupHeader` | boolean | true | user | Prints the welcome header when a session starts. `LUNATE_STARTUP_HEADER` overrides it. |

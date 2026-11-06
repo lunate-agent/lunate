@@ -38,6 +38,7 @@ public static partial class SettingsStore
             string? model = null;
             string? catalogName = null;
             string? modelsUrl = null;
+            string? region = null;
             Dictionary<ProviderApiFamily, string>? familyUrls = null;
             CredentialPlacement? placement = null;
             Dictionary<string, string>? headers = null;
@@ -97,6 +98,9 @@ public static partial class SettingsStore
                     case "headers":
                         headers = ReadHeaderFields(field.Value, property.Name, problems);
                         break;
+                    case "region":
+                        region = ReadProviderField(field.Value, property.Name, "region", problems);
+                        break;
                     default:
                         problems.Add($"unknown key 'providers.{property.Name}.{field.Name}'");
                         break;
@@ -144,7 +148,8 @@ public static partial class SettingsStore
                     ProviderApiFamilies.Name(family),
                     placement,
                     modelsUrl,
-                    headers
+                    headers,
+                    region
                 ) || provider is null
             )
             {
@@ -289,6 +294,11 @@ public static partial class SettingsStore
                 }
 
                 entry["headers"] = declared;
+            }
+
+            if (provider.Region is { } region)
+            {
+                entry["region"] = region;
             }
 
             providers[provider.Id] = entry;
