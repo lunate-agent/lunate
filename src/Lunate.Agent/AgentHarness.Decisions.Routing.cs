@@ -30,35 +30,36 @@ public sealed partial class AgentHarness
 
         bool native =
             model.Model.ApiType == "native" && DecisionClientResolver.HasNativeClient(model.Client);
-        if (!native)
-        {
-            RequireCapability(
-                model.Model,
-                model.Model.Capabilities?.Features,
-                "structured-output",
-                "feature"
-            );
-        }
-
         string modelId = model.Model.Id;
         string method = native ? "native" : "adapter";
-        string[] profiles = [.. _options.RoutingProfiles!.Keys];
-        JsonElement state = JsonSerializer.SerializeToElement(
-            new
-            {
-                input = messages.LastOrDefault(message => message.Role == ChatRole.User)?.Text,
-                profiles,
-            }
-        );
-        RoutingPlan plan = BuildRoutingPlan(
-            profiles,
-            _options.RoutingProfiles,
-            model.Model.ChoiceOrderSensitive
-        );
-        var request = new DecisionRequest(state, plan.Questions);
 
         try
         {
+            if (!native)
+            {
+                RequireCapability(
+                    model.Model,
+                    model.Model.Capabilities?.Features,
+                    "structured-output",
+                    "feature"
+                );
+            }
+
+            string[] profiles = [.. _options.RoutingProfiles!.Keys];
+            JsonElement state = JsonSerializer.SerializeToElement(
+                new
+                {
+                    input = messages.LastOrDefault(message => message.Role == ChatRole.User)?.Text,
+                    profiles,
+                }
+            );
+            RoutingPlan plan = BuildRoutingPlan(
+                profiles,
+                _options.RoutingProfiles,
+                model.Model.ChoiceOrderSensitive
+            );
+            var request = new DecisionRequest(state, plan.Questions);
+
             DecisionResponse response = await DecisionEngine.EvaluateAsync(
                 request,
                 model.Client,
@@ -118,6 +119,13 @@ public sealed partial class AgentHarness
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+        catch (CapabilityRequirementException exception)
+        {
+            channel.Emit(
+                new DecisionFailed(runId, modelId, exception.Message) { QuestionId = questionId }
+            );
+            return configuredModel;
         }
         catch (InvalidDataException exception)
         {

@@ -230,6 +230,66 @@ public sealed class ModelRoutingDecisionTests
         Assert.Single(run.Events.OfType<DecisionFailed>());
     }
 
+    [Fact]
+    public async Task Shadow_routing_capability_failure_keeps_the_configured_model()
+    {
+        var configured = new ScriptedChatClient().Enqueue(
+            LoopScripts.Text("configured response"),
+            LoopScripts.Stop()
+        );
+        var fast = new ScriptedChatClient().Enqueue(
+            LoopScripts.Text("fast response"),
+            LoopScripts.Stop()
+        );
+        var decision = new ScriptedChatClient().Enqueue(
+            LoopScripts.Text("unexpected"),
+            LoopScripts.Stop()
+        );
+        var decisionModel = new ModelInfo(
+            "decision-model",
+            "openai",
+            null,
+            64000,
+            SupportsTools: false
+        )
+        {
+            Capabilities = new ModelCapabilityDescriptor(
+                features: new HashSet<string>(StringComparer.Ordinal)
+            ),
+        };
+        var harness = new AgentHarness(
+            configured,
+            new ToolRegistry(),
+            new AgentHarnessOptions
+            {
+                RoutingMode = DecisionMode.Shadow,
+                UsageModels = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
+                {
+                    ["chat"] = Model(configured, "default"),
+                    ["decision"] = new(decision, "decision", "openai", decisionModel),
+                },
+                RoutingProfiles = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
+                {
+                    ["default"] = Model(configured, "default") with
+                    {
+                        Description = "General chat",
+                    },
+                    ["fast"] = Model(fast, "fast") with { Description = "Short latency" },
+                },
+            }
+        );
+
+        List<AgentEvent> events = await AgentTestSupport.Run(harness);
+
+        Assert.Empty(decision.Requests);
+        Assert.Empty(fast.Requests);
+        Assert.Single(configured.Requests);
+        DecisionFailed failure = Assert.Single(events.OfType<DecisionFailed>());
+        Assert.Equal("routing", failure.QuestionId);
+        Assert.Contains("structured-output", failure.Reason, StringComparison.Ordinal);
+        Assert.Empty(events.OfType<RunError>());
+    }
+
     private static async Task<DecisionRun> RunAsync(
         DecisionMode mode,
         string decisionResponse,

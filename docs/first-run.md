@@ -266,7 +266,8 @@ Saving validates the entry:
 - The base URL must be absolute and `https`, or `http` only for a loopback host.
 - The model id is required.
 - The API family must be one the client wires; an unknown family is refused by name.
-- Discovery through `--models-url` stays inside the entry's configured host.
+- Discovery through `--models-url` stays inside the entry's configured endpoint: a redirect that
+  changes the host, scheme or port is refused before any request is sent there.
 - The provider id must be non-empty, must not contain spaces or `/`, and must not shadow a built-in
   preset.
 
