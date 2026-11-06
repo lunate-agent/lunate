@@ -65,7 +65,13 @@ decide() {
             fi
             ;;
         full)
-            if [ "$verify" != "success" ] || [ "$perf" != "success" ] || [ "$platform" != "success" ]; then
+            # The dedicated macOS perf leg is a release-only job as of the PR-gate relief:
+            # a pull request sees it skipped, while main/tags/nightly still require it.
+            local perf_gate="$perf"
+            if [ "$event" = "pull_request" ] && [ "$perf" = "skipped" ]; then
+                perf_gate="success"
+            fi
+            if [ "$verify" != "success" ] || [ "$perf_gate" != "success" ] || [ "$platform" != "success" ]; then
                 fail "a required job did not succeed (verify=$verify, perf=$perf, platform=$platform)"
             fi
             case "$ps_required" in
@@ -201,8 +207,10 @@ self_test() {
         pull_request false success docs skipped skipped failure skipped skipped ""
     _self_case "a skipped verify leg on the full profile" 1 "did not succeed" \
         pull_request false success full skipped success skipped success success true
-    _self_case "a skipped perf leg on the full profile" 1 "did not succeed" \
+    _self_case "a skipped perf leg on a pull request" 0 "the full gate succeeded" \
         pull_request false success full success success skipped skipped success true
+    _self_case "a skipped perf leg on a push" 1 "did not succeed" \
+        push "" success full success success skipped skipped success true
     _self_case "a skipped platform leg on the full profile" 1 "did not succeed" \
         pull_request false success full success success skipped success skipped true
 

@@ -107,6 +107,8 @@ public sealed class SetupWizardEntryMenuTests
         }
 
         await host.WaitForFrameAsync("> deepseek");
+        // The picker's arm window restarts on each Down; Enter before it expires is dropped.
+        host.Advance(500);
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Credential for deepseek");
         host.Console.SendEnter(); // the masked prompt
