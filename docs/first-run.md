@@ -5,6 +5,8 @@ model check, chat profile, optional fast/decision profiles, the decisions layer,
 nothing is written until the summary is confirmed. Re-run it at any time with `/setup` in a session
 or `lunate setup` from a shell.
 
+![The setup wizard walking provider, credential, connection test, model check and summary](media/setup-wizard.gif)
+
 ## The setup wizard
 
 Start `lunate` in a repository with no usable configuration. When stdin and stdout are terminals,
