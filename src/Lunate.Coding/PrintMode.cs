@@ -808,9 +808,12 @@ internal static class PrintMode
             harnessOptions
         );
 
-        /// <summary>The session's request identity; a fileless run carries no id.</summary>
-        RequestContext? SessionContext(Session? session) =>
-            session is { } active ? new RequestContext(active.SessionId) : null;
+        /// <summary>
+        /// The session's request identity; a fileless run carries the process's ephemeral
+        /// conversation id, so a provider header template still resolves.
+        /// </summary>
+        RequestContext SessionContext(Session? session) =>
+            new(session?.SessionId ?? RequestContext.EphemeralSessionId);
 
         // The profile clients load the stores only when routing is on, like the interactive
         // session's per-build resolution.
