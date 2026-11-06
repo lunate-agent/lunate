@@ -29,6 +29,13 @@ internal static partial class SessionFormat
                 writer.WriteNumber("cacheWrite", cacheWrite);
             }
 
+            // The provider-reported decision cost travels with the tokens so a resumed session
+            // prices the record the way the live one did instead of re-estimating it.
+            if (usage.Cost is { } cost)
+            {
+                writer.WriteNumber("cost", cost);
+            }
+
             writer.WriteEndObject();
         }
 

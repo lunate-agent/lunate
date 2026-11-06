@@ -120,4 +120,95 @@ public sealed class ChatDecisionClientTests
         Assert.Contains("low confidence", systemPrompt, StringComparison.Ordinal);
         Assert.Contains("unknown", systemPrompt, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Both_off_contract_attempts_carry_their_usage_on_the_failure()
+    {
+        using JsonDocument state = JsonDocument.Parse("""{"untrusted_content":"data"}""");
+        DecisionRequest request = new(
+            "test-model",
+            state.RootElement.Clone(),
+            [
+                new DecisionQuestion(
+                    "risk",
+                    "Is this risky?",
+                    DecisionQuestionKind.Noul,
+                    ["yes", "no"]
+                ),
+            ]
+        );
+        var chat = new ScriptedChatClient()
+            .Enqueue(LoopScripts.Text("not json"), LoopScripts.Usage(120, 8), LoopScripts.Stop())
+            .Enqueue(
+                LoopScripts.Text("still not json"),
+                LoopScripts.Usage(130, 9),
+                LoopScripts.Stop()
+            );
+
+        DecisionUsageAttemptsException exception =
+            await Assert.ThrowsAsync<DecisionUsageAttemptsException>(() =>
+                new ChatDecisionClient(chat).GetDecisionAsync(
+                    request,
+                    cancellationToken: TestContext.Current.CancellationToken
+                )
+            );
+
+        Assert.Equal(2, exception.Attempts.Count);
+        Assert.Equal(120, exception.Attempts[0].Usage.InputTokenCount);
+        Assert.Equal(8, exception.Attempts[0].Usage.OutputTokenCount);
+        Assert.Equal("test-model", exception.Attempts[0].ModelId);
+        Assert.Equal(130, exception.Attempts[1].Usage.InputTokenCount);
+        Assert.Equal(9, exception.Attempts[1].Usage.OutputTokenCount);
+        Assert.Equal(2, chat.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Engine_records_every_failed_attempt_usage_before_it_throws()
+    {
+        using JsonDocument state = JsonDocument.Parse("""{"untrusted_content":"data"}""");
+        Lunate.Contracts.DecisionRequest request = new(
+            state.RootElement.Clone(),
+            [
+                new Lunate.Contracts.DecisionQuestion(
+                    "risk",
+                    "Is this risky?",
+                    Lunate.Contracts.DecisionQuestionKind.YesNo
+                ),
+            ]
+        );
+        var chat = new ScriptedChatClient()
+            .Enqueue(LoopScripts.Text("not json"), LoopScripts.Usage(120, 8), LoopScripts.Stop())
+            .Enqueue(
+                LoopScripts.Text("still not json"),
+                LoopScripts.Usage(130, 9),
+                LoopScripts.Stop()
+            );
+        List<(long Input, long Output, string? ModelId, string? Method)> recorded = [];
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            DecisionEngine.EvaluateAsync(
+                request,
+                chat,
+                "decision-model",
+                "adapter",
+                cancellationToken: TestContext.Current.CancellationToken,
+                recordUsage: (usage, modelId, method, _, _) =>
+                    recorded.Add(
+                        (usage.InputTokenCount ?? 0, usage.OutputTokenCount ?? 0, modelId, method)
+                    )
+            )
+        );
+
+        Assert.Collection(
+            recorded,
+            first =>
+            {
+                Assert.Equal((120L, 8L, "decision-model", (string?)null), first);
+            },
+            second =>
+            {
+                Assert.Equal((130L, 9L, "decision-model", (string?)null), second);
+            }
+        );
+    }
 }

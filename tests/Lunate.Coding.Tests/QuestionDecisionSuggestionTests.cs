@@ -137,6 +137,75 @@ public sealed class QuestionDecisionSuggestionTests
         await run;
     }
 
+    [Fact]
+    public async Task Suggestion_records_its_decision_usage_for_cost()
+    {
+        using var models = new TempDirectory();
+        string modelsPath = models.File("models.json");
+        File.WriteAllText(
+            modelsPath,
+            """
+            {"schemaVersion":2,"models":[
+              {"id":"chat-model","provider":"openai","contextWindow":64000,"supportsTools":true},
+              {"id":"decision-model","provider":"openai","contextWindow":64000,"supportsTools":false}
+            ]}
+            """
+        );
+        var chat = new ScriptedChatClient()
+            .Enqueue(QuestionCall(), Scripts.ToolCalls())
+            .Enqueue(Scripts.Text("I will continue without your answer."), Scripts.Stop());
+        var decision = new ScriptedChatClient().Enqueue(
+            Scripts.Text(
+                """{"results":{"question-1":{"answer":"Flexible","probabilities":{"Simple":0.2,"Flexible":0.8}}}}"""
+            ),
+            new ChatResponseUpdate(
+                ChatRole.Assistant,
+                [
+                    new UsageContent(
+                        new UsageDetails { InputTokenCount = 700, OutputTokenCount = 40 }
+                    ),
+                ]
+            ),
+            Scripts.Stop()
+        );
+        var factory = new QuestionSuggestionFactory(
+            new Dictionary<string, IChatClient>(StringComparer.Ordinal)
+            {
+                ["chat-model"] = chat,
+                ["decision-model"] = decision,
+            }
+        );
+        using var host = new InteractiveSessionHost(factory: factory, modelsPath: modelsPath);
+        host.Scrollback.Profile.Width = 400;
+        Configure(host, includeDecision: true, suggest: true);
+        SaveProvider(host);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("Choose a plan.");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Which plan should I use?");
+        host.Advance(301);
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() =>
+            chat.Requests.Count == 2 && host.Events.OfType<RunFinished>().Any()
+        );
+
+        host.Console.SendText("/cost");
+        host.Console.SendEnter();
+        string report = await InteractiveSessionCommandTests.WaitForScrollbackAsync(
+            host,
+            "cost by usage:"
+        );
+
+        Assert.Contains("decision (adapter)", report, StringComparison.Ordinal);
+        Assert.Contains("700 in / 40 out", report, StringComparison.Ordinal);
+        Assert.Contains("decision-model", report, StringComparison.Ordinal);
+
+        host.Console.Complete();
+        await run;
+    }
+
     private static ChatResponseUpdate QuestionCall() =>
         Scripts.Call(
             "question-call",

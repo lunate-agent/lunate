@@ -15,6 +15,7 @@ internal sealed class ChatDecisionClient(IChatClient chatClient) : IDecisionClie
         ArgumentNullException.ThrowIfNull(request);
         DecisionRequestValidator.Validate(request);
         List<UsageDetails> usages = [];
+        List<DecisionUsageAttempt> attempts = [];
         string? failure = null;
 
         for (int attempt = 0; attempt < 2; attempt++)
@@ -26,9 +27,11 @@ internal sealed class ChatDecisionClient(IChatClient chatClient) : IDecisionClie
                     cancellationToken
                 )
                 .ConfigureAwait(false);
+            string modelId = response.ModelId ?? options?.ModelId ?? request.ModelId;
             if (response.Usage is { } usage)
             {
                 usages.Add(usage);
+                attempts.Add(new DecisionUsageAttempt(usage, modelId));
             }
 
             try
@@ -36,7 +39,7 @@ internal sealed class ChatDecisionClient(IChatClient chatClient) : IDecisionClie
                 DecisionResult result = DecisionResponseParser.Parse(
                     response.Text ?? string.Empty,
                     request,
-                    response.ModelId ?? options?.ModelId ?? request.ModelId,
+                    modelId,
                     "adapter"
                 );
                 return result with { ChatUsageAttempts = usages };
@@ -51,8 +54,11 @@ internal sealed class ChatDecisionClient(IChatClient chatClient) : IDecisionClie
             }
         }
 
-        throw new InvalidDataException(
-            $"Decision for model '{options?.ModelId ?? request.ModelId}' failed after retry: {failure ?? "response did not match the decision contract"}."
+        // Both attempts were paid for: the usages travel on the exception so the engine records
+        // them before the failure reaches the caller (0.2.1 recorded each attempt).
+        throw new DecisionUsageAttemptsException(
+            $"Decision for model '{options?.ModelId ?? request.ModelId}' failed after retry: {failure ?? "response did not match the decision contract"}.",
+            attempts
         );
     }
 
