@@ -8,44 +8,9 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
-## [0.3.0-rc.2] - 2026-11-06
+## [0.3.0] - 2026-11-06
 
-The 0.3.0 quality wave: every rc.1 review finding is fixed and the specs, docs and tests now agree with the code. rc.2 is the release-candidate proof for the final 0.3.0 tag — no new product surface.
-
-### Fixed in this candidate
-
-- **Setup and settings.** The wizard now persists the chosen region, honours `--api-family` for presets, runs the decision-profile model check, refuses a thinking level that conflicts with an existing `reasoningBudget`, and merges a re-run profile instead of replacing it (#568, #569, #570, #579, #580).
-- **Runtime and providers.** `--no-session` with a `{session.id}` header resolves an ephemeral id; Anthropic prompt caching and turn merge follow the resolved family; a model/profile switch re-seeds thinking; a discovered endpoint survives profile resolution; the Windows MCP child environment includes `PATHEXT`, `ComSpec`, `APPDATA` and `LOCALAPPDATA` (#565, #571, #598, #599, #600).
-- **Decisions.** Failed adapter attempts still record their usage; question-suggestion and extension decisions record usage and cost; the provider cost is persisted and survives `--resume`; typed transport errors reach the operator; approval state carries the untrusted arguments once; `approvalsThreshold` is confidence; a shadow capability failure records the failure and leaves the call unchanged; discovery refuses a scheme or port redirect (#559–#562, #572, #573, #558, #563).
-- **Docs and specs.** `systemone` is the fifth API family everywhere; the architecture map and `AGENTS.md` record the 0.3 project graph; the guide no longer documents a `timeout_s` argument, `/shell` command or `shell` setting, and names `output.toolResultLimit` correctly (#574, #575, #577).
-
-### CI
-
-- The macOS `perf` leg runs on release events only; pull-request verify shards keep the startup budget, and gate self-tests retry once with a flake ledger.
-
-### Changed
-
-- **`decisions.approvalsThreshold` is a confidence.** The key now carries what the spec always said it
-  did: the confidence a risk signal's chosen answer must reach to escalate. The default `0` is the
-  `2t − 1` form of the shipped `0.5` probability gate, so behaviour is unchanged unless the key is
-  set; an explicit `0.5` now means a `0.75` probability of the risk (#573).
-
-### Fixed
-
-- **A decision failure keeps the provider's own message.** A native transport refusal — a `422` field,
-  or the `max_tokens_exceeded` 400 — reaches `DecisionFailed` and the transcript notice as
-  "System One rejected field '…'" or "Decision state too large for this model: …" instead of
-  "provider request failed"; an unexpected exception stays generic (#562).
-- **The approval state carries the call's arguments once.** The untrusted argument text no longer
-  appears twice (a structured `arguments` copy beside `untrusted_content`), halving the state and
-  matching the spec's "only in `untrusted_content`" guarantee (#572).
-
-## [0.3.0-rc.1] - 2026-11-05
-
-The quality release: the setup wizard gives a fresh install one guided path and gives a configured
-install a re-runnable entry menu; the provider model can route each model to its own native API
-family; and the decision layer's native System One transport lands behind the existing seam. The
-rest of the milestone is the fixes and proof the 0.3 cards asked for.
+The 0.3.0 quality release: a fresh install gets one guided setup path, a configured install gets a re-runnable entry menu, each model can route to its own native API family, and the decision layer's native System One transport lands behind the existing seam. The release also carries every rc.1 review fix, the rc.2 proof pass, and the docs/spec agreement work the milestone asked for.
 
 ### Added
 
@@ -97,6 +62,22 @@ rest of the milestone is the fixes and proof the 0.3 cards asked for.
   detector and skips when the platform job already proved the same checks (#435).
 - **The inert `McpServerOptions.WithheldCredentialValues` option is removed** from
   `Lunate.Protocols`; the allow-list scrub is the only child-environment path (#483).
+
+- **`decisions.approvalsThreshold` is a confidence.** The key now carries what the spec always said it
+  did: the confidence a risk signal's chosen answer must reach to escalate. The default `0` is the
+  `2t − 1` form of the shipped `0.5` probability gate, so behaviour is unchanged unless the key is
+  set; an explicit `0.5` now means a `0.75` probability of the risk (#573).
+
+### Fixed
+
+- **Setup and settings.** The wizard now persists the chosen region, honours `--api-family` for presets, runs the decision-profile model check, refuses a thinking level that conflicts with an existing `reasoningBudget`, and merges a re-run profile instead of replacing it (#568, #569, #570, #579, #580).
+- **Runtime and providers.** `--no-session` with a `{session.id}` header resolves an ephemeral id; Anthropic prompt caching and turn merge follow the resolved family; a model/profile switch re-seeds thinking; a discovered endpoint survives profile resolution; the Windows MCP child environment includes `PATHEXT`, `ComSpec`, `APPDATA` and `LOCALAPPDATA` (#565, #571, #598, #599, #600).
+- **Decisions.** Failed adapter attempts still record their usage; question-suggestion and extension decisions record usage and cost; the provider cost is persisted and survives `--resume`; typed transport errors reach the operator; approval state carries the untrusted arguments once; `approvalsThreshold` is confidence; a shadow capability failure records the failure and leaves the call unchanged; discovery refuses a scheme or port redirect (#559–#562, #572, #573, #558, #563).
+- **Docs and specs.** `systemone` is the fifth API family everywhere; the architecture map and `AGENTS.md` record the 0.3 project graph; the guide no longer documents a `timeout_s` argument, `/shell` command or `shell` setting, and names `output.toolResultLimit` correctly (#574, #575, #577).
+
+### CI
+
+- The macOS `perf` leg runs on release events only; pull-request verify shards keep the startup budget, and gate self-tests retry once with a flake ledger.
 
 ## [0.2.1] - 2026-11-02
 
@@ -284,8 +265,7 @@ verified against a real, versioned build; the first stable release is `0.1.0`.
 
 [0.1.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.2...v0.1.0
 [0.1.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.1.0-rc.1...v0.1.0-rc.2
-[0.3.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.3.0-rc.1...v0.3.0-rc.2
-[0.3.0-rc.1]: https://github.com/wdaniel1993/lunate/compare/v0.2.1...v0.3.0-rc.1
+[0.3.0]: https://github.com/wdaniel1993/lunate/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/wdaniel1993/lunate/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/wdaniel1993/lunate/compare/v0.1.0...v0.2.0
 [0.2.0-rc.2]: https://github.com/wdaniel1993/lunate/compare/v0.2.0-rc.1...v0.2.0-rc.2
