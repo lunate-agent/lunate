@@ -524,14 +524,13 @@ alphabetically first profile. Provenance SHALL name the strategy used.
 
 The approval gate SHALL ask several atomic noul questions about one structured state in one request,
 covering at least writes outside the workspace, network access, irreversible deletion and credential
-exposure. The state SHALL carry only the fields those questions need — tool, workspace root, risk
-tier, and the call's arguments exactly once, as untrusted data in a single `untrusted_content` field
-— and untrusted content SHALL NOT appear in any instruction or criteria. Code SHALL combine the
-atomic answers against one threshold, `decisions.approvalsThreshold`, expressed in confidence
-(default `0`, the `2t − 1` mapping of the former `0.5` probability threshold), so the shipped
-behaviour is unchanged. Any signal at or above it SHALL escalate; no risk-tier table is a design
-default. Shadow mode SHALL record every atomic answer. No answer SHALL approve a tool call; a
-decision can only tighten the gate.
+exposure. The state SHALL carry only the fields those questions need — tool, arguments, workspace
+root, risk tier — with untrusted content in its own named field, and untrusted content SHALL NOT
+appear in any instruction or criteria. Code SHALL combine the atomic answers against one threshold,
+`decisions.approvalsThreshold`, expressed in confidence and defaulting to the mapping `2t − 1` of the
+existing probability threshold, so the shipped behaviour is unchanged. Any signal at or above it SHALL
+escalate; no risk-tier table is a design default. Shadow mode SHALL record every atomic answer. No
+answer SHALL approve a tool call; a decision can only tighten the gate.
 
 #### Scenario: Four signals, one request
 
@@ -544,8 +543,8 @@ decision can only tighten the gate.
 
 - **GIVEN** a tool argument containing text that instructs the model to answer yes
 - **WHEN** the gate questions are built
-- **THEN** that text appears once, only in the state's `untrusted_content` field, and in no
-  instruction or criteria
+- **THEN** that text appears only in the state's `untrusted_content` field and in no instruction or
+  criteria
 
 ### Requirement: Decision state size
 
