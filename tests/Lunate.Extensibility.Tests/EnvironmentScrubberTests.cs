@@ -14,11 +14,15 @@ public sealed class EnvironmentScrubberTests
     >(StringComparer.Ordinal)
     {
         ["PATH"] = "/usr/bin",
+        ["PATHEXT"] = ".COM;.EXE;.BAT;.CMD",
         ["HOME"] = "/home/user",
         ["USERPROFILE"] = @"C:\Users\user",
         ["SystemRoot"] = @"C:\Windows",
+        ["ComSpec"] = @"C:\Windows\System32\cmd.exe",
         ["TEMP"] = "/tmp",
         ["TMP"] = "/tmp",
+        ["APPDATA"] = @"C:\Users\user\AppData\Roaming",
+        ["LOCALAPPDATA"] = @"C:\Users\user\AppData\Local",
         ["LANG"] = "en_US.UTF-8",
         ["ANTHROPIC_API_KEY"] = "sk-secret",
         ["TMPDIR"] = "/var/tmp",
@@ -54,11 +58,15 @@ public sealed class EnvironmentScrubberTests
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(Read(Parent));
 
         Assert.Equal("/usr/bin", environment["PATH"]);
+        Assert.Equal(".COM;.EXE;.BAT;.CMD", environment["PATHEXT"]);
         Assert.Equal("/home/user", environment["HOME"]);
         Assert.Equal(@"C:\Users\user", environment["USERPROFILE"]);
         Assert.Equal(@"C:\Windows", environment["SystemRoot"]);
+        Assert.Equal(@"C:\Windows\System32\cmd.exe", environment["ComSpec"]);
         Assert.Equal("/tmp", environment["TEMP"]);
         Assert.Equal("/tmp", environment["TMP"]);
+        Assert.Equal(@"C:\Users\user\AppData\Roaming", environment["APPDATA"]);
+        Assert.Equal(@"C:\Users\user\AppData\Local", environment["LOCALAPPDATA"]);
         Assert.Equal("en_US.UTF-8", environment["LANG"]);
         Assert.Equal("/var/tmp", environment["TMPDIR"]);
         Assert.DoesNotContain("ANTHROPIC_API_KEY", environment.Keys);

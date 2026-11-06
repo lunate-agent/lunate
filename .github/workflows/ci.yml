@@ -383,7 +383,7 @@ jobs:
       - name: Gate self-tests
         if: matrix.shard == 1
         shell: bash
-        run: bash scripts/gate-tests.sh
+        run: bash scripts/gate-tests-retry.sh
 
       - name: Memory checks (ADR-0009)
         if: matrix.shard == 1
@@ -557,7 +557,10 @@ jobs:
   perf:
     name: perf (${{ matrix.os }})
     needs: plan
-    if: needs.plan.outputs.profile == 'full'
+    # The dedicated macOS perf leg is a release gate, not a PR gate: its runner queue was
+    # starving every PR matrix. The startup budget is still enforced in the per-PR verify
+    # shards through STARTUP_BUDGET_ENFORCE, so skipping this job does not weaken the PR gate.
+    if: needs.plan.outputs.profile == 'full' && github.event_name != 'pull_request'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

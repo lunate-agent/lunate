@@ -37,9 +37,10 @@ Exactly one of `entryAssembly` (in-process) or `runtime` (out-of-process) is req
 - `command` / `args` / `workingDirectory` — a relative path-like token (starting with `.` or
   containing a separator) resolves against the extension directory; a bare command resolves on
   `PATH`. The default working directory is the extension directory.
-- `env` / `envPassthrough` — the child's whole environment is the minimal base set (`PATH`, `HOME`,
-  `USERPROFILE`, `SystemRoot`, `TEMP`, `TMP`, `LANG`) plus the pass-through names plus the `env`
-  values. Nothing else is inherited; Lunate's provider keys never leak.
+- `env` / `envPassthrough` — the child's whole environment is the minimal base set (`PATH`,
+  `PATHEXT`, `HOME`, `USERPROFILE`, `SystemRoot`, `ComSpec`, `TEMP`, `TMP`, `TMPDIR`, `APPDATA`,
+  `LOCALAPPDATA`, `LANG`) plus the pass-through names plus the `env` values. Nothing else is
+  inherited; Lunate's provider keys never leak.
 - `callTimeout` — the per-call timeout in seconds for host → child requests (default 60).
 - `startup` — `background` starts the process after the interactive UI is ready; omitted starts it
   lazily on the extension's first use (a forwarded hook or a service call).

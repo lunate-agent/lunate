@@ -296,6 +296,60 @@ public sealed class AnthropicPromptCacheTests
         );
     }
 
+    [Fact]
+    public async Task A_custom_provider_entry_of_the_messages_family_gets_caching_and_turn_merge()
+    {
+        // The entry is named 'relay' and its kind is OpenAI-compatible; only its resolved family
+        // says the request speaks Anthropic Messages. The decorators must follow the family, not
+        // the provider name, or this custom wire loses both the markers and the turn merge.
+        ModelCatalog catalog = ModelCatalog.Single(
+            new ModelInfo("claude-wire", "openai", Endpoint: null, 200_000, true)
+        );
+        var provider = new ProviderEntry(
+            "relay",
+            "openai",
+            new Uri("https://relay.example/v1"),
+            "env:RELAY_KEY",
+            BaseUrls: new Dictionary<ProviderApiFamily, Uri>
+            {
+                [ProviderApiFamily.AnthropicMessages] = new("https://relay.example/anthropic/v1"),
+            }
+        );
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            new ModelProfile(
+                "chat",
+                "relay",
+                "claude-wire",
+                ApiFamily: ProviderApiFamilies.AnthropicMessages
+            ),
+            [provider],
+            catalog
+        );
+
+        var handler = new CapturingHandler();
+        IChatClient client = CreateAnthropicClient(handler, resolved.Model);
+        await client.GetResponseAsync(
+            [SystemMessage("rules"), UserMessage("one"), UserMessage("steering")],
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        using JsonDocument document = JsonDocument.Parse(Assert.Single(handler.RequestBodies));
+        JsonElement root = document.RootElement;
+        JsonElement[] messages = [.. root.GetProperty("messages").EnumerateArray()];
+        // The two wire-user messages are one turn: the steering text rides the turn that follows
+        // the system message instead of becoming a second consecutive user turn.
+        Assert.Single(messages);
+        Assert.Equal(
+            ["one", "steering"],
+            messages[0]
+                .GetProperty("content")
+                .EnumerateArray()
+                .Select(block => block.GetProperty("text").GetString())
+        );
+        Assert.True(HasCacheControl(root.GetProperty("system").EnumerateArray().Last()));
+        Assert.Equal(2, CountCacheControls(root));
+    }
+
     private static readonly ModelInfo AnthropicModel = new(
         "claude-test",
         "anthropic",
@@ -304,11 +358,14 @@ public sealed class AnthropicPromptCacheTests
         true
     );
 
-    private static IChatClient CreateAnthropicClient(CapturingHandler handler) =>
+    private static IChatClient CreateAnthropicClient(
+        CapturingHandler handler,
+        ModelInfo? model = null
+    ) =>
         new ChatClientFactory(
             new MarkingLoggerFactory(static () => { }),
             enableOpenTelemetry: false,
-            providerClientFactory: (model, _) =>
+            providerClientFactory: (created, _) =>
                 new AnthropicClient
                 {
                     ApiKey = "test-key",
@@ -317,8 +374,8 @@ public sealed class AnthropicPromptCacheTests
                     {
                         BaseAddress = new Uri("http://localhost"),
                     },
-                }.AsIChatClient(model.Id)
-        ).Create(AnthropicModel);
+                }.AsIChatClient(created.Id)
+        ).Create(model ?? AnthropicModel);
 
     private static ChatMessage SystemMessage(params string[] blocks) =>
         new(ChatRole.System, blocks.Select(block => new TextContent(block)).ToList<AIContent>());
