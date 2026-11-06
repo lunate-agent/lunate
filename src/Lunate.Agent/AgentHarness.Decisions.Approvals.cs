@@ -51,16 +51,6 @@ public sealed partial class AgentHarness
 
         bool native =
             model.Model.ApiType == "native" && DecisionClientResolver.HasNativeClient(model.Client);
-        if (!native)
-        {
-            RequireCapability(
-                model.Model,
-                model.Model.Capabilities?.Features,
-                "structured-output",
-                "feature"
-            );
-        }
-
         string modelId = model.Model.Id;
         string method = native ? "native" : "adapter";
         // The arguments are the untrusted content, so they live in exactly one field: repeating
@@ -101,6 +91,16 @@ public sealed partial class AgentHarness
 
         try
         {
+            if (!native)
+            {
+                RequireCapability(
+                    model.Model,
+                    model.Model.Capabilities?.Features,
+                    "structured-output",
+                    "feature"
+                );
+            }
+
             DecisionResponse response = await DecisionEngine.EvaluateAsync(
                 decisionRequest,
                 model.Client,
@@ -168,6 +168,11 @@ public sealed partial class AgentHarness
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
+        }
+        catch (CapabilityRequirementException exception)
+        {
+            EmitApprovalFailures(runId, modelId, exception.Message, channel);
+            return new ApprovalDecisionResult(null, null);
         }
         catch (InvalidDataException exception)
         {

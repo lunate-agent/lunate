@@ -107,6 +107,7 @@ public sealed partial class AgentHarness
         string reason =
             exception is DecisionTransportException ? exception.Message : "provider request failed";
         return _options.Session?.Redactor.Redact(reason) ?? reason;
+    }
 
     private static void EmitDecisionFailures(
         string runId,
