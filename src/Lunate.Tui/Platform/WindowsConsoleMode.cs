@@ -59,7 +59,29 @@ internal static class WindowsConsoleMode
             );
         }
 
-        return new Restore(input, inputMode, rawInputMode, output, outputMode, outputChanged);
+        // Suspend hands the console input mode back to a child; the restore — the path the scope
+        // exit and a signal handler both reach — writes the original modes back and surfaces a
+        // failure instead of swallowing it.
+        return new SerializedTerminalMode(
+            suspend: () => SetConsoleMode(input, inputMode),
+            resume: () => SetConsoleMode(input, rawInputMode),
+            restore: () =>
+            {
+                if (!SetConsoleMode(input, inputMode))
+                {
+                    throw new InvalidOperationException(
+                        ModeFailure("the Windows console input mode could not be restored")
+                    );
+                }
+
+                if (outputChanged && !SetConsoleMode(output, outputMode))
+                {
+                    throw new InvalidOperationException(
+                        ModeFailure("the Windows console output mode could not be restored")
+                    );
+                }
+            }
+        );
     }
 
     private static string ModeFailure(string message) =>
@@ -67,59 +89,4 @@ internal static class WindowsConsoleMode
             CultureInfo.InvariantCulture,
             $"{message} (error {Marshal.GetLastWin32Error()}); use Windows Terminal, or re-enable pseudo-console support."
         );
-
-    private sealed class Restore(
-        IntPtr input,
-        uint inputMode,
-        uint rawInputMode,
-        IntPtr output,
-        uint outputMode,
-        bool outputChanged
-    ) : ITerminalMode
-    {
-        private bool _suspended;
-
-        /// <summary>
-        /// The child gets the console mode the process started with, and its own EDIT-mode line
-        /// input; resuming puts the virtual-terminal raw mode back.
-        /// </summary>
-        public void Suspend()
-        {
-            if (_suspended || !SetConsoleMode(input, inputMode))
-            {
-                return;
-            }
-
-            _suspended = true;
-        }
-
-        public void Resume()
-        {
-            if (!_suspended || !SetConsoleMode(input, rawInputMode))
-            {
-                return;
-            }
-
-            _suspended = false;
-        }
-
-        // A failed restore leaves the user's terminal in raw mode, so Dispose surfaces
-        // the failure instead of swallowing it.
-        public void Dispose()
-        {
-            if (!SetConsoleMode(input, inputMode))
-            {
-                throw new InvalidOperationException(
-                    ModeFailure("the Windows console input mode could not be restored")
-                );
-            }
-
-            if (outputChanged && !SetConsoleMode(output, outputMode))
-            {
-                throw new InvalidOperationException(
-                    ModeFailure("the Windows console output mode could not be restored")
-                );
-            }
-        }
-    }
 }

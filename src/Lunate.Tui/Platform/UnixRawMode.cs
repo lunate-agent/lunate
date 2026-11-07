@@ -39,36 +39,12 @@ internal static class UnixRawMode
             );
         }
 
-        return new Restore(original, state);
-    }
-
-    /// <summary>The original and the raw attribute blocks; suspending swaps one for the other.</summary>
-    private sealed class Restore(byte[] original, byte[] raw) : ITerminalMode
-    {
-        private bool _suspended;
-
-        public void Suspend()
-        {
-            if (_suspended)
-            {
-                return;
-            }
-
-            tcsetattr(StandardInputFd, ActionNow, original);
-            _suspended = true;
-        }
-
-        public void Resume()
-        {
-            if (!_suspended)
-            {
-                return;
-            }
-
-            tcsetattr(StandardInputFd, ActionNow, raw);
-            _suspended = false;
-        }
-
-        public void Dispose() => tcsetattr(StandardInputFd, ActionNow, original);
+        // Suspend and resume swap the original and the raw attribute blocks; the restore — the
+        // path /quit's scope exit and a signal handler both reach — writes the original back.
+        return new SerializedTerminalMode(
+            suspend: () => tcsetattr(StandardInputFd, ActionNow, original) == 0,
+            resume: () => tcsetattr(StandardInputFd, ActionNow, state) == 0,
+            restore: () => tcsetattr(StandardInputFd, ActionNow, original)
+        );
     }
 }
