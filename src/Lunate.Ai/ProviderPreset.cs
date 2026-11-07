@@ -83,4 +83,18 @@ public sealed record ProviderPreset(
     /// </summary>
     public IReadOnlyDictionary<string, string>? HeadersFor(ProviderApiFamily family) =>
         FamilyHeaders?.GetValueOrDefault(family);
+
+    /// <summary>
+    /// The output-cap parameter name the OpenAI Chat Completions family sends on this preset's
+    /// wire. The native OpenAI adapter takes the SDK's <c>max_completion_tokens</c> for its own
+    /// endpoint; every OpenAI-compatible backend — a compatible preset, or a foreign endpoint
+    /// riding the native adapter (a custom provider) — accepts only the older <c>max_tokens</c>.
+    /// The Anthropic and Google SDKs serialize their family-native fields and never consult this.
+    /// </summary>
+    internal string OpenAiChatMaxOutputParameter(Uri? endpoint) =>
+        Adapter == ProviderAdapter.OpenAi
+            ? endpoint is not null && !ProviderEndpoint.IsOwn(endpoint, this)
+                ? "max_tokens"
+                : "max_completion_tokens"
+            : "max_tokens";
 }

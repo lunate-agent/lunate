@@ -861,6 +861,8 @@ internal sealed partial class InteractiveSession
             wizard,
             _catalog,
             _factory,
+            _auth,
+            _environment,
             () => ResolveWizardCredential(wizard),
             SessionRequestContext(),
             ct
