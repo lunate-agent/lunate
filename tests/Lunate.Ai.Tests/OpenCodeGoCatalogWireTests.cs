@@ -25,7 +25,7 @@ public sealed class OpenCodeGoCatalogWireTests
     }
 
     [Fact]
-    public void Every_go_catalog_entry_names_a_known_chat_family()
+    public void Every_go_catalog_entry_names_a_known_family()
     {
         ModelInfo[] models =
         [
@@ -38,11 +38,16 @@ public sealed class OpenCodeGoCatalogWireTests
             model =>
             {
                 Assert.True(ProviderApiFamilies.IsKnown(model.ApiFamily), model.Id);
-                Assert.NotEqual(ProviderApiFamilies.SystemOne, model.ApiFamily);
+                Assert.True(
+                    model.ApiFamily == ProviderApiFamilies.SystemOne
+                        ? model.Id == "opencode-go/jev-1.13"
+                        : model.ApiFamily != ProviderApiFamilies.SystemOne,
+                    model.Id
+                );
             }
         );
         Assert.Equal(
-            ["anthropic-messages", "google", "openai-chat", "openai-responses"],
+            ["anthropic-messages", "google", "openai-chat", "openai-responses", "systemone"],
             models.Select(model => model.ApiFamily!).Distinct().Order()
         );
     }

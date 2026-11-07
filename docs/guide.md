@@ -496,8 +496,9 @@ the user's allow envelope.
 A **System One** decision profile names the native transport with `apiFamily: systemone` and pins an
 exact catalog version, for example `{"provider": "openrouter", "model":
 "openrouter/typesafe/jev-1.14", "apiFamily": "systemone"}` as `decisions.profile`. Chat usage refuses
-that profile by name; `openrouter` serves Jev 1.14 (box questions with an image) and `opencode` serves
-Jev 1.13 only (no box), through the Console/Zen surface rather than OpenCode Go. Jev Router is an
+that profile by name; `openrouter` serves Jev 1.14 (box questions with an image) and `opencode` and
+`opencode-go` serve Jev 1.13 only (no box); a Go key on the System One surface bills to the
+pay-as-you-go balance, not the Go plan. Jev Router is an
 ordinary chat model: a chat profile points at it like any other OpenRouter model and does not set
 `apiFamily`, so it never takes the decision transport. See
 [`configuration.md`](configuration.md#system-one-decision-profiles) for the presets, alias refusal,

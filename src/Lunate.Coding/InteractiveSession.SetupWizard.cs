@@ -1031,7 +1031,11 @@ internal sealed partial class InteractiveSession
         List<string> values = [];
         foreach (string version in jevVersions)
         {
-            labels.Add($"{version} (native Jev)");
+            labels.Add(
+                wizard.Provider?.Id == "opencode-go"
+                    ? $"{version} (native Jev — billed to your OpenCode pay-as-you-go balance, not the Go plan; no box questions)"
+                    : $"{version} (native Jev)"
+            );
             values.Add(version);
         }
 

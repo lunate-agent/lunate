@@ -151,6 +151,65 @@ public sealed class SetupWizardStepPins
     }
 
     [PosixFact]
+    public async Task Opencode_go_labels_its_jev_line_with_the_pay_as_you_go_billing_notice()
+    {
+        using var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await PickRowAsync(host, "Select provider", "opencode-go — OpenCode Go");
+        await host.WaitForFrameAsync("Credential for opencode-go");
+        host.Console.SendEnter(); // the "enter a key" row
+        await host.WaitForFrameAsync("API key for opencode-go");
+        host.Console.SendText(Credential);
+        host.Console.SendEnter();
+        await SkipConnectionTestAsync(host);
+        await EnterManualModelAsync(host, "any-model");
+        await host.WaitForFrameAsync("Model check");
+        host.Console.SendEnter(); // the default row skips the check
+        await host.WaitForFrameAsync("Profile name");
+        host.Console.SendText("chat-go");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("fast usage");
+        host.Console.SendEnter(); // skip
+
+        await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
+        host.Console.SendUp(); // the skip default sits two rows below the native row
+        await host.WaitForFrameAsync("> adapt the chat model");
+        host.Console.SendUp();
+        await host.WaitForFrameAsync("> opencode-go/jev-1.13 (native Jev");
+        // The picker truncates the long label at the terminal width; pin the billing notice that
+        // fits before the cut (the full sentence lives in the source, not the clipped frame).
+        Assert.Contains(
+            "billed to your OpenCode pay-as-you-go",
+            host.LastFrame,
+            StringComparison.Ordinal
+        );
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Decision check");
+        host.Console.SendEnter(); // the default row skips the check
+        await host.WaitForFrameAsync("Decisions settings");
+        host.Console.SendEnter(); // accept the defaults
+
+        string summary = await host.WaitForScrollbackAsync("confirm these values");
+        Assert.Contains(
+            "decision profile: decisions (native, pinned opencode-go/jev-1.13)",
+            summary,
+            StringComparison.Ordinal
+        );
+
+        host.Console.SendEscape(); // abort at the summary: nothing is written
+        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        host.Console.Complete();
+        await run;
+
+        Assert.False(
+            File.Exists(AuthStore.SettingsFilePath(host.Temp.File("auth.json"))),
+            "an aborted walk writes nothing"
+        );
+    }
+
+    [PosixFact]
     public async Task A_provider_without_systemone_labels_the_decision_profile_adapter()
     {
         using var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);
