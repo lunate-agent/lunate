@@ -1,62 +1,108 @@
 using Lunate.TestSupport;
 
-namespace Lunate.Protocols.Tests;
-
 /// <summary>
-/// #472 — the allow-list scrubber builds the environment of Lunate's managed extension hosts, and
-/// the stdio host is the only one of those spawns that may turn inheritance on. The test greps
-/// Lunate's source the way a reviewer would: every file that touches child-environment plumbing is
-/// one of the two named builders below and neither names a second allow-list, inheritance stays
-/// off, and the SDK's own curated allow-list is not adopted behind our backs.
+/// #472 and the one-builder ruling — Lunate has exactly one file that builds a child environment,
+/// <c>EnvironmentScrubber</c>, with two named policies: <c>Scrubbed</c> for the extension hosts
+/// (minimal base set, no inheritance) and <c>Inherited</c> for the tool child (the caller's
+/// environment minus Lunate's own credentials). The test greps Lunate's source the way a reviewer
+/// would: no other file reads the parent environment into a child set, every spawn site names a
+/// policy at the call, inheritance stays off, and the SDK's own curated allow-list is not adopted
+/// behind our backs.
 /// </summary>
 public sealed class ChildEnvironmentGuardTests
 {
     /// <summary>
-    /// The scrubbed builder: the extension hosts' environment comes out of
-    /// <c>EnvironmentScrubber.Build</c>, minimal base plus declared names, never the parent's
-    /// whole environment.
+    /// The one source file allowed to build a child environment: the shared builder. A new spawn
+    /// site must name a policy and come through it, never grow a builder of its own.
     /// </summary>
-    private const string ScrubbedBuilderFile = "McpServerHost.cs";
+    private const string BuilderFile = "EnvironmentScrubber.cs";
 
-    /// <summary>
-    /// The inherited builder: the tool child. <see cref="ProcessRunRequest"/>'s public contract is
-    /// that withholding an explicit environment leaves the child the parent's environment — the
-    /// bash tool is the user's shell and must see the user's environment (a scrubbed allow-list
-    /// would half-break every user toolchain that keeps state outside the scrubber's base list,
-    /// on every machine). The class comment on <c>ChildProcess.cs</c> names
-    /// <c>EnvironmentScrubber</c> so this file and the guard cannot be decoupled by accident.
-    /// </summary>
-    private const string InheritedBuilderFile = "ChildProcess.cs";
+    /// <summary>What naming a policy looks like at a call site (the formatter may split lines).</summary>
+    private const string PolicyMarker = "ChildEnvironmentPolicy.";
 
     [Fact]
-    public void The_child_environment_builders_are_pinned_and_the_scrubbed_one_names_the_scrubber()
+    public void The_shared_builder_is_the_only_child_environment_builder()
     {
         (string Path, string Content)[] plumbing = CSharpSources()
             .Where(source =>
-                source.Content.Contains("EnvironmentVariables", StringComparison.Ordinal)
+                source.Content.Contains("GetEnvironmentVariables", StringComparison.Ordinal)
             )
             .ToArray();
 
         Assert.NotEmpty(plumbing);
         Assert.Equal(
-            new[] { InheritedBuilderFile, ScrubbedBuilderFile },
+            new[] { BuilderFile },
             plumbing.Select(source => Path.GetFileName(source.Path)).Order().ToArray()
         );
 
-        string scrubbed = plumbing.Single(source =>
-            Path.GetFileName(source.Path) == ScrubbedBuilderFile
-        ).Content;
+        string builder = plumbing[0].Content;
+        Assert.Contains(PolicyMarker + "Scrubbed", builder, StringComparison.Ordinal);
+        Assert.Contains(PolicyMarker + "Inherited", builder, StringComparison.Ordinal);
+    }
 
-        // The formatter may split the call across lines, so match the member path, not the line.
-        Assert.Matches(@"EnvironmentScrubber\s*\.\s*Build", scrubbed);
+    [Fact]
+    public void No_spawn_site_builds_an_environment_itself()
+    {
+        // A file that hands a child an environment must name the policy it wants; whether it builds
+        // one directly or delegates is then visible at the call, and a new spawn site fails here
+        // until it adopts the builder.
+        (string Path, string Content)[] spawnSites = CSharpSources()
+            .Where(source =>
+                source.Content.Contains("EnvironmentScrubber", StringComparison.Ordinal)
+                || source.Content.Contains("InheritEnvironmentVariables", StringComparison.Ordinal)
+                || source.Content.Contains("EnvironmentVariables =", StringComparison.Ordinal)
+                || source.Content.Contains(".Environment.Clear(", StringComparison.Ordinal)
+                || source.Content.Contains(".Environment[", StringComparison.Ordinal)
+            )
+            .ToArray();
 
-        // The inherited builder names the scrubber in its own contract comment, so the boundary
-        // between the two builders survives a refactor that edits either file in isolation.
-        string inherited = plumbing.Single(source =>
-            Path.GetFileName(source.Path) == InheritedBuilderFile
-        ).Content;
-        Assert.Contains("EnvironmentScrubber", inherited, StringComparison.Ordinal);
-        Assert.Contains("inherits the caller's environment", inherited, StringComparison.Ordinal);
+        Assert.NotEmpty(spawnSites);
+        foreach ((string path, string content) in spawnSites)
+        {
+            // One of three honest shapes: the file names the policy itself; it takes the tool
+            // child's environment from the one method that names it
+            // (`ChildProcess.BuildEnvironment`); or it installs a complete set its caller built
+            // (`request.Environment`, required non-null on the session request). Anything else is
+            // a spawn site deciding a child's environment of its own — and the first test already
+            // makes reading the parent environment the builder's alone.
+            bool builtHere =
+                content.Contains(PolicyMarker, StringComparison.Ordinal)
+                || content.Contains("ChildProcess.BuildEnvironment", StringComparison.Ordinal)
+                || content.Contains("request.Environment", StringComparison.Ordinal)
+                || content.Contains("options.Environment", StringComparison.Ordinal);
+            Assert.True(
+                builtHere,
+                $"{Path.GetFileName(path)} hands a child an environment without naming a policy"
+            );
+        }
+    }
+
+    [Fact]
+    public void Every_build_call_names_its_policy()
+    {
+        // The policy is the first argument with no default, so this pins the shape the compiler
+        // already enforces: a call that slips a policy in later would still be caught here.
+        foreach (
+            (string path, string content) in CSharpSources()
+                .Where(source =>
+                    source.Content.Contains("EnvironmentScrubber", StringComparison.Ordinal)
+                )
+        )
+        {
+            foreach (
+                string call in content
+                    .Split("EnvironmentScrubber")
+                    .Skip(1)
+                    .Where(segment => segment.Contains(".Build(", StringComparison.Ordinal))
+            )
+            {
+                int at = call.IndexOf(".Build(", StringComparison.Ordinal) + ".Build(".Length;
+                Assert.True(
+                    call[at..].TrimStart().StartsWith(PolicyMarker, StringComparison.Ordinal),
+                    $"{Path.GetFileName(path)}: EnvironmentScrubber.Build without a named policy"
+                );
+            }
+        }
     }
 
     [Fact]

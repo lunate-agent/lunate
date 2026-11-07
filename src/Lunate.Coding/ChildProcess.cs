@@ -34,51 +34,26 @@ internal abstract class ChildProcess : IDisposable
             : UnixChildProcess.Spawn(request);
 
     /// <summary>
-    /// The child's environment: the caller's replacement when one is given, otherwise the
-    /// caller's own environment, with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on
-    /// top either way.
+    /// The tool child's environment: the builder's <see cref="ChildEnvironmentPolicy.Inherited"/>
+    /// policy — the caller's replacement when one is given, otherwise the caller's own
+    /// environment — with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on top and
+    /// <see cref="CredentialVariables"/> stripped from everything inherited.
     /// </summary>
     /// <remarks>
-    /// The tool child inherits the caller's environment by public contract
-    /// (<c>ProcessRunRequest.Environment</c> replaces when given and carries nothing when null, so
-    /// a null caller asks for the parent's environment; the bash tool is the user's shell and must
-    /// see the user's environment, not a scrubbed base). That is the deliberate second
-    /// child-environment builder: the allow-list scrubber <see cref="EnvironmentScrubber"/>
-    /// builds the extension hosts' environments instead — minimal base plus declared names — and
-    /// <c>ChildEnvironmentGuardTests</c> names both builders so the boundary is a review, not an
-    /// accident.
+    /// The bash tool is the user's shell, so the user's own environment is what it must see. What it
+    /// must not see is a credential Lunate resolved: a model-chosen command reading the user's
+    /// provider key out of the environment is the leak the bash guard's <c>auth.json</c> read-deny
+    /// closes for files. The stripping itself is the builder's (one implementation); this method
+    /// only names the policy and the names. <c>ChildEnvironmentGuardTests</c> pins both.
     /// </remarks>
     internal static IReadOnlyDictionary<string, string> BuildEnvironment(ProcessRunRequest request)
     {
-        var environment = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (request.Environment is null)
-        {
-            foreach (
-                System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables()
-            )
-            {
-                if (entry.Key is string name)
-                {
-                    environment[name] = entry.Value as string ?? string.Empty;
-                }
-            }
-        }
-        else
-        {
-            foreach ((string name, string value) in request.Environment)
-            {
-                environment[name] = value;
-            }
-        }
-
-        if (request.ExtraEnvironment is { } extra)
-        {
-            foreach ((string name, string value) in extra)
-            {
-                environment[name] = value;
-            }
-        }
-
-        return environment;
+        ArgumentNullException.ThrowIfNull(request);
+        return EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            set: request.ExtraEnvironment,
+            strip: CredentialVariables.All,
+            inherited: request.Environment
+        );
     }
 }

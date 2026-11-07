@@ -271,6 +271,7 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
             ? ResolvePath(declared)
             : _options.Directory;
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
             set: runtime.Environment,
             passthrough: runtime.EnvironmentPassthrough
         );

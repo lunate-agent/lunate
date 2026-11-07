@@ -125,7 +125,8 @@ public static class RemoteConformanceRunner
                         options.FileName,
                         options.Arguments,
                         workingDirectory,
-                        options.Environment ?? EnvironmentScrubber.Build(),
+                        options.Environment
+                            ?? EnvironmentScrubber.Build(ChildEnvironmentPolicy.Scrubbed),
                         MaxLineBytes: 16 * 1024 * 1024
                     ),
                     "conformance",

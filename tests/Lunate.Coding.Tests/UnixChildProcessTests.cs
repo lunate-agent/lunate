@@ -79,17 +79,43 @@ public sealed class UnixChildProcessTests
         return string.Empty;
     }
 
-    // Redirected-stdio Windows spawn is pinned by ProcessRunnerTests (the WindowsChildProcess
-    // path); these tests call the POSIX half's `UnixChildProcess.Spawn` directly, and Windows has
-    // no libc to bind.
     private static void SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly()
     {
-        if (!OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows())
         {
-            return;
+            Assert.Skip(
+                "the POSIX spawn pinning is POSIX-only; the Windows path is pinned elsewhere"
+            );
+        }
+    }
+
+    // The test's own writes to the process environment, restored on dispose: the strip reads the
+    // real environment, so the test plants the names it asserts on.
+    private sealed class ProcessEnvironment : IDisposable
+    {
+        private readonly (string Name, string? Value)[] _previous;
+
+        public ProcessEnvironment(params (string Name, string Value)[] variables)
+        {
+            _previous =
+            [
+                .. variables.Select(variable =>
+                    (variable.Name, Environment.GetEnvironmentVariable(variable.Name))
+                ),
+            ];
+            foreach ((string name, string value) in variables)
+            {
+                Environment.SetEnvironmentVariable(name, value);
+            }
         }
 
-        Assert.Skip("the POSIX spawn pinning is POSIX-only; the Windows path is pinned elsewhere");
+        public void Dispose()
+        {
+            foreach ((string name, string? value) in _previous)
+            {
+                Environment.SetEnvironmentVariable(name, value);
+            }
+        }
     }
 
     private static (int Pid, int Pgid, int Ppid, string Tty) IdentityOf(string pidText)
@@ -120,6 +146,69 @@ public sealed class UnixChildProcessTests
 
     private static int HostProcessGroupId() =>
         IdentityOf(Environment.ProcessId.ToString(CultureInfo.InvariantCulture)).Pgid;
+
+    [Fact]
+    public async Task The_tool_child_inherits_the_shell_environment_without_lunate_credentials()
+    {
+        SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
+
+        // The bash tool is the user's shell: a toolchain's own variable and PATH must arrive. What
+        // must not arrive is a credential Lunate resolved — a model-chosen command reading the
+        // user's provider key out of the environment is the leak the guard's auth.json deny closes
+        // for files.
+        using var environment = new ProcessEnvironment(
+            ("LUNATE_TEST_USER_TOOLCHAIN", "kept"),
+            ("OPENAI_API_KEY", "sk-should-not-reach-the-child"),
+            ("GEMINI_API_KEY", "alias-should-not-reach-the-child")
+        );
+        using var temp = new TempDirectory();
+        var request = new ProcessRunRequest(
+            "/bin/bash",
+            [
+                "-c",
+                "printf '%s|%s|%s|%s' \"${LUNATE_TEST_USER_TOOLCHAIN:-missing}\" "
+                    + "\"${PATH:-missing}\" \"${OPENAI_API_KEY:-stripped}\" "
+                    + "\"${GEMINI_API_KEY:-stripped}\"",
+            ],
+            temp.Root
+        );
+        using Lunate.Coding.ChildProcess child = UnixChildProcess.Spawn(request);
+        string stdout = await child.StandardOutput.ReadToEndAsync(
+            TestContext.Current.CancellationToken
+        );
+        int exit = await child.WaitForExitAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, exit);
+        string[] fields = stdout.Split('|');
+        Assert.Equal("kept", fields[0]);
+        Assert.NotEqual("missing", fields[1]);
+        Assert.Equal("stripped", fields[2]);
+        Assert.Equal("stripped", fields[3]);
+    }
+
+    [Fact]
+    public async Task An_unrelated_variable_that_merely_looks_like_a_key_survives()
+    {
+        SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
+
+        // The strip is a name list, not a pattern: a user's own variable beside a credential name
+        // is the user's business and must arrive.
+        using var environment = new ProcessEnvironment(("OPENAI_API_KEY_BACKUP", "user-owned"));
+        using var temp = new TempDirectory();
+        var request = new ProcessRunRequest(
+            "/bin/bash",
+            ["-c", "printf '%s' \"${OPENAI_API_KEY_BACKUP:-missing}\""],
+            temp.Root
+        );
+        using Lunate.Coding.ChildProcess child = UnixChildProcess.Spawn(request);
+        string stdout = await child.StandardOutput.ReadToEndAsync(
+            TestContext.Current.CancellationToken
+        );
+        int exit = await child.WaitForExitAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, exit);
+        Assert.Equal("user-owned", stdout);
+    }
 
     [Fact]
     public async Task The_child_reads_stdin_at_end_of_file()

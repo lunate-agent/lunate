@@ -741,7 +741,7 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
 
 - Servers are configured in `~/.lunate/mcp.json` (command, args, env) and start on first use.
 - A stdio child does not inherit the session environment. It receives exactly the allow-list the
-  child-environment scrubber builds: `PATH` and `PATHEXT` (command resolution); `HOME`
+  shared child-environment builder's `Scrubbed` policy builds: `PATH` and `PATHEXT` (command resolution); `HOME`
   (`USERPROFILE` on Windows); `SystemRoot` and `ComSpec` (Windows process and shell startup);
   `TEMP`, `TMP` and `TMPDIR` (scratch directories); `APPDATA` and `LOCALAPPDATA` (Windows
   application data); and `LANG` (the locale) — each from Lunate's own environment when Lunate has
@@ -749,6 +749,12 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
   declared `env` map, and nothing else. To give a server another variable, declare it in its
   `env`: `"env": {"SERVER_TOKEN": "${SERVER_TOKEN}"}` resolves from Lunate's environment when the
   file loads, so the value is passed explicitly and nothing reaches the child by omission.
+- A tool child (`bash`) is the user's shell, so its environment is the `Inherited` policy: the
+  user's whole environment — an unrelated toolchain's own variables and `PATH` arrive — minus the
+  variables Lunate resolves as provider credentials (each built-in provider's key variable and
+  alias, and each custom provider's `env:` reference). A model-chosen command cannot read the
+  user's provider key out of its environment, the same boundary the bash guard's `auth.json`
+  read-deny draws for files.
 - Their tools arrive from the SDK as Microsoft.Extensions.AI functions and are wrapped as `ITool`s with risk `Execute`, so the approval policy applies. Names are prefixed `server__tool` to avoid collisions.
 - Refresh on tool list changes; cancel calls when a turn is cancelled; time out hanging servers. A crashing server becomes a tool error, never a crash of Lunate.
 - v1 uses stdio servers; remote servers over HTTP follow when needed, using the SDK's transports.

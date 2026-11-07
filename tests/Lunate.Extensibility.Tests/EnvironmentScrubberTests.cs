@@ -35,6 +35,7 @@ public sealed class EnvironmentScrubberTests
     public void Windows_replaces_a_case_differing_name_instead_of_duplicating_it()
     {
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
             read: name => name == "PATH" ? "/usr/bin" : null,
             set: new Dictionary<string, string> { ["Path"] = "over" }
         );
@@ -55,7 +56,10 @@ public sealed class EnvironmentScrubberTests
     [Fact]
     public void The_base_set_is_present_and_nothing_else_inherits()
     {
-        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(Read(Parent));
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
+            Read(Parent)
+        );
 
         Assert.Equal("/usr/bin", environment["PATH"]);
         Assert.Equal(".COM;.EXE;.BAT;.CMD", environment["PATHEXT"]);
@@ -77,6 +81,7 @@ public sealed class EnvironmentScrubberTests
     public void A_passthrough_name_absent_from_the_parent_stays_absent()
     {
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
             Read(Parent),
             passthrough: ["GITHUB_TOKEN", "HOME"]
         );
@@ -89,6 +94,7 @@ public sealed class EnvironmentScrubberTests
     public void An_explicit_value_wins_over_the_parent()
     {
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
             Read(Parent),
             set: new Dictionary<string, string> { ["LANG"] = "de_AT.UTF-8", ["EXTRA"] = "set" }
         );
@@ -101,11 +107,72 @@ public sealed class EnvironmentScrubberTests
     public void Empty_base_values_are_skipped()
     {
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
             Read(new Dictionary<string, string> { ["PATH"] = "", ["LANG"] = "C" })
         );
 
         Assert.DoesNotContain("PATH", environment.Keys);
         Assert.Equal("C", environment["LANG"]);
         Assert.Single(environment);
+    }
+
+    [Fact]
+    public void The_inherited_policy_takes_the_whole_parent_environment()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            inherited: Parent
+        );
+
+        // Everything the parent holds, not the base-set allow-list: the tool child is the user's
+        // shell, so a toolchain's own variable is the user's business.
+        Assert.Equal(Parent.Count, environment.Count);
+        Assert.Equal("sk-secret", environment["ANTHROPIC_API_KEY"]);
+        Assert.Equal("/usr/bin", environment["PATH"]);
+    }
+
+    [Fact]
+    public void The_inherited_policy_removes_every_stripped_name()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            strip: ["ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
+            inherited: Parent
+        );
+
+        Assert.DoesNotContain("ANTHROPIC_API_KEY", environment.Keys);
+        Assert.DoesNotContain("GEMINI_API_KEY", environment.Keys);
+        // The strip is a name list: an unrelated name survives whatever it is called.
+        Assert.Equal("/usr/bin", environment["PATH"]);
+        Assert.Equal("en_US.UTF-8", environment["LANG"]);
+    }
+
+    [Fact]
+    public void A_stripped_name_cannot_be_put_back_by_a_declared_value()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            set: new Dictionary<string, string> { ["ANTHROPIC_API_KEY"] = "re-added" },
+            strip: ["ANTHROPIC_API_KEY"],
+            inherited: Parent
+        );
+
+        // The strip is a deny for the whole child, so no spawn site can re-introduce a credential
+        // by declaring it as an extra value.
+        Assert.DoesNotContain("ANTHROPIC_API_KEY", environment.Keys);
+    }
+
+    [Fact]
+    public void The_scrubbed_policy_ignores_the_strip()
+    {
+        // A strip list is an inherited-policy instrument; the scrubbed policy already cannot carry
+        // a name the caller did not declare.
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
+            Read(Parent),
+            strip: ["PATH"]
+        );
+
+        Assert.Equal("/usr/bin", environment["PATH"]);
     }
 }

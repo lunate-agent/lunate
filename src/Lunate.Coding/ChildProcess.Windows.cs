@@ -41,21 +41,14 @@ internal sealed class WindowsChildProcess : ChildProcess
             startInfo.ArgumentList.Add(argument);
         }
 
-        if (request.Environment is { } environment)
+        // The environment comes out of the shared builder, never from this file (the guard pins
+        // it): Windows starts the child from the parent's block by default, so clearing first is
+        // what makes the built set the child's whole environment — and what keeps Lunate's
+        // resolved credentials out of it.
+        startInfo.Environment.Clear();
+        foreach ((string name, string value) in ChildProcess.BuildEnvironment(request))
         {
-            startInfo.Environment.Clear();
-            foreach ((string name, string value) in environment)
-            {
-                startInfo.Environment[name] = value;
-            }
-        }
-
-        if (request.ExtraEnvironment is { } extra)
-        {
-            foreach ((string name, string value) in extra)
-            {
-                startInfo.Environment[name] = value;
-            }
+            startInfo.Environment[name] = value;
         }
 
         Process process =

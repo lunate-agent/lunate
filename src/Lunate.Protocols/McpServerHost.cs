@@ -182,7 +182,7 @@ public sealed class McpServerHost : IAsyncDisposable
                 Arguments = [.. options.Arguments],
                 WorkingDirectory = options.WorkingDirectory,
                 EnvironmentVariables = EnvironmentScrubber
-                    .Build(set: options.Environment)
+                    .Build(ChildEnvironmentPolicy.Scrubbed, set: options.Environment)
                     .ToDictionary(pair => pair.Key, pair => (string?)pair.Value),
                 InheritEnvironmentVariables = false,
                 ShutdownTimeout = ShutdownTimeout,
