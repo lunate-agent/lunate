@@ -121,15 +121,10 @@ public sealed class AuthSecretContainmentTests
         await WaitForFrameAsync(host, "> " + CustomLabel);
         host.Console.SendEnter();
 
-        await TypeVisibleFieldAsync(host, "Custom provider id", "local");
-        await TypeVisibleFieldAsync(
-            host,
-            "Base URL for the custom provider",
-            "http://localhost:11434/v1"
-        );
-        await TypeVisibleFieldAsync(host, "Model id for the custom provider", "llama3");
-        await WaitForFrameAsync(host, "API key for local");
-        await TypeSecretAsync(host, "API key for local");
+        await TypeFieldAsync(host, "Custom provider id", "local");
+        await TypeFieldAsync(host, "Base URL for the custom provider", "http://localhost:11434/v1");
+        await TypeFieldAsync(host, "Model id for the custom provider", "llama3");
+        await TypeFieldAsync(host, "API key for local", Secret);
         await WaitForFrameAsync(host, "logged in: local");
 
         Assert.Equal(
@@ -182,7 +177,7 @@ public sealed class AuthSecretContainmentTests
         host.Console.SendEnter();
     }
 
-    private static async Task TypeVisibleFieldAsync(
+    private static async Task TypeFieldAsync(
         InteractiveSessionHost host,
         string label,
         string value
@@ -190,7 +185,7 @@ public sealed class AuthSecretContainmentTests
     {
         await WaitForFrameAsync(host, label);
         host.Console.SendText(value);
-        await WaitForFrameAsync(host, label + ": " + value);
+        await WaitForFrameAsync(host, label + ": " + new string('*', value.Length));
         host.Console.SendEnter();
     }
 
