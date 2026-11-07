@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
+using System.Text.Json.Nodes;
 using Lunate.Ai;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Lunate.Coding.Tests;
@@ -38,6 +40,9 @@ public sealed class WizardModelCheckWireTests
             "https://opencode.ai/inference/go/openai/v1/chat/completions",
             request.RequestUri!.AbsoluteUri
         );
+        string body = wire.Bodies[0];
+        Assert.Contains("\"model\":\"kimi-k3\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("opencode-go/kimi-k3", body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -64,6 +69,62 @@ public sealed class WizardModelCheckWireTests
             "s_model-check",
             Assert.Single(request.Headers.GetValues("x-opencode-session"))
         );
+    }
+
+
+    [Fact]
+    public async Task The_model_check_and_the_first_session_request_match_except_for_the_prompt()
+    {
+        using var temp = new TempDirectory();
+        var wire = new CapturedWire();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("models.json"));
+        AuthStore auth = AuthStore.Load(temp.File("auth.json"), _ => null);
+        SetupWizardModel wizard = OpenCodeGoWizard();
+
+        await WizardModelCheck.RunAsync(
+            wizard,
+            catalog,
+            wire.Factory(),
+            auth,
+            _ => null,
+            () => "sk-test",
+            new RequestContext("s_model-check"),
+            TestContext.Current.CancellationToken
+        );
+
+        ResolvedModelProfile profile = ModelProfileResolver.Resolve(
+            new ModelProfile("work", "opencode-go", "opencode-go/kimi-k3", ApiFamily: "openai-chat"),
+            [SetupWizardCommit.StagedEntry(wizard)],
+            catalog
+        );
+        IChatClient session = DecisionUsageModels.CreateUsageClient(
+            profile,
+            auth,
+            _ => null,
+            wire.Factory(),
+            new RequestContext("s_model-check"),
+            credentialOverride: "sk-test"
+        );
+        await session.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "the first session prompt")],
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, wire.Requests.Count);
+        string check = wire.Bodies[0];
+        string first = wire.Bodies[1];
+        Assert.Equal(WithoutPrompt(check), WithoutPrompt(first));
+        Assert.Equal(
+            wire.Requests[0].RequestUri!.AbsoluteUri,
+            wire.Requests[1].RequestUri!.AbsoluteUri
+        );
+    }
+
+    private static string WithoutPrompt(string json)
+    {
+        JsonNode root = JsonNode.Parse(json)!;
+        root["messages"] = null;
+        return root.ToJsonString();
     }
 
     private static SetupWizardModel OpenCodeGoWizard()
@@ -106,8 +167,11 @@ public sealed class WizardModelCheckWireTests
             """;
 
         private readonly List<HttpRequestMessage> _requests = [];
+        private readonly List<string> _bodies = [];
 
         public IReadOnlyList<HttpRequestMessage> Requests => _requests;
+
+        public IReadOnlyList<string> Bodies => _bodies;
 
         public ChatClientFactory Factory()
         {
@@ -115,24 +179,31 @@ public sealed class WizardModelCheckWireTests
                 NullLoggerFactory.Instance,
                 enableOpenTelemetry: false
             );
-            factory.BaseTransportFactory = () => new CaptureHandler(_requests, Response);
+            factory.BaseTransportFactory = () => new CaptureHandler(_requests, _bodies, Response);
             return factory;
         }
 
-        private sealed class CaptureHandler(List<HttpRequestMessage> requests, string response)
-            : HttpMessageHandler
+        private sealed class CaptureHandler(
+            List<HttpRequestMessage> requests,
+            List<string> bodies,
+            string response
+        ) : HttpMessageHandler
         {
-            protected override Task<HttpResponseMessage> SendAsync(
+            protected override async Task<HttpResponseMessage> SendAsync(
                 HttpRequestMessage request,
                 CancellationToken cancellationToken
             )
             {
+                string body = request.Content is null
+                    ? string.Empty
+                    : await request.Content.ReadAsStringAsync(cancellationToken);
                 lock (requests)
                 {
                     requests.Add(request);
+                    bodies.Add(body);
                 }
 
-                return Task.FromResult(
+                return (
                     new HttpResponseMessage(HttpStatusCode.OK)
                     {
                         Content = new StringContent(response, Encoding.UTF8, "application/json"),

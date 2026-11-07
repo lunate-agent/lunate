@@ -296,7 +296,7 @@ internal static class WizardModelCheck
             await client
                 .GetResponseAsync(
                     [new ChatMessage(ChatRole.User, "Reply with OK.")],
-                    new ChatOptions { MaxOutputTokens = 1 },
+                    options: null,
                     ct
                 )
                 .ConfigureAwait(false);

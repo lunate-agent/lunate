@@ -41,6 +41,7 @@ internal sealed class KeyReader : IDisposable
 
             Process();
             ArmEscapeTimer();
+            TraceRaw(bytes);
         }
     }
 
@@ -143,6 +144,24 @@ internal sealed class KeyReader : IDisposable
             _buffer.Clear();
             _onKey(new KeyEvent(KeyKind.Escape, null, false, false, false));
         }
+    }
+
+    private static void TraceRaw(ReadOnlySpan<byte> bytes)
+    {
+        string? path = Environment.GetEnvironmentVariable("LUNATE_INPUT_TRACE");
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        try
+        {
+            File.AppendAllText(
+                path,
+                $"{DateTimeOffset.UtcNow:O} raw {Convert.ToHexString(bytes)}\n"
+            );
+        }
+        catch (IOException) { }
     }
 
     private static string NormalizeNewlines(string text) =>
