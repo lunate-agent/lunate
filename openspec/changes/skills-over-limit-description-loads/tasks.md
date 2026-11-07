@@ -14,4 +14,4 @@
 
 - [x] 3.1 `dotnet build Lunate.slnx -c Release`, `dotnet test tests/Lunate.Coding.Tests -c Release --filter "FullyQualifiedName~SkillScanner|FullyQualifiedName~SkillsPrintMode|FullyQualifiedName~SkillIndex"`, `dotnet csharpier check .`
 - [x] 3.2 `openspec validate skills-over-limit-description-loads --strict` and `bash scripts/check-openspec-skills.sh`
-- [ ] 3.3 PR #641 updated: body current, and one comment answering decision A and check 1 by number with `file:line`/test-name evidence
+- [x] 3.3 PR #641 updated: body current, and one comment answering decision A and check 1 by number with `file:line`/test-name evidence
