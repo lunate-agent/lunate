@@ -59,17 +59,14 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Lunate.Agent.Tests" />
+        <!-- The coding harness ("lunate", Lunate.Coding's assembly) creates its store through
+             SessionProvisioning; its /tree, /fork, /clone and /rewind drive the tree model. The
+             session surface stays internal so this change adds no public API. -->
         <InternalsVisibleTo Include="lunate" />
         <InternalsVisibleTo Include="Lunate.Protocols" />
         <InternalsVisibleTo Include="Lunate.Protocols.Tests" />
-        <!-- The coding harness ("lunate") creates its store through SessionProvisioning. -->
-        <InternalsVisibleTo Include="lunate" />
         <!-- The Coding production-composition proofs validate a session run's event stream. -->
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
-        <!-- The interactive frontend's /tree, /fork, /clone and /rewind drive the tree model; the
-             session surface stays internal so this change adds no public API. Lunate.Coding's
-             assembly is 'lunate'. -->
-        <InternalsVisibleTo Include="lunate" />
     </ItemGroup>
 
     <!--

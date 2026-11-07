@@ -18,15 +18,23 @@ public sealed class InternalsVisibleToInventoryTests
         var duplicates = new List<string>();
 
         string sourceRoot = Path.Combine(RepositoryRoot.Find(), "src");
-        foreach (string projectFile in Directory.EnumerateFiles(sourceRoot, "*.csproj", SearchOption.AllDirectories))
+        foreach (
+            string projectFile in Directory.EnumerateFiles(
+                sourceRoot,
+                "*.csproj",
+                SearchOption.AllDirectories
+            )
+        )
         {
-            foreach (var group in XDocument
-                .Load(projectFile)
-                .Descendants("InternalsVisibleTo")
-                .Select(entry => entry.Attribute("Include")?.Value)
-                .Where(include => !string.IsNullOrWhiteSpace(include))
-                .GroupBy(include => include!, StringComparer.Ordinal)
-                .Where(group => group.Count() > 1))
+            foreach (
+                var group in XDocument
+                    .Load(projectFile)
+                    .Descendants("InternalsVisibleTo")
+                    .Select(entry => entry.Attribute("Include")?.Value)
+                    .Where(include => !string.IsNullOrWhiteSpace(include))
+                    .GroupBy(include => include!, StringComparer.Ordinal)
+                    .Where(group => group.Count() > 1)
+            )
             {
                 duplicates.Add(
                     string.Format(
