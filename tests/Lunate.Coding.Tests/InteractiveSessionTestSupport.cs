@@ -592,7 +592,8 @@ internal sealed class InteractiveSessionHost : IDisposable
         string? hardlinkScanRoot = null,
         IHardlinkScanFileSystem? hardlinkScanFileSystem = null,
         HttpMessageHandler? discoveryTransport = null,
-        bool freshInstall = false
+        bool freshInstall = false,
+        bool unifiedScrollback = false
     )
     {
         _eventObserverSuffix = eventObserverSuffix;
@@ -617,7 +618,10 @@ internal sealed class InteractiveSessionHost : IDisposable
             SuppressSetupWizard = !freshInstall,
             Console = Console,
             Scheduler = Scheduler,
-            Scrollback = Scrollback,
+            // A unified host routes the committed scrollback through the same scripted console the
+            // live frame paints, so a terminal model can see both in one interleaved stream — the
+            // production layout — instead of a separately-captured TestConsole.
+            Scrollback = unifiedScrollback ? null : Scrollback,
             Hooks = hooks,
             ToolResultRenderers = toolResultRenderers,
             StatusWidgets = statusWidgets,
