@@ -100,10 +100,10 @@ public sealed class SkillIndexTests
     }
 
     [Fact]
-    public void Descriptions_are_truncated_at_200_characters()
+    public void A_description_at_the_spec_limit_is_carried_whole()
     {
         using var temp = new TempDirectory();
-        string description = new('x', 1000);
+        string description = new('x', SkillIndex.MaxDescriptionLength);
 
         SkillIndex.Composed index = Compose(
             [Skill(temp, "long", description)],
@@ -116,15 +116,17 @@ public sealed class SkillIndexTests
         int start = index.Text.IndexOf("long: ", StringComparison.Ordinal) + "long: ".Length;
         int end = index.Text.IndexOf(" [", start, StringComparison.Ordinal);
         string carried = index.Text[start..end];
-        Assert.Equal(201, carried.Length);
-        Assert.EndsWith("…", carried, StringComparison.Ordinal);
+        Assert.Equal(SkillIndex.MaxDescriptionLength, carried.Length);
+        Assert.DoesNotContain("…", carried, StringComparison.Ordinal);
     }
 
     [Fact]
     public void A_description_cut_never_splits_a_surrogate_pair()
     {
         using var temp = new TempDirectory();
-        string description = new string('a', 199) + "\U0001F600" + new string('b', 40);
+        // The high surrogate sits exactly at the 1,024th code unit: a naive slice would cut
+        // the pair in half.
+        string description = new string('a', 1_023) + "\U0001F600" + new string('b', 10);
 
         SkillIndex.Composed index = Compose(
             [Skill(temp, "greek", description)],

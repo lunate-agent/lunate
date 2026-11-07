@@ -4,9 +4,10 @@ using Lunate.Agent;
 namespace Lunate.Coding.Tests;
 
 /// <summary>
-/// The index budget: descriptions trim to their first sentence, budgets derive from the model's
-/// context window (soft 2%, hard 5%), a numeric `skills.indexBudget` replaces both, and
-/// `AGENTS.md`-named skills survive the ceiling cut in full.
+/// The index budget: descriptions carry whole to the 1,024-character spec limit (commit
+/// ADR-0032; no sentence trim), budgets derive from the model's context window (soft 2%, hard
+/// 5%), a numeric `skills.indexBudget` replaces both, and `AGENTS.md`-named skills survive the
+/// ceiling cut in full.
 /// </summary>
 public sealed class SkillIndexBudgetTests
 {
@@ -43,15 +44,19 @@ public sealed class SkillIndexBudgetTests
     }
 
     /// <summary>A plain pack whose description has no sentence boundary, so every line runs to cap.</summary>
-    private static List<SkillDescriptor> CappedPack(TempDirectory temp, int count) =>
+    private static List<SkillDescriptor> CappedPack(
+        TempDirectory temp,
+        int count,
+        int length = 1000
+    ) =>
         [
             .. Enumerable
                 .Range(0, count)
-                .Select(index => Skill(temp, $"skill-{index:D3}", new string('d', 1000))),
+                .Select(index => Skill(temp, $"skill-{index:D3}", new string('d', length))),
         ];
 
     [Fact]
-    public void A_description_trims_to_its_first_sentence()
+    public void A_description_is_carried_whole_across_sentences()
     {
         using var temp = new TempDirectory();
 
@@ -63,12 +68,16 @@ public sealed class SkillIndexBudgetTests
             new HashSet<string>(StringComparer.Ordinal)
         );
 
-        Assert.Contains("- greek: Parses Gherkin. [", index.Text, StringComparison.Ordinal);
-        Assert.DoesNotContain("Also renders tables", index.Text, StringComparison.Ordinal);
+        // The "use when ..." tail decides a load: no sentence trim, the description whole.
+        Assert.Contains(
+            "- greek: Parses Gherkin. Also renders tables. Third sentence. [",
+            index.Text,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
-    public void A_sentence_never_truncates_at_an_abbreviation()
+    public void An_abbreviation_never_shortens_the_carried_description()
     {
         using var temp = new TempDirectory();
 
@@ -80,22 +89,21 @@ public sealed class SkillIndexBudgetTests
             new HashSet<string>(StringComparer.Ordinal)
         );
 
-        // `e.g.` is followed by a lowercase letter, so the first sentence runs on.
+        // An abbreviation boundary once read as a sentence end; the carry ignores it.
         Assert.Contains(
-            "- greek: Loads files e.g. references. [",
+            "- greek: Loads files e.g. references. Second sentence. [",
             index.Text,
             StringComparison.Ordinal
         );
-        Assert.DoesNotContain("Second sentence", index.Text, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void A_description_without_a_sentence_boundary_is_still_capped_at_200()
+    public void A_description_beyond_the_spec_limit_is_sliced_at_1024()
     {
         using var temp = new TempDirectory();
 
         SkillIndex.Composed index = SkillIndex.Compose(
-            [Skill(temp, "long", new string('x', 1000))],
+            [Skill(temp, "long", new string('x', 3_000))],
             temp.Root,
             2000,
             SkillIndex.SkillsBudget.FromSettings(new SkillsSettings(), 128_000),
@@ -105,7 +113,7 @@ public sealed class SkillIndexBudgetTests
         int start = index.Text.IndexOf("long: ", StringComparison.Ordinal) + "long: ".Length;
         int end = index.Text.IndexOf(" [", start, StringComparison.Ordinal);
         string carried = index.Text[start..end];
-        Assert.Equal(201, carried.Length);
+        Assert.Equal(SkillIndex.MaxDescriptionLength + 1, carried.Length);
         Assert.EndsWith("…", carried, StringComparison.Ordinal);
     }
 
@@ -163,7 +171,10 @@ public sealed class SkillIndexBudgetTests
     public void A_complete_pack_over_the_soft_threshold_stays_whole_and_notices()
     {
         using var temp = new TempDirectory();
-        List<SkillDescriptor> skills = CappedPack(temp, 4);
+        // A synthetic pack on a deliberately small window: 4 skills with 200-character
+        // descriptions compose to ~280 estimated tokens — above the 200-token soft threshold
+        // (2% of 10,000), below its 500-token hard ceiling.
+        List<SkillDescriptor> skills = CappedPack(temp, 4, 200);
 
         SkillIndex.Composed index = SkillIndex.Compose(
             skills,
@@ -179,6 +190,10 @@ public sealed class SkillIndexBudgetTests
         Assert.True(
             index.EstimatedTokens > 200,
             $"estimated {index.EstimatedTokens} tokens under the 200-token soft threshold"
+        );
+        Assert.True(
+            index.EstimatedTokens <= 500,
+            $"estimated {index.EstimatedTokens} tokens over the 500-token ceiling"
         );
         string? notice = SkillIndex.SoftNotice(index);
         Assert.NotNull(notice);

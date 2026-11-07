@@ -67,4 +67,45 @@ public sealed class SkillCatalogTests
         Assert.Equal(valid, catalog.Index.IndexedCount);
         Assert.Empty(catalog.Index.NotIndexed);
     }
+
+    [Fact]
+    public void The_real_pack_indexes_whole_with_no_notice_on_a_128k_window()
+    {
+        string repository = Lunate.TestSupport.RepositoryRoot.Find();
+        SkillCatalog catalog = SkillCatalog.Discover(
+            new SkillScanRequest(
+                repository,
+                repository,
+                Path.Combine(Path.GetTempPath(), "lunate-repro-631"),
+                []
+            )
+        );
+        catalog.SetProjectTrusted(true);
+        catalog.BuildIndex(
+            repository,
+            2000,
+            SkillIndex.SkillsBudget.FromSettings(new SkillsSettings(), 128_000),
+            new HashSet<string>(StringComparer.Ordinal),
+            null
+        );
+
+        // The pack the issue measured against: full index, budget-quiet on the default window.
+        foreach (
+            SkillDescriptor skill in catalog.Skills.Where(skill =>
+                skill is { Valid: true, CommandOnly: false, Untrusted: false }
+            )
+        )
+        {
+            Assert.Contains(
+                $"- {skill.Name}: {skill.Description} [",
+                catalog.Index.Text,
+                StringComparison.Ordinal
+            );
+        }
+
+        Assert.Empty(catalog.Index.NotIndexed);
+        Assert.Equal(0, catalog.Index.OverflowCount);
+        Assert.Null(SkillIndex.SoftNotice(catalog.Index));
+        Assert.Null(SkillIndex.HardCeilingWarning(catalog.Index));
+    }
 }
