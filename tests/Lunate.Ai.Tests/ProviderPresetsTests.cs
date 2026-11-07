@@ -85,6 +85,7 @@ public sealed class ProviderPresetsTests
                 ProviderAdapter.OpenAiCompatible,
                 new Uri("https://opencode.ai/inference/go/openai/v1"),
                 "OPENCODE_API_KEY",
+                KeyVariableAlias: "OPENCODE_GO_API_KEY",
                 BaseUrls: new Dictionary<ProviderApiFamily, Uri>
                 {
                     [ProviderApiFamily.OpenAiChat] = new(
