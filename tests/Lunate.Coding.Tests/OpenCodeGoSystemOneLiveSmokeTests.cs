@@ -8,7 +8,7 @@ namespace Lunate.Coding.Tests;
 
 /// <summary>
 /// Live smoke for the <c>opencode-go</c> preset's pinned System One model, gated by
-/// <c>LUNATE_LIVE=1</c> plus <c>OPENCODE_API_KEY</c> (the preset's key variable). Without the gate
+/// <c>LUNATE_LIVE=1</c> plus <c>OPENCODE_GO_API_KEY</c> (or the preset's legacy alias <c>OPENCODE_API_KEY</c>). Without the gate
 /// the test is skipped and never touches the network. The request and the model both resolve
 /// through the real preset and decision-usage seams — <see cref="ProviderPresets.Find"/>,
 /// the embedded <see cref="ModelCatalog"/>, <see cref="DecisionUsageModels"/> and
@@ -17,13 +17,15 @@ namespace Lunate.Coding.Tests;
 public sealed class OpenCodeGoSystemOneLiveSmokeTests
 {
     private const string LiveVariable = "LUNATE_LIVE";
-    private const string OpenCodeApiKeyVariable = "OPENCODE_API_KEY";
+    private const string OpenCodeApiKeyVariable = "OPENCODE_GO_API_KEY";
+    private const string OpenCodeLegacyApiKeyVariable = "OPENCODE_API_KEY";
 
     [Fact]
     public async Task Opencode_go_systemone_resolves_native_and_returns_a_usable_noul()
     {
         Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
-        string? key = Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable);
+        string? key = Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable)
+            ?? Environment.GetEnvironmentVariable(OpenCodeLegacyApiKeyVariable);
         Assert.SkipWhen(string.IsNullOrWhiteSpace(key), $"{OpenCodeApiKeyVariable} is not set.");
 
         // The preset resolution: the pinned model and the family URL/headers come from the preset
@@ -46,7 +48,7 @@ public sealed class OpenCodeGoSystemOneLiveSmokeTests
                 "opencode-go",
                 "opencode-go",
                 preset.BaseUrl,
-                "env:OPENCODE_API_KEY",
+                "env:OPENCODE_GO_API_KEY",
                 headers: null,
                 region: null,
                 out ProviderEntry? provider,
