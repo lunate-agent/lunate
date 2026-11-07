@@ -6,8 +6,8 @@ namespace Lunate.Coding;
 
 /// <summary>
 /// The <c>skills</c> prompt section: a lead line naming the read tool plus one line per
-/// model-visible skill (<c>- name: description [path]</c>, descriptions trimmed to the first
-/// sentence and truncated at 200 characters, overflow names at 400, never splitting a surrogate
+/// model-visible skill (<c>- name: description [path]</c>, the description whole up to the Agent
+/// Skills spec limit of 1024 characters, overflow names at 400, never splitting a surrogate
 /// pair). Order is project, then user, then extension, each group by name; extension lines
 /// are enforced per extension first (over-budget lines drop and log), then the resolved hard
 /// ceiling cuts strictly from the end and appends a names-only footer the model can act on —
@@ -16,7 +16,11 @@ namespace Lunate.Coding;
 /// </summary>
 internal static class SkillIndex
 {
-    internal const int MaxDescriptionLength = 200;
+    /// <summary>
+    /// The Agent Skills specification's limit for a description. The index carries the description
+    /// whole up to it: the description is the trigger the model matches a task against.
+    /// </summary>
+    internal const int MaxDescriptionLength = 1024;
     internal const int MaxOverflowNamesLength = 400;
     internal const string LeadLine =
         "Skills — load a skill's full SKILL.md with the read tool before using it:";
@@ -244,49 +248,15 @@ internal static class SkillIndex
     private static string Line(SkillDescriptor skill, string worktreeRoot) =>
         $"- {skill.Name}: {TruncateDescription(skill.Description)} [{SkillPaths.Display(skill.SkillFile, worktreeRoot)}]";
 
-    private static string TruncateDescription(string description)
-    {
-        string trimmed = FirstSentence(description);
-        return trimmed.Length <= MaxDescriptionLength
-            ? trimmed
-            : SafeSlice(trimmed, MaxDescriptionLength) + "…";
-    }
-
     /// <summary>
-    /// The description's first sentence: a <c>.</c>, <c>!</c> or <c>?</c> followed by whitespace
-    /// and an uppercase letter (or the end of the text) ends it; an abbreviation like
-    /// <c>e.g.</c> keeps running because its next word is lowercase. Text without a boundary is
-    /// returned whole — the per-skill cap then applies.
+    /// The description whole, up to the Agent Skills spec limit. It is the trigger the model matches
+    /// a task against, so it is carried in full: the "use when …" part is often the second
+    /// sentence, and cutting at the first one hid exactly the text that decides a load.
     /// </summary>
-    internal static string FirstSentence(string description)
-    {
-        for (int index = 0; index < description.Length; index++)
-        {
-            char current = description[index];
-            if (current is not ('.' or '!' or '?'))
-            {
-                continue;
-            }
-
-            if (index + 1 >= description.Length)
-            {
-                return description;
-            }
-
-            int letter = index + 1;
-            while (letter < description.Length && char.IsWhiteSpace(description[letter]))
-            {
-                letter++;
-            }
-
-            if (letter >= description.Length || char.IsUpper(description[letter]))
-            {
-                return description[..(index + 1)];
-            }
-        }
-
-        return description;
-    }
+    private static string TruncateDescription(string description) =>
+        description.Length <= MaxDescriptionLength
+            ? description
+            : SafeSlice(description, MaxDescriptionLength) + "…";
 
     /// <summary>
     /// Slices to <paramref name="length"/> UTF-16 code units, dropping a trailing high surrogate so
