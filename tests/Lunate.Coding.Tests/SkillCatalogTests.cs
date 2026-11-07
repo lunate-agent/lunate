@@ -33,4 +33,27 @@ public sealed class SkillCatalogTests
         string view = SkillsView.Text(catalog.Skills);
         Assert.Contains("(project, not indexed)", view, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void The_repositorys_project_skills_are_all_indexed_with_their_descriptions()
+    {
+        string repository = Lunate.TestSupport.RepositoryRoot.Find();
+        SkillCatalog catalog = SkillCatalog.Discover(
+            new SkillScanRequest(
+                repository,
+                repository,
+                Path.Combine(Path.GetTempPath(), "lunate-repro-631"),
+                []
+            )
+        );
+        catalog.SetProjectTrusted(true);
+        catalog.BuildIndex(repository, 2000, null);
+
+        int valid = catalog
+            .Skills.Count(skill =>
+                skill is { Valid: true, CommandOnly: false, Untrusted: false }
+            );
+        Assert.Equal(valid, catalog.Index.IndexedCount);
+        Assert.Empty(catalog.Index.NotIndexed);
+    }
 }
