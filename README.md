@@ -102,8 +102,8 @@ Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
   session, no project and no SDK on your `PATH` ([reference](docs/extensions/single-file.md)).
 - **Extensions as packages** — `lunate install <id>@<version>` with an uninstall record that names
   exactly what was written ([reference](docs/extensions/packages.md)).
-- **Out-of-process extensions** — an extension for a language C# does not need to be
-  ([wire reference](docs/extensions-remote.md)).
+- **Out-of-process extensions** — an extension can be its own process speaking JSON-RPC over stdio,
+  with a checked-in wire schema ([reference](docs/extensions-remote.md)).
 - **MCP client** — the servers you already run; Lunate withholds its own credentials from their
   child processes ([usage](docs/usage.md#mcp-servers)).
 - **Agent Skills** — `SKILL.md` directories, project or user scope
