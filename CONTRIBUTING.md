@@ -118,6 +118,12 @@ The OpenSpec lifecycle skills and the companion skills live together in `.agents
 source, read by every harness (OpenCode, Pi, Lunate itself). There is no `.opencode/skills` copy; the
 `.opencode/` directory holds only the OpenCode subagents.
 
+In an OpenCode session the OpenSpec workflows are invoked as **skills** (`openspec-propose`,
+`openspec-continue-change`, `openspec-apply-change`, `openspec-verify-change`, `openspec-sync-specs`,
+`openspec-archive-change`, …), discovered from `.agents/skills/`. The `/opsx:*` slash commands are
+gone: they were generated into `.opencode/commands/`, which this change removes so OpenSpec stops
+re-creating an OpenCode copy of the skills.
+
 Regenerate the lifecycle skills after upgrading the OpenSpec CLI or changing the workflow profile:
 
 ```bash
