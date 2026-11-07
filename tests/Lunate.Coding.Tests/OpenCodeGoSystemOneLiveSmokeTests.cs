@@ -24,7 +24,8 @@ public sealed class OpenCodeGoSystemOneLiveSmokeTests
     public async Task Opencode_go_systemone_resolves_native_and_returns_a_usable_noul()
     {
         Assert.SkipUnless(LiveRequested(), $"Live contracts require {LiveVariable}=1.");
-        string? key = Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable)
+        string? key =
+            Environment.GetEnvironmentVariable(OpenCodeApiKeyVariable)
             ?? Environment.GetEnvironmentVariable(OpenCodeLegacyApiKeyVariable);
         Assert.SkipWhen(string.IsNullOrWhiteSpace(key), $"{OpenCodeApiKeyVariable} is not set.");
 

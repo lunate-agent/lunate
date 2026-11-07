@@ -353,7 +353,7 @@ A repo script SHALL regenerate `src/Lunate.Ai/models.json` through the same C# m
 
 ### Requirement: Provider presets and routing
 
-Lunate SHALL provide presets for `openai`, `anthropic`, `openrouter`, `deepseek`, `moonshotai`, `zai`, `opencode`, `opencode-go`, `groq`, `togetherai`, `xai` and `google`, defined in one embedded `providers.json`. A preset SHALL declare one base URL per API family it offers (at minimum its default family), an optional models/discovery URL, optional headers, and a key variable. `openai` and `anthropic` SHALL keep their native adapters for their default families; every other preset SHALL route each model through the adapter of that model's API family (see Provider API families). The provider call SHALL use `wireId` when present and the catalog id otherwise. A model with an explicit endpoint SHALL keep that endpoint, and a user-declared endpoint SHALL keep the placeholder-credential rule. An unknown provider SHALL fail with an actionable error listing the preset ids.
+Lunate SHALL provide presets for `openai`, `anthropic`, `openrouter`, `deepseek`, `moonshotai`, `zai`, `opencode`, `opencode-go`, `groq`, `togetherai`, `xai` and `google`, defined in one embedded `providers.json`. A preset SHALL declare one base URL per API family it offers (at minimum its default family), an optional models/discovery URL, optional headers, and a key variable. `openai` and `anthropic` SHALL keep their native adapters for their default families; every other preset SHALL route each model through the adapter of that model's API family (see Provider API families). The provider call SHALL use `wireId` when present and the catalog id otherwise. A model with an explicit endpoint SHALL keep that endpoint, and a user-declared endpoint SHALL keep the placeholder-credential rule. An unknown provider SHALL fail with an actionable error listing the preset ids. The `opencode-go` preset SHALL additionally expose the `systemone` family at the OpenCode System One surface, keep the `x-opencode-session` header on every family, send the System One image header on the `systemone` family, and accept `OPENCODE_GO_API_KEY` as the alias of its key variable.
 
 For a preset whose base URL is the provider's own endpoint, the credential SHALL resolve from the preset's environment variable first, then the auth store under the provider name, unless the model declares an `auth` reference, which wins. The Google preset SHALL accept `GOOGLE_API_KEY` and `GEMINI_API_KEY`.
 
@@ -404,6 +404,12 @@ For a preset whose base URL is the provider's own endpoint, the credential SHALL
 - **GIVEN** a discovered model whose metadata names `messages` and a base URL on the provider's host
 - **WHEN** the catalog entry is created
 - **THEN** its family resolves to `anthropic-messages` and its endpoint is the discovered base URL
+
+#### Scenario: OpenCode Go serves System One
+
+- **GIVEN** the `opencode-go` preset and a catalog entry `opencode-go/jev-1.13` with `wireId` `jev-1.13` and `apiFamily` `systemone`
+- **WHEN** the factory builds the client for a decision request
+- **THEN** the call goes to the OpenCode System One surface with the session header and the image header, the credential resolves through `OPENCODE_GO_API_KEY` or `OPENCODE_API_KEY`, and the wire id is `jev-1.13`
 
 ### Requirement: Model id namespace
 
