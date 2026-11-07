@@ -93,9 +93,10 @@ presets declare it:
 - `openrouter` — `baseUrls.systemone` is `https://openrouter.ai/api/v1/systemone` and serves
   `typesafe/jev-1.14`, including box questions with an image.
 - `opencode` — `baseUrls.systemone` is `https://opencode.ai/inference/systemone/v1/systemone` and
-  serves `jev-1.13` only. It is the Console/Zen System One surface, not OpenCode Go: a Go key is
-  accepted there and bills to the pay-as-you-go balance. Image and box questions need the family
-  header `TypeSafe-Danger-Zone-Images: true`, which the preset sends.
+  serves `jev-1.13` only. It is the Console/Zen System One surface; `opencode-go` declares the same
+  family on the same URL, and a Go key is accepted there but bills to the pay-as-you-go balance,
+  not the Go plan. `jev-1.13` does not support box questions. Image questions need the family
+  header `TypeSafe-Danger-Zone-Images: true`, which both presets send.
 
 A decision profile must name an exact version. An alias — an id starting with `~` or ending in
 `latest` — is refused with the exact version the catalog records for it, because a provider upgrade
@@ -104,7 +105,8 @@ use `decisions.profile` for decisions and an ordinary chat profile for chat.
 
 Decision profiles resolve credentials exactly like chat profiles. For a provider entry whose
 `credentialReference` is `auth:<key>`, the provider kind's environment variable — `OPENROUTER_API_KEY`
-for an `openrouter` entry, `OPENCODE_API_KEY` for an `opencode` one, and so on — wins over the key
+for an `openrouter` entry, `OPENCODE_API_KEY` (`OPENCODE_GO_API_KEY` works as the alias) for an
+`opencode` one, and so on — wins over the key
 stored under `<key>`, on the native System One transport and on an adapter alike. An
 `env:<VARIABLE>` reference reads only that variable and refuses when it is unset. This precedence is
 deliberate: an exported key in a CI environment replaces a stale stored key without editing

@@ -85,6 +85,7 @@ public sealed class ProviderPresetsTests
                 ProviderAdapter.OpenAiCompatible,
                 new Uri("https://opencode.ai/inference/go/openai/v1"),
                 "OPENCODE_API_KEY",
+                KeyVariableAlias: "OPENCODE_GO_API_KEY",
                 BaseUrls: new Dictionary<ProviderApiFamily, Uri>
                 {
                     [ProviderApiFamily.OpenAiChat] = new(
@@ -99,9 +100,13 @@ public sealed class ProviderPresetsTests
                     [ProviderApiFamily.Google] = new(
                         "https://opencode.ai/inference/go/google/v1beta"
                     ),
+                    [ProviderApiFamily.SystemOne] = new(
+                        "https://opencode.ai/inference/systemone/v1/systemone"
+                    ),
                 },
                 ModelsUrl: new Uri("https://opencode.ai/inference/go/v1/models"),
-                Headers: new Dictionary<string, string> { ["x-opencode-session"] = "{session.id}" }
+                Headers: new Dictionary<string, string> { ["x-opencode-session"] = "{session.id}" },
+                FamilyHeaders: SystemOneImageHeaders()
             ),
             new(
                 "groq",
@@ -182,7 +187,7 @@ public sealed class ProviderPresetsTests
     }
 
     [Fact]
-    public void Opencode_go_declares_all_four_families_and_the_discovery_url()
+    public void Opencode_go_declares_all_chat_families_the_systemone_wire_and_the_discovery_url()
     {
         ProviderPreset preset = ProviderPresets.Find("opencode-go")!;
 
@@ -192,6 +197,7 @@ public sealed class ProviderPresetsTests
                 ProviderApiFamily.OpenAiResponses,
                 ProviderApiFamily.AnthropicMessages,
                 ProviderApiFamily.Google,
+                ProviderApiFamily.SystemOne,
             ],
             preset.Families
         );
@@ -206,6 +212,10 @@ public sealed class ProviderPresetsTests
         Assert.Equal(
             new Uri("https://opencode.ai/inference/go/google/v1beta"),
             preset.UrlFor(ProviderApiFamily.Google)
+        );
+        Assert.Equal(
+            new Uri("https://opencode.ai/inference/systemone/v1/systemone"),
+            preset.UrlFor(ProviderApiFamily.SystemOne)
         );
         Assert.Equal(new Uri("https://opencode.ai/inference/go/v1/models"), preset.ModelsUrl);
     }
