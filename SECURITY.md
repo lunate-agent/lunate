@@ -32,6 +32,17 @@ directory by accident ([ADR-0016](adr/0016-workspace-boundary.md)). This is a gu
 isolation boundary: `bash` is intentionally not boundary-checked — the approval policy is its guard
 — and time-of-check/time-of-use races are accepted.
 
+**The OS-level guard.** Beyond the approval policy, `bash` is not path-confined, but on macOS and
+Linux it runs under an OS-level guard ([ADR-0024](adr/0024-bash-guard.md)) that refuses writes under
+the state root (`~/.lunate`, `LUNATE_HOME`) and the install prefix and read-denies `auth.json` —
+`sandbox-exec` on macOS, bubblewrap on Linux with `setpriv`'s Landlock rules as the fallback, so Lunate
+guards its own state at the OS level. When the mechanism cannot start (for example Ubuntu
+23.10+'s AppArmor restriction), the command still runs with a visible notice and the result says
+so. Windows has no mechanism yet and reports it rather than running unconfined silently.
+That does not make it a sandbox: the guard does not stop a reachable Docker socket, a
+pre-existing hardlink into the state root, or anything inside the workspace. `bashGuard: false`
+turns it off, and the header and tool results name that state.
+
 **Repository-provided code.** A project extension, a project `mcp.json` file, each server it defines
 and a project skill are code from the repository, so each asks once per repository before it runs
 and asks again when its content changes. Answers live in `~/.lunate/trust.json`, per user and

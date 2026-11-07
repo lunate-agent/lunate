@@ -278,6 +278,26 @@ legacy single-endpoint setup. Its endpoint is migrated into the named provider s
 remains in `auth.json`; new multi-provider setups should use `providers.json` and a profile in
 `settings.json`. The model can then be selected in `/model` by its qualified provider/model id.
 
+## Your own model catalog
+
+`~/.lunate/models.json` is your catalog of model entries; a user entry overrides a built-in one with
+the same id, and adding a model never needs a code change. An entry carries `id`, `provider`
+(`openai` for any OpenAI-compatible endpoint, `anthropic`), optional `endpoint`, `contextWindow`,
+`supportsTools` and an `auth` reference naming a key in `lunate auth login`'s `auth.json`. An
+optional `reasoning` declares the model's reasoning style:
+
+- `effort` — OpenAI-compatible reasoning effort.
+- `budget` — Anthropic extended thinking.
+- `inline` — the model embeds thinking markers in its text stream.
+
+Absent means no reasoning support. A profile in `settings.json` may narrow this further per use
+with `reasoningLevel` and `reasoningBudget`; every profile key is in the generated
+[configuration reference](configuration.md).
+
+For an endpoint that is not in the catalog at all, `lunate --discover <name-or-url>` prints a
+`models.json`-shaped draft of the model's entry to stdout — you review it and copy it into the file;
+nothing is written for you.
+
 ## Where the credential lives
 
 Stored keys live in `~/.lunate/auth.json` under `keys`, schema 1, with owner-only permissions where

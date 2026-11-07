@@ -35,6 +35,28 @@ metadata (licence, readme, repository) inside the `.nupkg` itself, formats (CSha
 `dotnet format style` / `dotnet format analyzers`), lints the Markdown and diffs the public API. A
 change is not done until it is green — on the CI matrix, all three operating systems count.
 
+Prerequisite: the [.NET 10 SDK](https://dotnet.microsoft.com/download), pinned in
+[`global.json`](global.json) at 10.0.402 — exactly, as above. Running the built binary on a
+machine with no tool installed yet:
+
+```bash
+src/Lunate.Coding/bin/Release/net10.0/lunate --version   # lunate.exe on Windows
+```
+
+The release archives are self-contained single files; publish one the same way (Windows: `win-x64`,
+and the binary is `lunate.exe`):
+
+```bash
+dotnet publish src/Lunate.Coding/Lunate.Coding.csproj -c Release -r osx-arm64 \
+  --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true \
+  -o artifacts/publish/osx-arm64
+artifacts/publish/osx-arm64/lunate
+```
+
+To install your built tool locally instead of publishing it, pack it and install from that feed:
+`dotnet pack src/Lunate.Coding -c Release`, then `dotnet tool install --global --add-source
+<path-to-the-nupkg> lunate`.
+
 A docs-only or proposal-only pull request runs `bash scripts/verify.sh --profile docs` instead:
 markdownlint, `openspec validate --all --strict`, `scripts/docs-sync --check` and
 `scripts/no-docs-references.sh` (which fails if anything under `docs/` becomes a build input or a

@@ -18,6 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The version region is derived from the release tags, which a shallow checkout
+          # does not carry; fetch them so the check below can never pass vacuously.
+          fetch-tags: true
 
       # docs-sync --check runs in the docs profile only, so a prose-only pull request that
       # stales a generated region failed no PR gate until the tag: v0.2.0-rc.1 shipped a stale
