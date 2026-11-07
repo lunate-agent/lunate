@@ -464,13 +464,12 @@ internal static partial class SkillScanner
             }
 
             // The Agent Skills specification limits a description at 1,024 characters. Over it the
-            // skill is invalid — the spec limit is validation, never a silent cut — because a
-            // description missing its head or tail is no longer the trigger the model matches a
-            // task against.
+            // skill still loads: the description is operational metadata, not a load gate, and the
+            // index carries its first 1,024 characters. The limit is a soft warning, never a cap.
             if (reason is null && frontmatter.Description!.Length > SkillIndex.MaxDescriptionLength)
             {
-                reason = FormattableString.Invariant(
-                    $"description is {frontmatter.Description.Length:N0} characters, over the Agent Skills limit of 1,024 characters"
+                warnings.Add(
+                    $"skills: {frontmatter.Name} description exceeds the 1024-char spec limit; truncated in the index"
                 );
             }
 
