@@ -134,6 +134,8 @@ internal static partial class SetupCommand
                         wizard,
                         catalog,
                         factory,
+                        auth,
+                        environment.Resolve,
                         () => ResolveCredential(wizard.Credential, auth, environment.Resolve),
                         context: null,
                         ct

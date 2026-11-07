@@ -265,7 +265,15 @@ public sealed class ChatClientFactory : IChatClientFactory
         DelegatingHandler credentialHandler,
         string wireId
     ) =>
-        CreateOpenAiClient(model, preset, headersHandler, credentialHandler)
+        CreateOpenAiClient(
+                model,
+                preset,
+                headersHandler,
+                credentialHandler,
+                bodyHandler: preset.OpenAiChatMaxOutputParameter(model.Endpoint) == "max_tokens"
+                    ? new MaxOutputTokensParameterHandler("max_tokens")
+                    : null
+            )
             .GetChatClient(wireId)
             .AsIChatClient();
 
@@ -435,7 +443,8 @@ public sealed class ChatClientFactory : IChatClientFactory
         ProviderPreset? preset,
         DelegatingHandler? headersHandler,
         DelegatingHandler? credentialHandler,
-        ProviderApiFamily? family = null
+        ProviderApiFamily? family = null,
+        DelegatingHandler? bodyHandler = null
     )
     {
         // The SDK holds the sentinel only: the credential handler places the real value on the
@@ -448,7 +457,8 @@ public sealed class ChatClientFactory : IChatClientFactory
                 headersHandler,
                 credentialHandler,
                 BaseTransportFactory,
-                family
+                family,
+                bodyHandler
             )
         );
     }
@@ -471,7 +481,8 @@ public sealed class ChatClientFactory : IChatClientFactory
         DelegatingHandler? headersHandler,
         DelegatingHandler? credentialHandler,
         Func<HttpMessageHandler>? baseTransport,
-        ProviderApiFamily? family = null
+        ProviderApiFamily? family = null,
+        DelegatingHandler? bodyHandler = null
     )
     {
         OpenAIClientOptions options = new() { RetryPolicy = new ClientRetryPolicy(maxRetries: 0) };
@@ -495,7 +506,7 @@ public sealed class ChatClientFactory : IChatClientFactory
         if (headersHandler is not null && credentialHandler is not null)
         {
             options.Transport = new HttpClientPipelineTransport(
-                TransportHttpClient(headersHandler, credentialHandler, baseTransport)
+                TransportHttpClient(headersHandler, credentialHandler, baseTransport, bodyHandler)
             );
         }
 
@@ -510,10 +521,21 @@ public sealed class ChatClientFactory : IChatClientFactory
     private static HttpClient TransportHttpClient(
         DelegatingHandler outer,
         DelegatingHandler inner,
-        Func<HttpMessageHandler>? baseTransport
+        Func<HttpMessageHandler>? baseTransport,
+        DelegatingHandler? innermost = null
     )
     {
-        inner.InnerHandler = baseTransport?.Invoke() ?? new HttpClientHandler();
+        HttpMessageHandler tail = baseTransport?.Invoke() ?? new HttpClientHandler();
+        if (innermost is not null)
+        {
+            innermost.InnerHandler = tail;
+            inner.InnerHandler = innermost;
+        }
+        else
+        {
+            inner.InnerHandler = tail;
+        }
+
         outer.InnerHandler = inner;
         return new HttpClient(outer) { Timeout = Timeout.InfiniteTimeSpan };
     }

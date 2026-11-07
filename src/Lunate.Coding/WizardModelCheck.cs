@@ -58,7 +58,7 @@ internal static class WizardModelCheck
                 ApiFamily = choice.ApiFamily,
                 CredentialPlacement = null,
                 ProviderHeaders = null,
-                WireId = choice.ModelId,
+                WireId = known.WireId,
             };
         }
 
@@ -236,24 +236,76 @@ internal static class WizardModelCheck
         SetupWizardModel wizard,
         ModelCatalog catalog,
         IChatClientFactory factory,
+        AuthStore auth,
+        Func<string, string?> environment,
         Func<string?> resolveCredential,
         RequestContext? context,
         CancellationToken ct
     )
     {
         WizardModelChoice choice = wizard.Model!;
-        ModelInfo checkModel = ModelFor(wizard, choice, catalog);
+        WizardProviderChoice provider = wizard.Provider!;
+        ProviderEntry entry = SetupWizardCommit.StagedEntry(wizard);
         string? credential = resolveCredential();
         RequestContext identity = context ?? RequestContext.Ephemeral();
         try
         {
-            IChatClient client = credential is { Length: > 0 }
-                ? factory.Create(checkModel, credential, identity)
-                : factory.Create(checkModel, identity);
+            // The check resolves the staged profile through the same provider entry and family
+            // path the first session uses. A custom provider's model is not in the built-in
+            // catalog, so its ModelFor result supplies the endpoint and wire id; a preset model
+            // goes through ModelProfileResolver, which keeps the catalog's unqualified wire id.
+            ResolvedModelProfile profile;
+            ModelInfo? known = catalog.Find(choice.ModelId);
+            if (
+                provider.Custom
+                || known is null
+                || !string.Equals(known.Provider, entry.Kind, StringComparison.Ordinal)
+            )
+            {
+                // A custom endpoint, a model discovery listed but the catalog does not know, or a
+                // qualified id the catalog resolves to a different provider has no catalog entry
+                // the resolver can validate for this provider. ModelFor supplies the staged
+                // endpoint/family/wire id; the provider entry still comes from the commit.
+                ModelInfo stagedModel = ModelFor(wizard, choice, catalog);
+                profile = new ResolvedModelProfile(
+                    new ModelProfile(
+                        "setup-check",
+                        provider.Id,
+                        choice.ModelId,
+                        ApiFamily: choice.ApiFamily
+                    ),
+                    entry,
+                    stagedModel,
+                    stagedModel.ContextWindow,
+                    stagedModel.Capabilities ?? new ModelCapabilityDescriptor()
+                );
+            }
+            else
+            {
+                profile = ModelProfileResolver.Resolve(
+                    new ModelProfile(
+                        "setup-check",
+                        provider.Id,
+                        choice.ModelId,
+                        ApiFamily: choice.ApiFamily
+                    ),
+                    [entry],
+                    catalog
+                );
+            }
+
+            IChatClient client = DecisionUsageModels.CreateUsageClient(
+                profile,
+                auth,
+                environment,
+                factory,
+                identity,
+                credentialOverride: credential
+            );
             await client
                 .GetResponseAsync(
                     [new ChatMessage(ChatRole.User, "Reply with OK.")],
-                    new ChatOptions { MaxOutputTokens = 1 },
+                    new ChatOptions { MaxOutputTokens = 16 },
                     ct
                 )
                 .ConfigureAwait(false);
