@@ -80,5 +80,5 @@ status.
 ## See also
 
 - MCP tools in the core: [`docs/spec/extensibility.md`](../../spec/extensibility.md#services-for-long-lived-integrations)
-- Configuring MCP servers outside extensions: [`README.md`](../../../README.md#mcp-servers)
+- Configuring MCP servers outside extensions: [`usage.md`](../../../docs/usage.md#mcp-servers)
 - Out-of-process extensions: [remote extensions](../../extensions-remote.md)

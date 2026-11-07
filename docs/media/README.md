@@ -23,15 +23,15 @@ captured from an rc build rather than the older feature-set build.
 | Path | Shown by | Tape |
 | --- | --- | --- |
 | `demo.gif` | the README hero | [`tapes/demo.tape`](tapes/demo.tape) |
-| `features/input.gif` | `README.md` — input box and autocomplete | [`tapes/features-input.tape`](tapes/features-input.tape) |
-| `features/turns.gif` | `README.md` — two turns, user echo, tool block | [`tapes/features-turns.tape`](tapes/features-turns.tape) |
-| `features/narrow.gif` | `README.md` — 40-column frame | [`tapes/features-narrow.tape`](tapes/features-narrow.tape) |
-| `features/approval.gif` | `README.md` — the approval panel | [`tapes/features-approval.tape`](tapes/features-approval.tape) |
-| `features/tools.gif` | `README.md` — tool blocks and `Ctrl+O` | [`tapes/features-tools.tape`](tapes/features-tools.tape) |
-| `features/diagnostics.gif` | `README.md` — `cs_diagnostics` after an edit | [`tapes/features-diagnostics.tape`](tapes/features-diagnostics.tape) |
-| `features/trust.gif` | `README.md` — the extension trust prompt | [`tapes/features-trust.tape`](tapes/features-trust.tape) |
-| `features/extensions.gif` | `README.md` — `/extensions` in a session | [`tapes/features-extensions.tape`](tapes/features-extensions.tape) |
-| `features/thinking.gif` | `README.md` — reasoning streaming | [`tapes/features-thinking.tape`](tapes/features-thinking.tape) |
+| `features/input.gif` | [`usage.md`](../usage.md) — input box and autocomplete | [`tapes/features-input.tape`](tapes/features-input.tape) |
+| `features/turns.gif` | [`usage.md`](../usage.md) — two turns, user echo, tool block | [`tapes/features-turns.tape`](tapes/features-turns.tape) |
+| `features/narrow.gif` | [`usage.md`](../usage.md) — 40-column frame | [`tapes/features-narrow.tape`](tapes/features-narrow.tape) |
+| `features/approval.gif` | [`usage.md`](../usage.md) — the approval panel | [`tapes/features-approval.tape`](tapes/features-approval.tape) |
+| `features/tools.gif` | [`usage.md`](../usage.md) — tool blocks and `Ctrl+O` | [`tapes/features-tools.tape`](tapes/features-tools.tape) |
+| `features/diagnostics.gif` | [`usage.md`](../usage.md) — `cs_diagnostics` after an edit | [`tapes/features-diagnostics.tape`](tapes/features-diagnostics.tape) |
+| `features/trust.gif` | [`usage.md`](../usage.md) — the extension trust prompt | [`tapes/features-trust.tape`](tapes/features-trust.tape) |
+| `features/extensions.gif` | [`usage.md`](../usage.md) — `/extensions` in a session | [`tapes/features-extensions.tape`](tapes/features-extensions.tape) |
+| `features/thinking.gif` | [`usage.md`](../usage.md) — reasoning streaming | [`tapes/features-thinking.tape`](tapes/features-thinking.tape) |
 | `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](tapes/features-bash.tape) |
 | `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](tapes/features-follow-up.tape) |
 | `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) |

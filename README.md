@@ -7,6 +7,10 @@
 
 **Small, native, yours: a coding agent you can customise in C#.**
 
+Lunate is a native coding agent for the terminal that .NET developers can make their own —
+extended in C# from a single file to a NuGet package, with the deepest C# understanding of any
+agent and at home in polyglot repositories.
+
 [![CI](https://github.com/wdaniel1993/lunate/actions/workflows/ci.yml/badge.svg)](https://github.com/wdaniel1993/lunate/actions/workflows/ci.yml)
 [![Release](https://github.com/wdaniel1993/lunate/actions/workflows/release.yml/badge.svg)](https://github.com/wdaniel1993/lunate/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -15,405 +19,99 @@
 
 ## Why Lunate
 
-- **Lightweight.** A release is one self-contained binary — no Node, no Python, no .NET runtime to
-  install — and `lunate --version` starts in tens of milliseconds. CI holds the startup median to
-  250 ms on Ubuntu, 300 ms on macOS and 350 ms on Windows ([ADR-0005](adr/0005-budget-calibration.md)).
-- **Made for C#.** Roslyn semantic tools with no plugin and no language server to install:
-  `cs_diagnostics`, `cs_find_symbol`, `cs_find_references`, `cs_outline` and `cs_rename`, offered
-  only in a C# workspace and loaded on first use. On the published head-to-head C# suite Lunate
-  finished 6/6 at **~5× fewer tokens** than the heavy harnesses on the same tasks — 78k against
-  378k and 451k — and the write-up is candid about what that suite does and does not show
-  ([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
-- **Yours, in the language it is written in.** Extensions load at runtime and add tools
-  (`context.RegisterTool(...)`), hook handlers, terminal UI renderers and widgets, MCP servers,
-  model providers and skills. Start from [`templates/extension/`](templates/extension/README.md) —
-  or from **one `.cs` file**: a header declares its tools and the NuGet packages it needs, you
-  approve it once, and it compiles and goes live in the running session. The contract is
-  [`docs/spec/extensibility.md`](docs/spec/extensibility.md).
-- **Open protocols.** An MCP client for servers you already run, an ACP server so an editor such as
-  Zed or JetBrains drives it, Agent Skills (`SKILL.md`) and `AGENTS.md` for project rules.
-- **Guarded by the OS, not only by a prompt.** On macOS and Linux every bash command runs under an
-  OS-level deny for the agent's own state: writes under `~/.lunate` and the install prefix are
-  refused and `auth.json` is read-denied, through `sandbox-exec` on macOS and bubblewrap (or
-  Landlock) on Linux ([ADR-0024](adr/0024-bash-guard.md)). Windows has no cheap mechanism and says
-  so in the tool result instead of running unconfined silently.
-- **A daily driver.** Every write and command asks first — edits show you their diff — repository
-  code asks once per repository before it runs, sessions resume, and print mode (`lunate -p`,
-  `--json`) scripts the whole thing for CI.
+- **Native and lightweight.** One self-contained binary per platform — no Node, no Python, no .NET
+  runtime to install — and `lunate --version` starts in tens of milliseconds. CI holds the startup
+  median to 250 ms on Ubuntu, 300 ms on macOS and 350 ms on Windows ([ADR-0005](adr/0005-budget-calibration.md)).
+- **Understands C#.** Roslyn semantics with no plugin and no language server to install:
+  `cs_diagnostics`, `cs_find_symbol`, `cs_find_references`, `cs_outline`, `cs_rename` — the
+  diagnostics tool is a compile check after an edit, and an edit is verified against the compiler,
+  not the model's guess. On the published head-to-head C# suite Lunate finished 6/6 at **~5× fewer
+  tokens** than the heavy harnesses on the same tasks; the write-up is candid about what that suite
+  shows ([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
+- **Yours to extend in C#.** Start from **one `.cs` file** — a header declares its tools and the
+  NuGet packages it needs, you approve it once, and it compiles into the running session — and grow
+  it into a NuGet package you install by id ([`docs/extensions/`](docs/extensions/README.md) owns the
+  contract). The open protocols are there when you want them: an MCP client, an ACP server, Agent
+  Skills and `AGENTS.md` project rules.
+- **Safe by default.** Every write and command asks first, with the edit's diff on screen;
+  repository-provided code asks once per repository and again when it changes; and on macOS and
+  Linux `bash` runs under an OS-level guard for Lunate's own state. Lunate says plainly that this
+  is not a sandbox ([`SECURITY.md`](SECURITY.md)).
 
-## Install
+## Get started
 
-The current stable release is `0.2.0`; `0.1.0` was the first.
+**1. Install.**
 
-macOS (arm64) and Linux (x64), through Homebrew:
+<!-- docs-sync: version -->
+The current stable release is [**0.2.1**](https://github.com/wdaniel1993/lunate/releases/tag/v0.2.1).
+<!-- /docs-sync: version -->
 
 ```bash
-brew tap wdaniel1993/tap
-brew install lunate
-```
-
-Any platform, through the installer:
-
-```bash
-# macOS arm64, Linux x64
+# macOS (arm64) and Linux (x64)
 curl -fsSL https://raw.githubusercontent.com/wdaniel1993/lunate/main/install.sh | sh
 ```
 
 ```powershell
-# Windows x64
+# Windows (x64)
 irm https://raw.githubusercontent.com/wdaniel1993/lunate/main/install.ps1 -OutFile install.ps1
 ./install.ps1
 ```
 
-Or as a .NET tool:
-
-```bash
-dotnet tool install --global lunate
-```
-
-Scoop carries the same build; winget follows once its manifest is accepted. Then `lunate --version`,
-and `lunate` inside a repository. The first prompt needs a credential:
-[`docs/first-run.md`](docs/first-run.md) walks through the CLI, the first-run picker and local
-OpenAI-compatible endpoints.
-
-One extension is published with the tool — an officially supported one, not a sample:
-
-```bash
-lunate install Lunate.Extensions.Subagents
-lunate packages --verify
-```
-
-Prerequisite: the [.NET 10 SDK](https://dotnet.microsoft.com/download), pinned in
-[`global.json`](global.json) at 10.0.402.
-
-```bash
-git clone https://github.com/wdaniel1993/lunate
-cd lunate
-dotnet tool restore                      # CSharpier, pinned as a local tool
-dotnet build lunate.slnx -c Release
-src/Lunate.Coding/bin/Release/net10.0/lunate --version   # lunate.exe on Windows
-```
-
-The release archives are self-contained single files; publish one the same way (Windows: `win-x64`,
-and the binary is `lunate.exe`):
-
-```bash
-dotnet publish src/Lunate.Coding/Lunate.Coding.csproj -c Release -r osx-arm64 \
-  --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true \
-  -o artifacts/publish/osx-arm64
-artifacts/publish/osx-arm64/lunate
-```
-
-Contributor setup — the gate, the repository map and the OpenSpec workflow — is in
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Quick start
-
-**1. Complete the setup wizard.** Run `lunate` in a repository. On a fresh install it opens the
-setup wizard: provider, credential, connection test, model, model check, chat profile, the optional
-fast/decision profiles, the decisions layer, and a summary. Nothing is written until you confirm
-the summary, and `Esc` leaves without changing anything. Re-run it later with `/setup`; on a
-configured install that opens the entry menu (add a provider, add a profile, change the chat
-profile, edit decisions, walk everything).
-
-For a script or CI, use the same answers without a TTY:
-
-```bash
-printf '%s\n' "$ANTHROPIC_API_KEY" |
-  lunate setup --provider anthropic --credential env:ANTHROPIC_API_KEY \
-    --model claude-sonnet-5-5 --profile chat-main
-```
-
-The manual JSON/key path still works: put the profile in `~/.lunate/settings.json` and store the key
-with `lunate auth login anthropic`. The prompt is masked; `lunate auth login` with no provider lists
-every preset. [`docs/first-run.md`](docs/first-run.md) covers the wizard, `lunate setup`, `/setup`,
-custom OpenAI-compatible endpoints and the environment-variable override. A model with a declared
-`endpoint` — a local server or any OpenAI-compatible API — needs no key at all;
-`lunate --discover <name-or-url>` drafts a catalog entry for one.
-
-**2. Run it in a repository.**
-
-```bash
-cd ~/my-project
-lunate                                            # the interactive session, on a terminal
-lunate -p "summarise what changed on this branch" # print mode: the final answer on stdout
-lunate -p --json "..."                            # every event as one JSON line
-```
-
-Without a terminal the interactive session exits with a hint to print mode instead of starting
-half-broken.
-
-**3. Learn three keys.** `/help` lists the commands, `/model` picks a model or switches to one by
-id, and `/quit` leaves. The rest of the built-ins: `/new`, `/resume`, `/compact`, `/context`,
-`/copy`, `/export`, `/mcp`, `/extensions`, `/skills`, `/skill:<name>` and `/trust`.
-
-If nothing resolves a model or a key, the first run prints exactly one fix, for example
-`set 'model' in ~/.lunate/settings.json` or `run /auth to configure a provider`.
-
-## Features
-
-### Type, complete, send
-
-The input is a box: a rule above it at every width, a second rule below from 60 columns, the `>`
-marker and the `Ask anything, / for commands` placeholder in the theme's user colour while it is
-empty, and a box that grows with the draft to eight lines before it scrolls. Typing `/` opens the
-autocomplete list — the built-in commands, `/skill:<name>` and each loaded extension's commands,
-with descriptions — and `@` lists matching workspace files from the lazy file index. Both lists
-cap at eight rows above the input.
-
-| Key | At the prompt |
-| --- | --- |
-| `/` | list commands, skills and extension commands |
-| `@` | list workspace files |
-| `↑` / `↓` | move the autocomplete selection; history when the list is closed |
-| `Tab` / `Enter` | accept the selected item; Enter sends when the token is already exact |
-| `Esc` | close the list first, otherwise cancel the running turn |
-| `Alt+Enter` / `Ctrl+J` | insert a newline |
-
-![The input box, the slash-command list and the file list](docs/media/features/input.gif)
-
-### Every turn opens with your message
-
-The submitted prompt commits to the scrollback as the first block of its turn — the `>` prompt in
-the theme's user colour, wrapped continuation lines indented two spaces, one blank line after — so the
-question stays visible above the answer. While the turn runs, the activity line names the work
-(`⠹ thinking… 3s`, `⠸ read src/Foo.cs · 4s`, `| working… 7s`), with the run's `↑in ↓out` deltas and
-`esc to interrupt` on the wide bands; below 60 columns it keeps the spinner, the label and the
-elapsed seconds.
-
-![Two turns with the user echo, the tool block and the activity line](docs/media/features/turns.gif)
-
-### It fits a narrow terminal
-
-Below 60 columns the layout switches to its compact band: tool headers drop the argument summary
-(`✓ read · 13 lines`), the footer shrinks to the model and the context percent, the input box keeps
-both rules, and the autocomplete list keeps only the names. The full
-layout returns from 100 columns; the guide's
-[Narrow terminals](docs/guide.md#terminal-ui-lunatetui) section has the per-band rules.
-
-![A committed turn, the input box and the slash-command list at 40 columns](docs/media/features/narrow.gif)
-
-### Edits you approve, with the diff
-
-Writes and commands stop at a panel: a warning headline naming the tool and what it will do, a
-bounded detail block with the command or the edit's diff, and
-`Allow edit?  [y]es  [n]o  [a]lways this session`. Below 60 columns the detail shortens first and
-every choice stays on screen. The result names the match tier it used (`exact`, `normalized` or
-`indent`), and an ambiguous edit is refused instead of guessed.
-
-![The approval panel showing an edit's diff and its choices](docs/media/features/approval.gif)
-
-### Tool calls commit as one line
-
-A finished call collapses to one header line — `✓ read  src/Foo.cs (1-13)`,
-`✗ bash  dotnet test · exit 1 · 12s`, `✓ edit  src/Foo.cs · +3 −0` (ASCII `+`/`x` without Unicode) —
-with a per-tool excerpt and the diff for `edit`/`write` under it. What the excerpt elides is one
-`ctrl+o` away: the full-screen transcript viewer shows every block with its complete output and
-diff, scrolls with the arrows and PageUp/PageDown, and closes on `q` or `Esc`.
-
-![Compact tool blocks and the Ctrl+O transcript viewer](docs/media/features/tools.gif)
-
-### C# the compiler agrees with
-
-In a C# workspace the model can ask `cs_diagnostics` for compiler errors and warnings — a compile
-check after an edit without a full `dotnet build` — and navigate by symbol with `cs_find_symbol`,
-`cs_find_references` and `cs_outline`. Roslyn loads on the first C# tool call, and restore, SDK and
-partial-load problems come back as messages the model can act on.
-
-![Running cs_diagnostics after an edit](docs/media/features/diagnostics.gif)
-
-### Repository code asks once
-
-A project extension, a project `mcp.json` server and a project skill are code from the repository,
-so each asks once per repository — and again when its files change:
-`Load project extension 'acme-tools' 0.3.0 from /repo/.lunate/extensions/acme-tools?  [y]es  [n]o`.
-Answers are recorded in `~/.lunate/trust.json`; `lunate trust` inspects and records them for
-scripted runs.
-
-![The trust prompt for a project extension](docs/media/features/trust.gif)
-
-### You can see what is loaded
-
-`/extensions` lists every discovered extension with its scope, state, load time and what it
-registered; `/mcp` lists the MCP servers with their status and source. `lunate extensions --json`
-prints the same data for scripts.
-
-![The /extensions listing in a session](docs/media/features/extensions.gif)
-
-### You can watch it think
-
-With a reasoning model, `/thinking low|medium|high` (or `thinking` in `settings.json`) turns
-reasoning on: it streams live in the live area in its own colour and collapses to a single
-`✦ thought for Ns` line when the model is done. `thinkingFull` commits the full text instead.
-
-![Reasoning streaming and collapsing to a thought line](docs/media/features/thinking.gif)
-
-### Take the answer with you
-
-`/copy` (or `Ctrl+X`) puts the last answer on the clipboard without selecting a wrapped line by
-hand, and it works where the session runs: over ssh it writes the OSC 52 sequence — a local
-`pbcopy` there would fill a clipboard you cannot see — and locally it runs the platform tool first,
-falling back to the same sequence. The notice says only what happened:
-`copied 1,842 characters via pbcopy` when a tool proved the write,
-`sent 1,842 characters to the terminal clipboard (OSC 52)` when it did not, with tmux's
-`set-clipboard on` requirement and the terminal's 100 KB payload limit named in the same line.
-
-`/export html` writes one self-contained document — inline CSS, no JavaScript, a
-`default-src 'none'` CSP, thinking collapsed in `<details>` — that is safe to open even when a tool
-result carried hostile markup. `/export jsonl` writes the session file byte for byte. Both default
-to `~/.lunate/exports/<date>-<name>.<ext>` (never the current directory, where an export would be
-committed), refuse an existing file without `--force`, redact every credential Lunate knows as
-`[redacted:<name>]`, and print the absolute path plus a reminder that the file may contain file
-contents and command output. [`docs/spec/export.md`](docs/spec/export.md) owns the full contract.
-
-### A second model can decide when it is worth it
-
-`decisions` in `settings.json` names one profile and opts into any of four consumers: approvals
-(`off`, `shadow`, `enforce`, with a threshold for how sure a deny must be), routing (`off`, `shadow`,
-`enforce` over two or more profiles), the information-only decide tool, and display-only suggestions
-beside a question's top option. A decision can only tighten an approval, never grant one; without a
-profile the layer stays off. The same gate runs in the TUI, print mode and ACP, and the
-[configuration reference](docs/configuration.md) lists every key.
-
-### Fork a session without losing the tail
-
-`/fork` writes a new session file that continues the current one under a new id; `/clone` starts a
-copy from an earlier turn. A fork carries the session's images and redacts what the source redacted,
-so it resumes instead of failing on the first request.
-
-### Long sessions keep their place
-
-When a tool result would flood the window, the text is spilled to a file and the model sees a short
-stub it can page back through; observation masking trims old turns without losing the transcript.
-`/context` reports what each saved: `saved tokens: spills 0, masking 0, read stubs 0`.
-
-## Configuration
-
-Everything of yours lives under `~/.lunate/`, and nothing there is required: without a settings file
-you get the defaults below.
-
-### Models and providers
-
-- `~/.lunate/settings.json` — `model` names the default model id. `profiles` declares named
-  provider/model pairs and `usages` maps a use (`chat`, `subagents`) to one; a project
-  `.lunate/settings.json` may reference a provider but never define a credential, and may define its
-  own profiles.
-- `~/.lunate/models.json` — your own catalog entries: `id`, `provider` (`openai` for any
-  OpenAI-compatible endpoint, `anthropic`), optional `endpoint`, `contextWindow`, `supportsTools`
-  and an `auth` reference naming a key in `auth.json`. An entry overrides a built-in one with the
-  same id; `lunate --discover <name-or-url>` drafts one from a live endpoint. An optional
-  `reasoning` declares the model's reasoning style — `effort` (OpenAI-compatible reasoning
-  effort), `budget` (Anthropic extended thinking) or `inline` (the model embeds thinking
-  markers in its text stream); absent means no reasoning support.
-- `~/.lunate/auth.json` — named API keys under `keys`, written by `lunate auth login`; every
-  preset's environment variable (for example `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`; Google also
-  accepts `GEMINI_API_KEY`) overrides its stored entry.
-  [`docs/first-run.md`](docs/first-run.md) owns the onboarding path.
-
-### Settings
-
-`~/.lunate/settings.json` carries `schemaVersion: 2`. An unknown key or a bad value is one error
-naming every problem, and nothing partial is applied. The generated
-[settings reference](docs/configuration.md) lists every key with its type, default, scope and
-allowed values, and names the environment-variable override each key accepts (from
-`LUNATE_MODEL` and `LUNATE_APPROVAL` through `LUNATE_TOOL_OUTPUT_LIMIT`, `LUNATE_SUBAGENTS_*` and
-`LUNATE_EXTRA_TOOLS`). The reference is rendered from the settings schema the store is pinned to,
-so it cannot list a key the parser refuses. `yolo` is not a setting: it exists only as the per-run
-flag `lunate -p --yolo`.
-
-The interactive session checks GitHub Releases at most once a day, in the background after the
-welcome header, and names a newer release as one dim linked line: `v0.2.0 available · changelog`.
-The answer is cached under `~/.lunate/update-check.json` and reused for 24 hours without a request.
-There is no telemetry: the only header sent is `User-Agent: lunate/<version>`. Turn it off with
-`updateCheck: false` or `LUNATE_UPDATE_CHECK=0`; `--offline`, print mode, ACP and CI never check.
-
-The welcome header names the running build: `lunate v0.2.0+1b045e5`. The seven characters after `+` are the commit
-it was built from, so two installs can be told apart without running `lunate --version`; a working-tree build
-with no commit metadata shows the plain version.
-
-**Recording and replay.** `LUNATE_RECORD=1` records a run's model stream to a session recording
-(`LUNATE_RECORD_PATH` names the file), `LUNATE_REPLAY=<file>` runs a session from that recording
-instead of calling a provider, and `LUNATE_DATE=yyyy-MM-dd` pins the date the system prompt is built
-with so a replayed request stays byte-stable. Recording wins when both are set.
-
-### Project instructions
-
-Every `AGENTS.md` from the repository root down to the directory you started Lunate in is appended
-to the system prompt under its relative path — the nearest file adds to the chain rather than
-replacing it. There is no Lunate-specific instructions file.
-
-### MCP servers
-
-`mcpServers` maps in the user files `~/.lunate/mcp.json` and `~/.agents/mcp.json`, and in the
-project files `.lunate/mcp.json`, `.agents/mcp.json` and `.mcp.json`. An entry carries `command`,
-`args`, `env`, optional `cwd` and optional `callTimeoutSeconds`; `${VAR}` and `${VAR:-default}`
-expand when the file loads. Within a scope `.lunate/` wins over `.agents/` wins over `.mcp.json`,
-and a project file wins over a user file. Servers start on first use, their tools arrive as
-`server__tool`, and a project file and each of its servers needs its own trust decision.
-
-A stdio server is a child process and inherits Lunate's environment, so existing MCP setups keep
-working — with one exception: the credentials Lunate itself knows are withheld from that child.
-The provider keys the model presets and the provider store reference, the keys in `auth.json`,
-the extension secrets and the `env` values the configured entries set are removed from the child's
-environment (the variables are gone, not emptied), unless the server's own `env` map names the
-variable explicitly; `${VAR}` in a declared value still resolves from Lunate's environment.
-
-Lunate can also be the server: `lunate mcp roslyn` serves the five read-only `cs_*` C# tools over
-stdio to another MCP host, with no approvals or write path behind them.
-[`docs/mcp-roslyn.md`](docs/mcp-roslyn.md) covers the configuration and what it leaves out by design.
-
-### Extensions
-
-A directory with an `extension.json` manifest in `~/.lunate/extensions/` (global) or
-`.lunate/extensions/` (project) is discovered at session start and loaded on first use. Per-extension
-settings go in `~/.lunate/extensions-settings/<id>.json` and secrets in
-`~/.lunate/extensions-secrets/`. `lunate --no-extensions` starts any mode without loading them.
-
-One `.cs` file is an extension too. A header at the top of the file — `#:extension acme-tools@1.0.0`,
-`#:tool fetch_issue`, `#:package Octokit@14.0.0` — declares what it provides and what it needs, and
-Lunate restores and compiles it itself: no project, no manifest beside it, no SDK on your `PATH`.
-You approve the file once, and the header is inside the bytes that decision covers.
-`/extensions reload <id>` builds it and swaps it into the running session, so a tool the model just
-wrote is callable in the same session; a changed file stops at the trust question and keeps the build
-that was already answering.
-
-An extension can also run out of process: a manifest that declares `runtime` instead of
-`entryAssembly` starts a child that speaks newline-delimited JSON-RPC 2.0 over stdio, with a checked-in
-schema generated from the host's own DTOs. [`docs/extensions-remote.md`](docs/extensions-remote.md)
-owns the manifest, the wire and the conformance runner.
-
-The declared packages resolve into your NuGet cache and the build is cached by content, so the cost
-stays local: measured on this machine (macOS, arm64, .NET 10.0.13), a one-package extension's cache
-entry is 13,525 bytes, the compiler contract the published binary carries costs 1,407,648 bytes
-(1.34 MiB) of its size, the .NET reference assemblies are restored once on the first compile (about
-49 MiB, shared with your SDK), and startup stays at a 60 ms median against its 150 ms budget.
-[`docs/extensions/single-file.md`](docs/extensions/single-file.md) is the authoring reference.
-
-When an extension outgrows one file, publish it as a NuGet package and install it by id:
-`lunate install acme-tools@1.2.0`. Its dependencies are resolved by the same walk a single-file
-header uses, its content lands in the same `extensions/` directory, and a record says exactly what
-was written so `lunate uninstall` can take back exactly that. `--project` puts the content in
-`.lunate/extensions/` for the repository to commit and keeps the record local to your machine. An
-installed extension is pending until you approve it, in either scope, and the question names the
-package it came from. The reference extension ships this way — `lunate install
-Lunate.Extensions.Subagents` installs the subagent tool described above. [`docs/extensions/packages.md`](docs/extensions/packages.md) is the reference.
-
-### Skills
-
-A skill is a directory with a `SKILL.md`. Project scope: `.lunate/skills`, `.agents/skills`,
-`.claude/skills`; user scope: `~/.lunate/skills`, `~/.agents/skills`. The nearest scope wins.
-`/skills` lists them, `/skill:<name>` loads one, and the model gets a capped index of the rest.
-Project skills need a trust decision like any other repository code.
-
-## Modes
-
-- **Interactive** — `lunate`: the TUI session with approvals, the live area and command history
-  ([`openspec/specs/tui/spec.md`](openspec/specs/tui/spec.md)).
-- **Print** — `lunate -p [--json] [--yolo] "<prompt>"`: one prompt to completion, the final answer as
-  the only thing on stdout, diagnostics on stderr, exit codes that scripts can branch on
-  ([`openspec/specs/print-mode/spec.md`](openspec/specs/print-mode/spec.md)).
-- **ACP** — `lunate --acp`: serves the Agent Client Protocol over stdio for an editor, with nothing
-  but protocol on stdout ([`openspec/specs/protocols/spec.md`](openspec/specs/protocols/spec.md)).
+Or through Homebrew (`brew tap wdaniel1993/tap`, `brew install lunate`), Scoop, or as a .NET tool
+(`dotnet tool install --global lunate`). Winget follows once its manifest is accepted.
+
+**2. Run `lunate` in a repository.** On a fresh install the first prompt opens the setup wizard: it
+walks provider, credential, connection test, model, chat profile and an optional decisions layer,
+and writes nothing until you confirm the summary — `Esc` leaves without changing anything.
+
+![The setup wizard walking provider, credential, connection test, model check and summary](docs/media/setup-wizard.gif)
+
+**3. Give it a task.** `/help` lists the built-in commands, `/model` switches the model, `Esc`
+interrupts the running turn, `/quit` leaves. For a script or CI, `lunate -p "summarise what changed
+on this branch"` prints one prompt's final answer and `--json` emits every event as one JSON line.
+
+Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
+[Customize](docs/configuration.md) · [Automate](openspec/specs/print-mode/spec.md)
+
+## What it can do
+
+- **Approvals with diffs** — writes and commands stop at a panel that shows what will happen; the
+  [details](docs/usage.md#edits-you-approve-with-the-diff).
+- **Full transcripts** — finished tool calls commit as one line; `ctrl+o` opens every block with
+  its whole output and diff ([usage](docs/usage.md#tool-calls-commit-as-one-line)).
+- **Narrow terminals** — one layout that keeps every choice on screen down to 40 columns
+  ([usage](docs/usage.md#it-fits-a-narrow-terminal)).
+- **C# tools** — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` with no
+  plugin to install ([usage](docs/usage.md#c-the-compiler-agrees-with)); `lunate mcp roslyn` serves
+  the read-only versions to any MCP host ([`docs/mcp-roslyn.md`](docs/mcp-roslyn.md)).
+- **Reasoning you can watch** — `/thinking low|medium|high` streams live and collapses to one line
+  ([usage](docs/usage.md#you-can-watch-it-think)).
+- **A second model for approvals and routing** — a decision layer that can only tighten an approval,
+  never grant one ([usage](docs/usage.md#a-second-model-can-decide-when-it-is-worth-it)).
+- **Copy and export** — `/copy` works over ssh via OSC 52; `/export html` writes a hardened,
+  credential-redacted document, `/export jsonl` the session file
+  ([contract](docs/spec/export.md)).
+- **Sessions that fork** — `/fork` continues under a new id, `/clone` restarts from an earlier
+  turn ([usage](docs/usage.md#fork-a-session-without-losing-the-tail)).
+- **Long sessions** — tool results spill to a file and old turns are masked without losing the
+  transcript ([usage](docs/usage.md#long-sessions-keep-their-place)).
+- **Trust for repository code** — project extensions, MCP servers and skills ask once per
+  repository, recorded in `trust.json` for scripted runs
+  ([usage](docs/usage.md#repository-code-asks-once)).
+- **Extensions in C#** — one `.cs` file at a time: approve it once and it compiles into the running
+  session, no project and no SDK on your `PATH` ([reference](docs/extensions/single-file.md)).
+- **Extensions as packages** — `lunate install <id>@<version>` with an uninstall record that names
+  exactly what was written ([reference](docs/extensions/packages.md)).
+- **Out-of-process extensions** — an extension for a language C# does not need to be
+  ([wire reference](docs/extensions-remote.md)).
+- **MCP client** — the servers you already run; Lunate withholds its own credentials from their
+  child processes ([usage](docs/usage.md#mcp-servers)).
+- **Agent Skills** — `SKILL.md` directories, project or user scope
+  ([usage](docs/usage.md#skills)).
+- **`AGENTS.md`** — project rules from the root down to the launch directory, appended under their
+  relative path ([usage](docs/usage.md#project-instructions)).
+- **Update check** — one GitHub Releases check a day, no telemetry, `updateCheck: false` to stop
+  ([configuration](docs/configuration.md)).
 
 ## Extending
 
@@ -448,24 +146,18 @@ sources register the same way.
 
 ## Security model
 
-Lunate is a single-user tool, not a sandbox. The file tools (`read`, `write`, `edit`) resolve paths
-canonically — symlinks included — and refuse anything outside the working directory. `bash` is not
-path-confined, but on macOS and Linux it runs under an OS-level guard ([ADR-0024](adr/0024-bash-guard.md))
-that refuses writes under the state root (`~/.lunate`, `LUNATE_HOME`) and the install prefix and
-read-denies `auth.json` — `sandbox-exec` on macOS, bubblewrap on Linux with `setpriv`'s Landlock
-rules as the fallback. When the mechanism cannot start (for example Ubuntu 23.10+'s AppArmor
-restriction), the command still runs with a visible notice and the result says so. The guard does not
-stop a reachable Docker socket, a pre-existing hardlink into the state root, or anything inside the
-workspace; `bashGuard: false` turns it off, and the header and tool results name that state. Windows
-has no mechanism yet and reports it rather than running unconfined silently.
+Lunate asks before every write and command and guards its own state at the OS level; it is not a
+sandbox. [`SECURITY.md`](SECURITY.md) owns the full posture.
 
-Beyond the guard, the approval policy is the boundary: every write, edit and command asks before it
-runs unless you chose `auto-edit` or `--yolo`. Repository-provided code asks once per repository and
-re-asks when its content changes. In-process extensions are fully trusted, and an out-of-process
-extension runs with your user privileges: the process boundary isolates dependencies and crashes,
-not permissions. Secrets are stored owner-only on POSIX and never printed. Report a vulnerability
-through GitHub's private vulnerability reporting on this repository — never a public issue — and see
-[`SECURITY.md`](SECURITY.md) for the full posture.
+- File tools resolve paths canonically — symlinks included — and refuse anything outside the
+  working directory.
+- On macOS and Linux every `bash` command runs under an OS-level deny for Lunate's own state, via
+  `sandbox-exec` or bubblewrap/Landlock ([ADR-0024](adr/0024-bash-guard.md)); Windows reports that
+  it has no mechanism instead of running unconfined silently.
+- Repository-provided code — project extensions, project MCP servers, project skills — asks once
+  per repository, and the answers live in `~/.lunate/trust.json`.
+- In-process extensions are fully trusted; out-of-process ones isolate dependencies and crashes,
+  not permissions.
 
 ## Platform support
 
@@ -479,8 +171,8 @@ Three targets, each built and verified in CI on every commit, plus a performance
 | Windows (x86_64) | `win-x64` | `windows-latest` |
 
 Terminals: Windows Terminal, conhost, VS Code's integrated terminal, Git Bash, macOS Terminal.app,
-iTerm2, Ghostty, WezTerm, Kitty, Alacritty, the common Linux terminals, and tmux/screen over SSH are
-documented in the [guide's terminal matrix](docs/guide.md); pipes, CI and `TERM=dumb` are print mode.
+iTerm2, Ghostty, WezTerm, Kitty, Alacritty, the common Linux terminals, and tmux/screen over SSH —
+the full matrix is in the [guide](docs/guide.md); pipes, CI and `TERM=dumb` are print mode.
 
 ## Acknowledgements
 
@@ -491,7 +183,7 @@ head-to-head suite that calibrates the claims above runs Pi and Tau beside Lunat
 
 ## Contributing
 
-Building, the verification gate, the repository map and the OpenSpec workflow are in
+Building from source, the verification gate, the repository map and the OpenSpec workflow are in
 [`CONTRIBUTING.md`](CONTRIBUTING.md); [`AGENTS.md`](AGENTS.md) holds the rules coding agents follow
 in this repository.
 
