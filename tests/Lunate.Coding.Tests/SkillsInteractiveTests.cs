@@ -582,11 +582,64 @@ public sealed class SkillsInteractiveTests
         host.Console.SendEnter();
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "skills: 6 (index ~");
         Assert.Contains("above the soft index budget", host.LastFrame, StringComparison.Ordinal);
-        Assert.Contains(
+        // The advice names the only shipped control; there is no disable command or package
+        // action, and the notice must not point at one.
+        Assert.Contains("skills.indexBudget", host.LastFrame, StringComparison.Ordinal);
+        Assert.DoesNotContain(
             "disable unused skills or packages",
             host.LastFrame,
             StringComparison.Ordinal
         );
+
+        host.Console.SendText("/quit");
+        host.Console.SendEnter();
+        await run;
+    }
+
+    [Fact]
+    public async Task An_unknown_context_window_sends_the_full_index_without_notice_or_warning()
+    {
+        using var fixture = new SkillsHost();
+        // A pack that a 128k-default assumption would both notice and cut: 10 lines of ~265
+        // estimated tokens each.
+        for (var index = 0; index < 10; index++)
+        {
+            fixture.ProjectSkill($"skill-{index:D2}", description: new string('d', 1000));
+        }
+
+        fixture.TrustProjectSkills();
+        InteractiveSessionHost host = fixture.Host;
+        // The configured model declares no window: the budgets are disabled — no 128k-derived
+        // thresholds, no soft notice, no ceiling cut.
+        File.WriteAllText(
+            host.Options.ModelsPath!,
+            """{"schemaVersion":1,"models":[{"id":"gpt-4o-mini","provider":"openai","supportsTools":true}]}"""
+        );
+        host.Console.Size = new ConsoleSize(600, 24);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("/context");
+        host.Console.SendEnter();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "skills: 10 (index ~");
+        Assert.DoesNotContain(
+            "above the soft index budget",
+            host.LastFrame,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain("stays fully indexed", host.Frames, StringComparison.Ordinal);
+
+        host.Client.Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        host.Console.SendText("hello");
+        host.Console.SendEnter();
+        await host.Client.WaitForCallAsync(1);
+        string system = SystemText(host.Client.Requests[0]);
+        for (var index = 0; index < 10; index++)
+        {
+            Assert.Contains($"- skill-{index:D2}: ", system, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("more skills (not indexed)", system, StringComparison.Ordinal);
 
         host.Console.SendText("/quit");
         host.Console.SendEnter();

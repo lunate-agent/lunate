@@ -130,7 +130,7 @@ internal static class SkillIndex
         index.NotIndexed.Count > 0 || index.EstimatedTokens <= index.SoftTokens
             ? null
             : FormattableString.Invariant(
-                $"skills: the skills index measures ~{index.EstimatedTokens} estimated tokens (soft threshold ~{index.SoftTokens}); it stays fully indexed. Disable unused skills or packages to shrink it."
+                $"skills: the skills index measures ~{index.EstimatedTokens} estimated tokens (soft threshold ~{index.SoftTokens}); it stays fully indexed. Set skills.indexBudget (a token budget or 'unlimited', user scope) to silence this."
             );
 
     /// <summary>
@@ -141,15 +141,15 @@ internal static class SkillIndex
         index.OverflowCount == 0
             ? null
             : FormattableString.Invariant(
-                $"skills: the skills index passed its hard ceiling (~{index.HardTokens} estimated tokens); {index.OverflowCount} of {index.IndexedCount + index.OverflowCount} skills are listed in the footer without their description. Disable unused skills or packages, or set skills.indexBudget."
+                $"skills: the skills index passed its hard ceiling (~{index.HardTokens} estimated tokens); {index.OverflowCount} of {index.IndexedCount + index.OverflowCount} skills are listed in the footer without their description. Set skills.indexBudget (a token budget or 'unlimited', user scope) to move this ceiling."
             );
 
     /// <summary>
     /// The resolved index budgets from the <c>skills.indexBudget</c> setting and the model's
     /// context window: the explicit literal <c>unlimited</c> disables both, a positive integer
     /// applies one budget (the soft threshold follows it so a complete pack above it could not
-    /// still pass unnoticed), and unset derives soft = 2% and hard = 5% of the window — the
-    /// 128,000-token default when the window is unknown.
+    /// still pass unnoticed), and unset derives soft = 2% and hard = 5% of a known window — a
+    /// non-positive window disables both budgets entirely.
     /// </summary>
     internal sealed record SkillsBudget(int SoftTokens, int HardTokens)
     {
@@ -170,8 +170,17 @@ internal static class SkillIndex
                 return new SkillsBudget(budget, budget);
             }
 
-            int window = contextWindow > 0 ? contextWindow : CompactionReducer.DefaultContextWindow;
-            return new SkillsBudget((int)(window * SoftFraction), (int)(window * HardFraction));
+            // An unknown window disables both budgets: no thresholds, no notice, no warning —
+            // a guessed window could truncate a complete pack on a model with more room.
+            if (contextWindow <= 0)
+            {
+                return Unlimited;
+            }
+
+            return new SkillsBudget(
+                (int)(contextWindow * SoftFraction),
+                (int)(contextWindow * HardFraction)
+            );
         }
     }
 
