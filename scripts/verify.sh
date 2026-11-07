@@ -290,6 +290,9 @@ docs_profile() {
   step "openspec"
   openspec validate --all --strict
 
+  step "openspec skills are generated"
+  bash "${SCRIPT_DIR}/check-openspec-skills.sh"
+
   echo "verify: OK (docs profile)"
 }
 
@@ -380,6 +383,9 @@ platform_checks() {
       exit 1
     fi
     openspec validate --all --strict
+
+    step "openspec skills are generated"
+    bash "${SCRIPT_DIR}/check-openspec-skills.sh"
   fi
 }
 

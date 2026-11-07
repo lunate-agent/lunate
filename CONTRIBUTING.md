@@ -112,6 +112,35 @@ change. `openspec/specs/` is the source of truth for behaviour — if code and s
 fix the spec first. Architectural decisions (the loop, tool contracts, protocols, dependencies)
 require maintainer sign-off: propose and stop.
 
+### Skills
+
+The OpenSpec lifecycle skills and the companion skills live together in `.agents/skills/` — one
+source, read by every harness (OpenCode, Pi, Lunate itself). There is no `.opencode/skills` copy; the
+`.opencode/` directory holds only the OpenCode subagents.
+
+In an OpenCode session the OpenSpec workflows are invoked as **skills** (`openspec-propose`,
+`openspec-continue-change`, `openspec-apply-change`, `openspec-verify-change`, `openspec-sync-specs`,
+`openspec-archive-change`, …), discovered from `.agents/skills/`. The `/opsx:*` slash commands are
+gone: they were generated into `.opencode/commands/`, which this change removes so OpenSpec stops
+re-creating an OpenCode copy of the skills.
+
+Regenerate the lifecycle skills after upgrading the OpenSpec CLI:
+
+```bash
+bash scripts/check-openspec-skills.sh
+```
+
+That script runs `openspec update` and fails when `.agents/skills/` differs from the generated
+result, so generated skills never carry a hand edit and never go stale. It runs in the `docs` and
+`platform` verify profiles. The workflow set comes from the OpenSpec CLI's *global* profile, which is
+per machine (a fresh CI runner defaults to `core`), so this repo pins it in `openspec/cli-config.json`
+and the script injects that file through `XDG_CONFIG_HOME`. To change the set, edit
+`openspec/cli-config.json`, run the script, and commit the result.
+
+`.agents/skills/.openspec-target` pins the shared root to the universal `agents` renderer: keep it at
+`agents`. If it reads `codex`, OpenSpec rendered the Codex variant of the skills instead, which is
+not what the other harnesses expect — set it back to `agents` and re-run `openspec update`.
+
 ## Pull requests
 
 A pull request that changes only prose — `docs/`, `adr/`, `openspec/`, or a root-level Markdown

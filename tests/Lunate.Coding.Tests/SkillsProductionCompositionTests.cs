@@ -13,21 +13,17 @@ namespace Lunate.Coding.Tests;
 public sealed class SkillsProductionCompositionTests
 {
     [Fact]
-    public async Task The_composed_prompt_carries_the_repositorys_nine_skills_and_an_invocation_reaches_the_model()
+    public async Task The_composed_prompt_carries_every_project_skill_and_an_invocation_reaches_the_model()
     {
         string repository = Workspace.Canonicalize(RepositoryRoot.Find());
-        string[] names =
-        [
-            "acceptance-test-authoring",
-            "architectural-decision-records",
-            "c4-diagrams",
-            "gherkin-authoring",
-            "glossary",
-            "grill-me",
-            "openspec-git-discipline",
-            "spec-as-source",
-            "test-driven-development",
-        ];
+        // Discovered, not listed: the repository's project skills now include the OpenSpec lifecycle
+        // skills that `scripts/check-openspec-skills.sh` regenerates, so the set is not pinned here.
+        string[] names = Directory
+            .EnumerateDirectories(Path.Combine(repository, ".agents", "skills"))
+            .Where(directory => File.Exists(Path.Combine(directory, "SKILL.md")))
+            .Select(Path.GetFileName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray()!;
         using var host = new InteractiveSessionHost(
             extensions: new ExtensionSeams
             {
@@ -52,7 +48,7 @@ public sealed class SkillsProductionCompositionTests
             "remembered for this repository"
         );
 
-        // The real composed system prompt carries the index, all nine skills included.
+        // The real composed system prompt carries the index of the repository's project skills.
         host.Client.Enqueue(Scripts.Text("hello"), Scripts.Stop());
         host.Console.SendText("hi");
         host.Console.SendEnter();
@@ -62,9 +58,12 @@ public sealed class SkillsProductionCompositionTests
             .Single(message => message.Role == Microsoft.Extensions.AI.ChatRole.System)
             .Text;
         Assert.Contains("read tool", system, StringComparison.Ordinal);
+        // The index is capped (SkillIndex.MaxEstimatedTokens). Skills past the cap appear in the
+        // "not indexed" footer rather than as a full line; either way each one reaches the prompt.
+        Assert.Contains("- acceptance-test-authoring: ", system, StringComparison.Ordinal);
         foreach (string name in names)
         {
-            Assert.Contains($"- {name}: ", system, StringComparison.Ordinal);
+            Assert.Contains(name, system, StringComparison.Ordinal);
         }
 
         // And /skill:<name> content reaches the model as the wrapped user turn.
