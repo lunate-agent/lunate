@@ -353,6 +353,11 @@ internal sealed partial class InteractiveSession : IDisposable
 
         using (rawMode)
         {
+            // Signals mid-session (tui spec, "Signal exits restore the terminal"): SIGTERM and
+            // SIGHUP run the same restore the scope exit below does. Install only Windows-check:
+            // the no-op instance a non-interactive run returns means no registrations, and the
+            // install type itself skips Windows.
+            using var signals = TerminalSignalRestore.Install(rawMode, OperatingSystem.IsWindows());
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
             _live.Start();
             _live.SetLoading(_capabilities.Unicode ? "loading project…" : "loading project...");
