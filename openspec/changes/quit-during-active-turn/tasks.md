@@ -15,5 +15,5 @@
 
 - [x] 4.1 `dotnet test tests/Lunate.Coding.Tests` (touched classes green; new test green).
 - [x] 4.2 Fast gate: Release build, `dotnet csharpier format .` on changed files then `dotnet csharpier check .`.
-- [ ] 4.3 Manual process check: a real (`SIGKILL`-free) mid-turn `/quit` run leaves no surviving lunate/vstest child with a tty: `ps -o pid,pgid,tty,comm`.
-- [ ] 4.4 `openspec validate quit-during-active-turn --type change --strict`, then `openspec validate --all --strict` at sync/archive time.
+- [x] 4.3 Manual process check: a real (`SIGKILL`-free) mid-turn `/quit` run leaves no surviving lunate/vstest child with a tty: `ps -o pid,pgid,tty,comm`.
+- [x] 4.4 `openspec validate quit-during-active-turn --type change --strict`, then `openspec validate --all --strict` at sync/archive time.

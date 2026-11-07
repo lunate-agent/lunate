@@ -574,6 +574,12 @@ A submitted line whose first non-space character is `/` SHALL dispatch as a clie
 - **WHEN** `/new`, `/resume`, `/model`, `/compact` or `/setup` is submitted
 - **THEN** a notice refuses it and the run is untouched
 
+#### Scenario: Quit during a running turn
+
+- **GIVEN** a running turn
+- **WHEN** `/quit` is submitted
+- **THEN** the turn is cancelled (the run never delivers its remaining output), the session loop ends with the normal quit exit code, and no refusal notice is shown
+
 #### Scenario: /compact without a compactable tail
 
 - **GIVEN** an idle session whose history has nothing older than the kept tail
