@@ -158,7 +158,7 @@ internal sealed partial class InteractiveSession
     /// <summary>
     /// The context window the skills index budgets derive from, resolved with the session model's
     /// own precedence: an extension-registered model's declared window, else the configured
-    /// catalog entry, else the 128,000-token default <see cref="CompactionReducer"/> uses.
+    /// catalog entry — or 0 (unknown), which disables both budgets (ADR-0033).
     /// </summary>
     private int SkillsIndexContextWindow()
     {
@@ -191,7 +191,7 @@ internal sealed partial class InteractiveSession
             return model.ContextWindow;
         }
 
-        return CompactionReducer.DefaultContextWindow;
+        return 0;
     }
 
     /// <summary>The <c>/context</c> skills segment.</summary>
@@ -201,7 +201,7 @@ internal sealed partial class InteractiveSession
             _skills?.Index ?? new SkillIndex.Composed(string.Empty, 0, 0, []);
         string advice =
             index.EstimatedTokens > index.SoftTokens && index.NotIndexed.Count == 0
-                ? "; above the soft index budget — disable unused skills or packages to shrink it"
+                ? "; above the soft index budget — set skills.indexBudget (a token budget or 'unlimited') to silence this"
                 : string.Empty;
         return FormattableString.Invariant(
             $"skills: {index.IndexedCount} (index ~{index.EstimatedTokens} tokens{advice})"

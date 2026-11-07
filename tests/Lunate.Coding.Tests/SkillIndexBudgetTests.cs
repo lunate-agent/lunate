@@ -127,12 +127,52 @@ public sealed class SkillIndexBudgetTests
         Assert.Equal(2560, at128k.SoftTokens);
         Assert.Equal(6400, at128k.HardTokens);
 
-        // A zero window degrades to the same default as the compaction hook.
+        // An unknown window disables both budgets: no thresholds, no notice, no warning —
+        // never a silent 128k assumption.
         SkillIndex.SkillsBudget unknown = SkillIndex.SkillsBudget.FromSettings(
             new SkillsSettings(),
             0
         );
-        Assert.Equal(at128k, unknown);
+        Assert.Equal(SkillIndex.SkillsBudget.Unlimited, unknown);
+    }
+
+    [Fact]
+    public void The_notices_name_the_setting_and_never_a_disable_action()
+    {
+        using var temp = new TempDirectory();
+        List<SkillDescriptor> skills = CappedPack(temp, 4, 200);
+
+        SkillIndex.Composed soft = SkillIndex.Compose(
+            skills,
+            temp.Root,
+            2000,
+            SkillIndex.SkillsBudget.FromSettings(new SkillsSettings(), 10_000),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        string? softNotice = SkillIndex.SoftNotice(soft);
+        Assert.NotNull(softNotice);
+        Assert.Contains("skills.indexBudget", softNotice, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Disable unused skills or packages",
+            softNotice,
+            StringComparison.Ordinal
+        );
+
+        SkillIndex.Composed hard = SkillIndex.Compose(
+            skills,
+            temp.Root,
+            2000,
+            new SkillIndex.SkillsBudget(50, 50),
+            new HashSet<string>(StringComparer.Ordinal)
+        );
+        string? ceilingWarning = SkillIndex.HardCeilingWarning(hard);
+        Assert.NotNull(ceilingWarning);
+        Assert.Contains("skills.indexBudget", ceilingWarning, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Disable unused skills or packages",
+            ceilingWarning,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
