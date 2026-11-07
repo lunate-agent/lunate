@@ -19,4 +19,4 @@
 
 - [x] 4\.1 `docs/` sweep: guide/usage/configuration wording that advises disabling unused skills or packages (settings-schema rendering) states the setting instead
 - [x] 4.2 Gates: `dotnet csharpier format .` on edited files, `openspec validate skills-budget-advice-and-unknown-window --strict`, `dotnet build Lunate.slnx -c Release`, `dotnet test tests/Lunate.Coding.Tests -c Release`, `bash scripts/check-openspec-skills.sh`
-- [ ] 4.3 PR #633 updated (body + comments); the sign-off's two fixes confirmed and the print-mode stderr-only test recorded; then `openspec archive` as the final commit
+- [x] 4.3 PR #633 updated (body + comments); the sign-off's two fixes confirmed and the print-mode stderr-only test recorded; then `openspec archive` as the final commit
