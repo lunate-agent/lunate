@@ -10,7 +10,7 @@ The wizard SHALL present ten steps in order — provider, credential, connection
 4. **Model** lists the models the discovery returned (search filters as text is typed); when discovery is unavailable or skipped, the step accepts a manually typed model id. The chosen model's API family is shown beside it.
 5. **Model check** makes one minimal real request through the model's resolved API family: one short completion for a chat profile, one tiny noul for a decision profile. The cost SHALL be stated before it runs and the check SHALL be skippable (`--no-model-check` on the flag path). A failure SHALL name the model, the family and the HTTP status or response shape, and offer going back to the model step; a skip or failure SHALL be marked unverified in the summary. A discovery success alone SHALL NOT count as a verified model.
 6. **Chat profile** asks the profile name and its thinking level, offering only the levels the chosen model supports; the question is skipped entirely for a model without a reasoning style.
-7. **Fast and decision profiles** are optional and default to skip. When the chosen provider exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the preset's pinned version; otherwise the decision profile is offered as an **adapter**, labelled as such in the picker and summary. When routing is enabled, the step asks for each routing profile's description and warns once if one is left blank.
+7. **Fast and decision profiles** are optional and default to skip. When the chosen provider exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the preset's pinned version; otherwise the decision profile is offered as an **adapter**, labelled as such in the picker and summary. When the chosen provider is `opencode-go`, the native Jev line is labelled "native Jev — billed to your OpenCode pay-as-you-go balance, not the Go plan; no box questions" and no box question is asked for it; other presets keep the existing native/adapter labels. When routing is enabled, the step asks for each routing profile's description and warns once if one is left blank.
 8. **Decisions settings** presents every switch with its `off`/unset default and one explanatory line each; accepting the defaults writes nothing for the layer.
 9. **Summary** shows every collected value — provider, region, credential source, endpoint, API family, credential placement, models URL, tested model, model-check result, profiles with their models and thinking levels, decision profile kind (native or adapter), routing descriptions, decisions settings, and what was skipped — and writes nothing until it is confirmed with Enter.
 10. **Write** stores the provider entry and credential through the auth and provider stores and the profiles and usages through `SettingsStore`, in one pass.
@@ -97,6 +97,12 @@ Every step accepts skip; a skipped step leaves the value it would have configure
 - **THEN** `providers.json` carries the same entry shape the CLI writes (`baseUrls` keyed by family,
   `credentialPlacement`, optional `modelsUrl`), the credential stays in the auth store, and no secret
   appears in either file
+
+#### Scenario: The Go Jev label names the billing
+
+- **GIVEN** the provider step chose the `opencode-go` preset and the decisions step offers a decision profile
+- **WHEN** the native Jev line is presented
+- **THEN** it says native Jev on the pinned version, states that the cost is billed to the OpenCode pay-as-you-go balance rather than the Go plan, and no box question is asked for it; a non-Go provider keeps the existing native/adapter labels
 
 #### Scenario: Only the credential is masked
 
