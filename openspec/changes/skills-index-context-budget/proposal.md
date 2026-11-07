@@ -6,7 +6,7 @@ The skills index is capped at a fixed 1,000 estimated tokens and cuts strictly f
 
 - The fixed `MaxEstimatedTokens = 1000` cap is replaced by thresholds derived from the model's context window:
   - by default every model-visible skill is indexed with a one-line description, trimmed to its first sentence and capped at the existing per-skill character limit (200 + `…`);
-  - a soft threshold (default 2% of the context window) only emits a one-time notice per session that the index is large — the index stays complete — and `/context` reports the index size and suggests disabling unused skills or packages;
+  - a soft threshold (default 2% of the context window) only emits a one-time notice (once per composition) that the index is large — the index stays complete — and `/context` reports the index size and suggests disabling unused skills or packages;
   - a hard ceiling (default 5% of the context window) is a safety valve for small local models: above it the index overflows as today (names-only footer, cut from the end) with a visible warning naming how many skills lost their description;
   - skills named in the workspace's `AGENTS.md` are always indexed in full — the ceiling cut never drops them;
   - a `skills.indexBudget` setting (a positive integer, or `unlimited`) overrides the computed thresholds.

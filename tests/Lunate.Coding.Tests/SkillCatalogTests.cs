@@ -21,7 +21,13 @@ public sealed class SkillCatalogTests
             new SkillScanRequest(temp.Root, null, temp.File("home"), [])
         );
         catalog.SetProjectTrusted(true);
-        catalog.BuildIndex(temp.Root, 2000, null);
+        catalog.BuildIndex(
+            temp.Root,
+            2000,
+            new SkillIndex.SkillsBudget(int.MaxValue, 100),
+            new HashSet<string>(StringComparer.Ordinal),
+            null
+        );
 
         Assert.NotEmpty(catalog.Index.NotIndexed);
         foreach (string name in catalog.Index.NotIndexed)
@@ -47,12 +53,17 @@ public sealed class SkillCatalogTests
             )
         );
         catalog.SetProjectTrusted(true);
-        catalog.BuildIndex(repository, 2000, null);
+        catalog.BuildIndex(
+            repository,
+            2000,
+            SkillIndex.SkillsBudget.FromSettings(new SkillsSettings(), 300_000),
+            new HashSet<string>(StringComparer.Ordinal),
+            null
+        );
 
-        int valid = catalog
-            .Skills.Count(skill =>
-                skill is { Valid: true, CommandOnly: false, Untrusted: false }
-            );
+        int valid = catalog.Skills.Count(skill =>
+            skill is { Valid: true, CommandOnly: false, Untrusted: false }
+        );
         Assert.Equal(valid, catalog.Index.IndexedCount);
         Assert.Empty(catalog.Index.NotIndexed);
     }
