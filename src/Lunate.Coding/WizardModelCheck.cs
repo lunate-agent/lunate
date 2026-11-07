@@ -255,9 +255,18 @@ internal static class WizardModelCheck
             // catalog, so its ModelFor result supplies the endpoint and wire id; a preset model
             // goes through ModelProfileResolver, which keeps the catalog's unqualified wire id.
             ResolvedModelProfile profile;
-            if (provider.Custom)
+            ModelInfo? known = catalog.Find(choice.ModelId);
+            if (
+                provider.Custom
+                || known is null
+                || !string.Equals(known.Provider, entry.Kind, StringComparison.Ordinal)
+            )
             {
-                ModelInfo customModel = ModelFor(wizard, choice, catalog);
+                // A custom endpoint, a model discovery listed but the catalog does not know, or a
+                // qualified id the catalog resolves to a different provider has no catalog entry
+                // the resolver can validate for this provider. ModelFor supplies the staged
+                // endpoint/family/wire id; the provider entry still comes from the commit.
+                ModelInfo stagedModel = ModelFor(wizard, choice, catalog);
                 profile = new ResolvedModelProfile(
                     new ModelProfile(
                         "setup-check",
@@ -266,9 +275,9 @@ internal static class WizardModelCheck
                         ApiFamily: choice.ApiFamily
                     ),
                     entry,
-                    customModel,
-                    customModel.ContextWindow,
-                    customModel.Capabilities ?? new ModelCapabilityDescriptor()
+                    stagedModel,
+                    stagedModel.ContextWindow,
+                    stagedModel.Capabilities ?? new ModelCapabilityDescriptor()
                 );
             }
             else
