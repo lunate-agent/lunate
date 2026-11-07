@@ -1,0 +1,18 @@
+{
+  "featureFlags": {},
+  "profile": "custom",
+  "delivery": "both",
+  "workflows": [
+    "propose",
+    "explore",
+    "new",
+    "continue",
+    "apply",
+    "ff",
+    "sync",
+    "archive",
+    "bulk-archive",
+    "verify",
+    "onboard"
+  ]
+}

@@ -124,13 +124,19 @@ In an OpenCode session the OpenSpec workflows are invoked as **skills** (`opensp
 gone: they were generated into `.opencode/commands/`, which this change removes so OpenSpec stops
 re-creating an OpenCode copy of the skills.
 
-Regenerate the lifecycle skills after upgrading the OpenSpec CLI or changing the workflow profile:
+Regenerate the lifecycle skills after upgrading the OpenSpec CLI:
 
 ```bash
-openspec update
+bash scripts/check-openspec-skills.sh
 ```
 
-Commit whatever it changes. `openspec update` is idempotent — a second run must leave the tree clean.
+That script runs `openspec update` and fails when `.agents/skills/` differs from the generated
+result, so generated skills never carry a hand edit and never go stale. It runs in the `docs` and
+`platform` verify profiles. The workflow set comes from the OpenSpec CLI's *global* profile, which is
+per machine (a fresh CI runner defaults to `core`), so this repo pins it in `openspec/cli-config.json`
+and the script injects that file through `XDG_CONFIG_HOME`. To change the set, edit
+`openspec/cli-config.json`, run the script, and commit the result.
+
 `.agents/skills/.openspec-target` pins the shared root to the universal `agents` renderer: keep it at
 `agents`. If it reads `codex`, OpenSpec rendered the Codex variant of the skills instead, which is
 not what the other harnesses expect — set it back to `agents` and re-run `openspec update`.
