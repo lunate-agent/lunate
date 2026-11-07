@@ -37,12 +37,13 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 - **One home per fact.** Link to the owning document instead of copying it; a fact that exists twice drifts.
 - **Generated regions are not hand-written.** `scripts/docs-sync` fills
   `<!-- keys:start --> … <!-- keys:end -->` in `guide.md` from `src/Lunate.Tui/keys.json` (the file
-  the router and the in-app help read) and `<!-- docs-sync: settings --> …` in `configuration.md`
+  the router and the in-app help read), `<!-- docs-sync: settings --> …` in `configuration.md`
   from `src/Lunate.Coding/settings-schema.json` (the file `SettingsSchema` reads and tests pin to
-  the parser's accepted keys), and expands `<!-- snippet: <path> -->` into a fenced block
+  the parser's accepted keys), and `<!-- docs-sync: version --> …` in the README with the newest
+  non-prerelease release tag, and it expands `<!-- snippet: <path> -->` into a fenced block
   taken from that real file — the marker owns the block below it. Edit the source, then run
   `scripts/docs-sync`; `--check` is what the gate runs, in the docs profile and in the always-on
-  `Process` job.
+  `Process` job (that job's checkout fetches the tags, which the version region reads).
 - **Behaviour changes update the specs first.** `openspec/specs/` is the source of truth; when prose and spec disagree, the spec wins.
 - **Keep it current.** A change updates the documents it invalidates; stale documentation is a bug.
 - **New documents land in a home above.** If none fits, propose a new home in an OpenSpec change first.
