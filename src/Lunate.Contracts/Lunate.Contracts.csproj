@@ -62,7 +62,6 @@
         <InternalsVisibleTo Include="Lunate.Protocols.Tests" />
         <InternalsVisibleTo Include="Lunate.Coding" />
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
-        <InternalsVisibleTo Include="Lunate.Coding.Tests" />
         <InternalsVisibleTo Include="Lunate.Extensibility" />
         <InternalsVisibleTo Include="lunate" />
     </ItemGroup>
