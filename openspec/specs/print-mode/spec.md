@@ -39,6 +39,12 @@ Print mode is the non-interactive frontend: it runs one prompt to completion and
 - **WHEN** print mode runs with `--json`
 - **THEN** `reasoning_start`, `reasoning_message_content` and `reasoning_end` objects appear in arrival order like every other event
 
+#### Scenario: The skills notice and the truncation warning stay on stderr
+
+- **GIVEN** a trusted print run whose skill pack measures above the soft threshold and includes one skill whose description exceeds 1,024 characters
+- **WHEN** print mode runs without `--json`
+- **THEN** the skills-index notice and the description-truncation warning each appear on stderr as `lunate: skills: …` lines, stdout carries only the final assistant answer, and stdout contains no skills line
+
 ### Requirement: Non-interactive tool approval
 
 Print mode SHALL never approve silently beyond the resolved policy: the run SHALL carry a non-interactive approver that maps the `approval` setting onto tool risk — `ask` (default) allows read-only tools and denies file writes and commands; `auto-edit` also allows file writes and edits and denies commands; the per-run `--yolo` flag allows everything. The setting SHALL never accept `yolo`. A denied call SHALL become an error tool result the model can read, and SHALL produce one diagnostic line on stderr naming the tool and the policy. The interactive tracked-file refinement of the `ask` level lands with the approval flow; print mode's approximation SHALL be documented.

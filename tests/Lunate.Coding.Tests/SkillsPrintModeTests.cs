@@ -177,8 +177,9 @@ public sealed class SkillsPrintModeTests
     }
 
     /// <summary>
-    /// A trusted print run over the given worktree with a model of the given context window
-    /// (declared in the run's own models.json), returning the scripted client and the run result.
+    /// A trusted print run over the given worktree with a model of the given context window —
+    /// null declares no window in the run's own models.json — returning the scripted client and
+    /// the run result.
     /// </summary>
     internal static async Task<(
         ScriptedChatClient Client,
@@ -189,7 +190,7 @@ public sealed class SkillsPrintModeTests
         TempDirectory temp,
         string worktree,
         string modelId,
-        int contextWindow,
+        int? contextWindow,
         string? settingsJson = null
     )
     {
@@ -211,9 +212,12 @@ public sealed class SkillsPrintModeTests
             hash,
             DateTimeOffset.UtcNow
         );
+        string windowField = contextWindow is { } window
+            ? $"\"contextWindow\":{window.ToString(CultureInfo.InvariantCulture)},"
+            : string.Empty;
         File.WriteAllText(
             temp.File("models.json"),
-            $$"""{"schemaVersion":1,"models":[{"id":"{{modelId}}","provider":"openai","contextWindow":{{contextWindow.ToString(CultureInfo.InvariantCulture)}},"supportsTools":true}]}"""
+            $$"""{"schemaVersion":1,"models":[{"id":"{{modelId}}","provider":"openai",{{windowField}}"supportsTools":true}]}"""
         );
         File.WriteAllText(temp.File("settings.json"), settingsJson ?? """{"schemaVersion":2}""");
         var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
@@ -304,6 +308,84 @@ public sealed class SkillsPrintModeTests
         Assert.DoesNotContain("more skills (not indexed)", system, StringComparison.Ordinal);
         Assert.Contains("stays fully indexed", errors, StringComparison.Ordinal);
         Assert.Contains("soft threshold", errors, StringComparison.Ordinal);
+        // The advice names the only shipped control; no disable mechanism exists.
+        Assert.Contains("skills.indexBudget", errors, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Disable unused skills or packages",
+            errors,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task An_unknown_context_window_indexes_completely_without_a_notice_or_warning()
+    {
+        using var outer = new TempDirectory();
+        string worktree = Path.Combine(outer.Root, "worktree");
+        Directory.CreateDirectory(Path.Combine(worktree, ".git"));
+        for (var index = 0; index < 10; index++)
+        {
+            WriteSkill(
+                Path.Combine(worktree, ".agents", "skills", $"skill-{index:D2}"),
+                $"skill-{index:D2}",
+                description: new string('d', 1000)
+            );
+        }
+
+        // The model declares no context window: the budgets are disabled — the pack far exceeds
+        // any 2%/5% pair a default-window assumption would produce.
+        (ScriptedChatClient client, int exitCode, string _, string errors) = await RunTrustedAsync(
+            outer,
+            worktree,
+            "windowless-model",
+            null
+        );
+
+        Assert.Equal(0, exitCode);
+        string system = Assert
+            .Single(client.Requests[0], message => message.Role == ChatRole.System)
+            .Text;
+        for (var index = 0; index < 10; index++)
+        {
+            Assert.Contains($"- skill-{index:D2}: ", system, StringComparison.Ordinal);
+        }
+
+        Assert.DoesNotContain("more skills (not indexed)", system, StringComparison.Ordinal);
+        Assert.DoesNotContain("skills index", errors, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_skills_notice_prints_to_stderr_and_stdout_stays_byte_pure()
+    {
+        using var outer = new TempDirectory();
+        string worktree = Path.Combine(outer.Root, "worktree");
+        Directory.CreateDirectory(Path.Combine(worktree, ".git"));
+        for (var index = 0; index < 6; index++)
+        {
+            WriteSkill(
+                Path.Combine(worktree, ".agents", "skills", $"skill-{index:D2}"),
+                $"skill-{index:D2}",
+                description: new string('d', 120)
+            );
+        }
+
+        (ScriptedChatClient _, int exitCode, string output, string errors) = await RunTrustedAsync(
+            outer,
+            worktree,
+            "small-model",
+            10_000
+        );
+
+        Assert.Equal(0, exitCode);
+        // The notice is on stderr; stdout is the scripted response only — the byte-pure rule
+        // print mode promises protocol consumers.
+        Assert.Contains(
+            "lunate: skills: the skills index measures",
+            errors,
+            StringComparison.Ordinal
+        );
+        Assert.Equal("ok", output);
+        Assert.DoesNotContain("lunate:", output, StringComparison.Ordinal);
     }
 
     [Fact]

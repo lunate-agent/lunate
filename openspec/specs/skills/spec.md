@@ -53,7 +53,7 @@ The session SHALL discover skills from the worktree root upward to the repositor
 
 ### Requirement: Skill format and validation
 
-A skill SHALL be a directory whose `SKILL.md` carries YAML frontmatter with a non-empty `name` and `description`; `name` SHALL equal the directory name (deterministic `/skill:` addressing) and SHALL match `[a-z0-9-]+`. The optional `allowed-tools` field SHALL be accepted and ignored — it is never a permission grant in any scope. The optional `disable-model-invocation: true` SHALL exclude the skill from the model index while keeping it invokable via `/skill:<name>`. A malformed or unreadable `SKILL.md` SHALL warn once per session and SHALL NOT load. A description longer than 1,024 characters (the Agent Skills specification limit) SHALL make the skill invalid with the same one-time warning, non-load, index absence and read-allowance exclusion — the spec limit is validation, never a silent cut.
+A skill SHALL be a directory whose `SKILL.md` carries YAML frontmatter with a non-empty `name` and `description`; `name` SHALL equal the directory name (deterministic `/skill:` addressing) and SHALL match `[a-z0-9-]+`. The optional `allowed-tools` field SHALL be accepted and ignored — it is never a permission grant in any scope. The optional `disable-model-invocation: true` SHALL exclude the skill from the model index while keeping it invokable via `/skill:<name>`. A malformed or unreadable `SKILL.md` SHALL warn once per session and SHALL NOT load. A description longer than 1,024 characters (the Agent Skills specification limit) SHALL NOT stop the skill loading: discovery SHALL load it normally — valid, listed by `/skills`, indexed, with its read allowance — and SHALL emit one warning naming the skill and the limit; the model index SHALL carry the first 1,024 characters of that description with a trailing `…`. The limit is a soft warning, never a hard cap.
 
 #### Scenario: A malformed skill warns and does not load
 
@@ -75,13 +75,15 @@ A skill SHALL be a directory whose `SKILL.md` carries YAML frontmatter with a no
 
 #### Scenario: A description over the spec limit is an invalid skill
 
+The scenario name carries its archived slot — the delta tooling keeps MODIFIED scenario names — and now guards the opposite: an over-limit description is a soft warning, never an invalid skill.
+
 - **GIVEN** a trusted project skill whose `SKILL.md` description exceeds 1,024 characters
 - **WHEN** the session starts
-- **THEN** a warning names the directory and the 1,024-character limit, the skill is absent from the index, `/skills` lists it as `(invalid)` with the reason's first sentence, and its directory grants no read allowance
+- **THEN** the skill loads normally (valid, listed by `/skills` without `(invalid)`, present in the index with the first 1,024 characters of its description plus `…`, and its directory is a read root), and exactly one warning reads `skills: <name> description exceeds the 1024-char spec limit; truncated in the index`
 
 ### Requirement: Model exposure and budget
 
-Session start SHALL append the skills index to the system prompt as a section named `skills`, recorded as a prompt-section entry for deterministic replay, and SHALL build it exactly once per session: never rebuilt mid-run (the prompt prefix stays cache-stable), rebuilt only on a wholesale session reload (`/new`, resume-with-reload, extension reload). Each line SHALL read `- <name>: <description> [<path>]` — the path relative to the worktree when the skill is inside it, otherwise the canonical absolute path (directly usable by the read tool) — with the description carried whole up to the Agent Skills specification limit of 1,024 characters: the description is the trigger the model matches a task against, so it is not sentence-trimmed, and only above that limit is it sliced at 1,024 characters on a code-unit boundary that never splits a surrogate pair with a trailing `…`; a lead line SHALL state that full bodies load through the read tool. Index order SHALL be project, then user, then extension entries, each group by name (ordinal); overflow SHALL cut strictly from the end and append one footer line `+N more skills (not indexed): <names>` — names only, comma-separated, truncated at 400 characters with a trailing `…` — pointing the model at names it can act on, never at a human command. The index is no longer capped at a fixed token count: overflow begins only above the resolved hard ceiling (see the skills index budget requirement). The core-prompt under-1,000-token rule SHALL continue to hold for the base composed prompt, with the skills index excluded from that count and asserted separately. `/context` SHALL report `skills: <count> (index ~<tokens> tokens)` and advise when the complete index measures above the soft threshold. Extension-contributed lines SHALL be enforced in this order: the contributing extension's context budget (default 2,000 estimated tokens) applies first, dropping and logging over-budget lines, then the hard ceiling applies to the merged list. Above the hard ceiling the session SHALL emit a visible warning (NoticeLevel.Warning) that names how many skills lost their description; the `AGENTS.md`-named skills are indexed in full first (see the AGENTS.md priority requirement).
+Session start SHALL append the skills index to the system prompt as a section named `skills`, recorded as a prompt-section entry for deterministic replay, and SHALL build it exactly once per session: never rebuilt mid-run (the prompt prefix stays cache-stable), rebuilt only on a wholesale session reload (`/new`, resume-with-reload, extension reload). Each line SHALL read `- <name>: <description> [<path>]` — the path relative to the worktree when the skill is inside it, otherwise the canonical absolute path (directly usable by the read tool) — with the description carried whole up to the Agent Skills specification limit of 1,024 characters: the description is the trigger the model matches a task against, so it is not sentence-trimmed, and above that limit it is sliced at 1,024 characters on a code-unit boundary that never splits a surrogate pair with a trailing `…` — which is how a scanned skill with an over-limit description reaches the index, since discovery loads it and only warns; a lead line SHALL state that full bodies load through the read tool. Index order SHALL be project, then user, then extension entries, each group by name (ordinal); overflow SHALL cut strictly from the end and append one footer line `+N more skills (not indexed): <names>` — names only, comma-separated, truncated at 400 characters with a trailing `…` — pointing the model at names it can act on, never at a human command. The index is no longer capped at a fixed token count: overflow begins only above the resolved hard ceiling (see the skills index budget requirement). The core-prompt under-1,000-token rule SHALL continue to hold for the base composed prompt, with the skills index excluded from that count and asserted separately. `/context` SHALL report `skills: <count> (index ~<tokens> tokens)` and advise when the complete index measures above the soft threshold. Extension-contributed lines SHALL be enforced in this order: the contributing extension's context budget (default 2,000 estimated tokens) applies first, dropping and logging over-budget lines, then the hard ceiling applies to the merged list. Above the hard ceiling the session SHALL emit a visible warning (NoticeLevel.Warning) that names how many skills lost their description; the `AGENTS.md`-named skills are indexed in full first (see the AGENTS.md priority requirement).
 
 #### Scenario: The index carries name, description and path
 
@@ -105,8 +107,8 @@ The scenario name carries its archived slot — the delta tooling keeps MODIFIED
 
 #### Scenario: A long description cannot eat the cap
 
-- **GIVEN** the composition contract (a scanned skill never reaches it above the limit because validation rejects the skill first) exercised with a raw description of 3,000 characters
-- **WHEN** the index is composed
+- **GIVEN** a trusted skill whose `SKILL.md` description is 3,000 characters — the scanner loads it, warns, and the index composes it
+- **WHEN** the session starts
 - **THEN** its index line carries at most 1,024 characters of description plus `…`
 
 #### Scenario: The index is built once per session
@@ -135,7 +137,7 @@ The scenario name carries its archived slot — the delta tooling keeps MODIFIED
 
 ### Requirement: The skills index budget scales with the model
 
-The skills index SHALL keep every model-visible skill's full index line while its estimated token count fits the resolved budgets, so a normal-size pack is never truncated by an arbitrary fixed cap. The budgets SHALL derive from the model's context window with the same precedence as the session model: an extension-registered model's declared window, else the configured catalog entry, else the 128,000-token default. The soft threshold SHALL be 2% of that window and the hard ceiling SHALL be 5%. The `skills.indexBudget` setting SHALL override both computed values: a positive integer estimated-token budget applies a single budget (fitting skills keep their line, overflow above it follows the hard-ceiling behaviour, and the context-window thresholds do not apply), and the literal `unlimited` indexes every skill at any size with no notice and no warning. The setting accepts user and project scope. Below the soft threshold the session SHALL emit no skills-index notice.
+The skills index SHALL keep every model-visible skill's full index line while its estimated token count fits the resolved budgets, so a normal-size pack is never truncated by an arbitrary fixed cap. The budgets SHALL derive from the model's context window with the same precedence as the session model: an extension-registered model's declared window, else the configured catalog entry. When the context window is unknown, both budgets SHALL be disabled — the complete index with no skills-index notice and no hard-ceiling warning — and the session SHALL never assume a default window for the budget. The soft threshold SHALL be 2% of the known window and the hard ceiling SHALL be 5%. The `skills.indexBudget` setting SHALL override the computed values: a positive integer estimated-token budget applies a single budget (fitting skills keep their line, overflow above it follows the hard-ceiling behaviour, and the context-window thresholds do not apply), and the literal `unlimited` indexes every skill at any size with no notice and no warning. The setting accepts user and project scope. Below the soft threshold the session SHALL emit no skills-index notice.
 
 #### Scenario: 21 skills on a large-context model are all indexed without warnings
 
@@ -161,6 +163,12 @@ The skills index SHALL keep every model-visible skill's full index line while it
 - **WHEN** the session starts
 - **THEN** the index overflows at that budget with the hard-ceiling behaviour — the names-only footer plus the overflow warning — and the 2%/5% context-window thresholds are not applied
 
+#### Scenario: An unknown context window disables the budgets instead of assuming a default
+
+- **GIVEN** a trusted workspace whose skill pack indexes far above the 2%/5% thresholds of any default window, with no resolvable context window (no configured model, or none whose declared window is known)
+- **WHEN** the session starts
+- **THEN** the full index is sent with no skills-index notice and no hard-ceiling warning, and the composition never derives thresholds from a 128,000-token default assumption
+
 ### Requirement: AGENTS.md skills are indexed in full
 
 When the hard ceiling cuts the index, a skill whose name appears in the workspace chain's `AGENTS.md` text SHALL always keep its full index line — the cut SHALL skip it, first dropping every unprotected skill and protecting the `AGENTS.md`-named ones. When every eligible skill is `AGENTS.md`-named and still over the ceiling, the index keeps all of them with their descriptions (the ceiling's flood protection yields to the explicit naming).
@@ -173,13 +181,19 @@ When the hard ceiling cuts the index, a skill whose name appears in the workspac
 
 ### Requirement: The soft threshold notices and advises, never truncates
 
-Above the soft threshold the index SHALL remain complete — the threshold only informs: session start SHALL emit a one-time notice per composition that names the index size and suggests disabling unused skills or packages, and `/context` SHALL report the index size with the same suggestion as long as the index fits below the hard ceiling.
+Above the soft threshold the index SHALL remain complete — the threshold only informs: session start SHALL emit a one-time notice per composition that names the index size and names the `skills.indexBudget` setting (a positive estimated-token budget or the literal `unlimited`, user scope) as the only shipped control, and `/context` SHALL report the index size with the same setting-naming advice as long as the index fits below the hard ceiling. Because no command or extension currently disables a discovered skill or package, the notices SHALL NOT instruct a disable action.
 
 #### Scenario: /context advises at an oversized but complete index
 
 - **GIVEN** a session whose skills index is complete but above the soft threshold
 - **WHEN** `/context` is submitted
-- **THEN** the notice includes the skills count and index size and a suggestion to disable unused skills or packages, and no model call happens
+- **THEN** the notice includes the skills count and index size and names `skills.indexBudget` as the control, and no model call happens
+
+#### Scenario: The notices name the setting and never a disable action
+
+- **GIVEN** a session whose complete index measures above the soft threshold, and one whose index crosses the hard ceiling
+- **WHEN** the session starts
+- **THEN** the soft notice and the hard-ceiling warning name `skills.indexBudget` and neither names a disable command or a package action that does not exist
 
 ### Requirement: Skill files are readable across the workspace boundary
 

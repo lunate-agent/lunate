@@ -183,7 +183,8 @@ A skill is a directory with a `SKILL.md`. Project scope: `.lunate/skills`, `.age
 `.claude/skills`; user scope: `~/.lunate/skills`, `~/.agents/skills`. The nearest scope wins.
 `/skills` lists them, `/skill:<name>` loads one, and the model gets an index of the rest — one
 line per skill, its description carried whole to the Agent Skills limit of 1,024 characters
-(a longer description makes the skill invalid with a warning), sized by the model's context
+(a longer description is truncated in the index with one warning, and the skill still loads),
+sized by the model's context
 window: a one-time notice above the 2% soft threshold, a cut-from-the-end overflow above the 5%
 hard ceiling. `skills.indexBudget` overrides both.
 Project skills need a trust decision like any other repository code.

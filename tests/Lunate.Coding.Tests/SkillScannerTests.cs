@@ -210,7 +210,7 @@ public sealed class SkillScannerTests
     }
 
     [Fact]
-    public void A_description_over_the_spec_limit_is_an_invalid_skill()
+    public void A_description_over_the_spec_limit_still_loads_and_warns_once()
     {
         using var temp = new TempDirectory();
         string repo = temp.File("repo");
@@ -225,13 +225,18 @@ public sealed class SkillScannerTests
 
         SkillScanResult result = SkillScanner.Scan(Request(temp, worktree: repo, repoRoot: repo));
 
+        // The spec limit is a soft warning, never a hard cap: the skill loads normally.
         SkillDescriptor skill = Assert.Single(result.Skills);
-        Assert.False(skill.Valid);
-        Assert.Contains("1,024 characters", skill.InvalidReason, StringComparison.Ordinal);
-        Assert.Contains("1,025 characters", skill.InvalidReason, StringComparison.Ordinal);
-        Assert.Contains("not loaded", Assert.Single(result.Warnings), StringComparison.Ordinal);
-        // The spec limit is validation, not a silent cut: an invalid skill grants no read root.
-        Assert.DoesNotContain(directory, result.ReadRoots);
+        Assert.True(skill.Valid);
+        Assert.Null(skill.InvalidReason);
+        Assert.Equal(description, skill.Description);
+        // The allowance holds canonical paths (ADR-0016): compare the canonical form, so a
+        // symlinked temp root (macOS `/var` -> `/private/var`) is not a false failure.
+        Assert.Contains(Workspace.Canonicalize(directory), result.ReadRoots);
+        Assert.Equal(
+            "skills: verbose description exceeds the 1024-char spec limit; truncated in the index",
+            Assert.Single(result.Warnings)
+        );
     }
 
     [Fact]
