@@ -56,6 +56,18 @@ internal sealed partial class InteractiveSession
             && !ImageInputResolver.IsDroppedImagePath(_workspace.WorktreeRoot, text)
         )
         {
+            if (Commands.Parse(text).Name == "/quit")
+            {
+                // The quit rule runs at any time: the queue path is the live dispatch while a
+                // turn runs, so the quit request reaches the session here and takes the cancel
+                // path an Esc press takes (the exit path awaits the run before it restores the
+                // terminal), instead of the refusal every other slash command gets.
+                _runCancellation?.Cancel();
+                _bashCancellation?.Cancel();
+                Quit();
+                return;
+            }
+
             Notify(
                 "a slash command cannot be queued; wait for the turn to finish and submit it",
                 NoticeLevel.Warning

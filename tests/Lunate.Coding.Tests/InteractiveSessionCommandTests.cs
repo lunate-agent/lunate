@@ -251,7 +251,8 @@ public sealed class InteractiveSessionCommandTests
         host.Client.Release(1);
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
 
-        // Quit is idle-only now; Ctrl+C is the running turn's quit path.
+        // Quit refuses only through the queue's command rule for the busying commands above;
+        // "/quit" itself quits at any time, so it ends the session loop from here too.
         host.Console.SendText("/quit");
         host.Console.SendEnter();
         await run;

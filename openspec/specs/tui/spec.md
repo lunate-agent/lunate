@@ -718,6 +718,12 @@ A submitted line whose first non-space character is `/` SHALL dispatch as a clie
 - **WHEN** `/setup` is submitted
 - **THEN** the wizard opens on the idle session (no run starts, no write happens before its summary is confirmed), the busy session is refused with a notice, and the command is recalled by Up
 
+#### Scenario: Quit during a running turn
+
+- **GIVEN** a running turn
+- **WHEN** `/quit` is submitted
+- **THEN** the turn is cancelled (the run never delivers its remaining output), the session loop ends with the normal quit exit code, and no refusal notice is shown
+
 ### Requirement: SelectList pickers
 
 A picker SHALL render as a select list in the live area — a title and one line per item (a bounded window keeps the selection visible), the selected item marked and emphasized — navigated with Up/Down (clamped at the ends), confirmed with Enter, dismissed with Esc; every other key SHALL be ignored while a picker is open. Pickers SHALL open only while idle. The model picker (Ctrl+L or `/model`) SHALL list the catalog's models, mark the current one, and on selection record a model change in the session and continue the conversation on the new model; the footer SHALL show the new model. The session picker (`/resume`) SHALL list the session directory's sessions, newest first, and on selection resume the chosen session — its history becomes the conversation and a notice names the resumed session. The picker render SHALL be pinned by a golden.
