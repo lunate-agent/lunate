@@ -14,7 +14,13 @@ namespace Lunate.Coding;
 /// </summary>
 internal sealed class UnixChildProcess : ChildProcess
 {
-    private const int PosixSpawnSetSid = 0x0400;
+    // POSIX_SPAWN_SETSID's numeric value is per libc, not part of POSIX: Darwin 0x0400
+    // (usr/include/spawn.h on macOS 26), glibc 0x0080 (glibc 2.26+, measured on 2.39; musl
+    // matches 0x0080). The macOS value on Linux returns EINVAL from setflags — measured, not
+    // assumed — which is how the first Linux CI leg of this method crashed (#621).
+    private static readonly short PosixSpawnSetSid = OperatingSystem.IsMacOS()
+        ? (short)0x0400
+        : (short)0x0080;
     private const int OpenReadOnly = 0;
     private const int WaitNoHang = 1;
     private static readonly TimeSpan ReapTimeout = TimeSpan.FromSeconds(5);
@@ -87,17 +93,17 @@ internal sealed class UnixChildProcess : ChildProcess
             int stdoutRead = stdoutPipe.SafePipeHandle.DangerousGetHandle().ToInt32();
             int stderrRead = stderrPipe.SafePipeHandle.DangerousGetHandle().ToInt32();
 
-            IntPtr attributes;
-            IntPtr actions;
-            ThrowIfNegative(posix_spawnattr_init(out attributes), "posix_spawnattr_init");
+            var attributes = new byte[SpawnStructBuffer];
+            var actions = new byte[SpawnStructBuffer];
+            ThrowIfNegative(posix_spawnattr_init(attributes), "posix_spawnattr_init");
             try
             {
                 ThrowIfNegative(
-                    posix_spawnattr_setflags(ref attributes, PosixSpawnSetSid),
+                    posix_spawnattr_setflags(attributes, PosixSpawnSetSid),
                     "posix_spawnattr_setflags"
                 );
                 ThrowIfNegative(
-                    posix_spawn_file_actions_init(out actions),
+                    posix_spawn_file_actions_init(actions),
                     "posix_spawn_file_actions_init"
                 );
                 try
@@ -106,7 +112,7 @@ internal sealed class UnixChildProcess : ChildProcess
                     {
                         ThrowIfNegative(
                             posix_spawn_file_actions_addopen(
-                                ref actions,
+                                actions,
                                 0,
                                 "/dev/null",
                                 OpenReadOnly,
@@ -121,41 +127,41 @@ internal sealed class UnixChildProcess : ChildProcess
                             .ClientSafePipeHandle.DangerousGetHandle()
                             .ToInt32();
                         ThrowIfNegative(
-                            posix_spawn_file_actions_adddup2(ref actions, stdinRead, 0),
+                            posix_spawn_file_actions_adddup2(actions, stdinRead, 0),
                             "posix_spawn_file_actions_adddup2(stdin)"
                         );
                         ThrowIfNegative(
-                            posix_spawn_file_actions_addclose(ref actions, stdinRead),
+                            posix_spawn_file_actions_addclose(actions, stdinRead),
                             "posix_spawn_file_actions_addclose(stdin)"
                         );
                     }
 
                     ThrowIfNegative(
-                        posix_spawn_file_actions_adddup2(ref actions, stdoutWrite, 1),
+                        posix_spawn_file_actions_adddup2(actions, stdoutWrite, 1),
                         "posix_spawn_file_actions_adddup2(stdout)"
                     );
                     ThrowIfNegative(
-                        posix_spawn_file_actions_addclose(ref actions, stdoutWrite),
+                        posix_spawn_file_actions_addclose(actions, stdoutWrite),
                         "posix_spawn_file_actions_addclose(stdout)"
                     );
                     ThrowIfNegative(
-                        posix_spawn_file_actions_adddup2(ref actions, stderrWrite, 2),
+                        posix_spawn_file_actions_adddup2(actions, stderrWrite, 2),
                         "posix_spawn_file_actions_adddup2(stderr)"
                     );
                     ThrowIfNegative(
-                        posix_spawn_file_actions_addclose(ref actions, stderrWrite),
+                        posix_spawn_file_actions_addclose(actions, stderrWrite),
                         "posix_spawn_file_actions_addclose(stderr)"
                     );
                     ThrowIfNegative(
-                        posix_spawn_file_actions_addclose(ref actions, stdoutRead),
+                        posix_spawn_file_actions_addclose(actions, stdoutRead),
                         "posix_spawn_file_actions_addclose(stdout-read)"
                     );
                     ThrowIfNegative(
-                        posix_spawn_file_actions_addclose(ref actions, stderrRead),
+                        posix_spawn_file_actions_addclose(actions, stderrRead),
                         "posix_spawn_file_actions_addclose(stderr-read)"
                     );
                     ThrowIfNegative(
-                        posix_spawn_file_actions_addchdir_np(ref actions, request.WorkingDirectory),
+                        posix_spawn_file_actions_addchdir_np(actions, request.WorkingDirectory),
                         "posix_spawn_file_actions_addchdir_np"
                     );
 
@@ -168,7 +174,8 @@ internal sealed class UnixChildProcess : ChildProcess
                     // through the spawn, and a diagnostic with an unstable argv/envp pointer is
                     // indistinguishable from a bad path; the explicit pointers are what the
                     // syscall contract asks for. Size abuse surfaces as E2BIG (verified on
-                    // macOS 26: a 1 MiB environment), not EFAULT.
+                    // macOS 26 with a 1 MiB environment; on Linux the kernel caps a single exec
+                    // string at MAX_ARG_STRLEN, 128 KiB, measured the same way), not EFAULT.
                     IntPtr argvPtr = AllocArgv(argv);
                     IntPtr envpPtr = AllocArgv(envp);
                     try
@@ -176,8 +183,8 @@ internal sealed class UnixChildProcess : ChildProcess
                         int spawn = posix_spawn(
                             out int pid,
                             executable,
-                            ref actions,
-                            ref attributes,
+                            actions,
+                            attributes,
                             argvPtr,
                             envpPtr
                         );
@@ -225,12 +232,12 @@ internal sealed class UnixChildProcess : ChildProcess
                 }
                 finally
                 {
-                    posix_spawn_file_actions_destroy(ref actions);
+                    posix_spawn_file_actions_destroy(actions);
                 }
             }
             finally
             {
-                posix_spawnattr_destroy(ref attributes);
+                posix_spawnattr_destroy(attributes);
             }
         }
         finally
@@ -385,36 +392,46 @@ internal sealed class UnixChildProcess : ChildProcess
         }
     }
 
-    // posix_spawnattr_t and posix_spawn_file_actions_t are opaque `void*` handles; every entry
-    // point takes the address of the handle (`void**`), so the handles pass by reference.
+    // The posix_spawn opaque types differ by ABI: on Darwin they are pointer handles
+    // (`posix_spawnattr_t` is `struct _posix_spawnattr*`, so every entry point takes the address of
+    // the handle); on glibc and musl they are in-place structs (measured 336 B and 80 B on glibc
+    // LP64). One buffer contract covers both: pass an over-sized zeroed byte buffer and the same
+    // call shape works everywhere — Darwin's init stores the handle pointer in the buffer's first
+    // bytes and destroy dereferences it; glibc's init memsets its struct inside the buffer and the
+    // other entry points treat the buffer's address as the struct. 1024 B covers the real sizes
+    // with room for a future libc that grows them; a struct that ever outgrew the buffer would be
+    // memory corruption, so the buffer is larger than any current libc needs and the sizes are
+    // pinned by the libc ABI, not by us.
+    private const int SpawnStructBuffer = 1024;
+
     [DllImport("libc", SetLastError = true)]
     private static extern int posix_spawn(
         out int pid,
         string path,
-        ref IntPtr fileActions,
-        ref IntPtr attributes,
+        byte[] fileActions,
+        byte[] attributes,
         IntPtr argv,
         IntPtr envp
     );
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawnattr_init(out IntPtr attributes);
+    private static extern int posix_spawnattr_init([In, Out] byte[] attributes);
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawnattr_setflags(ref IntPtr attributes, short flags);
+    private static extern int posix_spawnattr_setflags(byte[] attributes, short flags);
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawnattr_destroy(ref IntPtr attributes);
+    private static extern int posix_spawnattr_destroy(byte[] attributes);
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawn_file_actions_init(out IntPtr actions);
+    private static extern int posix_spawn_file_actions_init([In, Out] byte[] actions);
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawn_file_actions_destroy(ref IntPtr actions);
+    private static extern int posix_spawn_file_actions_destroy(byte[] actions);
 
     [DllImport("libc", SetLastError = true)]
     private static extern int posix_spawn_file_actions_addopen(
-        ref IntPtr actions,
+        byte[] actions,
         int fd,
         string path,
         int oflag,
@@ -422,17 +439,13 @@ internal sealed class UnixChildProcess : ChildProcess
     );
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawn_file_actions_adddup2(
-        ref IntPtr actions,
-        int src,
-        int dst
-    );
+    private static extern int posix_spawn_file_actions_adddup2(byte[] actions, int src, int dst);
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawn_file_actions_addclose(ref IntPtr actions, int fd);
+    private static extern int posix_spawn_file_actions_addclose(byte[] actions, int fd);
 
     [DllImport("libc", SetLastError = true)]
-    private static extern int posix_spawn_file_actions_addchdir_np(ref IntPtr actions, string path);
+    private static extern int posix_spawn_file_actions_addchdir_np(byte[] actions, string path);
 
     [DllImport("libc", SetLastError = true)]
     private static extern int waitpid(int pid, out int status, int options);

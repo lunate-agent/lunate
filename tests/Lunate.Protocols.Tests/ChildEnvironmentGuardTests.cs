@@ -3,23 +3,33 @@ using Lunate.TestSupport;
 namespace Lunate.Protocols.Tests;
 
 /// <summary>
-/// #472 — the allow-list scrubber is the only code path that builds a child environment, and the
-/// stdio host is the only one of Lunate's spawns that may turn inheritance on. The test greps
-/// Lunate's source the way a reviewer would: every file that touches child-environment plumbing
-/// must also reference <c>EnvironmentScrubber</c>, inheritance stays off, and the SDK's own
-/// curated allow-list is not adopted behind our backs.
+/// #472 — the allow-list scrubber builds the environment of Lunate's managed extension hosts, and
+/// the stdio host is the only one of those spawns that may turn inheritance on. The test greps
+/// Lunate's source the way a reviewer would: every file that touches child-environment plumbing is
+/// one of the two named builders below and neither names a second allow-list, inheritance stays
+/// off, and the SDK's own curated allow-list is not adopted behind our backs.
 /// </summary>
 public sealed class ChildEnvironmentGuardTests
 {
     /// <summary>
-    /// The one source file allowed to build a child environment in Lunate's own code: the stdio
-    /// host. The scrubber itself is checked by its own test class; a new spawn site must move
-    /// this pin behind a review, never appear beside it.
+    /// The scrubbed builder: the extension hosts' environment comes out of
+    /// <c>EnvironmentScrubber.Build</c>, minimal base plus declared names, never the parent's
+    /// whole environment.
     /// </summary>
-    private const string BuilderFile = "McpServerHost.cs";
+    private const string ScrubbedBuilderFile = "McpServerHost.cs";
+
+    /// <summary>
+    /// The inherited builder: the tool child. <see cref="ProcessRunRequest"/>'s public contract is
+    /// that withholding an explicit environment leaves the child the parent's environment — the
+    /// bash tool is the user's shell and must see the user's environment (a scrubbed allow-list
+    /// would half-break every user toolchain that keeps state outside the scrubber's base list,
+    /// on every machine). The class comment on <c>ChildProcess.cs</c> names
+    /// <c>EnvironmentScrubber</c> so this file and the guard cannot be decoupled by accident.
+    /// </summary>
+    private const string InheritedBuilderFile = "ChildProcess.cs";
 
     [Fact]
-    public void The_stdio_host_is_the_only_child_environment_builder_and_names_the_scrubber()
+    public void The_child_environment_builders_are_pinned_and_the_scrubbed_one_names_the_scrubber()
     {
         (string Path, string Content)[] plumbing = CSharpSources()
             .Where(source =>
@@ -29,12 +39,24 @@ public sealed class ChildEnvironmentGuardTests
 
         Assert.NotEmpty(plumbing);
         Assert.Equal(
-            new[] { BuilderFile },
-            plumbing.Select(source => Path.GetFileName(source.Path)).ToArray()
+            new[] { InheritedBuilderFile, ScrubbedBuilderFile },
+            plumbing.Select(source => Path.GetFileName(source.Path)).Order().ToArray()
         );
 
+        string scrubbed = plumbing.Single(source =>
+            Path.GetFileName(source.Path) == ScrubbedBuilderFile
+        ).Content;
+
         // The formatter may split the call across lines, so match the member path, not the line.
-        Assert.Matches(@"EnvironmentScrubber\s*\.\s*Build", plumbing[0].Content);
+        Assert.Matches(@"EnvironmentScrubber\s*\.\s*Build", scrubbed);
+
+        // The inherited builder names the scrubber in its own contract comment, so the boundary
+        // between the two builders survives a refactor that edits either file in isolation.
+        string inherited = plumbing.Single(source =>
+            Path.GetFileName(source.Path) == InheritedBuilderFile
+        ).Content;
+        Assert.Contains("EnvironmentScrubber", inherited, StringComparison.Ordinal);
+        Assert.Contains("inherits the caller's environment", inherited, StringComparison.Ordinal);
     }
 
     [Fact]

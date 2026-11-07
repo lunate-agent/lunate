@@ -34,9 +34,20 @@ internal abstract class ChildProcess : IDisposable
             : UnixChildProcess.Spawn(request);
 
     /// <summary>
-    /// The child's environment: the caller's replacement when one is given, otherwise the inherited
-    /// environment, with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on top either way.
+    /// The child's environment: the caller's replacement when one is given, otherwise the
+    /// caller's own environment, with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on
+    /// top either way.
     /// </summary>
+    /// <remarks>
+    /// The tool child inherits the caller's environment by public contract
+    /// (<c>ProcessRunRequest.Environment</c> replaces when given and carries nothing when null, so
+    /// a null caller asks for the parent's environment; the bash tool is the user's shell and must
+    /// see the user's environment, not a scrubbed base). That is the deliberate second
+    /// child-environment builder: the allow-list scrubber <see cref="EnvironmentScrubber"/>
+    /// builds the extension hosts' environments instead — minimal base plus declared names — and
+    /// <c>ChildEnvironmentGuardTests</c> names both builders so the boundary is a review, not an
+    /// accident.
+    /// </remarks>
     internal static IReadOnlyDictionary<string, string> BuildEnvironment(ProcessRunRequest request)
     {
         var environment = new Dictionary<string, string>(StringComparer.Ordinal);

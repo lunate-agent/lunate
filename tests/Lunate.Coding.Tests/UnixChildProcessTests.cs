@@ -17,6 +17,7 @@ public sealed class UnixChildProcessTests
     [Fact]
     public async Task A_plain_spawn_round_trips_output_and_exit_code()
     {
+        SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
         using var temp = new TempDirectory();
         var request = new ProcessRunRequest("/bin/echo", ["spawn-ok"], temp.Root);
         using Lunate.Coding.ChildProcess child = UnixChildProcess.Spawn(request);
@@ -32,10 +33,7 @@ public sealed class UnixChildProcessTests
     [Fact]
     public async Task The_child_is_its_own_session_leader_with_no_controlling_tty()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
 
         using var temp = new TempDirectory();
         string pidFile = temp.File("child.pid");
@@ -51,10 +49,11 @@ public sealed class UnixChildProcessTests
 
         // setsid made the child the leader of a brand-new session: it leads its own process
         // group — not the group the test host lives in — and holds no controlling terminal,
-        // so it cannot open /dev/tty behind Lunate's back.
+        // so it cannot open /dev/tty behind Lunate's back. The TTY column spells the empty
+        // field per platform: "??" on macOS, "?" on Linux.
         Assert.Equal(pid, pgid);
         Assert.NotEqual(HostProcessGroupId(), pgid);
-        Assert.Equal("??", tty);
+        Assert.Equal(OperatingSystem.IsMacOS() ? "??" : "?", tty);
 
         await child.KillTreeAsync();
     }
@@ -80,6 +79,19 @@ public sealed class UnixChildProcessTests
         return string.Empty;
     }
 
+    // Redirected-stdio Windows spawn is pinned by ProcessRunnerTests (the WindowsChildProcess
+    // path); these tests call the POSIX half's `UnixChildProcess.Spawn` directly, and Windows has
+    // no libc to bind.
+    private static void SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        Assert.Skip("the POSIX spawn pinning is POSIX-only; the Windows path is pinned elsewhere");
+    }
+
     private static (int Pid, int Pgid, int Ppid, string Tty) IdentityOf(string pidText)
     {
         var start = new ProcessStartInfo("/bin/ps")
@@ -92,7 +104,7 @@ public sealed class UnixChildProcessTests
         string output = process.StandardOutput.ReadToEnd();
         string error = process.StandardError.ReadToEnd();
         process.WaitForExit();
-        string[] fields = output.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string[] fields = output.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (fields.Length < 4)
         {
             Assert.Fail($"ps could not describe pid {pidText}: {error}");
@@ -112,6 +124,7 @@ public sealed class UnixChildProcessTests
     [Fact]
     public async Task The_child_reads_stdin_at_end_of_file()
     {
+        SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
         using var temp = new TempDirectory();
         var request = new ProcessRunRequest(
             "/bin/bash",
@@ -129,12 +142,20 @@ public sealed class UnixChildProcessTests
     }
 
     [Fact]
-    public async Task A_half_megabyte_env_value_spawns()
+    public async Task A_large_environment_spawns_and_reports_the_platform_limit_as_E2BIG()
     {
+        SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
+
+        // A big environment must fail the spawn with the kernel's own error, never crash or fail
+        // silently. The honest per-platform size: macOS takes a half-megabyte value without
+        // blinking, while the Linux kernel caps every exec's single string at 128 KiB
+        // (MAX_ARG_STRLEN, measured on the Linux CI shard) — sizing just under it on Linux keeps
+        // the same property without testing a limit the kernel makes unreachable.
+        int valueBytes = OperatingSystem.IsLinux() ? 100 * 1024 : 512 * 1024;
         using var temp = new TempDirectory();
         var request = new ProcessRunRequest("/bin/echo", ["big"], temp.Root)
         {
-            Environment = new Dictionary<string, string> { ["BIG"] = new string('x', 512 * 1024) },
+            Environment = new Dictionary<string, string> { ["BIG"] = new string('x', valueBytes) },
         };
         using Lunate.Coding.ChildProcess child = UnixChildProcess.Spawn(request);
         string stdout = await child.StandardOutput.ReadToEndAsync(
