@@ -17,7 +17,6 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
     private readonly StringBuilder _buffer = new();
     private TaskCompletionSource<string?>? _pending;
     private string _label = string.Empty;
-    private bool _masked = true;
 
     public bool IsOpen
     {
@@ -30,17 +29,7 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
         }
     }
 
-    public async Task<string?> ReadAsync(string prompt, CancellationToken cancellationToken) =>
-        await ReadCoreAsync(prompt, masked: true, cancellationToken).ConfigureAwait(false);
-
-    public async Task<string?> ReadTextAsync(string prompt, CancellationToken cancellationToken) =>
-        await ReadCoreAsync(prompt, masked: false, cancellationToken).ConfigureAwait(false);
-
-    private async Task<string?> ReadCoreAsync(
-        string prompt,
-        bool masked,
-        CancellationToken cancellationToken
-    )
+    public async Task<string?> ReadAsync(string prompt, CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)
         {
@@ -50,7 +39,7 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
         TaskCompletionSource<string?> pending;
         lock (_gate)
         {
-            // Only one prompt can run: the prompt is modal, so a second read never opens a second one.
+            // Only one login can run: the prompt is modal, so a second read never opens a second one.
             if (_pending is not null)
             {
                 return null;
@@ -61,9 +50,8 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
             );
             _pending = pending;
             _label = prompt;
-            _masked = masked;
             _buffer.Clear();
-            ShowContent();
+            live.SetSecretPrompt(new SecretPromptState(prompt, string.Empty));
         }
 
         using CancellationTokenRegistration registration = cancellationToken.Register(() =>
@@ -95,10 +83,9 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
                     Append(" ");
                     return true;
                 case { Kind: KeyKind.Paste }:
-                    // A secret keeps only its non-whitespace characters; a trailing newline is
-                    // stripped, never treated as Enter. A visible field keeps its spaces; Enter
-                    // remains the only way to submit either.
-                    Append(_masked ? WithoutWhitespace(key.Text) : WithoutNewlines(key.Text));
+                    // A pasted key keeps only its non-whitespace characters; a trailing newline is
+                    // stripped, never treated as Enter. Enter remains the only way to submit.
+                    Append(WithoutWhitespace(key.Text));
                     return true;
                 case { Kind: KeyKind.Backspace }:
                     Backspace();
@@ -134,11 +121,6 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
         return stripped.ToString();
     }
 
-    private static string WithoutNewlines(string? text) =>
-        string.IsNullOrEmpty(text)
-            ? string.Empty
-            : text.Replace("\r", string.Empty).Replace("\n", string.Empty);
-
     private void Append(string text)
     {
         if (text.Length == 0)
@@ -147,7 +129,7 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
         }
 
         _buffer.Append(text);
-        ShowContent();
+        ShowMask();
     }
 
     private void Backspace()
@@ -158,18 +140,12 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
         }
 
         _buffer.Length--;
-        ShowContent();
+        ShowMask();
     }
 
-    /// <summary>The live state carries only the display text: a mask for a secret, the text itself
-    /// for every visible prompt.</summary>
-    private void ShowContent() =>
-        live.SetSecretPrompt(
-            new SecretPromptState(
-                _label,
-                _masked ? new string('*', _buffer.Length) : _buffer.ToString()
-            )
-        );
+    /// <summary>The live state carries only the mask, never the typed characters.</summary>
+    private void ShowMask() =>
+        live.SetSecretPrompt(new SecretPromptState(_label, new string('*', _buffer.Length)));
 
     private void Complete(string? value)
     {
@@ -200,7 +176,6 @@ internal sealed class TuiSecretPrompt(LiveArea live) : ISecretPrompt
         TaskCompletionSource<string?>? pending = _pending;
         _pending = null;
         _label = string.Empty;
-        _masked = true;
         _buffer.Clear();
         return pending;
     }
