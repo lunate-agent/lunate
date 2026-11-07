@@ -350,27 +350,37 @@ internal sealed class TerminalRestorePty : IDisposable
     }
 
     /// <summary>
-    /// The child's environment: the test's own environment minus every LUNATE_* variable the
-    /// runner may carry, plus the scratch home and a plain terminal.
+    /// The child's environment: the test's own environment minus every LUNATE_* variable and the
+    /// CI marker the runner may carry, plus the scratch home and a plain terminal.
     /// </summary>
-    internal static string[] BuildEnv(string home)
+    internal static string[] BuildEnv(
+        string home,
+        IEnumerable<KeyValuePair<string, string>>? parent = null
+    )
     {
         // The parent's environment is inherited, not rebuilt: the apphost finds its runtime
         // through DOTNET_ROOT and the installer's defaults, and a short allow-list dropped those
-        // on the macOS CI legs ("You must install .NET to run this application"). Only the
-        // scratch home, a plain terminal and the absence of the runner's LUNATE_* switches are
-        // imposed, and each replaces an inherited entry rather than sitting beside it — the child
-        // takes the first match for a name.
+        // on the macOS CI legs ("You must install .NET to run this application"). The scratch
+        // home, a plain terminal and the absence of the runner's own switches are imposed, each
+        // replacing an inherited entry rather than sitting beside it — the child takes the first
+        // match for a name.
         var env = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+        foreach (KeyValuePair<string, string> entry in parent ?? ParentEnvironment())
         {
-            string name = (string)entry.Key;
-            if (name.StartsWith("LUNATE_", StringComparison.OrdinalIgnoreCase))
+            string name = entry.Key;
+            // CI is dropped with the LUNATE_* switches: the setup wizard's own trigger skips a CI
+            // environment, and the harness drives an ordinary terminal where the first-run walk is
+            // part of the flow. Its CI gate is covered by the session tests; here it would make the
+            // driven flow differ between a laptop and a runner.
+            if (
+                name.StartsWith("LUNATE_", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "CI", StringComparison.Ordinal)
+            )
             {
                 continue;
             }
 
-            env[name] = entry.Value?.ToString() ?? string.Empty;
+            env[name] = entry.Value;
         }
 
         env["HOME"] = home;
@@ -379,6 +389,18 @@ internal sealed class TerminalRestorePty : IDisposable
         env["LANG"] = "en_US.UTF-8";
         env["__CF_USER_TEXT_ENCODING"] = "0x1F5:0x0:0x0";
         return [.. env.Select(pair => $"{pair.Key}={pair.Value}")];
+    }
+
+    /// <summary>The test process's own environment, as the parent side of <see cref="BuildEnv"/>.</summary>
+    private static IEnumerable<KeyValuePair<string, string>> ParentEnvironment()
+    {
+        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+        {
+            yield return new KeyValuePair<string, string>(
+                (string)entry.Key,
+                entry.Value?.ToString() ?? string.Empty
+            );
+        }
     }
 
     private static nint PtrArray(string[] values)
@@ -440,9 +462,21 @@ internal sealed class TerminalRestorePty : IDisposable
         fds[0].Fd = fd;
         fds[0].Events = 1; // POLLIN
         int ready = poll(fds, (nuint)fds.Length, timeoutMilliseconds);
+        if (ready < 0 && Marshal.GetLastWin32Error() == Interrupted)
+        {
+            return 0; // EINTR: a signal of this process's own, not the pty's answer
+        }
+
         if (ready < 0)
         {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "poll on the pty master failed");
+            int errno = Marshal.GetLastWin32Error();
+            throw new Win32Exception(
+                errno,
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"poll on the pty master failed (errno {errno.ToString(CultureInfo.InvariantCulture)}, fd {fd.ToString(CultureInfo.InvariantCulture)})"
+                )
+            );
         }
 
         return ready;
@@ -490,6 +524,7 @@ internal sealed class TerminalRestorePty : IDisposable
 #pragma warning restore CS0649
     }
 
+    private const int Interrupted = 4; // EINTR on both Darwin and Linux
     private const int O_RDWR = 2;
     private const int F_SETFD = 2;
     private const int FD_CLOEXEC = 1;

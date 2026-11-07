@@ -40,6 +40,36 @@ public sealed class SignalTerminalRestoreTests
         await RunSignalTest(TerminalRestorePty.SigHup, midTurn: true);
     }
 
+    /// <summary>
+    /// The child's environment is built from this process's, so a runtime the apphost only finds
+    /// through <c>DOTNET_ROOT</c> survives the launch (macOS CI failed with "You must install .NET"
+    /// while the harness replaced the environment), and the runner's own switches do not reach the
+    /// session. The CI marker goes with them: the setup wizard's trigger skips a CI environment, and
+    /// the flow this harness drives has to be the same on a laptop and on a runner.
+    /// </summary>
+    [Fact]
+    public void The_child_environment_inherits_the_runtime_and_drops_the_runner_switches()
+    {
+        string[] env = TerminalRestorePty.BuildEnv(
+            "/scratch/home",
+            new Dictionary<string, string>
+            {
+                ["DOTNET_ROOT"] = "/usr/local/share/dotnet",
+                ["PATH"] = "/usr/bin:/bin",
+                ["HOME"] = "/home/runner",
+                ["CI"] = "true",
+                ["LUNATE_MODEL"] = "runner/model",
+            }
+        );
+
+        Assert.Contains("DOTNET_ROOT=/usr/local/share/dotnet", env);
+        Assert.Contains("PATH=/usr/bin:/bin", env);
+        Assert.Contains("HOME=/scratch/home", env);
+        Assert.Single(env, entry => entry.StartsWith("HOME=", StringComparison.Ordinal));
+        Assert.DoesNotContain("CI=true", env);
+        Assert.DoesNotContain("LUNATE_MODEL=runner/model", env);
+    }
+
     private static async Task RunSignalTest(int signal, bool midTurn)
     {
         string binary = Path.Combine(
