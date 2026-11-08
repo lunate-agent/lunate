@@ -374,6 +374,8 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         host.Console.SendText("chat-go");
         host.Console.SendEnter();
         await PickRowAsync(host, "fast usage", "Skip");
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
         // The flat list's row order follows the configured providers, so the native Jev row is
         // found by its own text instead of an assumed offset from Skip.

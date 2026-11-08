@@ -264,6 +264,8 @@ public sealed class SetupWizardAmbiguousModelTests
     {
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip the fast profile
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // skip the decision profile
         await host.WaitForFrameAsync("Decisions settings");
