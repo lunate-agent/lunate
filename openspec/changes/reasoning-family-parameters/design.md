@@ -13,7 +13,7 @@ holds the wire name a `ModelProfileResolver` resolved, and a catalog/discovery e
 directly — and `ChatClientFactory` already resolves the family the same way for its pipeline
 decorators (`ResolvesToAnthropicMessages`, `src/Lunate.Ai/ChatClientFactory.cs:165`).
 
-```
+```text
 +-------------------+        +------------------------+        +----------------------+
 | AgentHarness      |        | ReasoningParameters    |        | Resolved model facts |
 | BuildOptions      |------->| Apply/Describe         |<-------| ModelInfo            |

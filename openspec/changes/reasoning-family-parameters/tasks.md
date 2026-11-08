@@ -23,7 +23,7 @@
 
 ## 3. Verify and archive
 
-- [ ] 3.1 Run the focused test classes, CSharpier and a Release build; confirm `git status` clean.
-- [ ] 3.2 Run `openspec validate reasoning-family-parameters --strict` and
+- [x] 3.1 Run the focused test classes, CSharpier and a Release build; confirm `git status` clean.
+- [x] 3.2 Run `openspec validate reasoning-family-parameters --strict` and
       `bash scripts/check-openspec-skills.sh`.
-- [ ] 3.3 Sync the delta into `openspec/specs/ai-layer/spec.md` and archive as the final commit.
+- [x] 3.3 Sync the delta into `openspec/specs/ai-layer/spec.md` and archive as the final commit.
