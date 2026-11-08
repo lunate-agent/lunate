@@ -32,11 +32,11 @@ true. Refs #583.
 - [x] 3.3 Build `Lunate.Agent`, `Lunate.Coding`, `Lunate.Extensibility.Abstractions`,
       `Lunate.Extensibility.Remote` and `Lunate.Agent.Tests` in Release.
 - [x] 3.4 `openspec validate source-file-names --strict`.
-- [ ] 3.5 Record the classes run and the acceptance answers on the PR.
+- [x] 3.5 Record the classes run and the acceptance answers on the PR.
 
 ## 4. Record
 
-- [ ] 4.1 State on #583 that the two remaining same-named files (`DecisionRequestValidator.cs`,
+- [x] 4.1 State on #583 that the two remaining same-named files (`DecisionRequestValidator.cs`,
       `InputTrace.cs`) are deliberate parallel implementations, not misnamed files, so the finding's
       second clause is answered for names, not for types.
-- [ ] 4.2 Archive this change as the final commit.
+- [x] 4.2 Archive this change as the final commit.
