@@ -74,6 +74,10 @@ internal static class WizardModelCheck
     /// adapter for an adapter one. The request is the contract's own: a single yes/no question
     /// with the fixed answers and an empty state, so nothing a model could read as instructions
     /// rides along. A failure marks the profile unverified with the response's own words.
+    /// <paramref name="context"/> names the identity the wire headers render over — the session's
+    /// when one exists, null for a fresh ephemeral id (the flag path runs with no session). It must
+    /// not be omitted: an OpenCode Go decision check outside a session otherwise throws on
+    /// <c>x-opencode-session: {session.id}</c> before the first byte.
     /// </summary>
     internal static async Task<WizardCheckResult> RunDecisionAsync(
         SetupWizardModel wizard,
@@ -82,6 +86,7 @@ internal static class WizardModelCheck
         AuthStore auth,
         Func<string, string?> environment,
         Func<string?> resolveCredential,
+        RequestContext? context,
         CancellationToken ct
     )
     {
@@ -94,6 +99,7 @@ internal static class WizardModelCheck
         ModelInfo checkModel = DecisionModelFor(wizard, decision, catalog);
         ProviderEntry entry = SetupWizardCommit.StagedEntry(wizard);
         string? credential = resolveCredential();
+        RequestContext identity = context ?? RequestContext.Ephemeral();
         try
         {
             // The same resolution the session's decision usage takes, over the entry this walk is
@@ -116,7 +122,7 @@ internal static class WizardModelCheck
                 auth,
                 environment,
                 factory,
-                context: null,
+                identity,
                 credentialOverride: credential
             );
             await DecisionEngine
