@@ -197,7 +197,6 @@ public sealed class KeymapFileTests
     {
         try
         {
-            Assert.NotNull(Apply(json).Error);
             string error = Apply(json).Error!;
             Assert.Contains(fragment, error, StringComparison.Ordinal);
             AssertCatalogueUnchanged();
@@ -281,6 +280,37 @@ public sealed class KeymapFileTests
     }
 
     [Fact]
+    public void The_specs_scenario_enter_submits_on_ctrl_j_and_no_longer_in_idle()
+    {
+        try
+        {
+            KeymapOutcome outcome = Apply(
+                """{"version":1,"bindings":[{"id":"enter.submit.idle","keys":[{"kind":"Character","ctrl":true,"text":"j"}]}]}"""
+            );
+            Assert.Null(outcome.Error);
+
+            // Ctrl+J submits in the idle context, though the catalogue binds Ctrl+J to a newline.
+            KeyEvent ctrlJ = new(KeyKind.Character, "j", Ctrl: true, Shift: false, Alt: false);
+            Assert.Equal(RoutedKey.Submit, KeyRouter.Route(ctrlJ, turnRunning: false));
+
+            // Enter no longer submits there, and the shipped Ctrl+J newline is gone.
+            KeyEvent enter = new(KeyKind.Enter, null, false, false, false);
+            Assert.NotEqual(RoutedKey.Submit, KeyRouter.Route(enter, turnRunning: false));
+            Assert.NotEqual(RoutedKey.Edit, KeyRouter.Route(ctrlJ, turnRunning: false));
+
+            // The displaced catalogue binding is named in one startup line, and the file wins.
+            Assert.Contains(
+                outcome.ConflictLines,
+                line => line.Contains("newline.ctrl-j", StringComparison.Ordinal)
+            );
+        }
+        finally
+        {
+            Restore();
+        }
+    }
+
+    [Fact]
     public void The_path_resolves_flag_over_variable_over_the_home_file()
     {
         Assert.Equal(
@@ -291,15 +321,19 @@ public sealed class KeymapFileTests
             "/env/keymap.json",
             KeymapFile.ResolvePath(null, "/home", _ => "/env/keymap.json")
         );
-        Assert.Equal(
-            Path.Combine("/home", KeymapFile.FileName),
-            KeymapFile.ResolvePath(null, "/home", _ => null)
-        );
+        // The fallback is the home's own keymap.json — asserted as "that file in that directory",
+        // not by rebuilding the same Path.Combine the resolver uses.
+        AssertHomeFile(KeymapFile.ResolvePath(null, "/home", _ => null));
         // A blank variable is unset, the same rule LUNATE_HOME itself follows.
-        Assert.Equal(
-            Path.Combine("/home", KeymapFile.FileName),
+        AssertHomeFile(
             KeymapFile.ResolvePath(null, "/home", name => name == KeymapFile.Variable ? " " : null)
         );
+    }
+
+    private static void AssertHomeFile(string path)
+    {
+        Assert.Equal(KeymapFile.FileName, Path.GetFileName(path));
+        Assert.Equal(Path.GetFullPath("/home"), Path.GetDirectoryName(path));
     }
 
     private static KeymapOutcome Apply(string json)

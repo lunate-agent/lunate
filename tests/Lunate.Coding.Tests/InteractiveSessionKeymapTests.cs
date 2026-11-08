@@ -16,14 +16,6 @@ public sealed class InteractiveSessionKeymapCollection
 /// the load: the shipped keys stand and the session says why. The catalogue is static, so every
 /// test restores the shipped rows around itself.
 /// </summary>
-/// <summary>
-/// The user keymap file in a running session: the file under the session's home
-/// (<c>.lunate/keymap.json</c>), overridden by <c>LUNATE_KEYMAP</c> and overridden again by
-/// <c>--keymap</c>, is applied once at startup as the catalogue's overlay — and the rebound key
-/// drives its action through the real key pump afterwards. A file that cannot be applied fails
-/// the load: the shipped keys stand and the session says why. The catalogue is static, so every
-/// test captures the shipped rows before its host runs and restores them afterwards.
-/// </summary>
 [Collection(InteractiveSessionKeymapCollection.Name)]
 public sealed class InteractiveSessionKeymapTests
 {
@@ -263,17 +255,15 @@ public sealed class InteractiveSessionKeymapTests
         return System.IO.Path.Combine(store, "keymap.json");
     }
 
-    private static string ScratchFile(string kind)
-    {
-        string temp = Environment.GetEnvironmentVariable("TEMP") ?? "/tmp";
-        return System.IO.Path.Combine(
-            temp,
+    /// <summary>A scratch file under the host's temp directory (<c>$TMPDIR</c> on POSIX).</summary>
+    private static string ScratchFile(string kind) =>
+        System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
             string.Create(
                 System.Globalization.CultureInfo.InvariantCulture,
                 $"lunate-keymap-{kind}-{Guid.NewGuid():N}.json"
             )
         );
-    }
 
     private static async Task<string> WaitForNoticeAsync(InteractiveSessionHost host, string text)
     {
