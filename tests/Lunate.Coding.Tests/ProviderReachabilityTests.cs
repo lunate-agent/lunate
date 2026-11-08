@@ -105,6 +105,9 @@ public sealed class ProviderReachabilityTests
             handler.Requests,
             request =>
             {
+                // N-7 (#587): the probe is a provider request like any other, so it names this
+                // client; it is still unauthenticated and carries no declared provider header.
+                Assert.Equal(RequestContext.LunateVersion, request.Headers.UserAgent.ToString());
                 Assert.Null(request.Headers.Authorization);
                 Assert.False(request.Headers.Contains("X-Optional"));
                 Assert.Null(request.Content);
