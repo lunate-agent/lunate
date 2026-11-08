@@ -17,7 +17,10 @@ the wizard opens instead of the prompt:
 - **Credential** — type a key (masked, stored only in `auth.json`), name an `env:`/`auth:`
   reference, or skip. A provider environment variable always wins over a stored key.
 - **Connection test** — one discovery request to the provider's models URL; skippable.
-- **Model** — search the discovered list or enter an id manually.
+- **Model** — search the discovered list or enter an id manually. The id is resolved against the
+  catalogue in the provider entry's scope, so a custom endpoint's bare id — the wire form it
+  serves — is staged as listed; only an id that several unrelated providers serve is asked about,
+  by qualified id.
 - **Model check** — one minimal completion that verifies the resolved family; it costs one short
   request, and `--no-model-check`, `--no-test` or the skip row avoids it.
 - **Chat profile and thinking** — the name the session uses and the reasoning level the model
@@ -167,8 +170,10 @@ generated [configuration reference](configuration.md). For example:
 Profiles may set supported reasoning, output, temperature, context-window, and capability-override
 fields. Unsupported settings are refused by field and profile name before a request. `/model`
 changes only the chat profile; `provider/model` selects through a named provider, and a bare model
-id must be unique. Subagents and compaction default to chat when unassigned; compaction uses `fast`
-only when explicitly selected.
+id must be unique. A profile's own `model` is read in its `provider`'s scope first, so a profile on
+a custom endpoint may carry that endpoint's bare model id even when the catalogue holds the same id
+under other providers. Subagents and compaction default to chat when unassigned; compaction uses
+`fast` only when explicitly selected.
 
 ## Decisions
 

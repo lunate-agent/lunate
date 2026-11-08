@@ -221,7 +221,7 @@ internal sealed partial class InteractiveSession
     /// style comes from the catalog, exactly the discovery listing's own metadata source.</summary>
     private WizardModelChoice CarriedModel(ModelProfile profile, ProviderEntry entry)
     {
-        ModelInfo? known = _catalog.Find(profile.Model);
+        ModelInfo? known = _catalog.FindFor(entry.Name, profile.Model).Match;
         ProviderApiFamily family = entry.DefaultFamily;
         return new WizardModelChoice(
             profile.Model,
