@@ -398,7 +398,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.arm in ("lunate", "all") and not args.lunate_bin:
         print("swebench-run: --lunate-bin is required for the lunate arm", file=sys.stderr)
         return 2
-    if args.arm == "baseline":
+    if args.arm in ("baseline", "all"):
         definition["_mini_extra"] = args.mini_extra or shutil.which("mini-extra") or "mini-extra"
     definition.update(
         {
