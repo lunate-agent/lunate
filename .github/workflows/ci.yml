@@ -36,12 +36,13 @@ on:
         options: ["1", "2"]
         default: "2"
 
-# Supersede in-flight runs for the same ref instead of queueing duplicates.
+# Supersede in-flight runs only for the same obligation: a pull-request push makes the pull
+# request's previous run obsolete, while a push to main, a tag and a merge-group gate each need
+# their own completed verdict. The nightly runs on the same branch as a push, so it gets its own
+# group and cancels nothing (#705).
 concurrency:
-  group: ci-${{ github.ref }}
-  # A merge group's gate must run to completion: cancelling it fails the batch. Pull requests and
-  # pushes still supersede their own older runs.
-  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
+  group: ci-${{ github.ref }}${{ github.event_name == 'schedule' && '-nightly' || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

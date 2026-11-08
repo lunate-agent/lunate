@@ -10,9 +10,11 @@ on:
   push:
     branches: [main]
 
+# Supersede only a pull request's own older run. A push to main keeps its own run: the dry run is
+# evidence for that commit and a newer push must not cancel it (#705).
 concurrency:
   group: pack-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
