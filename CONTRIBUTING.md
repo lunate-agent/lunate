@@ -76,6 +76,13 @@ bash scripts/perf.sh artifacts/publish/<rid>/lunate   # startup budget only
 bash scripts/gate-tests.sh               # the gate's own self-tests (needs a published binary)
 ```
 
+When an interactive-session test fails on a wait, read the message before rerunning: it names the
+condition that was polled, how many times it was observed and the longest gap between observations,
+the thread pool's state, the test process's process tree (with `/proc` descriptors on Linux) and the
+session state the condition reads. Many polls with no long gap is a hang; few polls with long gaps is
+a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis` and lives in
+`tests/Lunate.Coding.Tests/WaitDiagnosis.cs` and `ProcessTable.cs`.
+
 ## Repository map
 
 | Path | What lives there |

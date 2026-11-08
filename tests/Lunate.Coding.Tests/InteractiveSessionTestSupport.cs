@@ -760,9 +760,12 @@ internal sealed class InteractiveSessionHost : IDisposable
     {
         IReadOnlyList<string> writes = Console.Writes;
         var text = new System.Text.StringBuilder();
+        // Every field a wait in this project tests, so a timeout names the input that never
+        // arrived instead of leaving the reader to infer it: `IsComposed` alone is the condition in
+        // most call sites and was the one field missing until #660.
         text.Append(
                 FormattableString.Invariant(
-                    $"running={Session.IsRunning} bashMode={Session.IsBashMode}"
+                    $"composed={Session.IsComposed} running={Session.IsRunning} bashMode={Session.IsBashMode}"
                 )
             )
             .Append(
@@ -772,6 +775,7 @@ internal sealed class InteractiveSessionHost : IDisposable
             )
             .Append(FormattableString.Invariant($" writes={writes.Count}"))
             .Append(FormattableString.Invariant($" input=\"{Escape(Session.Input.Text)}\""))
+            .Append(FormattableString.Invariant($" cursor={Session.Input.CursorPosition}"))
             .Append(
                 FormattableString.Invariant(
                     $" pendingApproval={Session.PendingApproval?.ToolName ?? "<none>"}"
@@ -780,6 +784,14 @@ internal sealed class InteractiveSessionHost : IDisposable
             .Append(
                 FormattableString.Invariant($" approvalArmed={Session.ApprovalArmedForNextKey}")
             )
+            .Append(FormattableString.Invariant($" followUps={Session.QueuedFollowUpCount}"))
+            .Append(
+                FormattableString.Invariant(
+                    $" autocomplete={DescribeAutocomplete(Session.Autocomplete)}"
+                )
+            )
+            .Append(FormattableString.Invariant($" transcript={Session.Transcript.Count}"))
+            .Append(FormattableString.Invariant($" alternateScreen={Console.InAlternateScreen}"))
             .Append(FormattableString.Invariant($" scheduledVt={Scheduler.PendingWorkCount}"));
 
         text.AppendLine().Append("writes:");
@@ -800,6 +812,14 @@ internal sealed class InteractiveSessionHost : IDisposable
 
         return text.ToString();
     }
+
+    /// <summary>The selected completion as the snapshot names it, or <c>&lt;none&gt;</c>.</summary>
+    private static string DescribeAutocomplete(Lunate.Tui.AutocompleteState? autocomplete) =>
+        autocomplete is null
+            ? "<none>"
+            : FormattableString.Invariant(
+                $"\"{autocomplete.Selected?.Text}\"@{autocomplete.SelectedIndex}"
+            );
 
     /// <summary>Escapes a rendered write so a terminal frame is legible in one log line.</summary>
     private static string Escape(string text) =>
@@ -866,20 +886,41 @@ internal sealed class InteractiveSessionHost : IDisposable
         ArgumentNullException.ThrowIfNull(predicate);
         TimeSpan budget = timeout ?? DefaultWait;
         DateTime deadline = DateTime.UtcNow + budget;
+        DateTime observedAt = DateTime.UtcNow;
+        long polls = 0;
+        TimeSpan longestGap = TimeSpan.Zero;
         while (true)
         {
             // Read under the live area's paint gate: a multi-line commit is written line by line,
             // so an unguarded read could observe a prefix of it.
+            polls++;
             string snapshot = Session.ReadCommittedScrollback(() => Scrollback.Output);
             if (predicate(snapshot))
             {
                 return snapshot;
             }
 
-            if (DateTime.UtcNow > deadline)
+            DateTime now = DateTime.UtcNow;
+            TimeSpan gap = now - observedAt;
+            if (gap > longestGap)
+            {
+                longestGap = gap;
+            }
+
+            observedAt = now;
+            if (now > deadline)
             {
                 throw new TimeoutException(
-                    $"The scrollback never showed {what} within {budget.TotalSeconds:0} seconds."
+                    $"The scrollback never showed {what} within "
+                        + FormattableString.Invariant($"{budget.TotalSeconds:0.###}")
+                        + " seconds"
+                        + FormattableString.Invariant(
+                            $" (polls={polls}, longestGap={longestGap.TotalMilliseconds:0.###} ms)."
+                        )
+                        + Environment.NewLine
+                        + "wait diagnosis:"
+                        + Environment.NewLine
+                        + await DescribeMachineAsync().ConfigureAwait(false)
                         + Environment.NewLine
                         + Snapshot()
                 );
@@ -908,36 +949,139 @@ internal sealed class InteractiveSessionHost : IDisposable
         {
             throw new TimeoutException(
                 $"The event the scrollback read waits on did not finish within "
-                    + $"{budget.TotalSeconds:0} seconds (running={Session.IsRunning} "
-                    + $"writes={Console.Writes.Count})."
+                    + FormattableString.Invariant($"{budget.TotalSeconds:0.###}")
+                    + " seconds"
+                    + FormattableString.Invariant(
+                        $" (running={Session.IsRunning} composed={Session.IsComposed} writes={Console.Writes.Count})."
+                    )
+                    + Environment.NewLine
+                    + "wait diagnosis:"
+                    + Environment.NewLine
+                    + await DescribeMachineAsync().ConfigureAwait(false)
+                    + Environment.NewLine
+                    + Snapshot()
             );
         }
 
         return Session.ReadCommittedScrollback(() => Scrollback.Output);
     }
 
-    public async Task WaitUntilAsync(Func<bool> condition, TimeSpan? timeout = null)
+    /// <summary>
+    /// The thread pool and process tree for a failure message, or the reason they are missing: the
+    /// diagnosis is appended to an exception that is thrown either way, so it never throws.
+    /// </summary>
+    private static async Task<string> DescribeMachineAsync()
     {
+        try
+        {
+            return await WaitDiagnosis
+                .DescribeAsync(TestContext.Current.CancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            return $"unavailable: {exception.GetType().Name}: {exception.Message}";
+        }
+    }
+
+    public async Task WaitUntilAsync(
+        Func<bool> condition,
+        TimeSpan? timeout = null,
+        [CallerArgumentExpression(nameof(condition))] string? conditionExpression = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(condition);
         // Real-async waits: yield the thread (never a busy spin) so the session's run task and
         // event pump get scheduled; bounded by wall time so slow runners fail with diagnostics
         // instead of hanging. The unnamed budget is <see cref="DefaultWait"/>, the ceiling the
         // gate's runners are sized for on every leg; a caller waiting on work it schedules itself
         // may pass a tighter window, but no wait here inherits one written for an idle machine.
-        DateTime deadline = DateTime.UtcNow + (timeout ?? DefaultWait);
-        while (!condition())
+        //
+        // The observation is measured, not assumed (#660): the poll count and the longest interval
+        // between two observations separate a hang (many polls, condition false at each) from a
+        // starved runner (few polls, seconds apart), which is the question every occurrence of this
+        // wait's timeout has had to answer without evidence.
+        TimeSpan budget = timeout ?? DefaultWait;
+        DateTime startedAt = DateTime.UtcNow;
+        DateTime deadline = startedAt + budget;
+        DateTime observedAt = startedAt;
+        long polls = 0;
+        TimeSpan longestGap = TimeSpan.Zero;
+        while (true)
         {
-            if (DateTime.UtcNow > deadline)
+            polls++;
+            if (condition())
             {
-                throw new TimeoutException(
-                    "The condition never became true within "
-                        + $"{((timeout ?? DefaultWait).TotalSeconds):0} seconds."
-                        + Environment.NewLine
-                        + Snapshot()
-                );
+                return;
+            }
+
+            DateTime now = DateTime.UtcNow;
+            TimeSpan gap = now - observedAt;
+            if (gap > longestGap)
+            {
+                longestGap = gap;
+            }
+
+            observedAt = now;
+            if (now > deadline)
+            {
+                throw await ExpiredAsync(conditionExpression, budget, startedAt, polls, longestGap)
+                    .ConfigureAwait(false);
             }
 
             await Task.Delay(1, TestContext.Current.CancellationToken);
         }
+    }
+
+    /// <summary>
+    /// The timeout a wait throws: what was polled (from the call site), how the poll loop behaved,
+    /// the machine's thread pool, the process tree and the session state the condition reads. The
+    /// diagnosis is best-effort and bounded, so it can never replace the failure it explains.
+    /// </summary>
+    private async Task<TimeoutException> ExpiredAsync(
+        string? conditionExpression,
+        TimeSpan budget,
+        DateTime startedAt,
+        long polls,
+        TimeSpan longestGap
+    )
+    {
+        string diagnosis = await DescribeMachineAsync().ConfigureAwait(false);
+
+        return new TimeoutException(
+            "The condition "
+                + DescribeCondition(conditionExpression)
+                + " never became true within "
+                + FormattableString.Invariant($"{budget.TotalSeconds:0.###}")
+                + " seconds"
+                + FormattableString.Invariant(
+                    $" (polls={polls}, longestGap={longestGap.TotalMilliseconds:0.###} ms, elapsed={(DateTime.UtcNow - startedAt).TotalSeconds:0.###} s)."
+                )
+                + Environment.NewLine
+                + "wait diagnosis:"
+                + Environment.NewLine
+                + diagnosis
+                + Environment.NewLine
+                + "session state at the last observation:"
+                + Environment.NewLine
+                + Snapshot()
+        );
+    }
+
+    /// <summary>
+    /// The condition as the call site wrote it, capped: a lambda can be long, and a message nobody
+    /// can read is the failure mode this change exists to remove.
+    /// </summary>
+    private static string DescribeCondition(string? conditionExpression)
+    {
+        const int cap = 400;
+        if (string.IsNullOrWhiteSpace(conditionExpression))
+        {
+            return "<unnamed condition>";
+        }
+
+        string trimmed = conditionExpression!.Trim();
+        return trimmed.Length <= cap ? trimmed : trimmed[..cap] + "…";
     }
 
     public void Dispose()
