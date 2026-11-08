@@ -32,7 +32,7 @@ internal static partial class SetupCommand
         "Usage: lunate setup [--provider <preset-id>] [--endpoint <url>] "
         + "[--api-family <family>] [--credential-placement <bearer|x-api-key>] "
         + "[--models-url <url>] [--credential <env:VARIABLE|auth:name> | --key-stdin] "
-        + "[--model <id>] [--profile <name>] [--thinking <low|medium|high>] [--fast] "
+        + "[--model <id>] [--profile <name>] [--thinking <off|low|medium|high>] [--fast] "
         + "[--as-decision] [--no-test] [--no-model-check] [--force]";
 
     internal static int Run(

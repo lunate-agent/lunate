@@ -198,7 +198,10 @@ internal sealed partial class InteractiveSession
     /// <summary>
     /// Step 7b: a decision profile — a native Jev model from any provider that exposes the family,
     /// or an adapter model from any configured provider; the binding (<c>decisions.profile</c>)
-    /// enables no consumer.
+    /// enables no consumer. The profile's name is the wizard's fixed
+    /// <see cref="SetupWizardModel.DecisionProfileName"/>, so a walk whose chat profile already
+    /// carries that name skips the step: writing it would replace the chat profile at commit time
+    /// and leave <c>usages.chat</c> bound to a decision profile (#585 N-5).
     /// </summary>
     private async Task<WizardMove> DecisionStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
@@ -206,6 +209,25 @@ internal sealed partial class InteractiveSession
         {
             // A walk that skipped its provider has no usages to bind: skip is the only answer,
             // as it was before the usages could draw from any provider.
+            wizard.RecordDecisionProfile(null);
+            return WizardMove.Advance;
+        }
+
+        if (
+            wizard.ChatProfile is { } chat
+            && string.Equals(
+                chat.Name,
+                SetupWizardModel.DecisionProfileName,
+                StringComparison.Ordinal
+            )
+        )
+        {
+            Notify(
+                $"the chat profile in this walk is named '{chat.Name}', the decision profile's own "
+                    + "name: the decision profile step is skipped so the commit does not replace "
+                    + "the chat profile. Rename the chat profile to add a decision profile.",
+                NoticeLevel.Warning
+            );
             wizard.RecordDecisionProfile(null);
             return WizardMove.Advance;
         }
@@ -254,7 +276,7 @@ internal sealed partial class InteractiveSession
 
             WizardModelRef model = options[OptionIndex(options, answered)].Model;
             var usage = new WizardUsageChoice(
-                "decisions",
+                SetupWizardModel.DecisionProfileName,
                 model.Provider.Id,
                 model.Model.ModelId,
                 model.Model.ApiFamily,
