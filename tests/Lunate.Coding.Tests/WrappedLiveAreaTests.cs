@@ -108,7 +108,7 @@ public sealed class WrappedLiveAreaTests
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // openai
         await host.WaitForFrameAsync("Credential for openai");
         host.Console.SendEnter(); // the key row
@@ -159,7 +159,7 @@ public sealed class WrappedLiveAreaTests
     /// forms of the step titles at 40/45 columns.</summary>
     private static async Task WalkToSummary(InteractiveSessionHost host)
     {
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // openai
 
         await host.WaitForFrameAsync("Credential for openai");

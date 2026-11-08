@@ -709,6 +709,19 @@ internal sealed class InteractiveSessionHost : IDisposable
     public Task RunAsync() => Session.RunAsync(TestContext.Current.CancellationToken);
 
     /// <summary>
+    /// Switches the first-run wizard from its Quick default to Detailed, leaving the picker on the
+    /// first provider row so the existing walk scripts continue unchanged.
+    /// </summary>
+    public async Task ChooseDetailedModeAsync()
+    {
+        await WaitForFrameAsync("Select provider");
+        Console.SendUp();
+        await WaitForFrameAsync("> Setup mode");
+        Console.SendEnter();
+        await WaitForFrameAsync("> " + ProviderPresets.All[0].Id);
+    }
+
+    /// <summary>
     /// Waits for the approval panel and then lets its type-ahead window expire: a key sent before
     /// the window closes decides nothing, which is the rule under test elsewhere. Tests that press
     /// keys on a prompt use this instead of a bare wait.
