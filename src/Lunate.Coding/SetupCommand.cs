@@ -74,6 +74,14 @@ internal static partial class SetupCommand
             errors.WriteLine($"lunate: {exception.Message}; {Usage}");
             return ExitUsage;
         }
+        catch (InvalidDataException exception) when (UsageProfileValidation.IsRefusal(exception))
+        {
+            // A refused usage/profile binding is a usage error with the shared wording, not a
+            // store failure: no file was touched and the same sentence the wizard and startup
+            // print names the fix.
+            errors.WriteLine($"lunate: {exception.Message}");
+            return ExitUsage;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             // Store and load errors name keys and paths, never values.

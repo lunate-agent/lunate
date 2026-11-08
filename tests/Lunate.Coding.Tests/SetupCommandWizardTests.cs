@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Lunate.Ai;
 using Lunate.Tui;
 
@@ -105,6 +106,92 @@ public sealed class SetupCommandWizardTests
         Assert.Equal(settings, File.ReadAllBytes(SettingsPath(host)));
         Assert.Equal(providers, File.ReadAllBytes(ProviderPath(host)));
         Assert.Empty(host.Client.Requests);
+    }
+
+    [PosixFact]
+    public async Task Lunate_setup_on_a_broken_binding_opens_the_menu_and_writes_a_valid_one()
+    {
+        using var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);
+        Assert.True(
+            ProviderEntry.TryCreate(
+                "openai",
+                "openai",
+                new Uri("https://provider.example.test/v1"),
+                "auth:openai",
+                headers: null,
+                region: null,
+                out ProviderEntry? openai,
+                out string? openaiError
+            ),
+            openaiError
+        );
+        Assert.True(
+            ProviderEntry.TryCreate(
+                "opencode-go",
+                "opencode-go",
+                new Uri("https://opencode.ai/inference/go/v1"),
+                "auth:opencode-go",
+                headers: null,
+                region: null,
+                out ProviderEntry? systemOne,
+                out string? systemOneError
+            ),
+            systemOneError
+        );
+        ProviderStore.Save(ProviderPath(host), [openai!, systemOne!]);
+        File.WriteAllText(
+            SettingsPath(host),
+            """
+            {
+              "schemaVersion": 2,
+              "profiles": {
+                "chat-main": { "provider": "openai", "model": "gpt-4.1" },
+                "decisions": {
+                  "provider": "opencode-go",
+                  "model": "opencode-go/jev-1.13",
+                  "apiFamily": "systemone"
+                }
+              },
+              "usages": { "chat": "decisions" },
+              "decisions": { "profile": "decisions" }
+            }
+            """
+        );
+
+        Task<int> run = StartSetup(host);
+
+        await host.WaitForFrameAsync("Setup — what do you want to configure?");
+        await host.WaitUntilAsync(() =>
+            host.Frames.Contains("cannot serve the 'chat' usage", StringComparison.Ordinal)
+        );
+        Assert.DoesNotContain(
+            "the extension host was not composed",
+            host.Diagnostics,
+            StringComparison.Ordinal
+        );
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        await host.WaitForFrameAsync("> Change the chat profile");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Profile to use for chat");
+        host.Console.SendUp();
+        await host.WaitForFrameAsync("> chat-main");
+        host.Console.SendEnter();
+
+        string summary = await host.WaitForScrollbackAsync("confirm these values");
+        Assert.Contains("chat usage: chat-main", summary, StringComparison.Ordinal);
+        await host.WaitForFrameAsync("Write this configuration?");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("model: gpt-4.1");
+
+        host.Console.Complete();
+        Assert.Equal(0, await run);
+
+        using var settings = JsonDocument.Parse(File.ReadAllText(SettingsPath(host)));
+        Assert.Equal(
+            "chat-main",
+            settings.RootElement.GetProperty("usages").GetProperty("chat").GetString()
+        );
     }
 
     /// <summary>The production dispatch: <c>lunate setup</c> with no flags on a terminal.</summary>

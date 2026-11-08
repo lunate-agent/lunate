@@ -260,6 +260,42 @@ public sealed class SetupWizardEntryMenuTests
     }
 
     [PosixFact]
+    public async Task Change_the_chat_profile_refuses_a_systemone_profile_with_the_startup_words()
+    {
+        using var host = ConfiguredHostWithSystemOneDecision();
+        byte[] settings = File.ReadAllBytes(SettingsPath(host));
+        byte[] providers = File.ReadAllBytes(ProviderPath(host));
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("/setup");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Setup — what do you want to configure?");
+        await PickRowAsync(
+            host,
+            "Setup — what do you want to configure?",
+            "Change the chat profile"
+        );
+        await host.WaitForFrameAsync("Profile to use for chat");
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        await host.WaitForFrameAsync("> decisions");
+        host.Advance(500);
+        host.Console.SendEnter();
+
+        await host.WaitForFrameAsync("cannot serve the 'chat' usage");
+        Assert.Contains("decision-only", host.Frames, StringComparison.Ordinal);
+        Assert.Contains("lunate setup", host.Frames, StringComparison.Ordinal);
+        Assert.DoesNotContain("confirm these values", host.Frames, StringComparison.Ordinal);
+        Assert.Equal(settings, File.ReadAllBytes(SettingsPath(host)));
+        Assert.Equal(providers, File.ReadAllBytes(ProviderPath(host)));
+
+        host.Console.SendEscape();
+        await host.WaitForFrameAsync("setup cancelled — nothing was changed");
+        host.Console.Complete();
+        await run;
+    }
+
+    [PosixFact]
     public async Task Change_the_chat_profile_to_the_current_profile_writes_nothing()
     {
         using var host = ConfiguredHost();
@@ -471,6 +507,57 @@ public sealed class SetupWizardEntryMenuTests
         {
             Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
         };
+
+    private static InteractiveSessionHost ConfiguredHostWithSystemOneDecision()
+    {
+        var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);
+        Assert.True(
+            ProviderEntry.TryCreate(
+                "openai",
+                "openai",
+                new Uri("https://provider.example.test/v1"),
+                "auth:openai",
+                headers: null,
+                region: null,
+                out ProviderEntry? openai,
+                out string? openaiError
+            ),
+            openaiError
+        );
+        Assert.True(
+            ProviderEntry.TryCreate(
+                "opencode-go",
+                "opencode-go",
+                new Uri("https://opencode.ai/inference/go/v1"),
+                "auth:opencode-go",
+                headers: null,
+                region: null,
+                out ProviderEntry? systemOne,
+                out string? systemOneError
+            ),
+            systemOneError
+        );
+        ProviderStore.Save(ProviderPath(host), [openai!, systemOne!]);
+        File.WriteAllText(
+            SettingsPath(host),
+            """
+            {
+              "schemaVersion": 2,
+              "profiles": {
+                "chat-main": { "provider": "openai", "model": "gpt-4.1" },
+                "decisions": {
+                  "provider": "opencode-go",
+                  "model": "opencode-go/jev-1.13",
+                  "apiFamily": "systemone"
+                }
+              },
+              "usages": { "chat": "chat-main" },
+              "decisions": { "profile": "decisions" }
+            }
+            """
+        );
+        return host;
+    }
 
     private static InteractiveSessionHost ConfiguredHost()
     {

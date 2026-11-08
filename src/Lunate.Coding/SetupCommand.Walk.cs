@@ -116,6 +116,18 @@ internal static partial class SetupCommand
         }
 
         DecideAnswers(answers, wizard, catalog);
+        if (wizard.ChatProfile is { } chat)
+        {
+            // The flag path refuses the same binding the wizard and startup refuse, before it
+            // spends a model check or writes anything.
+            UsageProfileValidation.RequireChatFamily(
+                chat.Name,
+                chat.ModelId,
+                wizard.Model?.ApiFamily,
+                SetupState.ChatUsage
+            );
+        }
+
         IChatClientFactory factory = seams.ChatFactory ?? HarnessFactory.CreateFactory(auth);
         if (wizard.Model is not null && wizard.Provider is not null)
         {

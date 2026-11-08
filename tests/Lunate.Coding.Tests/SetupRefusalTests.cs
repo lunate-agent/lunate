@@ -1,3 +1,5 @@
+using Lunate.Ai;
+
 namespace Lunate.Coding.Tests;
 
 /// <summary>
@@ -44,6 +46,76 @@ public sealed class SetupRefusalTests
         Assert.Equal(2, exit);
         Assert.Empty(output.ToString());
         AssertRefusal(errors.ToString());
+    }
+
+    [Fact]
+    public void Print_mode_reports_a_systemone_chat_binding_once_and_names_the_repair()
+    {
+        using var temp = new TempDirectory();
+        string settingsPath = temp.File("settings.json");
+        string authPath = temp.File("auth.json");
+        File.WriteAllText(
+            settingsPath,
+            """
+            {
+              "schemaVersion": 2,
+              "profiles": {
+                "decisions": {
+                  "provider": "opencode-go",
+                  "model": "opencode-go/jev-1.13",
+                  "apiFamily": "systemone"
+                }
+              },
+              "usages": { "chat": "decisions" },
+              "decisions": { "profile": "decisions" }
+            }
+            """
+        );
+        Assert.True(
+            ProviderEntry.TryCreate(
+                "opencode-go",
+                "opencode-go",
+                new Uri("https://opencode.ai/inference/go/v1"),
+                "auth:opencode-go",
+                headers: null,
+                region: null,
+                out ProviderEntry? provider,
+                out string? error
+            ),
+            error
+        );
+        ProviderStore.Save(AuthStore.ProviderStoreFilePath(authPath), [provider!]);
+        using var output = new StringWriter();
+        using var errors = new StringWriter();
+
+        int exit = Cli.Run(
+            ["-p", "hi"],
+            output,
+            errors,
+            TestContext.Current.CancellationToken,
+            printOptions: new PrintModeOptions
+            {
+                Factory = new FakeChatClientFactory(new ScriptedChatClient()),
+                SettingsPath = settingsPath,
+                ModelsPath = temp.File("models.json"),
+                AuthPath = authPath,
+                SessionDirectory = temp.File("sessions"),
+                SessionsRoot = temp.File("sessions"),
+                WorkingDirectory = temp.Root,
+                HomeDirectory = temp.File("home"),
+                Environment = _ => null,
+                Extensions = TestExtensionSeams.Empty(temp),
+                McpConfigPath = temp.File("global-mcp.json"),
+                McpAgentsConfigPath = temp.File("agents-mcp.json"),
+            }
+        );
+
+        Assert.Equal(1, exit);
+        Assert.Empty(output.ToString());
+        string text = errors.ToString();
+        Assert.Contains("decision-only", text, StringComparison.Ordinal);
+        Assert.Contains("lunate setup", text, StringComparison.Ordinal);
+        Assert.Equal(1, text.Split("decision-only", StringSplitOptions.None).Length - 1);
     }
 
     [Fact]

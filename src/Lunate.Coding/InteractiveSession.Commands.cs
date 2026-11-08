@@ -701,6 +701,7 @@ internal sealed partial class InteractiveSession
                 _providerEntries,
                 _catalog
             );
+            UsageProfileValidation.RequireChatFamily(selected, SetupState.ChatUsage);
         }
         catch (UnknownModelException)
         {
@@ -723,6 +724,7 @@ internal sealed partial class InteractiveSession
             _providerEntries = [.. _providerEntries, selected.Provider];
         }
 
+        _invalidChatBinding = null;
         _settings = ModelSelectionResolver.SelectChatProfile(_settings, selected);
         await SwitchToModel(selected.Model, ct).ConfigureAwait(false);
     }

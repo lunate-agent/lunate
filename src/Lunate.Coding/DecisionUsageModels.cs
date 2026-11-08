@@ -21,26 +21,8 @@ internal static class DecisionUsageModels
     /// no chat client is ever built for it, and the refusal names the family and the fix. The
     /// decision usage itself accepts the family — that is its native path.
     /// </summary>
-    internal static void RequireChatFamily(ResolvedModelProfile profile, string usage)
-    {
-        if (
-            !string.Equals(
-                profile.Model.ApiFamily,
-                ProviderApiFamilies.SystemOne,
-                StringComparison.Ordinal
-            )
-        )
-        {
-            return;
-        }
-
-        throw new InvalidDataException(
-            $"Profile '{profile.Profile.Name}' resolves model '{profile.Model.Id}' of the "
-                + $"'systemone' API family; System One is decision-only and cannot serve the "
-                + $"'{usage}' usage. Choose a chat model for it, or read decisions from it through "
-                + "'decisions.profile'."
-        );
-    }
+    internal static void RequireChatFamily(ResolvedModelProfile profile, string usage) =>
+        UsageProfileValidation.RequireChatFamily(profile, usage);
 
     /// <summary>
     /// Resolves the configured <c>decisions.profile</c> into the decision usage client, or null

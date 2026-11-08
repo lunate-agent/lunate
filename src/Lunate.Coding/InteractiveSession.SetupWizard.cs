@@ -951,6 +951,26 @@ internal sealed partial class InteractiveSession
             : null;
     }
 
+    /// <summary>
+    /// The shared usage/profile rule over the profile this walk is about to write: the family the
+    /// commit records, else the catalog's for the chosen model, else the provider's. The wizard
+    /// refuses exactly what the next startup would refuse.
+    /// </summary>
+    private void RequireWizardChatBinding(
+        SetupWizardModel wizard,
+        string profileName,
+        string modelId,
+        string usage
+    )
+    {
+        WizardProviderChoice provider = wizard.Provider!;
+        string? family =
+            SetupWizardCommit.ChatFamily(wizard)
+            ?? WizardModelLookup.Resolve(provider, _catalog, modelId).Match?.ApiFamily
+            ?? provider.ApiFamily;
+        UsageProfileValidation.RequireChatFamily(profileName, modelId, family, usage);
+    }
+
     /// <summary>Step 6: chat profile — the name validated as the settings parser parses one, and
     /// the reasoning levels the chosen model actually declares (the question is skipped entirely
     /// for a model without a reasoning style).</summary>
@@ -1018,6 +1038,16 @@ internal sealed partial class InteractiveSession
             }
 
             level = selected;
+        }
+
+        try
+        {
+            RequireWizardChatBinding(wizard, name, choice.ModelId, SetupState.ChatUsage);
+        }
+        catch (InvalidDataException exception) when (UsageProfileValidation.IsRefusal(exception))
+        {
+            Notify(exception.Message, NoticeLevel.Warning);
+            return WizardMove.Back;
         }
 
         wizard.RecordChatProfile(new WizardProfileChoice(name, choice.ModelId, level));

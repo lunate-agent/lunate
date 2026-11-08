@@ -292,6 +292,22 @@ internal sealed partial class InteractiveSession
             return WizardMove.Abort;
         }
 
+        try
+        {
+            ResolvedModelProfile resolved = ModelSelectionResolver.ResolveChatModel(
+                chosen,
+                _settings,
+                _providerEntries,
+                _catalog
+            );
+            UsageProfileValidation.RequireChatFamily(resolved, SetupState.ChatUsage);
+        }
+        catch (InvalidDataException exception) when (UsageProfileValidation.IsRefusal(exception))
+        {
+            Notify(exception.Message, NoticeLevel.Warning);
+            return WizardMove.Stay;
+        }
+
         wizard.RecordChatUsageBinding(chosen);
         return WizardMove.Advance;
     }
