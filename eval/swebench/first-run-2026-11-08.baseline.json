@@ -1,8 +1,8 @@
 {
   "runId": "first-run-2026-11-08",
   "arm": "baseline",
-  "startedAt": "2026-11-08T10:14:14Z",
-  "finishedAt": "2026-11-08T10:14:31Z",
+  "startedAt": "2026-11-08T10:18:31Z",
+  "finishedAt": "2026-11-08T10:20:11Z",
   "dataset": "SWE-bench/SWE-bench_Verified",
   "split": "test",
   "subset": [
@@ -26,11 +26,11 @@
           "hasPatch": false,
           "resolved": false,
           "spendUsd": null,
-          "steps": 0,
+          "steps": 1,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
-          "exitStatus": null,
+          "exitStatus": "AuthenticationError",
           "failure": "baseline run failed",
           "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/baseline"
         }
@@ -59,22 +59,20 @@
           "completed": false,
           "hasPatch": false,
           "resolved": false,
-          "spendUsd": null,
-          "steps": 0,
+          "spendUsd": 0.0316742,
+          "steps": 4,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
-          "exitStatus": null,
+          "exitStatus": "EOFError",
           "failure": "baseline run failed",
           "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/baseline"
         }
       ],
       "resolved": 0,
       "total": 1,
-      "spendUsd": null,
-      "unpricedInstances": [
-        "astropy__astropy-12907"
-      ],
+      "spendUsd": 0.031674,
+      "unpricedInstances": [],
       "failures": [
         {
           "instanceId": "astropy__astropy-12907",
@@ -84,7 +82,7 @@
     }
   ],
   "total": 5,
-  "totalSpendUsd": 30.0,
+  "totalSpendUsd": 30.031674,
   "capReached": true,
   "hostArchitecture": "arm64"
 }

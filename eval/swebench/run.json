@@ -40,6 +40,9 @@
       "openrouter/anthropic/claude-opus-5.5": {
         "OPENROUTER_API_KEY": "OPENROUTER_API_KEY"
       }
+    },
+    "apiBase": {
+      "opencode-go/deepseek-v4.1-flash": "https://opencode.ai/inference/go/openai/v1"
     }
   }
 }

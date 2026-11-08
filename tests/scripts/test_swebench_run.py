@@ -80,6 +80,7 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
         self.assertIn("swebench.yaml", command)
         self.assertTrue(any("mini-swe-agent.yaml" in part for part in command))
         self.assertTrue(any("model.litellm_model_registry=" in part for part in command))
+        self.assertTrue(any("model.model_kwargs.api_base=" in part for part in command))
         self.assertIn("agent.step_limit=50", command)
         self.assertIn("agent.cost_limit=3.0000", command)
 

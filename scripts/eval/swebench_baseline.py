@@ -28,7 +28,7 @@ def baseline_command(definition: dict, instance_id: str, model: dict, trajectory
     alias = baseline["models"][model["id"]]
     registry = (SWEBENCH_DIR / "litellm-models.json").resolve()
     cost_limit = min(float(baseline.get("costLimitUsd") or remaining), remaining)
-    return [
+    command = [
         definition.get("_mini_extra") or "mini-extra",
         "swebench-single",
         "--subset",
@@ -53,6 +53,13 @@ def baseline_command(definition: dict, instance_id: str, model: dict, trajectory
         "-o",
         str(trajectory),
     ]
+    api_base = (baseline.get("apiBase") or {}).get(model["id"])
+    if api_base:
+        command[command.index("-o") : command.index("-o")] = [
+            "-c",
+            f"model.model_kwargs.api_base={api_base}",
+        ]
+    return command
 
 
 def baseline_counts(work_root: Path, run_id: str) -> dict | None:
@@ -97,13 +104,7 @@ def run_baseline_instance(
         info = json.loads(trajectory.read_text(encoding="utf-8")).get("info") or {}
     stats = info.get("model_stats") or {}
     spend = stats.get("instance_cost")
-    api_calls = int(stats.get("api_calls") or 0)
-    if isinstance(spend, (int, float)) and spend > 0:
-        spend = float(spend)
-    elif api_calls > 0:
-        spend = None
-    else:
-        spend = 0.0
+    spend = float(spend) if isinstance(spend, (int, float)) and spend > 0 else 0.0
     exit_status = info.get("exit_status")
     submission = info.get("submission") or ""
     run_id = f"baseline-{model['tier']}-{safe(instance_id)}"
