@@ -10,6 +10,7 @@ namespace Lunate.Coding.Tests;
 /// controlling tty, <c>/dev/null</c> stdin. These run the real OS spawn, so the guard test needs the
 /// real <c>sandbox-exec</c>.
 /// </summary>
+[Collection(ToolEnvironmentCollection.Name)]
 public sealed class UnixChildProcessTests
 {
     internal static readonly ResolvedShell Bash = new(ShellKind.Bash, "/bin/bash", "bash", ["-c"]);

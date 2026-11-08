@@ -529,6 +529,7 @@ internal sealed partial class InteractiveSession : IDisposable
             _options.Environment
         );
         _settings = SettingsStore.ApplyLaunch(_settings, _options.Launch);
+        ApplyToolEnvironment();
         if (_settings.BashGuard)
         {
             WarnAboutStateRootHardlinks();

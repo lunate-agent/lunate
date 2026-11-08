@@ -148,6 +148,9 @@ public sealed record AgentSettings
     /// <summary>The resolved optional-tool settings (the <c>tools</c> section).</summary>
     public ToolsSettings Tools { get; init; } = new();
 
+    /// <summary>The resolved tool-process environment settings (the <c>toolEnvironment</c> section).</summary>
+    public ToolEnvironmentSettings ToolEnvironment { get; init; } = new();
+
     /// <summary>The stored custom OpenAI-compatible endpoints (the <c>providers</c> section).</summary>
     public IReadOnlyList<CustomProvider> Providers { get; init; } = [];
 
@@ -163,6 +166,17 @@ public sealed record ToolsSettings
 {
     /// <summary>The optional search tool names to register; empty (the default) means none.</summary>
     public IReadOnlyList<string> Extra { get; init; } = [];
+}
+
+/// <summary>
+/// The tool-process environment (the <c>toolEnvironment</c> settings section). The pass-through
+/// list is the exact variable names admitted into tool children after the inherited policy's
+/// credential strip; empty (the default) changes nothing.
+/// </summary>
+public sealed record ToolEnvironmentSettings
+{
+    /// <summary>The exact variable names admitted into tool processes, in the order written.</summary>
+    public IReadOnlyList<string> Passthrough { get; init; } = [];
 }
 
 /// <summary>
@@ -537,6 +551,12 @@ public static partial class SettingsStore
                         break;
                     case "tools":
                         settings = settings with { Tools = ReadTools(property.Value, problems) };
+                        break;
+                    case "toolEnvironment":
+                        settings = settings with
+                        {
+                            ToolEnvironment = ReadToolEnvironment(property.Value, problems),
+                        };
                         break;
                     case "providers":
                         settings = settings with

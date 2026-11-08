@@ -289,6 +289,19 @@ internal static class AcpMode
         IReadOnlyList<ProviderEntry> providers = ProviderStore
             .Load(AuthStore.ProviderStoreFilePath(authPath), auth, effective.Providers)
             .Entries;
+        if (
+            ToolEnvironmentPassthrough.Configure(effective.ToolEnvironment.Passthrough) is
+            { Count: > 0 } collisions
+        )
+        {
+            warn?.Invoke(
+                new UserNotice(
+                    NoticeLevel.Warning,
+                    ToolEnvironmentPassthrough.CollisionWarning(collisions)
+                )
+            );
+        }
+
         // The chat selection is the one every frontend resolves: usages.chat through the provider
         // store, else the legacy top-level model.
         ChatModelSelection chat = ChatModelResolver.Resolve(effective, providers, models);

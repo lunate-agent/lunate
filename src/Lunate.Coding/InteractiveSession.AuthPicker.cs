@@ -173,6 +173,7 @@ internal sealed partial class InteractiveSession
             // The catalog is read again so the notice's /model promise is true for this session.
             _settings = SettingsStore.Resolve(_options.SettingsPath, _options.Environment);
             _settings = SettingsStore.ApplyLaunch(_settings, _options.Launch);
+            ApplyToolEnvironment();
             _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
 
             Notify($"logged in: {provider.Id} — /model to choose {provider.CatalogName}");
