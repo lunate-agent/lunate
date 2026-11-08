@@ -19,5 +19,5 @@
 ## 4. Docs and archive
 
 - [x] 4.1 Check whether `docs/` names the POSIX spawn descriptor contract; update the guide only if it would otherwise be wrong.
-- [ ] 4.2 Sync the `process-isolation` delta into the main spec.
+- [x] 4.2 Sync the `process-isolation` delta into the main spec.
 - [ ] 4.3 Archive the change as the final commit on the branch.
