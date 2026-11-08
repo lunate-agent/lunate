@@ -1,3 +1,5 @@
+using Lunate.Tui;
+
 namespace Lunate.Coding.Tests;
 
 /// <summary>
@@ -42,5 +44,24 @@ public sealed class RawModeSessionTests
             StringComparison.Ordinal
         );
         Assert.False(host.Session.IsComposed);
+    }
+
+    [Fact]
+    public async Task A_failed_raw_mode_message_wraps_to_the_terminal_width()
+    {
+        using var host = new InteractiveSessionHost();
+        host.Console.FailRawMode = true;
+        host.Console.Size = new ConsoleSize(40, 24);
+
+        await host.RunAsync();
+
+        string[] lines = string.Concat(host.Console.Writes)
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.True(lines.Length > 1, "the raw-mode failure was not wrapped");
+        Assert.All(
+            lines,
+            line => Assert.True(CellText.Width(line) <= 40, $"'{line}' exceeds 40 cells")
+        );
     }
 }

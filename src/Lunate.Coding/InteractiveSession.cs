@@ -352,7 +352,11 @@ internal sealed partial class InteractiveSession : IDisposable
         }
         catch (InvalidOperationException exception)
         {
-            _console.Write(exception.Message + Environment.NewLine);
+            foreach (string line in TerminalMessage.Lines(exception.Message, _console.Size.Columns))
+            {
+                _console.Write(line + Environment.NewLine);
+            }
+
             return;
         }
 
@@ -425,7 +429,29 @@ internal sealed partial class InteractiveSession : IDisposable
                     _ => 1,
                 };
                 _lifetime.Cancel();
-                (_options.Diagnostics ?? Console.Error).WriteLine($"lunate: {exception.Message}");
+                string text = $"lunate: {exception.Message}";
+                // The live area owns the terminal here: commit the reason to scrollback before
+                // teardown, or its final clear erases the message's wrapped tail. An injected
+                // diagnostics writer still sees it, and a writer-less terminal falls back to
+                // stderr only when the scrollback write itself fails.
+                _options.Diagnostics?.WriteLine(text);
+                try
+                {
+                    _live.WriteScrollback(console =>
+                    {
+                        foreach (string line in TerminalMessage.Lines(text, _console.Size.Columns))
+                        {
+                            console.Write(new Markup(Markup.Escape(line) + "\n"));
+                        }
+                    });
+                }
+                catch (Exception)
+                {
+                    if (_options.Diagnostics is null)
+                    {
+                        Console.Error.WriteLine(text);
+                    }
+                }
             }
 
             try
