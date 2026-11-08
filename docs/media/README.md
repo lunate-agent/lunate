@@ -12,11 +12,12 @@ welcome header in those GIFs names this build). The scripted reasoning tape and 
 replay committed fixtures through `LUNATE_REPLAY` with `LUNATE_DATE=2026-10-18` pinned — no
 provider is called during those renders.
 
-`setup-wizard.gif` was captured from the `v0.3.0-rc.2` release build
-(`0.3.0-rc.2+a8af348`) through the keyless local stub. The stub serves a recorded
-OpenCode Go discovery response (`fixtures/setup-wizard-models.json`), so the picker and
-model check show real provider and model ids without a network call. It is the only asset
-captured from an rc build rather than the older feature-set build.
+`setup-wizard.gif` was captured from the `v0.3.0-rc.3` build at **`2649040c`**
+(`0.3.0-rc.3+2649040c`) through the keyless local stub. The stub serves a recorded
+OpenCode Go discovery response (`fixtures/setup-wizard-models.json`) and repoints each
+model's declared API host at itself, so the custom-endpoint walk, the connection test
+and the model check show real provider and model ids without a network call. It is the
+only asset captured from an rc build rather than the older feature-set build.
 
 ## Assets
 
@@ -34,7 +35,7 @@ captured from an rc build rather than the older feature-set build.
 | `features/thinking.gif` | [`usage.md`](../usage.md) — reasoning streaming | [`tapes/features-thinking.tape`](tapes/features-thinking.tape) |
 | `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](tapes/features-bash.tape) |
 | `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](tapes/features-follow-up.tape) |
-| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) |
+| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`setup-wizard.tape`](setup-wizard.tape) |
 | `first-run.gif` | not on disk yet — see [`first-run.md`](first-run.md) | recorded by hand with a real key |
 
 A note on the logo and social preview: the brand files do not live in this media set — the
@@ -43,11 +44,12 @@ directory, so `docs/` stays prose that no build reads (#430).
 
 ## Re-rendering
 
-`scripts/render-media.sh` is the only way to produce the GIFs above: it regenerates every
-committed tape against a Release build, keyless and deterministic. Requirements and the
-re-record procedure (provider key) are documented in the script's header. The frame is always
-1400×700, font size 16, padding 12, Dracula (`features-narrow` at 450×620); change it nowhere
-else. Every GIF must stay under 5 MB — the README media guard rejects bigger files.
+`scripts/render-media.sh` is the only way to produce the demo and feature GIFs above: it
+regenerates every tape under `tapes/` against a Release build, keyless and deterministic.
+Requirements and the re-record procedure (provider key) are documented in the script's
+header. The frame is always 1400×700, font size 16, padding 12, Dracula
+(`features-narrow` at 450×620); change it nowhere else. Every GIF must stay under 5 MB —
+the README media guard rejects bigger files.
 
 Two tapes drive their moment deliberately: `features-input` filters by text (`/cop` then
 `Tab`) instead of counting rows, so it stays correct when the command table changes;
@@ -57,10 +59,15 @@ matches, so both show the app's own `run failed: fixture mismatch` notice — th
 choreography the previous capture had, not a new defect.
 
 The setup wizard is keyless and isolated, so it has its own harness instead of a replay
-fixture: `scripts/render-setup-wizard.sh` starts a local OpenAI-compatible stub and gives
-`LUNATE_HOME` a throw-away directory. Render it from this directory with
-`LUNATE_BIN=/path/to/lunate vhs tapes/setup-wizard.tape`; the tape writes `setup-wizard.gif`
-here. Nothing in the recording reaches a real provider or reads a real key.
+The setup wizard is keyless and isolated, so it has its own harness instead of a replay
+fixture: `scripts/render-setup-wizard.sh` is the only renderer for `setup-wizard.gif`. It
+starts the local OpenAI-compatible stub (`stubs/setup-wizard-provider.py`), gives
+`LUNATE_HOME` a throw-away directory outside the workspace, and runs `setup-wizard.tape`
+against the stub's fixed port. The tape takes the custom-endpoint route, types the stub URL
+and the dummy key `sk-demo`, and ends on the summary; the script prints the stub's request
+log, which is the proof that no real provider was called. Override the binary with
+`LUNATE_BIN=/path/to/lunate`. Nothing in the recording reaches a real provider or reads a
+real key.
 
 ## Narrow-width captures
 

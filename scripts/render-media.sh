@@ -204,14 +204,6 @@ for tape in tapes/${FILTER}*.tape; do
   "$VHS" "$tape"
 done
 
-# VHS tears the app down after the tape's last sleep, which repaints the setup summary's
-# Cancel choice. Keep the confirmed-values summary as the final frame of the wizard GIF;
-# this is part of the render, not a manual edit.
-if [ -f setup-wizard.gif ]; then
-  ffmpeg -y -loglevel error -i setup-wizard.gif -t 17.8 -c copy setup-wizard.trim.gif
-  mv setup-wizard.trim.gif setup-wizard.gif
-fi
-
 # --- size guard: README GIFs stay under 5 MB ---
 status=0
 for gif in demo.gif setup-wizard.gif features/*.gif; do
