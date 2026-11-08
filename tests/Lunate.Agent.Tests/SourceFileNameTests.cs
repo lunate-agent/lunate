@@ -27,36 +27,112 @@ public sealed class SourceFileNameTests
     public void Every_source_file_is_named_after_a_type_it_declares()
     {
         string repositoryRoot = RepositoryRoot.Find();
-        string sourceRoot = Path.Combine(repositoryRoot, "src");
-        Dictionary<string, string[]> declarations = ReadDeclarations(sourceRoot);
+        SourceFile[] files = ReadSourceFiles(Path.Combine(repositoryRoot, "src"));
 
         // A wrong root would make this test pass by scanning nothing.
         Assert.True(
-            declarations.Count > 400,
+            files.Length > 400,
             string.Format(
                 CultureInfo.InvariantCulture,
                 "expected the src/ tree under '{0}', found {1} files",
-                sourceRoot,
-                declarations.Count
+                repositoryRoot,
+                files.Length
             )
         );
 
-        Dictionary<string, string> owners = [];
-        foreach ((string path, string[] names) in declarations)
+        Assert.Empty(Misnamed(files));
+    }
+
+    [Fact]
+    public void A_file_named_after_another_files_type_is_reported()
+    {
+        SourceFile[] files =
+        [
+            new(
+                "Lunate.Agent/IFileChangeSink.cs",
+                "namespace A;\ninternal sealed class RunFileChangeSink { }"
+            ),
+            new(
+                "Lunate.Contracts/IFileChangeSink.cs",
+                "namespace B;\npublic interface IFileChangeSink { }"
+            ),
+        ];
+
+        Assert.Equal(
+            [
+                "Lunate.Agent/IFileChangeSink.cs is named after 'IFileChangeSink', which Lunate.Contracts/IFileChangeSink.cs declares",
+            ],
+            Misnamed(files)
+        );
+    }
+
+    [Fact]
+    public void A_partial_class_file_is_named_after_the_type_it_declares()
+    {
+        SourceFile[] files =
+        [
+            new(
+                "AgentHarness.Retries.cs",
+                "namespace A;\npublic sealed partial class AgentHarness { }"
+            ),
+            new("AgentHarness.cs", "namespace A;\npublic sealed partial class AgentHarness { }"),
+        ];
+
+        Assert.Empty(Misnamed(files));
+    }
+
+    [Fact]
+    public void An_aggregate_file_names_no_type_and_passes()
+    {
+        SourceFile[] files =
+        [
+            new(
+                "HookPayloads.cs",
+                "namespace A;\npublic sealed record TurnEndedPayload { }\npublic sealed record CompactingPayload { }"
+            ),
+            new("TurnEndedPayload.cs", "namespace A;\npublic sealed record TurnEndedPayload { }"),
+        ];
+
+        Assert.Empty(Misnamed(files));
+    }
+
+    [Fact]
+    public void A_delegate_only_file_names_no_type_and_passes()
+    {
+        SourceFile[] files =
+        [
+            new(
+                "GuardProbe.cs",
+                "namespace A;\ninternal delegate (int ExitCode, string Output) GuardRun(string name);"
+            ),
+        ];
+
+        Assert.Empty(Misnamed(files));
+    }
+
+    /// <summary>
+    /// The rule: a file's leading base-name segment must be a type it declares, or a name no type in
+    /// the set claims. Returns one message per offending file, naming both files involved.
+    /// </summary>
+    private static string[] Misnamed(IReadOnlyList<SourceFile> files)
+    {
+        Dictionary<string, string> owners = new(StringComparer.Ordinal);
+        foreach (SourceFile file in files)
         {
-            foreach (string name in names)
+            foreach (string name in Declared(file.Text))
             {
-                owners.TryAdd(name, path);
+                owners.TryAdd(name, file.Path);
             }
         }
 
         var misnamed = new List<string>();
-        foreach ((string path, string[] names) in declarations)
+        foreach (SourceFile file in files)
         {
-            string leading = Path.GetFileNameWithoutExtension(path).Split('.')[0];
+            string leading = Path.GetFileNameWithoutExtension(file.Path).Split('.')[0];
+            string[] declared = Declared(file.Text);
             if (
-                names.Contains(leading, StringComparer.Ordinal)
-                || !owners.TryGetValue(leading, out var owner)
+                declared.Contains(leading, StringComparer.Ordinal)
+                || !owners.TryGetValue(leading, out string? owner)
             )
             {
                 continue;
@@ -66,19 +142,28 @@ public sealed class SourceFileNameTests
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "{0} is named after '{1}', which {2} declares",
-                    Relative(repositoryRoot, path),
+                    file.Path,
                     leading,
-                    Relative(repositoryRoot, owner)
+                    owner
                 )
             );
         }
 
-        Assert.Empty(misnamed);
+        return [.. misnamed];
     }
 
-    private static Dictionary<string, string[]> ReadDeclarations(string sourceRoot)
+    private static string[] Declared(string text) =>
+        [
+            .. TopLevelDeclaration
+                .Matches(text)
+                .Select(match => match.Groups["name"].Value)
+                .Distinct(StringComparer.Ordinal),
+        ];
+
+    /// <summary>The <c>src/</c> tree, as repository-relative paths so one message reads the same on both hosts.</summary>
+    private static SourceFile[] ReadSourceFiles(string sourceRoot)
     {
-        var declarations = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        var files = new List<SourceFile>();
         foreach (
             string path in Directory.EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
         )
@@ -93,18 +178,11 @@ public sealed class SourceFileNameTests
                 continue;
             }
 
-            string text = File.ReadAllText(path);
-            declarations[path] = TopLevelDeclaration
-                .Matches(text)
-                .Select(match => match.Groups["name"].Value)
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
+            files.Add(new SourceFile(relative.Replace('\\', '/'), File.ReadAllText(path)));
         }
 
-        return declarations;
+        return [.. files];
     }
 
-    /// <summary>Repository-relative and slash-separated, so one message reads the same on both hosts.</summary>
-    private static string Relative(string repositoryRoot, string path) =>
-        Path.GetRelativePath(repositoryRoot, path).Replace('\\', '/');
+    private sealed record SourceFile(string Path, string Text);
 }
