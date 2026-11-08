@@ -116,11 +116,7 @@ public sealed class SecretMaskingAuditTests
         await host.WaitForFrameAsync("Decision check");
         host.Console.SendEnter(); // skip
 
-        await PickRowAsync(
-            host,
-            "Decisions settings",
-            "routing unset — choose a profile per request"
-        );
+        await PickRowAsync(host, "Decisions settings", "routing (decisions.routing)");
 
         await host.WaitForFrameAsync("Routing (decisions.routing)");
         host.Advance(500);
@@ -129,7 +125,22 @@ public sealed class SecretMaskingAuditTests
         host.Advance(500);
         host.Console.SendEnter();
 
-        // The two descriptions are read by the recording prompt; the summary confirms.
+        // The plural answer: both candidates, toggled with Space, then confirmed.
+        await host.WaitForFrameAsync("Routing profiles");
+        host.Advance(500);
+        host.Console.Send(new KeyEvent(KeyKind.Space, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Space, null, false, false, false));
+        await host.WaitForFrameAsync("2 selected");
+        host.Advance(500);
+        host.Console.SendEnter();
+
+        // The two descriptions are read by the recording prompt; Done leaves the menu and the
+        // summary confirms.
+        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        await host.WaitForFrameAsync("> Done");
+        host.Console.SendEnter();
         await host.WaitForScrollbackAsync("confirm these values");
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEscape(); // abort: nothing is written

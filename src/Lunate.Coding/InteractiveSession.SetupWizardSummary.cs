@@ -29,7 +29,10 @@ internal sealed partial class InteractiveSession
         });
     }
 
-    private async Task<bool> ConfirmAsync(string question, CancellationToken ct)
+    /// <summary>The summary's confirm: Enter writes, Esc cancels, and Back re-opens the walk at its
+    /// last step so a wrong answer can be changed instead of restarting (spec: The walk is
+    /// navigable).</summary>
+    private async Task<WizardMove> ConfirmAsync(string question, CancellationToken ct)
     {
         string? answered = await PickAsync(
                 question,
@@ -40,7 +43,12 @@ internal sealed partial class InteractiveSession
                 "write"
             )
             .ConfigureAwait(false);
-        return answered == "write";
+        return answered switch
+        {
+            "write" or WizardForwardValue => WizardMove.Advance,
+            WizardBackValue => WizardMove.Back,
+            _ => WizardMove.Abort,
+        };
     }
 
     private void CommitWizard(SetupWizardModel wizard)
@@ -126,7 +134,8 @@ internal sealed partial class InteractiveSession
         List<string> values,
         PickerKind kind,
         CancellationToken ct,
-        string? selected = null
+        string? selected = null,
+        bool menu = false
     )
     {
         var pending = new TaskCompletionSource<string?>(
@@ -137,7 +146,7 @@ internal sealed partial class InteractiveSession
             pending.TrySetCanceled(ct)
         );
         int current = values.IndexOf(selected ?? string.Empty);
-        OpenPicker(kind, titlePrefix, labels, values, current < 0 ? 0 : current);
+        OpenPicker(kind, titlePrefix, labels, values, current < 0 ? 0 : current, menu);
         try
         {
             string? picked = await pending.Task.ConfigureAwait(false);
@@ -163,13 +172,37 @@ internal sealed partial class InteractiveSession
         string question,
         IReadOnlyList<string> options,
         CancellationToken ct
+    ) =>
+        await AskSelectAsync(header, question, options, multiSelect: false, ct).ConfigureAwait(false)
+            is { Count: > 0 } selected
+            ? selected[0]
+            : WizardAbortValue;
+
+    /// <summary>
+    /// One plural answer through the same question component: Space toggles <c>[x]</c>, Enter
+    /// confirms the selection and the question shows how many rows are selected. Esc aborts.
+    /// </summary>
+    private async Task<IReadOnlyList<string>?> AskMultiSelectAsync(
+        string header,
+        string question,
+        IReadOnlyList<string> options,
+        CancellationToken ct
+    ) =>
+        await AskSelectAsync(header, question, options, multiSelect: true, ct).ConfigureAwait(false);
+
+    private async Task<IReadOnlyList<string>?> AskSelectAsync(
+        string header,
+        string question,
+        IReadOnlyList<string> options,
+        bool multiSelect,
+        CancellationToken ct
     )
     {
         SelectListQuestionModel model = SelectListQuestionModel.Create(
             header,
             question,
             [.. options.Select(option => new SelectListQuestionOption(option, string.Empty))],
-            multiSelect: false,
+            multiSelect,
             null
         );
         var interaction = new SelectListQuestionInteraction(_scheduler);
@@ -187,12 +220,9 @@ internal sealed partial class InteractiveSession
         try
         {
             SelectListQuestionModel answered = await decision.Task.ConfigureAwait(false);
-            if (answered.Status != QuestionPromptStatus.Submitted)
-            {
-                return WizardAbortValue;
-            }
-
-            return answered.Answer?.SelectedOptions.FirstOrDefault() ?? WizardAbortValue;
+            return answered.Status == QuestionPromptStatus.Submitted
+                ? answered.Answer?.SelectedOptions ?? []
+                : null;
         }
         finally
         {

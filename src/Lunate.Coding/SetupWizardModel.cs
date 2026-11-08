@@ -31,6 +31,19 @@ internal enum WizardEntry
     EditDecisions,
 }
 
+/// <summary>
+/// The four stages that group the ten steps for the wizard's header (S-8: a visible path, not a
+/// wall of steps). The stages are information, not a second navigation layer — the user still
+/// walks one step at a time.
+/// </summary>
+internal enum SetupStage
+{
+    Provider,
+    Model,
+    Profile,
+    Review,
+}
+
 /// <summary>A check step's progress: pending, passed, failed with its named reason, or skipped.</summary>
 internal enum WizardProgress
 {
@@ -142,6 +155,20 @@ internal sealed class SetupWizardModel
 
     private readonly HashSet<SetupStep> _skipped = [];
 
+    /// <summary>A step's position in the walk order; the navigation verbs work on it.</summary>
+    internal static int IndexOf(SetupStep step)
+    {
+        for (var index = 0; index < Order.Count; index++)
+        {
+            if (Order[index] == step)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     /// <summary>The steps whose answer was carried in from the current configuration: an entry
     /// run's prefill. Carried values drive the later steps and show in the summary, but they are
     /// never staged writes — an entry writes only what it collected (spec: the entry menu).</summary>
@@ -200,6 +227,95 @@ internal sealed class SetupWizardModel
 
     /// <summary>Whether the step was skipped; a skipped step leaves its value untouched.</summary>
     public bool IsSkipped(SetupStep step) => _skipped.Contains(step);
+
+    /// <summary>The stage a step belongs to (spec: The walk is navigable).</summary>
+    internal static SetupStage StageOf(SetupStep step) =>
+        step switch
+        {
+            SetupStep.Provider
+            or SetupStep.Credential
+            or SetupStep.ConnectionTest => SetupStage.Provider,
+            SetupStep.Model or SetupStep.ModelCheck => SetupStage.Model,
+            SetupStep.ChatProfile
+            or SetupStep.FastProfile
+            or SetupStep.DecisionProfile
+            or SetupStep.Decisions => SetupStage.Profile,
+            _ => SetupStage.Review,
+        };
+
+    /// <summary>The four-stage path, in walk order.</summary>
+    internal const string StagePath = "Provider › Model › Profile › Review";
+
+    /// <summary>The current stage's 1-based position on the path.</summary>
+    internal int StagePosition => (int)StageOf(Step) + 1;
+
+    /// <summary>The wizard's header line: the path, the current stage and its position.</summary>
+    internal string HeaderLine =>
+        FormattableString.Invariant($"setup — {StagePath}   {StagePosition}/4");
+
+    /// <summary>
+    /// Whether the walk has an answer for the step: a staged value, a recorded check result, or an
+    /// explicit skip. Forward replays only these (spec: The walk is navigable).
+    /// </summary>
+    internal bool HasAnswer(SetupStep step) =>
+        step switch
+        {
+            SetupStep.Provider => Provider is not null || _skipped.Contains(step),
+            SetupStep.Credential => Credential is not null || _skipped.Contains(step),
+            SetupStep.ConnectionTest => ConnectionTest is not null,
+            SetupStep.Model => Model is not null || _skipped.Contains(step),
+            SetupStep.ModelCheck => ModelCheck is not null,
+            SetupStep.ChatProfile => ChatProfile is not null || _skipped.Contains(step),
+            SetupStep.FastProfile => FastProfile || _skipped.Contains(step),
+            SetupStep.DecisionProfile => DecisionProfile is not null || _skipped.Contains(step),
+            SetupStep.Decisions => Decisions is not null || _skipped.Contains(step),
+            _ => false,
+        };
+
+    /// <summary>The step after the current one, or the summary after the entry's last step.</summary>
+    internal SetupStep NextStep() =>
+        Step == LastWalked ? SetupStep.Summary : Order[IndexOf(Step) + 1];
+
+    /// <summary>The step before the current one, clamped at the entry's first walked step: a
+    /// scoped entry never jumps before its scope.</summary>
+    internal SetupStep PreviousStep() =>
+        IndexOf(Step) <= IndexOf(FirstWalked) ? FirstWalked : Order[IndexOf(Step) - 1];
+
+    /// <summary>
+    /// The Forward verb's target: the first walked step after <paramref name="step"/> that still
+    /// needs an answer, or the summary when every step after it is answered. Answered steps are not
+    /// skipped into a cleared one — a change clears its dependants, so they count as unanswered.
+    /// </summary>
+    internal SetupStep FirstUnansweredAfter(SetupStep step)
+    {
+        for (int index = IndexOf(step) + 1; index < Order.Count; index++)
+        {
+            SetupStep candidate = Order[index];
+            if (candidate is SetupStep.Summary || candidate > LastWalked)
+            {
+                return SetupStep.Summary;
+            }
+
+            if (!HasAnswer(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return SetupStep.Summary;
+    }
+
+    /// <summary>The walked steps between two steps whose answers Forward replays, in walk order.</summary>
+    internal IReadOnlyList<SetupStep> ReplayedSteps(SetupStep from, SetupStep to) =>
+        [
+            .. Order.Where(step =>
+                IndexOf(step) > IndexOf(from)
+                && IndexOf(step) < IndexOf(to)
+                && step is not SetupStep.Summary
+                && step <= LastWalked
+                && HasAnswer(step)
+            ),
+        ];
 
     /// <summary>The skipped steps, in walk order, for the summary.</summary>
     public IReadOnlyList<SetupStep> SkippedSteps =>

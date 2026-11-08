@@ -33,6 +33,10 @@ internal sealed partial class InteractiveSession
         /// <summary>The step refused its answer and asks itself again; the walk holds.</summary>
         Stay,
 
+        /// <summary>Forward replays the steps already answered and stops at the first that needs an
+        /// answer, or at the summary.</summary>
+        Forward,
+
         /// <summary>The walk ends with nothing written.</summary>
         Abort,
     }
@@ -55,6 +59,14 @@ internal sealed partial class InteractiveSession
     /// <summary>The picker/wask-abort sentinel: an Esc inside a switch question, distinct from
     /// "keep the default".</summary>
     internal const string WizardAbortValue = "\0abort";
+
+    /// <summary>The picker's back verb (<c>b</c> or Left): the walk returns to the previous step
+    /// with every answer kept.</summary>
+    internal const string WizardBackValue = "\0back";
+
+    /// <summary>The picker's forward verb (<c>f</c> or Right): replay the steps already answered and
+    /// stop at the first that still needs one.</summary>
+    internal const string WizardForwardValue = "\0forward";
 
     /// <summary>
     /// Opens the walk: a fresh machine's first run, <c>lunate setup</c> on a terminal, or
@@ -132,96 +144,114 @@ internal sealed partial class InteractiveSession
     private async Task WalkAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         wizard.Enter(wizard.FirstWalked);
-        while (wizard.Step is not SetupStep.Summary)
+        while (true)
         {
-            WizardMove move = wizard.Step switch
+            while (wizard.Step is not SetupStep.Summary)
             {
-                SetupStep.Provider => await ProviderStepAsync(wizard, ct).ConfigureAwait(false),
-                SetupStep.Credential => await CredentialStepAsync(wizard, ct).ConfigureAwait(false),
-                SetupStep.ConnectionTest => await ConnectionTestStepAsync(wizard, ct)
-                    .ConfigureAwait(false),
-                SetupStep.Model => await ModelStepAsync(wizard, ct).ConfigureAwait(false),
-                SetupStep.ModelCheck => await ModelCheckStepAsync(wizard, ct).ConfigureAwait(false),
-                SetupStep.ChatProfile => wizard.Entry is WizardEntry.ChangeChatProfile
-                    ? await ChatUsageStepAsync(wizard, ct).ConfigureAwait(false)
-                    : await ChatProfileStepAsync(wizard, ct).ConfigureAwait(false),
-                SetupStep.FastProfile => await FastStepAsync(wizard, ct).ConfigureAwait(false),
-                SetupStep.DecisionProfile => await DecisionStepAsync(wizard, ct)
-                    .ConfigureAwait(false),
-                SetupStep.Decisions => await DecisionsStepAsync(wizard, ct).ConfigureAwait(false),
-                _ => WizardMove.Advance,
-            };
+                // The path header names the stage and the position before the step asks (spec: The
+                // walk is navigable). It is one line and fits the 60-column pin.
+                Notify(wizard.HeaderLine);
+                WizardMove move = await RunStepAsync(wizard, ct).ConfigureAwait(false);
 
-            if (move == WizardMove.Abort)
+                if (move == WizardMove.Abort)
+                {
+                    Notify("setup cancelled — nothing was changed", NoticeLevel.Info);
+                    return;
+                }
+
+                if (move == WizardMove.Stay)
+                {
+                    continue;
+                }
+
+                Navigate(wizard, move);
+            }
+
+            RenderSummary(wizard);
+            WizardMove confirm = await ConfirmAsync(
+                    "Write this configuration? (Enter writes; Esc cancels)",
+                    ct
+                )
+                .ConfigureAwait(false);
+            if (confirm == WizardMove.Back)
             {
-                Notify("setup cancelled — nothing was changed", NoticeLevel.Info);
+                // Back at the summary re-opens the walk at its last step; every answer is kept and
+                // Forward comes straight back here.
+                wizard.Enter(wizard.LastWalked);
+                Notify($"setup — back to {wizard.LastWalked}; every answer is kept");
+                continue;
+            }
+
+            if (confirm != WizardMove.Advance)
+            {
+                Notify("setup cancelled — nothing was written", NoticeLevel.Info);
                 return;
             }
 
-            if (move == WizardMove.Stay)
-            {
-                continue;
-            }
-
-            if (move == WizardMove.Back)
-            {
-                wizard.Enter(BackWithinEntry(wizard, wizard.Step));
-                continue;
-            }
-
-            wizard.Enter(wizard.Step == wizard.LastWalked ? SetupStep.Summary : Next(wizard.Step));
-        }
-
-        RenderSummary(wizard);
-        if (
-            await ConfirmAsync("Write this configuration? (Enter writes; Esc cancels)", ct)
-            is not true
-        )
-        {
-            Notify("setup cancelled — nothing was written", NoticeLevel.Info);
-            return;
+            break;
         }
 
         CommitWizard(wizard);
         await ReconcileAsync(wizard, ct).ConfigureAwait(false);
     }
 
-    /// <summary>A go-back inside an entry's scope: the walk keeps re-running earlier steps of the
-    /// entry and never jumps before its first one (the earlier answers are the carried current
-    /// configuration there, not this run's to redo).</summary>
-    private static SetupStep BackWithinEntry(SetupWizardModel wizard, SetupStep step)
-    {
-        SetupStep previous = Previous(step);
-        return IndexOf(previous) < IndexOf(wizard.FirstWalked) ? wizard.FirstWalked : previous;
-    }
-
-    private static int IndexOf(SetupStep step)
-    {
-        for (var index = 0; index < SetupWizardModel.Order.Count; index++)
+    /// <summary>Runs the current step and returns the move it asked for.</summary>
+    private Task<WizardMove> RunStepAsync(SetupWizardModel wizard, CancellationToken ct) =>
+        wizard.Step switch
         {
-            if (SetupWizardModel.Order[index] == step)
-            {
-                return index;
-            }
+            SetupStep.Provider => ProviderStepAsync(wizard, ct),
+            SetupStep.Credential => CredentialStepAsync(wizard, ct),
+            SetupStep.ConnectionTest => ConnectionTestStepAsync(wizard, ct),
+            SetupStep.Model => ModelStepAsync(wizard, ct),
+            SetupStep.ModelCheck => ModelCheckStepAsync(wizard, ct),
+            SetupStep.ChatProfile => wizard.Entry is WizardEntry.ChangeChatProfile
+                ? ChatUsageStepAsync(wizard, ct)
+                : ChatProfileStepAsync(wizard, ct),
+            SetupStep.FastProfile => FastStepAsync(wizard, ct),
+            SetupStep.DecisionProfile => DecisionStepAsync(wizard, ct),
+            SetupStep.Decisions => DecisionsStepAsync(wizard, ct),
+            _ => Task.FromResult(WizardMove.Advance),
+        };
+
+    /// <summary>Applies a move to the walk's position: Back one step, Forward over the answered
+    /// steps, Advance one step. Stay and Abort are handled by the loop.</summary>
+    private void Navigate(SetupWizardModel wizard, WizardMove move)
+    {
+        if (move == WizardMove.Back)
+        {
+            wizard.Enter(wizard.PreviousStep());
+            return;
         }
 
-        return -1;
-    }
+        if (move == WizardMove.Forward)
+        {
+            SetupStep target = wizard.FirstUnansweredAfter(wizard.Step);
+            foreach (SetupStep kept in wizard.ReplayedSteps(wizard.Step, target))
+            {
+                Notify($"setup — keeping {kept.ToString().ToLowerInvariant()}; b goes back to it");
+            }
 
-    private static SetupStep Next(SetupStep step)
-    {
-        int index = IndexOf(step);
-        return SetupWizardModel.Order[(index + 1) % SetupWizardModel.Order.Count];
-    }
+            wizard.Enter(target);
+            return;
+        }
 
-    private static SetupStep Previous(SetupStep step)
-    {
-        int index = IndexOf(step);
-        return SetupWizardModel.Order[Math.Max(index - 1, 0)];
+        wizard.Enter(wizard.NextStep());
     }
 
     /// <summary>Step 1: the preset list in providers.json order, then the custom row; a custom
     /// provider answers id, endpoint, family, placement, region and optional models URL.</summary>
+    /// <summary>
+    /// The picker's navigation verb, or null for an ordinary answer. Null (an aborted pick) is the
+    /// walk's abort and is checked by the caller first (spec: The walk is navigable).
+    /// </summary>
+    private static WizardMove? VerbOf(string? picked) =>
+        picked switch
+        {
+            WizardBackValue => WizardMove.Back,
+            WizardForwardValue => WizardMove.Forward,
+            _ => null,
+        };
+
     private async Task<WizardMove> ProviderStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         List<string> labels = [];
@@ -245,9 +275,16 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-        if (picked is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (picked is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(picked) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (picked == WizardSkipValue)
@@ -545,9 +582,16 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-        if (credential is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (credential is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(credential) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (credential == WizardSkipValue)
@@ -634,9 +678,16 @@ internal sealed partial class InteractiveSession
                 "run"
             )
             .ConfigureAwait(false);
-        if (action is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (action is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(action) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (action == "skip")
@@ -680,9 +731,16 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-        if (after is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (after is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(after) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (after == "back")
@@ -737,9 +795,16 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-        if (chosen is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (chosen is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(chosen) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (chosen == WizardSkipValue)
@@ -809,9 +874,16 @@ internal sealed partial class InteractiveSession
                 "skip"
             )
             .ConfigureAwait(false);
-        if (answered is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (answered is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(answered) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (answered == "skip")
@@ -842,9 +914,16 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-        if (after is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (after is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(after) is { } verb)
+            {
+                return verb;
+            }
         }
 
         return after == "back" ? WizardMove.Back : WizardMove.Advance;
@@ -957,9 +1036,16 @@ internal sealed partial class InteractiveSession
                     ct
                 )
                 .ConfigureAwait(false);
-            if (selected is null)
-            {
-                return WizardMove.Abort;
+                        {
+                if (selected is null)
+                {
+                    return WizardMove.Abort;
+                }
+
+                if (VerbOf(selected) is { } verb)
+                {
+                    return verb;
+                }
             }
 
             level = selected;
@@ -990,9 +1076,16 @@ internal sealed partial class InteractiveSession
                 "skip"
             )
             .ConfigureAwait(false);
-        if (answered is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (answered is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(answered) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (answered == "fast" && wizard.ChatProfile is null)
@@ -1062,9 +1155,16 @@ internal sealed partial class InteractiveSession
                 "skip"
             )
             .ConfigureAwait(false);
-        if (answered is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (answered is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(answered) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (answered == "skip")
@@ -1111,9 +1211,16 @@ internal sealed partial class InteractiveSession
                 "skip"
             )
             .ConfigureAwait(false);
-        if (answered is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (answered is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(answered) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (answered == "skip")
@@ -1148,9 +1255,16 @@ internal sealed partial class InteractiveSession
                 "keep"
             )
             .ConfigureAwait(false);
-        if (after is null)
-        {
-            return WizardMove.Abort;
+                {
+            if (after is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (VerbOf(after) is { } verb)
+            {
+                return verb;
+            }
         }
 
         if (after == "again")
@@ -1198,237 +1312,4 @@ internal sealed partial class InteractiveSession
                 .Select(model => model.Id),
         ];
 
-    /// <summary>Step 8: every switch shown with its off/unset default and one explanatory line;
-    /// accepting the defaults writes nothing for the layer. Routing asks each routing profile for
-    /// a description and warns once when one is left blank.</summary>
-    private async Task<WizardMove> DecisionsStepAsync(SetupWizardModel wizard, CancellationToken ct)
-    {
-        string? answered = await PickAsync(
-                "Decisions settings",
-                [
-                    "Keep the defaults (nothing written for the layer)",
-                    "approval gate off — screen staged actions",
-                    "routing unset — choose a profile per request",
-                    "questions off — probability marker on top option; user still chooses",
-                    "decide tool off — offer the decide tool when a decision profile resolves",
-                ],
-                ["defaults", "approvals", "routing", "questions", "tool"],
-                PickerKind.WizardChoice,
-                ct,
-                "defaults"
-            )
-            .ConfigureAwait(false);
-        if (answered is null)
-        {
-            return WizardMove.Abort;
-        }
-
-        if (answered == "defaults")
-        {
-            wizard.RecordDecisions(null);
-            return WizardMove.Advance;
-        }
-
-        if (answered != "defaults" && wizard.ChatProfile is null)
-        {
-            Notify(
-                "the decisions settings bind profiles, but no chat profile was configured; choose "
-                    + "the defaults or add a profile first",
-                NoticeLevel.Warning
-            );
-            return WizardMove.Stay;
-        }
-
-        string? approvals = null;
-        string? routing = null;
-        string? tool = null;
-        string? questions = null;
-        switch (answered)
-        {
-            case "approvals":
-                approvals = await ModeSwitchAsync(
-                        "The approval gate (decisions.approvals)",
-                        "A decision model screens staged actions; shadow answers are display-only, "
-                            + "enforce turns the recommendation into the approval.",
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                if (approvals == "\0")
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (approvals is null)
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-            case "routing":
-                routing = await ModeSwitchAsync(
-                        "Routing (decisions.routing)",
-                        "The decision model picks which configured profile answers; routing needs "
-                            + "at least two profiles.",
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                if (routing == "\0")
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (routing is null)
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-            case "tool":
-                tool = await ToolSwitchAsync(ct).ConfigureAwait(false);
-                if (tool == "\0")
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (tool is null)
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-            case "questions":
-                questions = await AskQuestionAsync(
-                        "Questions (decisions.questions)",
-                        "A probability marker appears beside the top option; the user still chooses.",
-                        ["off", "suggest"],
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                if (questions == WizardAbortValue)
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (questions == "off")
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-        }
-
-        var descriptions = new Dictionary<string, string>(StringComparer.Ordinal);
-        IReadOnlyList<string> routingProfiles = RoutingCandidates(wizard);
-        if (routing is not null)
-        {
-            if (routingProfiles.Count < 2)
-            {
-                Notify(
-                    "routing needs at least two profiles to choose between; the routing key is "
-                        + "not written this walk",
-                    NoticeLevel.Warning
-                );
-                routing = null;
-            }
-            else
-            {
-                foreach (string profile in routingProfiles)
-                {
-                    string? description = await PromptAsync(
-                            $"What is profile '{profile}' for, what is it not, an example (Enter leaves it blank)",
-                            ct
-                        )
-                        .ConfigureAwait(false);
-                    if (description is null)
-                    {
-                        return WizardMove.Abort;
-                    }
-
-                    if (description.Trim().Length == 0)
-                    {
-                        Notify(
-                            $"profile '{profile}' has no description; routing warns once about a "
-                                + "blank description at composition",
-                            NoticeLevel.Warning
-                        );
-                    }
-                    else
-                    {
-                        descriptions.Add(profile, description.Trim());
-                    }
-                }
-            }
-        }
-
-        wizard.RecordDecisions(
-            new WizardDecisionsChoice(
-                approvals,
-                routing,
-                tool,
-                routingProfiles,
-                descriptions,
-                questions
-            )
-        );
-        return WizardMove.Advance;
-    }
-
-    private static IReadOnlyList<string> RoutingCandidates(SetupWizardModel wizard)
-    {
-        var names = new List<string>();
-        if (wizard.ChatProfile is { } chat)
-        {
-            names.Add(chat.Name);
-        }
-
-        if (wizard.DecisionProfile is { } decision)
-        {
-            names.Add(decision.ProfileName);
-        }
-
-        foreach (string existing in wizard.ExistingRoutingProfiles)
-        {
-            if (!names.Contains(existing, StringComparer.Ordinal))
-            {
-                names.Add(existing);
-            }
-        }
-
-        return names;
-    }
-
-    /// <summary>One mode switch: the exact literals with the defaults; keeping the default writes
-    /// nothing. The coach returns a literal, null for the unwritten default, or "\0" for Esc.</summary>
-    private async Task<string?> ModeSwitchAsync(
-        string title,
-        string description,
-        CancellationToken ct
-    )
-    {
-        string? answered = await AskQuestionAsync(
-                title,
-                description,
-                ["off", "shadow", "enforce"],
-                ct
-            )
-            .ConfigureAwait(false);
-        return answered == "off" ? null : answered;
-    }
-
-    private async Task<string?> ToolSwitchAsync(CancellationToken ct) =>
-        await AskQuestionAsync(
-                "decisions.tool",
-                "Offers the decide tool to the model; only with decision profile resolving as well.",
-                ["off", "on"],
-                ct
-            )
-            .ConfigureAwait(false) switch
-        {
-            "off" => null,
-            var answered => answered,
-        };
 }

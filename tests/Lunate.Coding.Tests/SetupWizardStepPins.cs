@@ -258,11 +258,7 @@ public sealed class SetupWizardStepPins
         // their value untouched, so the walk lands on the decisions step with every dependent
         // step named skipped in the summary.
         await PickRowAsync(host, "Select provider", "Skip provider setup");
-        await PickRowAsync(
-            host,
-            "Decisions settings",
-            "Keep the defaults (nothing written for the layer)"
-        );
+        await PickRowAsync(host, "Decisions settings", "Done — write these choices and leave the menu");
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         // The summary wraps at the terminal width; flatten the wrapped lines so the pinned
@@ -328,17 +324,24 @@ public sealed class SetupWizardStepPins
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // skip
 
-        await PickRowAsync(
-            host,
-            "Decisions settings",
-            "routing unset — choose a profile per request"
-        );
+        await PickRowAsync(host, "Decisions settings", "routing (decisions.routing)");
         await host.WaitForFrameAsync("Routing (decisions.routing)");
         // The question's arm window drops keys until it expires; the virtual scheduler's clock
         // is what measures it, so advance past the window before the first answer key.
         host.Advance(500);
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         await host.WaitForFrameAsync("> shadow");
+        host.Advance(500);
+        host.Console.SendEnter();
+
+        // The plural answer: which candidates participate. Space toggles, Enter confirms and the
+        // count is visible while toggling (spec: The walk is navigable).
+        await host.WaitForFrameAsync("Routing profiles");
+        host.Advance(500);
+        host.Console.Send(new KeyEvent(KeyKind.Space, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Space, null, false, false, false));
+        await host.WaitForFrameAsync("2 selected");
         host.Advance(500);
         host.Console.SendEnter();
 
@@ -362,6 +365,11 @@ public sealed class SetupWizardStepPins
             host.Console.SendEnter();
         }
 
+        // The menu returned with the routing row showing the change; Up twice reaches Done.
+        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        await host.WaitForFrameAsync("> Done");
+        host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("routing description");
         Assert.Contains(
             "routing description (chat-main): for staged edit batches",

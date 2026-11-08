@@ -85,6 +85,13 @@ public sealed class SelectListRenderer
         List<string> lines = [];
         AddWrapped(lines, question.Title, string.Empty, availableWidth);
         AddWrapped(lines, question.Description, string.Empty, availableWidth);
+        if (question.MultiSelect && question.Status == QuestionPromptStatus.Pending)
+        {
+            // The count is visible while toggling, before Enter confirms (spec: The walk is
+            // navigable). Invariant: the product behaves the same under any machine culture.
+            string count = question.SelectedIndices.Count.ToString(CultureInfo.InvariantCulture);
+            AddWrapped(lines, count + " selected", string.Empty, availableWidth);
+        }
         for (int index = 0; index < question.Options.Count; index++)
         {
             SelectListQuestionOption option = question.Options[index];

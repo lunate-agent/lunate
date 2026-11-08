@@ -460,9 +460,13 @@ internal static class SetupWizardCommit
         if (choices.Routing is { } routing)
         {
             SettingsStore.WriteDecisionsKey("routing", routing, paths.SettingsPath);
-            var list = new JsonArray([
-                .. RoutingProfiles(model, model.DecisionProfile).Select(name => (JsonNode)name),
-            ]);
+            // The profiles the multi-select confirmed, in the order they were offered; the walk's
+            // candidates are only the fallback for a choice staged without them.
+            IReadOnlyList<string> routingProfiles =
+                choices.RoutingProfiles.Count > 0
+                    ? choices.RoutingProfiles
+                    : RoutingProfiles(model, model.DecisionProfile);
+            var list = new JsonArray([.. routingProfiles.Select(name => (JsonNode)name)]);
             SettingsStore.WriteDecisionsKey("routingProfiles", list, paths.SettingsPath);
         }
 
