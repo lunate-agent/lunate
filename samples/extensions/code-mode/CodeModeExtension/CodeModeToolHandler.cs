@@ -94,7 +94,7 @@ internal sealed class CodeModeToolHandler(CodeModeSettings settings, IProcessRun
                         settings.Runtime,
                         [scriptPath],
                         context.WorkingDirectory,
-                        Environment: EnvironmentScrubber.Build(),
+                        Environment: EnvironmentScrubber.Build(ChildEnvironmentPolicy.Scrubbed),
                         Timeout: TimeSpan.FromSeconds(timeoutSeconds)
                     )
                     {

@@ -1,6 +1,26 @@
 namespace Lunate.Extensibility.Abstractions;
 
 /// <summary>
+/// Which of the two environment policies a child spawn asks for. There is no default: every spawn
+/// site names one at its call, so no child's environment is decided by an omission.
+/// </summary>
+public enum ChildEnvironmentPolicy
+{
+    /// <summary>
+    /// The minimal base set plus the declared names — the extension hosts' policy, where nothing
+    /// the parent holds is inherited implicitly.
+    /// </summary>
+    Scrubbed,
+
+    /// <summary>
+    /// The caller's whole environment minus the names the caller declares as Lunate's own
+    /// credentials — the tool child's policy, because the bash tool is the user's shell and must
+    /// still see the user's own ambient environment.
+    /// </summary>
+    Inherited,
+}
+
+/// <summary>
 /// Builds a child process environment that can never inherit Lunate's own variables by omission:
 /// the minimal base set (see <see cref="BaseNames"/>, each entry's reason documented there), plus
 /// the declared pass-through names, plus the declared values — nothing else. The one
@@ -49,17 +69,29 @@ public static class EnvironmentScrubber
     ];
 
     /// <summary>
-    /// Builds the exact environment: each base name present in the parent (read through
-    /// <paramref name="read"/>, case-insensitively on Windows), each pass-through name, then the
-    /// explicit values (which win).
+    /// Builds a child environment under <paramref name="policy"/>. <see cref="ChildEnvironmentPolicy.Scrubbed"/>
+    /// is the minimal base set, then the declared pass-through names, then the declared values; a
+    /// name the parent holds and does not declare never arrives. <see cref="ChildEnvironmentPolicy.Inherited"/>
+    /// is the parent's whole environment, then the declared values, minus every declared strip name
+    /// (the credential variables Lunate resolved) — the strip wins over a declared value, so a
+    /// spawn site cannot re-introduce a stripped name by accident.
     /// </summary>
-    /// <param name="read">Reads the parent's environment; null reads the process environment.</param>
+    /// <param name="policy">The policy; the call site always names one.</param>
+    /// <param name="read">Reads one parent variable; null reads the process environment.</param>
     /// <param name="set">Values to set; null sets none.</param>
-    /// <param name="passthrough">Names inherited from the parent; null passes none through.</param>
+    /// <param name="passthrough">Names read from the parent under <see cref="ChildEnvironmentPolicy.Scrubbed"/>; null passes none through.</param>
+    /// <param name="strip">Names removed under <see cref="ChildEnvironmentPolicy.Inherited"/>; null strips none.</param>
+    /// <param name="inherited">
+    /// The set <see cref="ChildEnvironmentPolicy.Inherited"/> starts from; null reads the process
+    /// environment. The test seam for the inherited policy.
+    /// </param>
     public static IReadOnlyDictionary<string, string> Build(
+        ChildEnvironmentPolicy policy,
         Func<string, string?>? read = null,
         IReadOnlyDictionary<string, string>? set = null,
-        IReadOnlyList<string>? passthrough = null
+        IReadOnlyList<string>? passthrough = null,
+        IReadOnlyList<string>? strip = null,
+        IEnumerable<KeyValuePair<string, string>>? inherited = null
     )
     {
         read ??= Environment.GetEnvironmentVariable;
@@ -68,27 +100,67 @@ public static class EnvironmentScrubber
         var environment = new Dictionary<string, string>(
             OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal
         );
-        foreach (string name in BaseNames)
+
+        if (policy == ChildEnvironmentPolicy.Inherited)
         {
-            if (read(name) is { Length: > 0 } value)
+            foreach ((string name, string value) in inherited ?? ProcessEnvironment())
             {
                 environment[name] = value;
             }
-        }
-
-        foreach (string name in passthrough ?? [])
-        {
-            if (read(name) is { } value)
+            foreach (string name in strip ?? [])
             {
-                environment[name] = value;
+                environment.Remove(name);
+            }
+        }
+        else
+        {
+            foreach (string name in BaseNames)
+            {
+                if (read(name) is { Length: > 0 } value)
+                {
+                    environment[name] = value;
+                }
+            }
+
+            foreach (string name in passthrough ?? [])
+            {
+                if (read(name) is { } value)
+                {
+                    environment[name] = value;
+                }
             }
         }
 
         foreach ((string name, string value) in set ?? new Dictionary<string, string>())
         {
+            // The inherited policy's strip is a deny for the whole child, so a declared value
+            // cannot put a stripped name back.
+            if (policy == ChildEnvironmentPolicy.Inherited && strip is { } stripped)
+            {
+                if (stripped.Contains(name, StringComparer.Ordinal))
+                {
+                    continue;
+                }
+            }
+
             environment[name] = value;
         }
 
         return environment;
+    }
+
+    /// <summary>The process environment as name/value pairs — the inherited policy's default source.</summary>
+    private static IEnumerable<KeyValuePair<string, string>> ProcessEnvironment()
+    {
+        foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+        {
+            if (entry.Key is string name)
+            {
+                yield return new KeyValuePair<string, string>(
+                    name,
+                    entry.Value as string ?? string.Empty
+                );
+            }
+        }
     }
 }

@@ -384,6 +384,29 @@ public sealed class ProcessRunnerTests
         await ChildProcessProbe.AssertEventuallyDeadAsync(grandchild);
     }
 
+    [Fact]
+    public async Task A_tool_child_keeps_the_users_variables_and_loses_lunate_credentials()
+    {
+        // Both platform halves (posix_spawn and the redirected-stdio Windows spawn) build the tool
+        // child's environment through the one policy point, so this pins the credential strip on
+        // each shard rather than only on POSIX.
+        using var environment = new ProcessEnvironment(
+            ("LUNATE_TEST_TOOLCHAIN_VAR", "kept"),
+            ("OPENAI_API_KEY", "sk-should-not-reach-the-child")
+        );
+        using var temp = new TempDirectory();
+        var request = NodeRequest(
+            temp,
+            "console.log(process.env.LUNATE_TEST_TOOLCHAIN_VAR ?? 'missing');"
+                + "console.log(process.env.OPENAI_API_KEY ?? 'stripped');"
+        );
+
+        ProcessRunResult result = await RunAsync(temp, request);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("kept\nstripped\n", result.Stdout.ReplaceLineEndings("\n"));
+    }
+
     private static async Task<ProcessRunResult> RunAsync(
         TempDirectory temp,
         ProcessRunRequest request
@@ -438,4 +461,32 @@ public sealed class ProcessRunnerTests
                     _ => "it exited",
                 },
         };
+
+    /// <summary>The test's own writes to the process environment, restored on dispose.</summary>
+    private sealed class ProcessEnvironment : IDisposable
+    {
+        private readonly (string Name, string? Value)[] _previous;
+
+        public ProcessEnvironment(params (string Name, string Value)[] variables)
+        {
+            _previous =
+            [
+                .. variables.Select(variable =>
+                    (variable.Name, Environment.GetEnvironmentVariable(variable.Name))
+                ),
+            ];
+            foreach ((string name, string value) in variables)
+            {
+                Environment.SetEnvironmentVariable(name, value);
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach ((string name, string? value) in _previous)
+            {
+                Environment.SetEnvironmentVariable(name, value);
+            }
+        }
+    }
 }

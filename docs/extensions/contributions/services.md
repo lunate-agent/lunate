@@ -80,9 +80,11 @@ The host registers these reserved handles before extensions load:
 directory, optional environment, timeout and output cap) and returns a `ProcessRunResult` (exit
 code, stdout, stderr, timeout and cap flags). `StartSessionAsync` returns an `IProcessSession` for
 line-oriented stdin/stdout exchange. Pass an explicit environment allow-list when the child must
-not inherit Lunate's environment — provider keys included. `EnvironmentScrubber.Build()` builds the
-minimal base set plus declared pass-through values and explicit entries; the `code-mode` sample and
-the remote host both use it.
+not inherit Lunate's environment — provider keys included. `EnvironmentScrubber.Build()` is the one
+builder, and the call names its policy: `ChildEnvironmentPolicy.Scrubbed` builds the minimal base
+set plus declared pass-through values and explicit entries (the `code-mode` sample and the remote
+host use it); `ChildEnvironmentPolicy.Inherited` takes the caller's whole environment minus the
+variable names Lunate resolves as provider credentials, which is what the `bash` tool uses.
 
 The `code-mode` and `worktree-tasks` samples are the reference consumers:
 [`CodeModeExtensionFactory.cs`](../../../samples/extensions/code-mode/CodeModeExtension/CodeModeExtensionFactory.cs)

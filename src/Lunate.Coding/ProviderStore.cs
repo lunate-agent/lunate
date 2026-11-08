@@ -118,9 +118,39 @@ internal sealed class ProviderStore
                 );
             }
 
-            return new ProviderStore(
-                entries.Values.OrderBy(entry => entry.Name, StringComparer.Ordinal).ToArray()
-            );
+            ProviderEntry[] ordered = entries
+                .Values.OrderBy(entry => entry.Name, StringComparer.Ordinal)
+                .ToArray();
+
+            // Every configured provider names its credential source here, and this is the one seam
+            // every path that resolves providers goes through — so a tool child started after
+            // composition strips exactly the variables Lunate can turn into a credential.
+            foreach (ProviderEntry entry in ordered)
+            {
+                CredentialVariables.RegisterReference(entry.CredentialReference);
+                foreach (string reference in HeaderValues(entry))
+                {
+                    CredentialVariables.RegisterReference(reference);
+                }
+            }
+
+            return new ProviderStore(ordered);
+        }
+    }
+
+    private static IEnumerable<string> HeaderValues(ProviderEntry entry)
+    {
+        foreach (string reference in entry.Headers?.Values ?? [])
+        {
+            yield return reference;
+        }
+
+        foreach (IReadOnlyDictionary<string, string> family in entry.FamilyHeaders?.Values ?? [])
+        {
+            foreach (string reference in family.Values)
+            {
+                yield return reference;
+            }
         }
     }
 
