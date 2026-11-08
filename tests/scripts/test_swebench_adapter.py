@@ -1,5 +1,6 @@
 import json
 import unittest
+from pathlib import Path
 
 from swebench_adapter_support import SECRET, AdapterTestCase
 
@@ -29,6 +30,9 @@ class SwebenchAdapterRunTests(AdapterTestCase):
         self.assertEqual(1, len(run["instances"]))
         self.assertTrue(run["instances"][0]["hasPatch"])
         self.assertTrue(run["instances"][0]["hasTrajectory"])
+        self.assertFalse(Path(run["instances"][0]["patchPath"]).is_absolute())
+        self.assertFalse(Path(run["instances"][0]["trajectoryPath"]).is_absolute())
+        self.assertFalse(run["evaluation"]["requested"])
         self.assertGreaterEqual(run["secretsRedactedFiles"], 2)
         for path in self.run_root().rglob("*"):
             if path.is_file():
@@ -54,10 +58,48 @@ class SwebenchAdapterRunTests(AdapterTestCase):
         self.assertEqual("linux/amd64", arguments[arguments.index("--platform") + 1])
         self.assertIn("LUNATE_MODEL=example/model", arguments)
         self.assertIn("FAKE_API_KEY", arguments)
+        self.assertIn("example/alpha-one:latest", arguments)
         self.assertNotIn(SECRET, json.dumps(arguments))
+        instance = self.run_root("run-2") / "alpha__one-1"
+        container_script = (instance / "run.sh").read_text()
+        self.assertIn("lunate -p --json --yolo", container_script)
+        self.assertIn("prompt.md", container_script)
+        self.assertIn("Fix the alpha parser.", (instance / "prompt.md").read_text())
         environment = (self.docker_args.parent / (self.docker_args.name + ".envs")).read_text()
         self.assertIn("FAKE_API_KEY", environment)
         self.assertNotIn(SECRET, environment)
+
+    def test_the_dry_run_selects_exactly_one_instance(self) -> None:
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--dry-run",
+                "--instance",
+                "alpha__one-1",
+                "--run-id",
+                "run-10",
+                "--env",
+                "FAKE_API_KEY",
+            )
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertTrue((self.run_root("run-10") / "alpha__one-1").is_dir())
+        self.assertFalse((self.run_root("run-10") / "beta__two-2").exists())
+
+    def test_two_instances_with_dry_run_is_a_usage_error(self) -> None:
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--dry-run",
+                "--instance",
+                "alpha__one-1",
+                "--instance",
+                "beta__two-2",
+            )
+        )
+
+        self.assertEqual(2, result.returncode)
+        self.assertIn("exactly one", result.stderr)
+        self.assertFalse(self.output.exists())
 
     def test_the_official_dataset_loader_is_used_without_a_local_file(self) -> None:
         arguments = self.base_arguments(
