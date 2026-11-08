@@ -168,6 +168,109 @@ _self_workflow() {
     FAILURES=$((FAILURES + 1))
 }
 
+# Evaluate a workflow's concurrency block for one event scenario and print "<group>|<cancel>".
+# Only the expression forms the workflows use are understood; anything else is an error, so a new
+# shape cannot slip past the assertions below.
+_concurrency_decision() {
+    python3 - "$1" "$2" <<'PY'
+import re
+import sys
+
+workflow_path, scenario = sys.argv[1:]
+scenarios = {
+    "push-main": ("push", "refs/heads/main"),
+    "push-tag": ("push", "refs/tags/v1.2.3"),
+    "pull_request": ("pull_request", "refs/pull/42/merge"),
+    "merge_group": ("merge_group", "refs/heads/gh-readonly-queue/main/pr-42-abc"),
+    "schedule": ("schedule", "refs/heads/main"),
+    "workflow_dispatch": ("workflow_dispatch", "refs/heads/main"),
+}
+if scenario not in scenarios:
+    sys.exit(f"unknown scenario: {scenario}")
+event, ref = scenarios[scenario]
+
+with open(workflow_path, encoding="utf-8") as handle:
+    lines = [line.rstrip("\r\n") for line in handle]
+
+concurrency = {}
+inside = False
+for line in lines:
+    if line == "concurrency:":
+        inside = True
+        continue
+    if not inside:
+        continue
+    if not line.startswith(" "):
+        break
+    match = re.fullmatch(r"  ([A-Za-z-]+):\s*(.*)", line)
+    if match:
+        concurrency[match.group(1)] = match.group(2).strip()
+
+if "group" not in concurrency or "cancel-in-progress" not in concurrency:
+    sys.exit(f"{workflow_path}: no usable concurrency block")
+
+
+def unquote(value):
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        return value[1:-1]
+    return value
+
+
+group_expr = unquote(concurrency["group"])
+cancel_expr = unquote(concurrency["cancel-in-progress"])
+
+
+def evaluate_group(expr):
+    expr = expr.replace("${{ github.ref }}", ref)
+    expr = re.sub(
+        r"\$\{\{\s*github\.event_name == '([^']*)' && '([^']*)' \|\| ''\s*\}\}",
+        lambda match: match.group(2) if event == match.group(1) else "",
+        expr,
+    )
+    if "${{" in expr:
+        raise ValueError(f"unsupported concurrency group expression: {group_expr}")
+    return expr
+
+
+def evaluate_cancel(expr):
+    if expr in ("true", "false"):
+        return expr
+    equal = re.fullmatch(r"\$\{\{\s*github\.event_name == '([^']*)'\s*\}\}", expr)
+    if equal:
+        return "true" if event == equal.group(1) else "false"
+    unequal = re.fullmatch(r"\$\{\{\s*github\.event_name != '([^']*)'\s*\}\}", expr)
+    if unequal:
+        return "true" if event != unequal.group(1) else "false"
+    raise ValueError(f"unsupported cancel-in-progress expression: {cancel_expr}")
+
+
+try:
+    print(f"{evaluate_group(group_expr)}|{evaluate_cancel(cancel_expr)}")
+except ValueError as error:
+    sys.exit(f"{workflow_path}: {error}")
+PY
+}
+
+# A concurrency invariant: the group and cancellation decision this workflow resolves to for one
+# event scenario must be the expected ones. A workflow whose expression cannot be evaluated fails.
+_self_concurrency() {
+    local name="$1" workflow="$2" scenario="$3" want_group="$4" want_cancel="$5"
+    local out status=0
+    if ! out="$(_concurrency_decision "$workflow" "$scenario" 2>&1)"; then
+        status=$?
+    fi
+    CASES=$((CASES + 1))
+    if [ "$status" -ne 0 ]; then
+        echo "self-test: FAIL: ${name} (${scenario}): ${out}" >&2
+        FAILURES=$((FAILURES + 1))
+        return 0
+    fi
+    if [ "$out" != "${want_group}|${want_cancel}" ]; then
+        echo "self-test: FAIL: ${name}: ${scenario} expected '${want_group}|${want_cancel}', got '${out}'" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
 self_test() {
     CASES=0
     FAILURES=0
@@ -273,6 +376,39 @@ self_test() {
         verify-powershell "needs\.changes\.outputs\.powershell == 'true'" 1
     _self_workflow "the changes job must decide through scripts/ci-powershell-paths.sh" \
         changes 'scripts/ci-powershell-paths\.sh' 1
+
+    # Run concurrency: only a pull request may supersede its own older run, and the nightly is a
+    # separate obligation from the push on the same branch. These assertions read the expression and
+    # evaluate it per event, so a regression names the workflow and the event instead of only
+    # comparing text.
+    _self_concurrency "ci: a push to main is never cancelled" "$WORKFLOW" push-main \
+        "ci-refs/heads/main" false
+    _self_concurrency "ci: a tag push is never cancelled" "$WORKFLOW" push-tag \
+        "ci-refs/tags/v1.2.3" false
+    _self_concurrency "ci: a pull request supersedes its own older run" "$WORKFLOW" pull_request \
+        "ci-refs/pull/42/merge" true
+    _self_concurrency "ci: a merge group is never cancelled" "$WORKFLOW" merge_group \
+        "ci-refs/heads/gh-readonly-queue/main/pr-42-abc" false
+    _self_concurrency "ci: the nightly has its own group and cancels nothing" "$WORKFLOW" schedule \
+        "ci-refs/heads/main-nightly" false
+    _self_concurrency "ci: a manual dispatch is never cancelled" "$WORKFLOW" workflow_dispatch \
+        "ci-refs/heads/main" false
+
+    local docs_lint="${REPO_ROOT}/.github/workflows/docs-lint.yml"
+    _self_concurrency "docs-lint: a push to main is never cancelled" "$docs_lint" push-main \
+        "docs-lint-refs/heads/main" false
+    _self_concurrency "docs-lint: only a pull request could supersede its own run" "$docs_lint" pull_request \
+        "docs-lint-refs/pull/42/merge" true
+    _self_concurrency "docs-lint: schedule cancels nothing" "$docs_lint" schedule \
+        "docs-lint-refs/heads/main" false
+
+    local pack="${REPO_ROOT}/.github/workflows/pack.yml"
+    _self_concurrency "pack: a push to main is never cancelled" "$pack" push-main \
+        "pack-refs/heads/main" false
+    _self_concurrency "pack: a pull request supersedes its own older run" "$pack" pull_request \
+        "pack-refs/pull/42/merge" true
+    _self_concurrency "pack: schedule cancels nothing" "$pack" schedule \
+        "pack-refs/heads/main" false
 
     if [ "$FAILURES" -ne 0 ]; then
         echo "self-test: FAIL: ${FAILURES} of ${CASES} checks failed" >&2

@@ -11,9 +11,11 @@ on:
       - 'adr/**'
       - 'openspec/**'
 
+# Supersede only a pull request's own older run. This workflow runs on pushes to main: a newer push
+# must not cancel an older run that is still producing the advisory result for its commit (#705).
 concurrency:
   group: docs-lint-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
