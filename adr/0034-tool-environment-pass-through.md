@@ -34,6 +34,13 @@ credential deny as the default. This ADR records that shape for Lunate and the b
    the list once from resolved settings before the first tool runs.
 5. **`Scrubbed` is unaffected.** Extension hosts never receive the inherited set, so the pass-through
    does not apply to them.
+6. **The setting is user-scope only, and that is what makes it safe.** A project or workspace
+   `.lunate/settings.json` may not carry `toolEnvironment`: the project scope scan refuses the
+   section by name before any merge, and `MergeProject` never overlays the resolved section. The
+   safety argument is structural, not a tendency — a cloned repository cannot introduce a
+   pass-through at all, so it cannot pull a credential into a tool process this way. A repository
+   may still reference user providers, define profiles on them and lower limits, because those have
+   their own rules; the pass-through has this one.
 
 ## Consequences
 
@@ -41,6 +48,9 @@ credential deny as the default. This ADR records that shape for Lunate and the b
   design. A mistaken entry is a deliberate act the user can see and remove.
 - A wildcard or prefix in the list is an exact name that matches nothing; a future pattern feature
   would be a new decision, not an extension of this one.
-- The pass-through is a user-scope setting only; project settings cannot widen a child's environment.
+- The pass-through is a user-scope setting only, and that is what makes the opt-in safe: a project
+  settings file is refused by name (`SettingsStore.ValidateProjectScope`) and never merged, so a
+  repository cannot widen a child's environment. `ToolEnvironmentScopeTests` pins that a project
+  attempt leaves the tool child's environment unchanged.
 - `ChildEnvironmentGuardTests` keeps the boundary reviewable: one builder file, the list read in
   `ChildProcess.BuildEnvironment`, and no spawn site deciding an environment of its own.
