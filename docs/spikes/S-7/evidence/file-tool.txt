@@ -1,0 +1,28 @@
+
+== host-side write, container-side read (the real write tool) ==
+write tool result (33.2 ms): wrote 2 lines to .s7-evidence/host-write.txt (created)
+PASS write tool succeeded: isError=False
+host sha256: 1ae36b24a8af142dec9111a8fc2d2fa67ef6266e0ce240de669e80bda4237fc2
+container sha256: 1ae36b24a8af142dec9111a8fc2d2fa67ef6266e0ce240de669e80bda4237fc2
+PASS the container sees the host-written bytes: 1ae36b24a8af142dec9111a8fc2d2fa67ef6266e0ce240de669e80bda4237fc2 == 1ae36b24a8af142dec9111a8fc2d2fa67ef6266e0ce240de669e80bda4237fc2
+container cat + stat:
+line one
+line two with ünïcode — and an em dash
+mode=644 uid=0 gid=0 size=52
+
+== container-side write, host-side read (the real read tool) ==
+PASS the container wrote a file: exit=0 stderr=
+read tool result (3.0 ms):
+     1|written by the container
+     2|second line
+PASS the host-side read tool sees the container-written file: isError=False
+
+== the workspace boundary on the host (path spelling) ==
+PASS a container-side path spelling is refused on the host: path '/workspace/.s7-evidence/host-write.txt' is outside the workspace (resolves to '/workspace/.s7-evidence/host-write.txt'; allowed roots: /Users/danielwallner/dev/lunate/.worktrees/issue-625)
+PASS the host absolute path resolves: /Users/danielwallner/dev/lunate/.worktrees/issue-625/.s7-evidence/host-write.txt
+
+== what the file-change sink saw ==
+sink: tool:Created:.s7-evidence/host-write.txt
+file tool cost on this host: write 33.2 ms, read 3.0 ms
+
+checks: 6, failures: 0

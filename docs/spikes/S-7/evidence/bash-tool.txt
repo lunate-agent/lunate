@@ -1,0 +1,53 @@
+
+== the shim the bash tool is pointed at ==
+path: /Users/danielwallner/.hermes/cache/scratch/workers/issue-625/s7-container-shell.sh
+  #!/bin/sh
+  # S-7 spike (#625): the "container shell" BashTool is pointed at.
+  # Every command the tool would run locally runs in the container instead.
+  exec podman exec -i -w '/Users/danielwallner/dev/lunate/.worktrees/issue-625' lunate-s7-evidence /bin/bash "$@"
+  
+
+== where the command ran ==
+kernel=Linux arch=aarch64 host=d50b08e5df0b
+/Users/danielwallner/dev/lunate/.worktrees/issue-625
+uid=0
+session=unset
+exit code: 0
+PASS the command ran on Linux, not on the host: kernel=Linux arch=aarch64 host=d50b08e5df0b /Users/danielwallner/dev/lunate/.worktrees/issue-625 uid=0 session=unset exit code: 0
+PASS the working directory is the same absolute path on both sides: /Users/danielwallner/dev/lunate/.worktrees/issue-625
+NOTE the session marker: LUNATE_SESSION is set by the tool on the host process it spawns; exec does not forward it, so the container sees it unset.
+
+== exit codes and streams ==
+out-line
+stderr:
+err-line
+exit code: 7
+PASS a non-zero container exit is the tool's exit code: isError=True
+
+== a container write, seen by the host and by the change scan ==
+git common dir: /Users/danielwallner/dev/lunate/.git
+exit code: 0
+PASS the host sees the file the container's bash wrote: bash-in-container
+change sink: bash:Created:s7-scan-probe.txt
+NOTE the scan sees `s7-scan-probe.txt` (a new file at the workspace root) but not `.s7-evidence/container-bash.txt`: `git status -unormal` collapses an untracked directory into one entry, so a file created inside an already-untracked directory is invisible to the bash change scan. That is host-side git behaviour and is the same with or without a container.
+PASS the host-side change scan publishes a container-written file: bash:Created:s7-scan-probe.txt
+
+== cancel: does the tool's process tree kill reach the container? ==
+pgid=33
+timed out after 2s; process tree killed
+PASS the tool reports the timeout: pgid=33 timed out after 2s; process tree killed
+container processes after the host-side tree kill: 33 sleep 4271
+container-side process group: 33
+PASS the container-side process group dies when the runner kills it by pgid: (none left)
+PASS the pgid to kill is reportable from the tool's own output: 33
+
+== the bash guard with a container environment ==
+refused by the bash guard (macOS sandbox-exec): the command would write under /Users/danielwallner/.hermes/cache/scratch/workers/issue-625/s7-lunate-home, and the guard denies writes under /Users/danielwallner/.hermes/cache/scratch/workers/issue-625/s7-lunate-home and /Users/danielwallner/.dotnet. Write inside the workspace instead.
+refused before spawn: yes
+is the guard's state root reachable inside the container: no
+PASS in a container the guard's protection is structural: the state root is not mounted: /Users/danielwallner/.hermes/cache/scratch/workers/issue-625/s7-lunate-home inside lunate-s7-evidence
+
+== what the resolver made of the shim ==
+resolved: bash (Bash): /Users/danielwallner/.hermes/cache/scratch/workers/issue-625/s7-container-shell.sh -c
+
+checks: 9, failures: 0
