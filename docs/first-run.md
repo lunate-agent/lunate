@@ -39,9 +39,13 @@ the wizard opens instead of the prompt:
 - **Decisions** — Detailed only; each switch is shown with the value it holds now and one explanatory
   line; the list stays open after each change and refreshes every row, and **Done — leave the
   decisions settings** leaves it.
-- **Summary** — every collected value, the connection/model-check results, and the skipped steps. A
-  Quick summary adds a **Left at default** block naming every setting Quick did not ask, the default
-  it left, and the command that changes it later (`/setup` or `/settings`).
+- **Summary** — a manifest grouped by the file it will write (`providers.json`, `auth.json`,
+  `settings.json`), one fact per line, with the connection/model-check results and a **Left at
+  default / unchanged** block naming what the walk skipped and the command that changes it later
+  (`/setup`, `/settings`, `lunate auth login`). A Quick walk's block names every setting Quick did
+  not ask, the default it left, and that command. After the write, a short receipt names each
+  touched file, the change-later commands and returns to the session. Both surfaces stay readable
+  at 40 columns and never print a secret.
 
 Quick never hides a default: a setting it skips appears in that block. `Esc` at any prompt ends the
 run with nothing written. The full walk is the only path that writes several stores; the entry menu
@@ -52,8 +56,8 @@ below writes only the answers it collects.
 `lunate setup` runs the same walk without a TTY. Every answer is a flag; an absent flag skips its
 step and invents nothing. The connection test and the model check run unless suppressed: `--no-test`
 sends no provider request at all (it skips both), while `--no-model-check` skips only the paid model
-check and keeps the free discovery request. The summary goes to stdout and never contains a
-credential.
+check and keeps the free discovery request. The file manifest and the post-write receipt go to
+stdout and never contain a credential.
 
 ```bash
 printf '%s\n' "$OPENAI_API_KEY" |
