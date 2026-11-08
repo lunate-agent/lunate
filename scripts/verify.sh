@@ -284,6 +284,10 @@ docs_profile() {
   step "the cheap tree checks also run on main"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_tree_checks.py"
 
+  step "swebench adapter"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
+
   step "docs are not build inputs"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
 
@@ -378,6 +382,10 @@ platform_checks() {
   # push to main too, because a docs-only push skips the matrix and a check cannot fail there.
   step "the cheap tree checks also run on main"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_tree_checks.py"
+
+  step "swebench adapter"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
 
   step "public API"
   if ! check_shipped_api_unchanged; then
