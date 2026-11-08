@@ -82,6 +82,12 @@ public static partial class SettingsStore
                     continue;
                 }
 
+                if (property.Name == "toolEnvironment")
+                {
+                    FindForbiddenToolEnvironmentKeys(property.Value, problems);
+                    continue;
+                }
+
                 if (
                     property.Name
                     is not ("schemaVersion" or "profiles" or "usages" or "output" or "subagents")
@@ -148,6 +154,44 @@ public static partial class SettingsStore
                     $"project settings key '{providerPath}' is forbidden; providers are user-scoped"
                 );
             }
+        }
+    }
+
+    /// <summary>
+    /// Refuses the <c>toolEnvironment</c> section by name in a project file. The pass-through list
+    /// decides which variables survive the credential strip, so only the user settings may set it:
+    /// a cloned repository must not be able to pull a credential into a tool process. The message
+    /// names the full key and the scope rule rather than the generic "not allowed" the allow-list
+    /// scan would produce (ADR-0034).
+    /// </summary>
+    private static void FindForbiddenToolEnvironmentKeys(JsonElement value, List<string> problems)
+    {
+        if (value.ValueKind != JsonValueKind.Object)
+        {
+            problems.Add(
+                "project settings key 'toolEnvironment' is forbidden; tool-environment settings are user-scoped"
+            );
+            return;
+        }
+
+        bool found = false;
+        foreach (JsonProperty property in value.EnumerateObject())
+        {
+            found = true;
+            string rule =
+                property.Name == "passthrough"
+                    ? "the tool-environment pass-through is user-scoped"
+                    : "tool-environment settings are user-scoped";
+            problems.Add(
+                $"project settings key 'toolEnvironment.{property.Name}' is forbidden; {rule}"
+            );
+        }
+
+        if (!found)
+        {
+            problems.Add(
+                "project settings key 'toolEnvironment' is forbidden; tool-environment settings are user-scoped"
+            );
         }
     }
 

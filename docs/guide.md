@@ -760,7 +760,9 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
   Matching is by exact name — no wildcard, prefix or pattern — and a listed name the parent does not
   hold stays absent. A listed name that is also a Lunate credential name is admitted with one
   startup warning; the `Scrubbed` extension-host policy never receives the inherited set, so the
-  list does not apply there.
+  list does not apply there. The setting is user-scope only: a project `.lunate/settings.json` that
+  carries `toolEnvironment` is refused by name, so a cloned repository cannot widen a tool child's
+  environment.
 - Their tools arrive from the SDK as Microsoft.Extensions.AI functions and are wrapped as `ITool`s with risk `Execute`, so the approval policy applies. Names are prefixed `server__tool` to avoid collisions.
 - Refresh on tool list changes; cancel calls when a turn is cancelled; time out hanging servers. A crashing server becomes a tool error, never a crash of Lunate.
 - v1 uses stdio servers; remote servers over HTTP follow when needed, using the SDK's transports.
