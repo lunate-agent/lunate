@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 using Lunate.Extensibility.Abstractions;
@@ -5,11 +6,11 @@ using Lunate.Extensibility.Abstractions;
 namespace Lunate.Coding;
 
 /// <summary>
-/// The interactive half of <c>core/process</c>: one long-lived child with line-oriented
+/// The interactive half of local execution: one long-lived child with line-oriented
 /// stdin/stdout/stderr and a tree kill that reuses the run path's children-first walk. The remote
 /// extension host consumes it through <see cref="IProcessRunner.StartSessionAsync"/>.
 /// </summary>
-internal sealed partial class ProcessRunner
+internal sealed partial class LocalExecutionEnvironment
 {
     public async Task<IProcessSession> StartSessionAsync(
         ProcessSessionRequest request,
@@ -23,6 +24,9 @@ internal sealed partial class ProcessRunner
         ArgumentNullException.ThrowIfNull(request.Environment);
         cancellationToken.ThrowIfCancellationRequested();
 
+        // Reassign to the mapped request so this spawn site still names the complete environment
+        // it hands the child, while a future environment can translate the command first.
+        request = MapSessionRequest(request);
         var startInfo = new ProcessStartInfo
         {
             FileName = request.FileName,
@@ -59,6 +63,25 @@ internal sealed partial class ProcessRunner
             await session.DisposeAsync().ConfigureAwait(false);
             throw;
         }
+    }
+
+    private ProcessSessionRequest MapSessionRequest(ProcessSessionRequest request)
+    {
+        ExecutionCommand mapped = Map(
+            new ExecutionCommand(
+                request.FileName,
+                request.Arguments,
+                request.WorkingDirectory,
+                request.Environment
+            )
+        );
+        return request with
+        {
+            FileName = mapped.Executable,
+            Arguments = mapped.Arguments,
+            WorkingDirectory = mapped.WorkingDirectory,
+            Environment = mapped.Environment ?? request.Environment,
+        };
     }
 
     /// <summary>
@@ -128,7 +151,7 @@ internal sealed partial class ProcessRunner
                     .ConfigureAwait(false);
                 await process.StandardInput.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception exception) when (IsPipeClosed(exception))
+            catch (Exception exception) when (LocalProcessStreams.IsPipeClosed(exception))
             {
                 throw new InvalidOperationException(
                     "the child's stdin is closed; the process has exited.",
@@ -174,127 +197,43 @@ internal sealed partial class ProcessRunner
             {
                 process.StandardInput.Dispose();
             }
-            catch (Exception exception) when (IsPipeClosed(exception)) { }
+            catch (Exception exception) when (LocalProcessStreams.IsPipeClosed(exception)) { }
 
             process.Dispose();
             _stdinGate.Dispose();
         }
     }
 
-    /// <summary>
-    /// Reads UTF-8 lines from one stream with an optional byte bound. A line over the bound is
-    /// drained to its newline and rejected with <see cref="InvalidDataException"/> — the reader
-    /// never grows past the bound, so a hostile child cannot OOM the host. A trailing <c>\r</c> is
-    /// stripped; the last line without a newline is returned at EOF.
-    /// </summary>
-    private sealed class BoundedLineReader(Stream stream, int? maxLineBytes)
+    private static async Task KillTreeAsync(Process process)
     {
-        private const int ChunkSize = 8192;
-
-        private readonly byte[] _pending = new byte[ChunkSize];
-        private int _start;
-        private int _count;
-
-        public async ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken)
+        if (OperatingSystem.IsWindows())
         {
-            var line = new List<byte>();
-            while (true)
+            try
             {
-                int newline = IndexOfNewline(_pending, _start, _count);
-                if (newline >= 0)
-                {
-                    line.AddRange(new ArraySegment<byte>(_pending, _start, newline - _start));
-                    Advance(newline + 1);
-                    if (maxLineBytes is { } reached && line.Count > reached)
-                    {
-                        throw new InvalidDataException(
-                            $"a line over {reached.ToString(System.Globalization.CultureInfo.InvariantCulture)} bytes arrived on the child's stream; the line was drained and discarded."
-                        );
-                    }
-
-                    return Decode(line);
-                }
-
-                if (_count > 0)
-                {
-                    line.AddRange(new ArraySegment<byte>(_pending, _start, _count));
-                    _start = 0;
-                    _count = 0;
-                    if (maxLineBytes is { } bound && line.Count > bound)
-                    {
-                        await DrainToNewlineAsync(cancellationToken).ConfigureAwait(false);
-                        throw new InvalidDataException(
-                            $"a line over {bound.ToString(System.Globalization.CultureInfo.InvariantCulture)} bytes arrived on the child's stream; the line was drained and discarded."
-                        );
-                    }
-                }
-
-                int read = await stream
-                    .ReadAsync(_pending.AsMemory(), cancellationToken)
-                    .ConfigureAwait(false);
-                if (read == 0)
-                {
-                    return line.Count == 0 ? null : Decode(line);
-                }
-
-                _start = 0;
-                _count = read;
+                process.Kill(entireProcessTree: true);
             }
+            catch (Exception exception)
+                when (exception
+                        is InvalidOperationException
+                            or Win32Exception
+                            or NotSupportedException
+                ) { }
         }
-
-        private void Advance(int next)
+        else
         {
-            _count -= next - _start;
-            _start = next;
+            // System.Diagnostics' entireProcessTree path SIGSTOPs the whole tree first and
+            // wedges macOS CI VMs (runner loses communication; repro on the T-15 PR).
+            // Enumerate with ps and SIGKILL children first instead — see KillPosixTree.
+            ProcessRunner.KillPosixTree(process.Id);
         }
 
-        private async ValueTask DrainToNewlineAsync(CancellationToken cancellationToken)
+        try
         {
-            while (true)
-            {
-                int newline = IndexOfNewline(_pending, _start, _count);
-                if (newline >= 0)
-                {
-                    Advance(newline + 1);
-                    return;
-                }
-
-                int read = await stream
-                    .ReadAsync(_pending.AsMemory(), cancellationToken)
-                    .ConfigureAwait(false);
-                if (read == 0)
-                {
-                    _start = 0;
-                    _count = 0;
-                    return;
-                }
-
-                _start = 0;
-                _count = read;
-            }
+            await process
+                .WaitForExitAsync(CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
         }
-
-        private static int IndexOfNewline(byte[] buffer, int start, int count)
-        {
-            for (var index = start; index < start + count; index++)
-            {
-                if (buffer[index] == (byte)'\n')
-                {
-                    return index;
-                }
-            }
-
-            return -1;
-        }
-
-        private static string Decode(List<byte> bytes)
-        {
-            if (bytes.Count > 0 && bytes[^1] == (byte)'\r')
-            {
-                bytes.RemoveAt(bytes.Count - 1);
-            }
-
-            return Encoding.UTF8.GetString([.. bytes]);
-        }
+        catch (TimeoutException) { }
     }
 }

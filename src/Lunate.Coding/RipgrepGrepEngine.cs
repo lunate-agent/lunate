@@ -16,15 +16,19 @@ internal sealed class RipgrepGrepEngine : IGrepEngine
 
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(60);
 
-    private static readonly ProcessRunner Runner = new();
-
     private readonly string _executable;
     private readonly ITextFileAccess _files;
+    private readonly IExecutionEnvironment _environment;
 
-    internal RipgrepGrepEngine(string executable, ITextFileAccess? files = null)
+    internal RipgrepGrepEngine(
+        string executable,
+        ITextFileAccess? files = null,
+        IExecutionEnvironment? environment = null
+    )
     {
         _executable = executable;
         _files = files ?? LocalTextFileAccess.Instance;
+        _environment = environment ?? LocalExecutionEnvironment.Instance;
     }
 
     /// <summary>The engine when <c>rg</c> resolves on PATH, else null (the fallback takes over).</summary>
@@ -74,16 +78,18 @@ internal sealed class RipgrepGrepEngine : IGrepEngine
         ProcessRunResult run;
         try
         {
-            run = await Runner.RunAsync(
-                new ProcessRunRequest(
-                    _executable,
-                    arguments,
-                    request.Root,
-                    Timeout: Timeout,
-                    OutputCapBytes: OutputCapBytes
-                ),
-                ct
-            );
+            run = await _environment
+                .RunAsync(
+                    new ProcessRunRequest(
+                        _executable,
+                        arguments,
+                        request.Root,
+                        Timeout: Timeout,
+                        OutputCapBytes: OutputCapBytes
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false);
         }
         catch (Exception exception)
             when (exception is Win32Exception or IOException or InvalidOperationException)

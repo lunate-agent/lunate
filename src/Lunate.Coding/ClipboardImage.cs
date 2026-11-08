@@ -56,7 +56,8 @@ internal interface IClipboardImageSource
 internal sealed class PlatformClipboardImageSource(IProcessRunner? runner = null)
     : IClipboardImageSource
 {
-    private readonly IProcessRunner _runner = runner ?? new ProcessRunner();
+    // Clipboard capture is host support: a future execution environment must not move it.
+    private readonly IProcessRunner _runner = runner ?? ProcessRunner.Local;
 
     public async Task<ClipboardImageResult> ReadAsync(CancellationToken cancellationToken)
     {

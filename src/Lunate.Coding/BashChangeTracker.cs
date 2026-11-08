@@ -30,7 +30,9 @@ internal sealed partial class BashChangeTracker(
     /// warm machine; tests widen it, because a cold git start on a loaded CI runner can exceed it.
     /// </summary>
     private readonly TimeSpan _scanTimeout = scanTimeout ?? DefaultScanTimeout;
-    private static readonly ProcessRunner Runner = new();
+
+    // The post-bash change scan is host support: a future execution environment must not move it.
+    private static readonly ProcessRunner LocalRunner = ProcessRunner.Local;
 
     /// <summary>The snapshot cap: past this, the least recently used run's snapshot is evicted.</summary>
     internal const int MaxSnapshots = 64;
@@ -453,7 +455,7 @@ internal sealed partial class BashChangeTracker(
     {
         try
         {
-            ProcessRunResult result = await Runner
+            ProcessRunResult result = await LocalRunner
                 .RunAsync(
                     new ProcessRunRequest(
                         "git",

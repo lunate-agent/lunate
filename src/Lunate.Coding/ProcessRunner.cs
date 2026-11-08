@@ -1,307 +1,45 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
-using System.Text;
 using Lunate.Extensibility.Abstractions;
 
 namespace Lunate.Coding;
 
 /// <summary>
-/// The <c>core/process</c> implementation: runs one child process with a timeout, an output cap, a
-/// tree kill and an optional stdin line pump. Absorbs the former <c>PosixProcessTree</c> and the
-/// bash tool's kill/cap/drain logic.
+/// The <c>core/process</c> facade: implements <see cref="IProcessRunner"/> over the active
+/// execution environment. The extension/MCP and restore/Roslyn paths already consume this runner,
+/// so they share the tool-command seam without a public contract or registration change. Host
+/// support that must stay local uses <see cref="Local"/>, which names the local environment
+/// explicitly.
 /// </summary>
-internal sealed partial class ProcessRunner : IProcessRunner
+internal sealed class ProcessRunner : IProcessRunner
 {
-    /// <summary>The default per-stream output cap when the request does not set one.</summary>
-    internal const int DefaultOutputCapBytes = 1_048_576;
+    private readonly IExecutionEnvironment _environment;
 
-    private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
+    /// <summary>The seam-selected environment; local when nothing else is configured.</summary>
+    public ProcessRunner()
+        : this(LocalExecutionEnvironment.Instance) { }
 
-    public async Task<ProcessRunResult> RunAsync(
+    internal ProcessRunner(IExecutionEnvironment environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        _environment = environment;
+    }
+
+    /// <summary>Host support (change scan, clipboard) that must not move with a future environment.</summary>
+    internal static ProcessRunner Local { get; } = new(LocalExecutionEnvironment.Instance);
+
+    internal string Description => _environment.Description;
+
+    public Task<ProcessRunResult> RunAsync(
         ProcessRunRequest request,
         CancellationToken cancellationToken
-    )
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.FileName);
-        ArgumentNullException.ThrowIfNull(request.Arguments);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.WorkingDirectory);
-        cancellationToken.ThrowIfCancellationRequested();
+    ) => _environment.RunAsync(request, cancellationToken);
 
-        int cap = request.OutputCapBytes is { } requestedCap and > 0
-            ? requestedCap
-            : DefaultOutputCapBytes;
-        using ChildProcess child = ChildProcess.Start(request);
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        if (request.Timeout is { } timeout)
-        {
-            timeoutCts.CancelAfter(timeout);
-        }
-
-        if (request.LineHandler is null)
-        {
-            child.StandardInput?.Close();
-        }
-
-        Task<(string Text, bool Capped)> stdoutTask = request.LineHandler is { } handler
-            ? PumpLinesAsync(
-                child.StandardOutput,
-                child.StandardInput!,
-                handler,
-                cap,
-                timeoutCts.Token
-            )
-            : ReadBoundedAsync(child.StandardOutput.BaseStream, cap, CancellationToken.None);
-        Task<(string Text, bool Capped)> stderrTask = ReadBoundedAsync(
-            child.StandardError.BaseStream,
-            cap,
-            CancellationToken.None
-        );
-
-        int exitCode;
-        try
-        {
-            exitCode = await child.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            await child.KillTreeAsync().ConfigureAwait(false);
-            (string stdout, string stderr, bool stdoutCapped, bool stderrCapped) = await DrainAsync(
-                    stdoutTask,
-                    stderrTask
-                )
-                .ConfigureAwait(false);
-            return new ProcessRunResult(null, stdout, stderr, TimedOut: true)
-            {
-                StdoutCapped = stdoutCapped,
-                StderrCapped = stderrCapped,
-            };
-        }
-        catch (OperationCanceledException)
-        {
-            await child.KillTreeAsync().ConfigureAwait(false);
-            await DrainAsync(stdoutTask, stderrTask).ConfigureAwait(false);
-            throw;
-        }
-
-        (string outText, bool outCapped) = await stdoutTask.ConfigureAwait(false);
-        (string errText, bool errCapped) = await stderrTask.ConfigureAwait(false);
-        return new ProcessRunResult(exitCode, outText, errText, TimedOut: false)
-        {
-            StdoutCapped = outCapped,
-            StderrCapped = errCapped,
-        };
-    }
-
-    /// <summary>
-    /// Serves every stdout line to the handler in order and writes each non-null answer back to
-    /// the child's stdin as one flushed line. Delivery is never capped; only the accumulated text
-    /// is. A closed stdout ends the pump. A closed stdin only ends the answers: a child that exits
-    /// (or stops reading) while an answer is in flight still has every line it wrote delivered,
-    /// because its output is the run's result and the pipe it closed is not evidence about it.
-    /// </summary>
-    private static async Task<(string Text, bool Capped)> PumpLinesAsync(
-        StreamReader reader,
-        StreamWriter stdin,
-        Func<string, CancellationToken, Task<string?>> handler,
-        int cap,
-        CancellationToken ct
-    )
-    {
-        var builder = new StringBuilder();
-        var bytes = 0;
-        var capped = false;
-        var stdinOpen = true;
-        while (true)
-        {
-            string? line;
-            try
-            {
-                line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception exception) when (IsPipeClosed(exception))
-            {
-                break;
-            }
-
-            if (line is null)
-            {
-                break;
-            }
-
-            if (!capped)
-            {
-                int lineBytes = Utf8.GetByteCount(line) + 1;
-                if (bytes + lineBytes <= cap)
-                {
-                    bytes += lineBytes;
-                    builder.Append(line).Append('\n');
-                }
-                else
-                {
-                    capped = true;
-                }
-            }
-
-            string? response;
-            try
-            {
-                response = await handler(line, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception exception) when (IsPipeClosed(exception))
-            {
-                break;
-            }
-
-            if (response is null || !stdinOpen)
-            {
-                continue;
-            }
-
-            try
-            {
-                await stdin.WriteAsync(response.AsMemory()).ConfigureAwait(false);
-                await stdin.WriteAsync("\n".AsMemory()).ConfigureAwait(false);
-                await stdin.FlushAsync().ConfigureAwait(false);
-            }
-            catch (Exception exception) when (IsPipeClosed(exception))
-            {
-                // The child closed its stdin — usually because it exited while the answer was in
-                // flight (two writes: the answer, then the newline). Keep draining stdout: the
-                // lines it wrote before exiting are the run's output, and abandoning the pump
-                // here loses them, which is indistinguishable from a child that never answered.
-                stdinOpen = false;
-            }
-        }
-
-        return (builder.ToString(), capped);
-    }
-
-    /// <summary>
-    /// Reads one stream into bounded UTF-8 text. Bytes beyond the cap are drained and discarded,
-    /// so the child never blocks on a full pipe; the decoded text stops at the cap.
-    /// </summary>
-    private static async Task<(string Text, bool Capped)> ReadBoundedAsync(
-        Stream stream,
-        int cap,
-        CancellationToken ct
-    )
-    {
-        var builder = new StringBuilder();
-        Decoder decoder = Utf8.GetDecoder();
-        var buffer = new byte[8192];
-        var chars = new char[8192];
-        var bytesRead = 0;
-        var capped = false;
-        while (true)
-        {
-            int read;
-            try
-            {
-                read = await stream.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false);
-            }
-            catch (Exception exception) when (IsPipeClosed(exception))
-            {
-                break;
-            }
-
-            if (read == 0)
-            {
-                break;
-            }
-
-            int remaining = cap - bytesRead;
-            int use = Math.Min(read, Math.Max(remaining, 0));
-            if (use < read)
-            {
-                capped = true;
-            }
-
-            if (use > 0)
-            {
-                bytesRead += use;
-                int count = decoder.GetChars(buffer, 0, use, chars, 0, flush: false);
-                builder.Append(chars, 0, count);
-            }
-        }
-
-        int tail = decoder.GetChars([], 0, 0, chars, 0, flush: true);
-        builder.Append(chars, 0, tail);
-        return (builder.ToString(), capped);
-    }
-
-    private static bool IsPipeClosed(Exception exception) =>
-        exception is IOException or ObjectDisposedException or InvalidOperationException;
-
-    private static async Task<(
-        string Stdout,
-        string Stderr,
-        bool StdoutCapped,
-        bool StderrCapped
-    )> DrainAsync(
-        Task<(string Text, bool Capped)> stdoutTask,
-        Task<(string Text, bool Capped)> stderrTask
-    )
-    {
-        try
-        {
-            await Task.WhenAll(stdoutTask, stderrTask)
-                .WaitAsync(TimeSpan.FromSeconds(10))
-                .ConfigureAwait(false);
-        }
-        catch (TimeoutException) { }
-
-        bool stdoutDone = stdoutTask.Status == TaskStatus.RanToCompletion;
-        bool stderrDone = stderrTask.Status == TaskStatus.RanToCompletion;
-        return (
-            stdoutDone ? stdoutTask.Result.Text : string.Empty,
-            stderrDone ? stderrTask.Result.Text : string.Empty,
-            stdoutDone && stdoutTask.Result.Capped,
-            stderrDone && stderrTask.Result.Capped
-        );
-    }
-
-    private static async Task KillTreeAsync(Process process)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (Exception exception)
-                when (exception
-                        is InvalidOperationException
-                            or Win32Exception
-                            or NotSupportedException
-                ) { }
-        }
-        else
-        {
-            // System.Diagnostics' entireProcessTree path SIGSTOPs the whole tree first and
-            // wedges macOS CI VMs (runner loses communication; repro on the T-15 PR).
-            // Enumerate with ps and SIGKILL children first instead — see KillPosixTree.
-            KillPosixTree(process.Id);
-        }
-
-        try
-        {
-            await process
-                .WaitForExitAsync(CancellationToken.None)
-                .WaitAsync(TimeSpan.FromSeconds(5))
-                .ConfigureAwait(false);
-        }
-        catch (TimeoutException) { }
-    }
+    public Task<IProcessSession> StartSessionAsync(
+        ProcessSessionRequest request,
+        CancellationToken cancellationToken
+    ) => _environment.StartSessionAsync(request, cancellationToken);
 
     /// <summary>
     /// Kills a POSIX process tree by enumerating descendants with <c>ps</c> and sending

@@ -15,8 +15,6 @@ public sealed class BashTool : ITool
 
     private const int CaptureCap = 1_000_000;
 
-    private static readonly ProcessRunner Runner = new();
-
     /// <summary>
     /// What every child this tool spawns carries besides its inherited environment: the session
     /// marker (design D7's line about install being visible in the command the user approved). It
@@ -63,6 +61,7 @@ public sealed class BashTool : ITool
     private readonly BashGuard _guard;
     private readonly bool _guardEnabled;
     private readonly IExtensionLog? _log;
+    private readonly IExecutionEnvironment _environment;
     private bool _noticeShown;
 
     public BashTool(
@@ -71,11 +70,12 @@ public sealed class BashTool : ITool
         TimeSpan? timeout = null,
         IExtensionLog? log = null
     )
-        : this(workspace, resolver, timeout, log, new BashGuard(), null) { }
+        : this(workspace, resolver, timeout, log, new BashGuard(), null, true, null) { }
 
     /// <summary>
     /// The seam for the guard: tests substitute a guard whose targets point at a fixture's
-    /// directories; the public constructor resolves the live ones.
+    /// directories; the public constructor resolves the live ones. The environment is the seam
+    /// for where the tool command's process runs; null uses local execution.
     /// </summary>
     internal BashTool(
         Workspace workspace,
@@ -84,7 +84,8 @@ public sealed class BashTool : ITool
         IExtensionLog? log,
         BashGuard guard,
         TimeSpan? changeScanTimeout = null,
-        bool guardEnabled = true
+        bool guardEnabled = true,
+        IExecutionEnvironment? environment = null
     )
     {
         _workspace = workspace;
@@ -94,6 +95,7 @@ public sealed class BashTool : ITool
         _guard = guard;
         _guardEnabled = guardEnabled;
         _log = log;
+        _environment = environment ?? LocalExecutionEnvironment.Instance;
         Description = _shell is null
             ? $"Run a command in the platform shell (no shell was found on this machine). {Rules}"
             : $"Run a command in {_shell.DisplayName} ({Dialect(_shell.Kind)}). {Rules}";
@@ -153,19 +155,21 @@ public sealed class BashTool : ITool
         ProcessRunResult run;
         try
         {
-            run = await Runner.RunAsync(
-                new ProcessRunRequest(
-                    launch.FileName,
-                    [.. launch.ArgumentsPrefix, commandElement.GetString()!],
-                    _workspace.WorktreeRoot,
-                    Timeout: _timeout,
-                    OutputCapBytes: CaptureCap
+            run = await _environment
+                .RunAsync(
+                    new ProcessRunRequest(
+                        launch.FileName,
+                        [.. launch.ArgumentsPrefix, commandElement.GetString()!],
+                        _workspace.WorktreeRoot,
+                        Timeout: _timeout,
+                        OutputCapBytes: CaptureCap
+                    )
+                    {
+                        ExtraEnvironment = SessionEnvironment,
+                    },
+                    ct
                 )
-                {
-                    ExtraEnvironment = SessionEnvironment,
-                },
-                ct
-            );
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
