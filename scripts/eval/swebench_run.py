@@ -187,7 +187,7 @@ def baseline_command(definition: dict, instance_id: str, model: dict, trajectory
     registry = (SWEBENCH_DIR / "litellm-models.json").resolve()
     cost_limit = min(float(baseline.get("costLimitUsd") or remaining), remaining)
     return [
-        definition["_mini_extra"],
+        definition.get("_mini_extra") or "mini-extra",
         "swebench-single",
         "--subset",
         definition["dataset"],
@@ -200,6 +200,8 @@ def baseline_command(definition: dict, instance_id: str, model: dict, trajectory
         "--yolo",
         "-c",
         "swebench.yaml",
+        "-c",
+        str((SWEBENCH_DIR / "mini-swe-agent.yaml").resolve()),
         "-c",
         f"agent.step_limit={baseline.get('stepLimit', 50)}",
         "-c",

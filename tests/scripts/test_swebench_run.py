@@ -17,6 +17,7 @@ from swebench_run_support import (  # noqa: E402
     summarize_arm,
     trajectory_totals,
 )
+from swebench_run import baseline_command  # noqa: E402
 
 EVAL = REPOSITORY / "eval" / "swebench"
 
@@ -63,6 +64,24 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 load_subset(path)
+
+    def test_the_baseline_command_carries_the_registry_and_session_header(self) -> None:
+        definition = load_definition(EVAL / "run.json")
+
+        command = baseline_command(
+            definition,
+            "alpha__one-1",
+            definition["models"][0],
+            Path("trajectory.json"),
+            5.0,
+        )
+
+        self.assertIn("swebench-single", command)
+        self.assertIn("swebench.yaml", command)
+        self.assertTrue(any("mini-swe-agent.yaml" in part for part in command))
+        self.assertTrue(any("model.litellm_model_registry=" in part for part in command))
+        self.assertIn("agent.step_limit=50", command)
+        self.assertIn("agent.cost_limit=3.0000", command)
 
 
 class SwebenchRunSpendTests(unittest.TestCase):

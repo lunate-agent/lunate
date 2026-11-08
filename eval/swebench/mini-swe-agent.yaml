@@ -1,0 +1,6 @@
+# mini-swe-agent baseline overrides for the pinned run.
+# OpenCode Go requires x-opencode-session on every request; LiteLLM does not send it.
+model:
+  model_kwargs:
+    extra_headers:
+      x-opencode-session: lunate-swebench
