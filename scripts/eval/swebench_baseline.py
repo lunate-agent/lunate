@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 
-from swebench_process import run_command, safe
+from swebench_process import instance_image, run_command, safe
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 SWEBENCH_DIR = REPOSITORY / "eval" / "swebench"
@@ -74,6 +74,15 @@ def run_baseline_instance(
 ) -> dict:
     baseline_root = work_root / "baseline"
     baseline_root.mkdir(parents=True, exist_ok=True)
+    image = instance_image(instance_id)
+    pull_log = work_root / "logs" / f"baseline-pull-{model['tier']}-{safe(instance_id)}.log"
+    run_command(
+        [definition["_docker"], "pull", "--platform", "linux/amd64", image],
+        cwd=baseline_root,
+        env=os.environ.copy(),
+        log=pull_log,
+        timeout=900,
+    )
     trajectory = baseline_root / f"{model['tier']}-{safe(instance_id)}.traj.json"
     env = baseline_environment(definition, model)
     log = work_root / "logs" / f"baseline-{model['tier']}-{safe(instance_id)}.log"
@@ -88,7 +97,13 @@ def run_baseline_instance(
         info = json.loads(trajectory.read_text(encoding="utf-8")).get("info") or {}
     stats = info.get("model_stats") or {}
     spend = stats.get("instance_cost")
-    spend = float(spend) if isinstance(spend, (int, float)) and spend > 0 else None
+    api_calls = int(stats.get("api_calls") or 0)
+    if isinstance(spend, (int, float)) and spend > 0:
+        spend = float(spend)
+    elif api_calls > 0:
+        spend = None
+    else:
+        spend = 0.0
     exit_status = info.get("exit_status")
     submission = info.get("submission") or ""
     run_id = f"baseline-{model['tier']}-{safe(instance_id)}"

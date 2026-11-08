@@ -19,8 +19,12 @@ def instance_image(instance_id: str) -> str:
     return "swebench/sweb.eval.x86_64." + instance_id.replace("__", "_1776_")
 
 
-def run_command(command: list[str], *, cwd: Path, env: dict[str, str], log: Path) -> subprocess.CompletedProcess:
-    result = subprocess.run(command, capture_output=True, text=True, check=False, cwd=cwd, env=env)
+def run_command(
+    command: list[str], *, cwd: Path, env: dict[str, str], log: Path, timeout: float | None = None
+) -> subprocess.CompletedProcess:
+    result = subprocess.run(
+        command, capture_output=True, text=True, check=False, cwd=cwd, env=env, timeout=timeout
+    )
     log.parent.mkdir(parents=True, exist_ok=True)
     log.write_text(result.stdout + result.stderr, encoding="utf-8", newline="\n")
     return result

@@ -25,6 +25,12 @@ only scorer.
 The pinned ids are in [`eval/swebench/instances.txt`](../../eval/swebench/instances.txt); the full
 definition is [`eval/swebench/run.json`](../../eval/swebench/run.json).
 
+The host's Podman VM disk filled after the first three instances and the daemon dropped. The VM was
+rebuilt (same arm64 host, official `linux/amd64` images under QEMU) and the Lunate arm resumed for
+the last two instances; the three completed results were preserved. This is recorded here rather
+than hidden: the run is one logical five-instance run with an infrastructure interruption, not two
+different measurements.
+
 ## Results
 
 <!-- SUMMARY_TABLE -->

@@ -1,0 +1,90 @@
+{
+  "runId": "first-run-2026-11-08",
+  "arm": "baseline",
+  "startedAt": "2026-11-08T10:14:14Z",
+  "finishedAt": "2026-11-08T10:14:31Z",
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "subset": [
+    "astropy__astropy-12907",
+    "django__django-13128",
+    "django__django-15572",
+    "pydata__xarray-3151",
+    "sphinx-doc__sphinx-8120"
+  ],
+  "maxCostUsd": 30.0,
+  "arms": [
+    {
+      "arm": "baseline",
+      "tier": "budget",
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "instances": [
+        {
+          "instanceId": "astropy__astropy-12907",
+          "exitCode": 1,
+          "completed": false,
+          "hasPatch": false,
+          "resolved": false,
+          "spendUsd": null,
+          "steps": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": null,
+          "failure": "baseline run failed",
+          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/baseline"
+        }
+      ],
+      "resolved": 0,
+      "total": 1,
+      "spendUsd": null,
+      "unpricedInstances": [
+        "astropy__astropy-12907"
+      ],
+      "failures": [
+        {
+          "instanceId": "astropy__astropy-12907",
+          "reason": "baseline run failed"
+        }
+      ]
+    },
+    {
+      "arm": "baseline",
+      "tier": "frontier",
+      "model": "openrouter/anthropic/claude-opus-5.5",
+      "instances": [
+        {
+          "instanceId": "astropy__astropy-12907",
+          "exitCode": 1,
+          "completed": false,
+          "hasPatch": false,
+          "resolved": false,
+          "spendUsd": null,
+          "steps": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": null,
+          "failure": "baseline run failed",
+          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/baseline"
+        }
+      ],
+      "resolved": 0,
+      "total": 1,
+      "spendUsd": null,
+      "unpricedInstances": [
+        "astropy__astropy-12907"
+      ],
+      "failures": [
+        {
+          "instanceId": "astropy__astropy-12907",
+          "reason": "baseline run failed"
+        }
+      ]
+    }
+  ],
+  "total": 5,
+  "totalSpendUsd": 30.0,
+  "capReached": true,
+  "hostArchitecture": "arm64"
+}
