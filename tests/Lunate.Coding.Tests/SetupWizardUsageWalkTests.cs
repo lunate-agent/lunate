@@ -46,6 +46,8 @@ public sealed class SetupWizardUsageWalkTests
         host.Console.SendText("gpt-3.5-turbo");
         await host.WaitForFrameAsync("> openai/gpt-3.5-turbo (openai-chat)");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done: the provider list closes before the decision step
         await host.WaitForFrameAsync("Decision profile");
         Assert.DoesNotContain("Fast usage check", host.Frames, StringComparison.Ordinal);
         host.Console.SendEnter(); // the decision step's default: skip
@@ -96,6 +98,8 @@ public sealed class SetupWizardUsageWalkTests
         await host.WaitForFrameAsync("Fast usage check: estimated cost");
         host.Console.SendUp(); // the default row is the skip
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // the decision step's default: skip
         await host.WaitForFrameAsync("Decisions settings");
@@ -149,6 +153,8 @@ public sealed class SetupWizardUsageWalkTests
 
         await WalkToFastStepAsync(host, sendModelCheck: false);
         host.Console.SendEnter(); // the fast step's default: skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
 
         // The inline row is part of the same picker, not a separate step.

@@ -59,6 +59,8 @@ public sealed class SetupWizardStepPins
 
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // skip
         await host.WaitForFrameAsync("Decisions settings");
@@ -122,6 +124,8 @@ public sealed class SetupWizardStepPins
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
 
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
         host.Console.SendText("jev");
@@ -174,6 +178,8 @@ public sealed class SetupWizardStepPins
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
 
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
         host.Console.SendText("jev");
@@ -233,6 +239,8 @@ public sealed class SetupWizardStepPins
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
 
         await host.WaitForFrameAsync(
             "Decision profile (this provider serves no native Jev profile"
@@ -343,6 +351,8 @@ public sealed class SetupWizardStepPins
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // skip
 

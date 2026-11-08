@@ -136,6 +136,65 @@ public sealed class SetupWizardModelTests
         Assert.Null(model.Decisions);
     }
 
+    [PosixFact]
+    public void Sealing_a_provider_keeps_its_answers_and_starts_the_next_run()
+    {
+        SetupWizardModel model = FullyAnswered();
+        model.MarkProviderReady();
+        Assert.True(model.ProviderReady);
+        Assert.Single(model.AllProviderRuns);
+
+        model.SealProvider();
+        Assert.True(model.HasStagedWrites);
+        Assert.Null(model.Provider);
+        Assert.Null(model.Credential);
+        Assert.Null(model.Model);
+        Assert.False(model.ProviderReady);
+        Assert.Equal("openai", Assert.Single(model.AllProviderRuns).Provider.Id);
+
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "anthropic",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "anthropic-messages",
+                Placement: CredentialPlacement.XApiKey,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("env:OPENAI_API_KEY"));
+
+        Assert.Equal(["openai", "anthropic"], model.AllProviderRuns.Select(run => run.Provider.Id));
+        Assert.Equal(["openai", "anthropic"], model.ProviderIds);
+        Assert.True(model.IsProviderConfigured("openai"));
+        Assert.False(model.IsProviderConfigured("deepseek"));
+    }
+
+    [PosixFact]
+    public void A_sealed_run_keeps_its_own_skipped_steps()
+    {
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "openai",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "openai-chat",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.Skip(SetupStep.ModelCheck);
+        model.MarkProviderReady();
+        model.SealProvider();
+
+        WizardProviderRun first = Assert.Single(model.AllProviderRuns);
+        Assert.Equal([SetupStep.ModelCheck], first.Skipped);
+        Assert.Empty(model.SkippedSteps);
+    }
+
     private static SetupWizardModel FullyAnswered()
     {
         var model = new SetupWizardModel();

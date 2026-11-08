@@ -45,6 +45,8 @@ public sealed class SetupWizardModeSessionTests
         host.Console.SendEnter();
 
         // Quick ends at the chat profile: no thinking question, fast/decision/decisions steps.
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done: one provider, on to the summary
         string summary = await host.WaitForScrollbackAsync("Left at default:");
         Assert.DoesNotContain("Thinking level for", host.Frames, StringComparison.Ordinal);
         Assert.DoesNotContain("Also use profile", host.Frames, StringComparison.Ordinal);
@@ -114,6 +116,9 @@ public sealed class SetupWizardModeSessionTests
         host.Console.SendUp();
         await host.WaitForFrameAsync("> openai/pin-reasoner (openai-chat");
         host.Console.SendEnter();
+
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done: one provider, on to the decision step
 
         await host.WaitForFrameAsync(
             "Decision profile (this provider serves no native Jev profile"

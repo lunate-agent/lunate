@@ -88,6 +88,8 @@ public sealed class SetupWizardCredentialTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
