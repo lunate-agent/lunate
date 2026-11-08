@@ -47,13 +47,11 @@ public sealed class SetupWizardWidthTests
             string flatSummary = Flatten(summary);
             Assert.Contains("Select provider", frames, StringComparison.Ordinal);
             Assert.Contains("Credential for openai", frames, StringComparison.Ordinal);
-            Assert.Contains("provider: openai", flatSummary, StringComparison.Ordinal);
-            Assert.Contains(
-                "model: gpt-3.5-turbo (family openai-chat)",
-                flatSummary,
-                StringComparison.Ordinal
-            );
-            Assert.Contains("chat profile: chat-main", flatSummary, StringComparison.Ordinal);
+            Assert.Contains("providers.json", flatSummary, StringComparison.Ordinal);
+            Assert.Contains("provider openai", flatSummary, StringComparison.Ordinal);
+            Assert.Contains("settings.json", flatSummary, StringComparison.Ordinal);
+            Assert.Contains("model: gpt-3.5-turbo", flatSummary, StringComparison.Ordinal);
+            Assert.Contains("profile chat-main", flatSummary, StringComparison.Ordinal);
 
             foreach (string raw in host.Frames.Split('\n'))
             {

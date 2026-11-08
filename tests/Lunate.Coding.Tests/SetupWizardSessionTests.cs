@@ -102,6 +102,7 @@ public sealed class SetupWizardSessionTests
         // notice, so the switch line is read from the journal rather than a frame (which the commit
         // notice, posted after it, can replace before it is painted).
         await host.WaitForNoticeAsync("model: gpt-3.5-turbo");
+        await host.WaitForScrollbackAsync("setup written");
 
         host.Console.Complete();
         await run;

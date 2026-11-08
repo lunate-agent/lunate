@@ -53,12 +53,10 @@ public sealed class SetupWizardUsageWalkTests
         host.Console.SendEnter(); // the default row: Done
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains(
-            "fast usage: chat-main (the chat profile also serves fast; checked as the chat model)",
-            Flatten(summary),
-            StringComparison.Ordinal
-        );
-        Assert.Contains("model check: passed", Flatten(summary), StringComparison.Ordinal);
+        string flat = Flatten(summary);
+        // The reuse route binds the chat profile as the fast usage and writes no second profile.
+        Assert.Contains("usage fast profile: chat-main", flat, StringComparison.Ordinal);
+        Assert.Contains("model check: passed", flat, StringComparison.Ordinal);
 
         await ConfirmAndWaitAsync(host);
         host.Console.Complete();
@@ -102,12 +100,12 @@ public sealed class SetupWizardUsageWalkTests
         host.Console.SendEnter(); // the default row: Done
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains(
-            "fast usage: fast (anthropic/claude-sonnet-5-5)",
-            Flatten(summary),
-            StringComparison.Ordinal
-        );
-        Assert.Contains("fast check: passed", Flatten(summary), StringComparison.Ordinal);
+        string flat = Flatten(summary);
+        Assert.Contains("profile fast", flat, StringComparison.Ordinal);
+        Assert.Contains("provider: anthropic", flat, StringComparison.Ordinal);
+        Assert.Contains("model: claude-sonnet-5-5", flat, StringComparison.Ordinal);
+        Assert.Contains("usage fast profile: fast", flat, StringComparison.Ordinal);
+        Assert.Contains("fast check: passed", flat, StringComparison.Ordinal);
 
         await ConfirmAndWaitAsync(host);
         host.Console.Complete();
@@ -195,24 +193,23 @@ public sealed class SetupWizardUsageWalkTests
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         string flat = Flatten(summary);
-        Assert.Contains("added provider: opencode-go", flat, StringComparison.Ordinal);
-        Assert.Contains(
-            "decision check: passed — opencode-go/jev-1.13 (native)",
-            flat,
-            StringComparison.Ordinal
-        );
+        // The inline provider is a providers.json entry, its typed key an auth.json one, and the
+        // native decision profile (family systemone) lands under settings.json.
+        Assert.Contains("provider opencode-go", flat, StringComparison.Ordinal);
+        Assert.Contains("key opencode-go", flat, StringComparison.Ordinal);
+        Assert.Contains("profile decisions", flat, StringComparison.Ordinal);
+        Assert.Contains("model: opencode-go/jev-1.13", flat, StringComparison.Ordinal);
+        Assert.Contains("api family: systemone", flat, StringComparison.Ordinal);
+        Assert.Contains("decision check: passed", flat, StringComparison.Ordinal);
         // The answers the step already had survive the sub-walk.
-        Assert.Contains("chat profile: chat-main", flat, StringComparison.Ordinal);
+        Assert.Contains("profile chat-main", flat, StringComparison.Ordinal);
         Assert.Contains(
             "model check: skipped — the model stays unverified",
             flat,
             StringComparison.Ordinal
         );
-        Assert.Contains(
-            "decisions: defaults accepted (nothing written for the layer)",
-            flat,
-            StringComparison.Ordinal
-        );
+        Assert.Contains("left at default / unchanged", flat, StringComparison.Ordinal);
+        Assert.Contains("decisions.approvals:", flat, StringComparison.Ordinal);
 
         await ConfirmAndWaitAsync(host);
         host.Console.Complete();

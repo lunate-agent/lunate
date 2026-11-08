@@ -61,10 +61,10 @@ public sealed class WrappedLiveAreaTests
         foreach (
             string marker in new[]
             {
-                "provider: openai",
+                "provider openai",
                 "connection test: passed",
                 "model: gpt-3.5-turbo",
-                "chat profile: chat-main",
+                "profile chat-main",
             }
         )
         {
@@ -154,6 +154,74 @@ public sealed class WrappedLiveAreaTests
         host.Console.Complete();
         await run;
     }
+
+    [Fact]
+    public async Task The_manifest_and_receipt_render_at_40_columns_and_name_every_file()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            freshInstall: true,
+            discoveryTransport: new RecordingHandler((_, _) => Task.FromResult(Response())),
+            unifiedScrollback: true
+        );
+        host.Console.Size = new ConsoleSize(40, 24);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await WalkToSummary(host);
+        await host.WaitForFrameAsync("Write this configuration?");
+
+        IReadOnlyList<string> manifestLines = Screen(host, 40);
+        string manifest = string.Join("\n", manifestLines);
+        Assert.Contains("providers.json", manifest, StringComparison.Ordinal);
+        Assert.Contains("auth.json", manifest, StringComparison.Ordinal);
+        Assert.Contains("settings.json", manifest, StringComparison.Ordinal);
+        Assert.Contains("provider openai", manifest, StringComparison.Ordinal);
+        Assert.Contains("profile chat-main", manifest, StringComparison.Ordinal);
+        Assert.Contains("left at default / unchanged", manifest, StringComparison.Ordinal);
+        AssertNoRowOverflows(manifestLines, 40);
+        Assert.DoesNotContain(Credential, manifest, StringComparison.Ordinal);
+
+        host.Console.SendEnter();
+        await host.WaitUntilAsync(() =>
+            string.Join("", host.Console.Writes)
+                .Contains("back to the session", StringComparison.Ordinal)
+        );
+
+        IReadOnlyList<string> receiptLines = Screen(host, 40);
+        string receipt = string.Join("\n", receiptLines);
+        Assert.Contains("setup written", receipt, StringComparison.Ordinal);
+        Assert.Contains("providers.json —", receipt, StringComparison.Ordinal);
+        Assert.Contains("auth.json —", receipt, StringComparison.Ordinal);
+        Assert.Contains("settings.json —", receipt, StringComparison.Ordinal);
+        Assert.Contains("/settings", receipt, StringComparison.Ordinal);
+        Assert.Contains("lunate auth login", receipt, StringComparison.Ordinal);
+        Assert.Contains("back to the session", receipt, StringComparison.Ordinal);
+        AssertNoRowOverflows(receiptLines, 40);
+        Assert.DoesNotContain(Credential, receipt, StringComparison.Ordinal);
+
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        host.Console.Complete();
+        await run;
+    }
+
+    private static IReadOnlyList<string> Screen(InteractiveSessionHost host, int width)
+    {
+        var screen = new TerminalScreen(width);
+        foreach (string write in host.Console.Writes)
+        {
+            screen.Feed(write);
+        }
+
+        return screen.Lines;
+    }
+
+    private static void AssertNoRowOverflows(IReadOnlyList<string> lines, int width) =>
+        Assert.All(
+            lines,
+            line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
+        );
 
     /// <summary>Drives every wizard step through the real console; the wait strings are the clipped
     /// forms of the step titles at 40/45 columns.</summary>

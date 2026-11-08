@@ -97,6 +97,7 @@ public sealed class SetupWizardCredentialTests
         // The switch line is read from the notice journal: the walk posts its commit notice after
         // it, and the slot paints one line per frame.
         await host.WaitForNoticeAsync("model: gpt-3.5-turbo");
+        await host.WaitForScrollbackAsync("setup written");
         host.Console.Complete();
         await run;
 

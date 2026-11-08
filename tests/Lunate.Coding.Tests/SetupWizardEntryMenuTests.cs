@@ -140,14 +140,23 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         host.Console.SendEnter(); // skip the test for now
 
-        string summary = await host.WaitForScrollbackAsync("skipped:");
-        Assert.Contains("provider: deepseek", summary, StringComparison.Ordinal);
-        Assert.Contains("credential: the key you typed", summary, StringComparison.Ordinal);
-        Assert.Contains(
-            "skipped: model, model check, chat profile, fast usage",
-            summary,
-            StringComparison.Ordinal
-        );
+        string summary = await host.WaitForScrollbackAsync("left at default / unchanged");
+        string flattened = Flatten(summary);
+        Assert.Contains("provider deepseek", flattened, StringComparison.Ordinal);
+        Assert.Contains("credential reference: auth:deepseek", flattened, StringComparison.Ordinal);
+        Assert.Contains("key deepseek", flattened, StringComparison.Ordinal);
+        foreach (
+            string skipped in new[]
+            {
+                "model: skipped",
+                "model check: skipped",
+                "chat profile: skipped",
+                "fast usage: skipped",
+            }
+        )
+        {
+            Assert.Contains(skipped, flattened, StringComparison.Ordinal);
+        }
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter(); // the default row writes
@@ -199,18 +208,13 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter(); // skip
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains(
-            "model: gpt-4o-mini (family openai-chat)",
-            summary,
-            StringComparison.Ordinal
-        );
-        Assert.Contains("credential: auth:openai", summary, StringComparison.Ordinal);
-        Assert.Contains("chat profile: helper", summary, StringComparison.Ordinal);
-        Assert.Contains(
-            "skipped: connection test, fast usage, decision profile, decisions settings",
-            summary,
-            StringComparison.Ordinal
-        );
+        string flattened = Flatten(summary);
+        Assert.Contains("model: gpt-4o-mini", flattened, StringComparison.Ordinal);
+        Assert.Contains("profile helper", flattened, StringComparison.Ordinal);
+        Assert.Contains("provider: openai", flattened, StringComparison.Ordinal);
+        Assert.Contains("credential: unchanged", flattened, StringComparison.Ordinal);
+        Assert.Contains("fast usage: skipped", flattened, StringComparison.Ordinal);
+        Assert.Contains("decision profile: skipped", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -257,9 +261,10 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         host.Console.SendEnter(); // chat-alt
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("model: gpt-4.1 (family openai-chat)", summary, StringComparison.Ordinal);
-        Assert.Contains("chat usage: chat-alt", summary, StringComparison.Ordinal);
-        Assert.Contains("skipped: connection test, model check", summary, StringComparison.Ordinal);
+        string flattened = Flatten(summary);
+        Assert.Contains("usage chat", flattened, StringComparison.Ordinal);
+        Assert.Contains("profile: chat-alt", flattened, StringComparison.Ordinal);
+        Assert.Contains("provider: unchanged", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -389,12 +394,10 @@ public sealed class SetupWizardEntryMenuTests
         await host.WaitForFrameAsync("> Done — leave the decisions settings");
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
-        Assert.Contains(
-            "skipped: provider, credential, connection test",
-            summary,
-            StringComparison.Ordinal
-        );
+        string flattened = Flatten(summary);
+        Assert.Contains("approvals: shadow", flattened, StringComparison.Ordinal);
+        Assert.Contains("provider: skipped", flattened, StringComparison.Ordinal);
+        Assert.Contains("credential: skipped", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -461,8 +464,9 @@ public sealed class SetupWizardEntryMenuTests
         );
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
-        Assert.Contains("decisions.tool: on", summary, StringComparison.Ordinal);
+        string flattened = Flatten(summary);
+        Assert.Contains("approvals: shadow", flattened, StringComparison.Ordinal);
+        Assert.Contains("tool: on", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -625,6 +629,12 @@ public sealed class SetupWizardEntryMenuTests
 
     private static string ProviderPath(InteractiveSessionHost host) =>
         AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json"));
+
+    private static string Flatten(string text) =>
+        string.Join(
+            " ",
+            text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())
+        );
 
     /// <summary>The auth store's bytes when the walk has one to compare, else null: an entry that
     /// writes nothing must also create nothing (auth.json's absence is its pre-run state).</summary>

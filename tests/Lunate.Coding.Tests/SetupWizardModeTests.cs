@@ -85,7 +85,7 @@ public sealed class SetupWizardModeTests
         string review = string.Join("\n", SetupWizardSummary.Render(model));
 
         Assert.Contains("setup mode: quick", review, StringComparison.Ordinal);
-        Assert.Contains("Left at default:", review, StringComparison.Ordinal);
+        Assert.Contains("left at default / unchanged", review, StringComparison.Ordinal);
         foreach (
             string setting in new[]
             {
@@ -104,15 +104,19 @@ public sealed class SetupWizardModeTests
             }
         )
         {
-            string line = Assert.Single(
+            Assert.Contains(
                 review.Split('\n'),
-                line => line.Contains(setting, StringComparison.Ordinal)
+                line =>
+                    line.Contains(setting, StringComparison.Ordinal)
+                    && (
+                        line.Contains("/setup", StringComparison.Ordinal)
+                        || line.Contains("/settings", StringComparison.Ordinal)
+                    )
             );
-            Assert.Contains("change later with", line, StringComparison.Ordinal);
         }
 
-        Assert.Contains("change later with /setup", review, StringComparison.Ordinal);
-        Assert.Contains("change later with /settings", review, StringComparison.Ordinal);
+        Assert.Contains("· /setup", review, StringComparison.Ordinal);
+        Assert.Contains("· /settings", review, StringComparison.Ordinal);
     }
 
     [PosixFact]
@@ -124,7 +128,10 @@ public sealed class SetupWizardModeTests
         string review = string.Join("\n", SetupWizardSummary.Render(model));
 
         Assert.Contains("setup mode: detailed", review, StringComparison.Ordinal);
-        Assert.DoesNotContain("Left at default:", review, StringComparison.Ordinal);
+        // A detailed walk asks every setting, so the review names no Quick-only default even
+        // though the unchanged block still lists the steps this walk skipped.
+        Assert.DoesNotContain("custom API family", review, StringComparison.Ordinal);
+        Assert.DoesNotContain("thinking level", review, StringComparison.Ordinal);
         Assert.Empty(model.LeftAtDefault);
     }
 

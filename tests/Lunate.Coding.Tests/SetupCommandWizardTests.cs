@@ -179,7 +179,9 @@ public sealed class SetupCommandWizardTests
         host.Console.SendEnter();
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("chat usage: chat-main", summary, StringComparison.Ordinal);
+        // The repaired binding is a settings.json write of the chat usage.
+        Assert.Contains("usage chat", summary, StringComparison.Ordinal);
+        Assert.Contains("profile: chat-main", summary, StringComparison.Ordinal);
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
         // The walk's last line is the plain commit notice, so the frame carries it: the model switch

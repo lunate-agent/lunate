@@ -48,12 +48,9 @@ public sealed class SetupCommandTests : IDisposable
         Assert.Equal(0, exit);
         Assert.Contains("connection test: passed", output, StringComparison.Ordinal);
         Assert.Contains("model check: passed", output, StringComparison.Ordinal);
-        Assert.Contains(
-            "written: profile 'main' (model deep/deepseek-chat)",
-            output,
-            StringComparison.Ordinal
-        );
-        Assert.Contains("written: usages.chat → main", output, StringComparison.Ordinal);
+        Assert.Contains("profile main", output, StringComparison.Ordinal);
+        Assert.Contains("usage chat", output, StringComparison.Ordinal);
+        Assert.Contains("settings.json —", output, StringComparison.Ordinal);
         Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
 
         using JsonDocument store = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
@@ -129,7 +126,11 @@ public sealed class SetupCommandTests : IDisposable
         );
 
         Assert.Equal(0, exit);
-        Assert.Contains("credential: env:OPENAI_API_KEY", output, StringComparison.Ordinal);
+        Assert.Contains(
+            "credential reference: env:OPENAI_API_KEY",
+            output,
+            StringComparison.Ordinal
+        );
         using JsonDocument store = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
         Assert.Equal(
             "env:OPENAI_API_KEY",
@@ -179,7 +180,7 @@ public sealed class SetupCommandTests : IDisposable
         );
         Assert.Equal(0, replaced);
         Assert.Contains(
-            "written: provider entry 'openai'",
+            "providers.json — provider openai",
             replacedOutput,
             StringComparison.Ordinal
         );
@@ -217,11 +218,9 @@ public sealed class SetupCommandTests : IDisposable
                 .GetProperty("reasoningLevel")
                 .GetString()
         );
-        Assert.Contains(
-            "written: profile 'main' (model gpt-5, thinking low)",
-            output,
-            StringComparison.Ordinal
-        );
+        Assert.Contains("profile main", output, StringComparison.Ordinal);
+        Assert.Contains("reasoning level: low", output, StringComparison.Ordinal);
+        Assert.Contains("settings.json —", output, StringComparison.Ordinal);
         Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
     }
 
@@ -310,7 +309,8 @@ public sealed class SetupCommandTests : IDisposable
         );
 
         Assert.Equal(0, exit);
-        Assert.Contains("written: decisions.profile → main", output, StringComparison.Ordinal);
+        Assert.Contains("decisions", output, StringComparison.Ordinal);
+        Assert.Contains("settings.json —", output, StringComparison.Ordinal);
         using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
         Assert.Equal(
             "main",

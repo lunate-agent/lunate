@@ -467,11 +467,9 @@ public sealed class SetupWizardCommitTests : IDisposable
             "eu",
             providers.RootElement.GetProperty("providers")[0].GetProperty("region").GetString()
         );
-        Assert.Contains(
-            "provider: openrouter (region eu)",
-            string.Join("\n", SetupWizardSummary.Render(model)),
-            StringComparison.Ordinal
-        );
+        string summary = string.Join("\n", SetupWizardSummary.Render(model));
+        Assert.Contains("provider openrouter", summary, StringComparison.Ordinal);
+        Assert.Contains("region: eu", summary, StringComparison.Ordinal);
     }
 
     [PosixFact]
