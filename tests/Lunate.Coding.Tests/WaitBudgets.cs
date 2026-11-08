@@ -126,6 +126,21 @@ internal static class WaitBudgets
     public static readonly TimeSpan ProbeExpiry = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
+    /// How long a test that drives an interactive wait to its own expiry gives it. The failure
+    /// message is the subject there, so the wait only has to reach its deadline on the machine — a
+    /// few poll intervals — instead of waiting a runner out.
+    /// </summary>
+    public static readonly TimeSpan WaitExpiry = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>
+    /// How long the diagnosis of an already-failed wait may spend collecting evidence: reading the
+    /// process table with <c>ps</c> (and <c>/proc</c> descriptors on Linux) after the wait has
+    /// expired. It is a ceiling for a diagnostic, not for behaviour under test, and it exists so a
+    /// diagnosis that hangs cannot replace one silent failure with another.
+    /// </summary>
+    public static readonly TimeSpan Diagnosis = TimeSpan.FromSeconds(15);
+
+    /// <summary>
     /// The provider probe fixture's delayed endpoint: it waits for cancellation so the `unknown`
     /// reachability result is deterministic without introducing a live endpoint.
     /// </summary>
