@@ -67,18 +67,31 @@ internal static class WaitDiagnosis
             return [$"unavailable: {reason}"];
         }
 
-        IReadOnlyList<ProcessRow> rows = Parse(read.table);
+        return DescribeTable(
+            read.table,
+            Environment.ProcessId,
+            OperatingSystem.IsWindows() ? "Win32_Process" : "/bin/ps"
+        );
+    }
+
+    /// <summary>
+    /// The lines for one process table: the source line, one per descendant of <paramref name="self"/>
+    /// (root first, descriptors where they can be read), then a note when the platform has no
+    /// descriptors to read. Pure, so the parser and the tree walk are pinned without a live <c>ps</c>.
+    /// </summary>
+    internal static IReadOnlyList<string> DescribeTable(string table, int self, string source)
+    {
+        IReadOnlyList<ProcessRow> rows = Parse(table);
         if (rows.Count == 0)
         {
             return ["unavailable: the process table was empty"];
         }
 
         var lines = new List<string>();
-        int self = Environment.ProcessId;
         IReadOnlyList<ProcessRow> tree = Descendants(rows, self);
         lines.Add(
             FormattableString.Invariant(
-                $"source={(OperatingSystem.IsWindows() ? "Win32_Process" : "/bin/ps")} self={self} tree={tree.Count} processes={rows.Count}"
+                $"source={source} self={self} tree={tree.Count} processes={rows.Count}"
             )
         );
         foreach (ProcessRow row in tree)
@@ -214,7 +227,7 @@ internal static class WaitDiagnosis
     }
 
     /// <summary>One process-table row; the columns the issue asks for, kept as text.</summary>
-    private sealed record ProcessRow(
+    internal sealed record ProcessRow(
         int Pid,
         int Parent,
         string Group,

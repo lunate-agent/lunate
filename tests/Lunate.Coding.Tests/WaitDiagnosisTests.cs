@@ -93,6 +93,54 @@ public sealed class WaitDiagnosisTests
     }
 
     /// <summary>
+    /// The parser and the walk, without a live <c>ps</c>: one line per descendant, the root marked,
+    /// a command that carries spaces kept whole, and an unrelated process left out.
+    /// </summary>
+    [Fact]
+    public void A_process_table_becomes_one_line_per_descendant()
+    {
+        const string table = """
+
+              10     1    10 Ss   -   /usr/bin/parent
+              11    10    10 S    -   /usr/bin/child with spaces
+              12    11    10 R+   -   /usr/bin/grandchild
+              99     1     1 S    -   /usr/bin/unrelated
+
+            """;
+
+        IReadOnlyList<string> lines = WaitDiagnosis.DescribeTable(table, 10, "/bin/ps");
+
+        Assert.Contains(
+            lines,
+            line =>
+                line.Contains("pid=10 ", StringComparison.Ordinal)
+                && line.Contains("(this test process)", StringComparison.Ordinal)
+        );
+        Assert.Contains(
+            lines,
+            line =>
+                line.Contains("pid=11 ", StringComparison.Ordinal)
+                && line.Contains("comm=/usr/bin/child with spaces", StringComparison.Ordinal)
+        );
+        Assert.Contains(
+            lines,
+            line =>
+                line.Contains("pid=12 ", StringComparison.Ordinal)
+                && line.Contains("stat=R+", StringComparison.Ordinal)
+        );
+        Assert.DoesNotContain(lines, line => line.Contains("pid=99 ", StringComparison.Ordinal));
+    }
+
+    /// <summary>A table that names no process is reported, not parsed into a misleading silence.</summary>
+    [Fact]
+    public void An_empty_process_table_is_reported_as_unavailable()
+    {
+        IReadOnlyList<string> lines = WaitDiagnosis.DescribeTable(string.Empty, 10, "/bin/ps");
+
+        Assert.Contains(lines, line => line.StartsWith("unavailable:", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// The unnamed budget is the cross-turn ceiling and stays it: #660 forbids hiding a hang behind a
     /// longer wait, and the diagnosis is what makes the next occurrence answerable instead.
     /// </summary>
