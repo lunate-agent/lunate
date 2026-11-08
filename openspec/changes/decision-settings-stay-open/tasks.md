@@ -15,4 +15,4 @@
 - [x] 3.1 Update `docs/first-run.md` to say the decisions list stays open until Done.
 - [x] 3.2 Run the changed test classes by filter and the Release build; run CSharpier after the last edit.
 - [x] 3.3 Run `openspec validate decision-settings-stay-open --strict` and `openspec validate --all --strict`.
-- [ ] 3.4 Run `bash scripts/check-openspec-skills.sh` and archive the change as the final commit.
+- [x] 3.4 Run `bash scripts/check-openspec-skills.sh` and archive the change as the final commit.

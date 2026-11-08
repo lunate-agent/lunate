@@ -39,7 +39,7 @@ The wizard SHALL present ten steps in order — provider, credential, connection
 5. **Model check** makes one minimal real request through the model's resolved API family: one short completion for a chat profile, one tiny noul for a decision profile. The cost SHALL be stated before it runs and the check SHALL be skippable (`--no-model-check` on the flag path). A failure SHALL name the model, the family and the HTTP status or response shape, and offer going back to the model step; a skip or failure SHALL be marked unverified in the summary. A discovery success alone SHALL NOT count as a verified model.
 6. **Chat profile** asks the profile name and its thinking level, offering only the levels the chosen model supports; the question is skipped entirely for a model without a reasoning style.
 7. **Fast and decision profiles** are optional and default to skip. When the chosen provider exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the preset's pinned version; otherwise the decision profile is offered as an **adapter**, labelled as such in the picker and summary. When the chosen provider is `opencode-go`, the native Jev line is labelled "native Jev — billed to your OpenCode pay-as-you-go balance, not the Go plan; no box questions" and no box question is asked for it; other presets keep the existing native/adapter labels. When routing is enabled, the step asks for each routing profile's description and warns once if one is left blank.
-8. **Decisions settings** presents every switch with its `off`/unset default and one explanatory line each; accepting the defaults writes nothing for the layer.
+8. **Decisions settings** presents every switch with its `off`/unset default and one explanatory line each, plus a **Done — leave the decisions settings** entry. After each switch is answered the step SHALL present the list again with the earlier answers kept, so several switches are collected in one pass; only the Done entry leaves the step. Accepting the defaults — Done with no switch changed — writes nothing for the layer.
 9. **Summary** shows every collected value — provider, region, credential source, endpoint, API family, credential placement, models URL, tested model, model-check result, profiles with their models and thinking levels, decision profile kind (native or adapter), routing descriptions, decisions settings, and what was skipped — and writes nothing until it is confirmed with Enter.
 10. **Write** stores the provider entry and credential through the auth and provider stores and the profiles and usages through `SettingsStore`, in one pass.
 
@@ -110,6 +110,18 @@ Every step accepts skip; a skipped step leaves the value it would have configure
 - **GIVEN** routing is enabled with three profiles
 - **WHEN** the decisions step collects them
 - **THEN** it asks each profile for a description, warns once if one is blank, and sends the descriptions as criteria per #494 §7
+
+#### Scenario: The decisions list stays open until Done
+
+- **GIVEN** the decisions settings step is open and the user changes the approval gate
+- **WHEN** the approval question is answered
+- **THEN** the decisions list is presented again with the approval answer kept, and choosing **Done — leave the decisions settings** leaves the step
+
+#### Scenario: Two decision settings change in one pass
+
+- **GIVEN** the decisions settings step is open and the user changes the approval gate and then the decide tool
+- **WHEN** the user chooses **Done — leave the decisions settings**
+- **THEN** the summary and the commit carry both changed settings from the same pass
 
 #### Scenario: Skipped steps surface in the summary
 
