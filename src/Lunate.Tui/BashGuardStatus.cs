@@ -10,6 +10,12 @@ internal sealed record BashGuardStatus(string Mechanism, string ProbeState, bool
             ? $"bash guard: {Mechanism}; probe: {ProbeState}"
             : "bash guard: none; probe: not run; disabled";
 
+    /// <summary>The container mode's honest wording: the guard covers the host engine client only.</summary>
+    internal string HostHalfContextText =>
+        Enabled
+            ? $"bash guard (host half): {Mechanism}; probe: {ProbeState}"
+            : "bash guard: none (host half); probe: not run; disabled";
+
     internal string HeaderText(bool unicode) =>
         Enabled
             ? $"bash guard {Mechanism}{Separator(unicode)}probe {ProbeState}"

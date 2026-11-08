@@ -38,6 +38,7 @@ public sealed partial class SettingsSchemaTests
         ["toolDetails"] = "expanded",
         ["startupHeader"] = false,
         ["bashGuard"] = false,
+        ["environment"] = "docker:alpine",
         ["updateCheck"] = false,
         ["thinking"] = "low",
         ["thinkingFull"] = true,

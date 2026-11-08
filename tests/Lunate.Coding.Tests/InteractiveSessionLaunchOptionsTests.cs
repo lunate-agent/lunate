@@ -176,6 +176,24 @@ public sealed class InteractiveSessionLaunchOptionsTests
         );
     }
 
+    [Fact]
+    public async Task The_launch_environment_is_named_in_the_welcome_header()
+    {
+        using var host = new InteractiveSessionHost(
+            environment: PrintModeTestSupport.Environment(model: "gpt-4o"),
+            launch: new LaunchOptions { Environment = "docker:alpine" }
+        );
+        Task run = host.RunAsync();
+
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+        string header = await host.WaitForScrollbackAsync("environment docker:alpine");
+        Assert.Contains("environment docker:alpine", header, StringComparison.Ordinal);
+
+        host.Console.SendText("/quit");
+        host.Console.SendEnter();
+        await run;
+    }
+
     private static Func<string, string?> Environment(params (string Name, string Value)[] overrides)
     {
         Func<string, string?> baseline = PrintModeTestSupport.Environment();

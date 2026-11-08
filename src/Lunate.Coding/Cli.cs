@@ -291,6 +291,12 @@ internal static class Cli
             return false;
         }
 
+        if (parsed.Environment is not null)
+        {
+            error = "--env is a usage error with --acp; the editor frontend keeps the host path";
+            return false;
+        }
+
         if (parsed.HasSelection)
         {
             error = "session selection is a usage error with --acp";

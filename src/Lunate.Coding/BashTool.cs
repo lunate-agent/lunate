@@ -8,7 +8,7 @@ using Lunate.Extensibility.Abstractions;
 namespace Lunate.Coding;
 
 /// <summary>Runs one non-interactive command in the resolved shell, in the workspace root.</summary>
-public sealed class BashTool : ITool
+public sealed partial class BashTool : ITool
 {
     /// <summary>The model-facing name; also what <see cref="HighRiskCall"/> classifies.</summary>
     internal const string ToolName = "bash";
@@ -62,6 +62,7 @@ public sealed class BashTool : ITool
     private readonly BashChangeTracker _changes;
     private readonly BashGuard _guard;
     private readonly bool _guardEnabled;
+    private readonly ContainerEnvironment? _environment;
     private readonly IExtensionLog? _log;
     private bool _noticeShown;
 
@@ -84,7 +85,8 @@ public sealed class BashTool : ITool
         IExtensionLog? log,
         BashGuard guard,
         TimeSpan? changeScanTimeout = null,
-        bool guardEnabled = true
+        bool guardEnabled = true,
+        ContainerEnvironment? environment = null
     )
     {
         _workspace = workspace;
@@ -93,9 +95,13 @@ public sealed class BashTool : ITool
         _changes = new BashChangeTracker(log, changeScanTimeout);
         _guard = guard;
         _guardEnabled = guardEnabled;
+        _environment = environment;
         _log = log;
-        Description = _shell is null
-            ? $"Run a command in the platform shell (no shell was found on this machine). {Rules}"
+        Description =
+            environment is not null
+                ? $"Run a command through the {environment.Display} container in the workspace root. {Rules}"
+            : _shell is null
+                ? $"Run a command in the platform shell (no shell was found on this machine). {Rules}"
             : $"Run a command in {_shell.DisplayName} ({Dialect(_shell.Kind)}). {Rules}";
     }
 
@@ -124,6 +130,16 @@ public sealed class BashTool : ITool
         )
         {
             return Error("command is required and must be a string");
+        }
+
+        if (_environment is { } environment)
+        {
+            return await ExecuteInEnvironmentAsync(
+                environment,
+                commandElement.GetString()!,
+                ctx,
+                ct
+            );
         }
 
         if (_shell is null)

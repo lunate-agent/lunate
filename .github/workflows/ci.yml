@@ -378,6 +378,21 @@ jobs:
           STARTUP_BUDGET_ENFORCE: ${{ matrix.budget_enforce }}
         run: bash scripts/verify.sh --shard "${{ matrix.shard }}/${{ matrix.shard_count }}"
 
+      # The one real-container leg: the host path stays the default, and this step is the only
+      # place a container engine is required. It runs in the existing shard so ci-ok needs no new
+      # job; the E2E class skips itself when the variable is absent, so local verify is unchanged.
+      - name: Container E2E (Linux)
+        if: runner.os == 'Linux' && matrix.shard == 1
+        shell: bash
+        env:
+          LUNATE_CONTAINER_E2E: docker:alpine:3.20
+          MSBUILDDISABLENODEREUSE: "1"
+        run: |
+          set -euo pipefail
+          docker pull alpine:3.20
+          dotnet tests/Lunate.Coding.Tests/bin/Release/net10.0/Lunate.Coding.Tests.dll \
+            -class "Lunate.Coding.Tests.ContainerEnvironmentE2ETests"
+
       # The gate's own self-tests need the published binary (perf and the shipped-API
       # fixture), which only shard 1 produces; the test slices of shards > 1 prove the
       # partition, and gate-tests.sh itself runs in full here.

@@ -123,6 +123,34 @@ public sealed class BashGuardStatusSessionTests
         await run;
     }
 
+    [Fact]
+    public async Task The_environment_is_named_in_the_header_and_context()
+    {
+        using var host = new InteractiveSessionHost(
+            environment: EnvironmentWithKey(),
+            launch: new LaunchOptions { Environment = "docker:alpine" }
+        );
+        host.Console.Size = new ConsoleSize(400, 24);
+        File.WriteAllText(
+            host.Temp.File("settings.json"),
+            """{"schemaVersion":2,"bashGuard":false}"""
+        );
+        Task run = host.RunAsync();
+
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+        string header = await host.WaitForScrollbackAsync($"lunate  v{ProductVersion.Build}");
+        Assert.Contains("environment docker:alpine", header, StringComparison.Ordinal);
+
+        host.Console.SendText("/context");
+        host.Console.SendEnter();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "context: ");
+
+        Assert.Contains("environment: docker:alpine (", host.LastFrame, StringComparison.Ordinal);
+        host.Console.SendText("/quit");
+        host.Console.SendEnter();
+        await run;
+    }
+
     private static GuardProbe ProbeFor(string fixture)
     {
         GuardProbe probe = fixture switch

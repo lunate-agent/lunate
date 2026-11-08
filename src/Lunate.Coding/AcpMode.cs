@@ -44,15 +44,24 @@ internal static class AcpMode
             LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
             IExtensionLog log = extensions?.Log ?? new StderrExtensionLog(errors);
             AgentSettings settings = SettingsStore.Resolve(null, null);
+            AgentSettings effective = SettingsStore.ApplyLaunch(
+                settings,
+                launch ?? new LaunchOptions()
+            );
+            if (ExecutionEnvironmentSelection.FromValidated(effective.Environment) is { } selected)
+            {
+                errors.WriteLine(
+                    $"lunate: --acp does not support the {selected.Display} execution environment yet; "
+                        + "remove 'environment' from settings or use the interactive/print mode"
+                );
+                return 2;
+            }
+
             // A machine with no chat answer never serves a frame: an editor session would fail
             // every session/new, so the serve start refuses with the one configure-it message and
             // the spec's exit code (spec: The wizard trigger — "machine modes never open the
             // wizard"). Launch flags count, exactly as the per-session harness reads them.
-            if (
-                SetupRefusal.Applies(
-                    SettingsStore.ApplyLaunch(settings, launch ?? new LaunchOptions())
-                )
-            )
+            if (SetupRefusal.Applies(effective))
             {
                 errors.WriteLine($"lunate: {SetupRefusal.Text}");
                 return SetupRefusal.ExitCode;

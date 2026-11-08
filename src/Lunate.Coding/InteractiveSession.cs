@@ -521,6 +521,7 @@ internal sealed partial class InteractiveSession : IDisposable
         }
 
         _disposed = true;
+        _containerEnvironment?.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
     }
@@ -569,6 +570,7 @@ internal sealed partial class InteractiveSession : IDisposable
         );
         _settings = SettingsStore.ApplyLaunch(_settings, _options.Launch);
         ApplyToolEnvironment();
+        _containerEnvironment = CreateContainerEnvironment(_settings.Environment);
         if (_settings.BashGuard)
         {
             WarnAboutStateRootHardlinks();
@@ -666,7 +668,8 @@ internal sealed partial class InteractiveSession : IDisposable
             verificationMode: _settings.Verify,
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
-            bashGuard: _bashGuard
+            bashGuard: _bashGuard,
+            environment: _containerEnvironment
         );
         _tools.Add(new AskUserTool());
         await ComposeMcpConfigAsync(ct);
@@ -695,7 +698,8 @@ internal sealed partial class InteractiveSession : IDisposable
             writeVerifiers: _extensions?.WriteVerifiers,
             verificationMode: _settings.Verify,
             refusalTracker: _writeVerificationRefusals,
-            bashGuardEnabled: _settings.BashGuard
+            bashGuardEnabled: _settings.BashGuard,
+            environment: _containerEnvironment
         );
         // The model resolves after the extension host: the configured id may name a virtual or
         // extension-registered model, which only the registry knows.

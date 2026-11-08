@@ -150,6 +150,7 @@ internal static class PrintMode
 
         ExtensionSession? extensions = null;
         McpToolSet? mcp = null;
+        ContainerEnvironment? environment = null;
         try
         {
             IReadOnlyList<ITool> mcpTools = [];
@@ -160,6 +161,10 @@ internal static class PrintMode
             try
             {
                 workspace = new Workspace(options.WorkingDirectory ?? Environment.CurrentDirectory);
+                environment = ExecutionEnvironmentSelection.FromValidated(settings.Environment)
+                    is { } selection
+                    ? new ContainerEnvironment(selection)
+                    : null;
                 // This run creates a session file and reads its own settings and credentials under
                 // the store, so a root inside the workspace is refused before any of them.
                 LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
@@ -358,7 +363,8 @@ internal static class PrintMode
                     mcpTools,
                     inheritedTools,
                     skills,
-                    notice => interaction.Notify(notice)
+                    notice => interaction.Notify(notice),
+                    environment
                 );
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -482,6 +488,8 @@ internal static class PrintMode
                     );
                 }
             }
+
+            environment?.Dispose();
         }
     }
 
@@ -762,7 +770,8 @@ internal static class PrintMode
         IReadOnlyList<ITool> mcpTools,
         List<ITool> inheritedTools,
         SkillCatalog skills,
-        Action<UserNotice> warn
+        Action<UserNotice> warn,
+        ContainerEnvironment? environment
     )
     {
         ModelInfo model = chat.Model;
@@ -785,7 +794,8 @@ internal static class PrintMode
             writeVerifiers: extensions?.WriteVerifiers,
             verificationMode: settings.Verify,
             refusalTracker: refusalTracker,
-            bashGuardEnabled: settings.BashGuard
+            bashGuardEnabled: settings.BashGuard,
+            environment: environment
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -888,7 +898,8 @@ internal static class PrintMode
                 writeVerifiers: extensions?.WriteVerifiers,
                 verificationMode: settings.Verify,
                 refusalTracker: refusalTracker,
-                bashGuardEnabled: settings.BashGuard
+                bashGuardEnabled: settings.BashGuard,
+                environment: environment
             ),
         };
 

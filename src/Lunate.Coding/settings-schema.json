@@ -77,6 +77,13 @@
       "description": "Offers the `decide` tool, only when `decisions.profile` resolves as well."
     },
     {
+      "name": "environment",
+      "type": "string",
+      "default": "unset",
+      "scope": "user",
+      "description": "Runs the bash tool's commands in a container: `docker:<image>` or `podman:<image>`. Only the workspace is mounted, at the same absolute path; the state root, install prefix and credentials are never mounted. `--env` overrides it for one run. There is no environment-variable override."
+    },
+    {
       "name": "favorites",
       "type": "string array",
       "default": "[]",

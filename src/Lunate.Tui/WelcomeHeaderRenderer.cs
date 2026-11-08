@@ -31,6 +31,9 @@ internal sealed record WelcomeHeaderState
 
     public BashGuardStatus? GuardStatus { get; init; }
 
+    /// <summary>The selected container environment and its readiness; null keeps the host path.</summary>
+    public EnvironmentStatus? EnvironmentStatus { get; init; }
+
     public WelcomeHeaderCounts? Counts { get; init; }
 
     public string? Fix { get; init; }
@@ -125,6 +128,7 @@ internal static class WelcomeHeaderRenderer
             lines.Add(Line(colored, (state.Workspace, SpanStyle.Dim)));
             AddHome(lines, state, colored);
             AddGuardStatus(lines, state, colored);
+            AddEnvironmentStatus(lines, state, colored);
             return lines;
         }
 
@@ -141,6 +145,7 @@ internal static class WelcomeHeaderRenderer
         }
 
         AddGuardStatus(lines, state, colored);
+        AddEnvironmentStatus(lines, state, colored);
         lines.Add(CountsLine(state.Counts, capabilities));
         if (state.UpdateVersion is { Length: > 0 } updateVersion)
         {
@@ -180,6 +185,11 @@ internal static class WelcomeHeaderRenderer
         if (state.GuardStatus is { } guardStatus)
         {
             head.Append(unicode ? " · " : " - ").Append(guardStatus.HeaderText(unicode));
+        }
+
+        if (state.EnvironmentStatus is { } environment)
+        {
+            head.Append(unicode ? " · " : " - ").Append(environment.HeaderText(unicode));
         }
 
         string action = state.Fix is { Length: > 0 } fix ? fix : HelpHint;
@@ -248,6 +258,18 @@ internal static class WelcomeHeaderRenderer
         if (state.GuardStatus is { } guardStatus)
         {
             lines.Add(Line(colored, (guardStatus.HeaderText(unicode: true), SpanStyle.Dim)));
+        }
+    }
+
+    private static void AddEnvironmentStatus(
+        List<string> lines,
+        WelcomeHeaderState state,
+        bool colored
+    )
+    {
+        if (state.EnvironmentStatus is { } environment)
+        {
+            lines.Add(Line(colored, (environment.HeaderText(unicode: true), SpanStyle.Dim)));
         }
     }
 

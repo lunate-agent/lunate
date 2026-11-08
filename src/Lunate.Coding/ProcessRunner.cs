@@ -21,6 +21,19 @@ internal sealed partial class ProcessRunner : IProcessRunner
     public async Task<ProcessRunResult> RunAsync(
         ProcessRunRequest request,
         CancellationToken cancellationToken
+    ) => await RunAsync(request, cancellationToken, onCancel: null, onFirstStdoutLine: null);
+
+    /// <summary>
+    /// The same run with two internal observation hooks for container-backed commands:
+    /// <paramref name="onCancel"/> runs before the host tree is killed (the container-side group
+    /// kill), and <paramref name="onFirstStdoutLine"/> observes the wrapper's pgid line without
+    /// changing the accumulated result.
+    /// </summary>
+    internal async Task<ProcessRunResult> RunAsync(
+        ProcessRunRequest request,
+        CancellationToken cancellationToken,
+        Func<CancellationToken, Task>? onCancel,
+        Action<string>? onFirstStdoutLine
     )
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -52,11 +65,17 @@ internal sealed partial class ProcessRunner : IProcessRunner
                 cap,
                 timeoutCts.Token
             )
-            : ReadBoundedAsync(child.StandardOutput.BaseStream, cap, CancellationToken.None);
+            : ReadBoundedAsync(
+                child.StandardOutput.BaseStream,
+                cap,
+                CancellationToken.None,
+                onFirstStdoutLine
+            );
         Task<(string Text, bool Capped)> stderrTask = ReadBoundedAsync(
             child.StandardError.BaseStream,
             cap,
-            CancellationToken.None
+            CancellationToken.None,
+            onFirstLine: null
         );
 
         int exitCode;
@@ -66,6 +85,7 @@ internal sealed partial class ProcessRunner : IProcessRunner
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            await NotifyCancelAsync(onCancel).ConfigureAwait(false);
             await child.KillTreeAsync().ConfigureAwait(false);
             (string stdout, string stderr, bool stdoutCapped, bool stderrCapped) = await DrainAsync(
                     stdoutTask,
@@ -80,6 +100,7 @@ internal sealed partial class ProcessRunner : IProcessRunner
         }
         catch (OperationCanceledException)
         {
+            await NotifyCancelAsync(onCancel).ConfigureAwait(false);
             await child.KillTreeAsync().ConfigureAwait(false);
             await DrainAsync(stdoutTask, stderrTask).ConfigureAwait(false);
             throw;
@@ -193,7 +214,8 @@ internal sealed partial class ProcessRunner : IProcessRunner
     private static async Task<(string Text, bool Capped)> ReadBoundedAsync(
         Stream stream,
         int cap,
-        CancellationToken ct
+        CancellationToken ct,
+        Action<string>? onFirstLine
     )
     {
         var builder = new StringBuilder();
@@ -202,6 +224,7 @@ internal sealed partial class ProcessRunner : IProcessRunner
         var chars = new char[8192];
         var bytesRead = 0;
         var capped = false;
+        var firstLine = new FirstLineObserver(onFirstLine);
         while (true)
         {
             int read;
@@ -230,6 +253,7 @@ internal sealed partial class ProcessRunner : IProcessRunner
             {
                 bytesRead += use;
                 int count = decoder.GetChars(buffer, 0, use, chars, 0, flush: false);
+                firstLine.Observe(chars.AsSpan(0, count));
                 builder.Append(chars, 0, count);
             }
         }
@@ -237,6 +261,62 @@ internal sealed partial class ProcessRunner : IProcessRunner
         int tail = decoder.GetChars([], 0, 0, chars, 0, flush: true);
         builder.Append(chars, 0, tail);
         return (builder.ToString(), capped);
+    }
+
+    /// <summary>
+    /// Collects the first stdout line for a caller that only needs the wrapper's marker. Stops
+    /// buffering after one line (or 128 characters, so a command that never writes a newline cannot
+    /// grow it); the line stays in the result too.
+    /// </summary>
+    private sealed class FirstLineObserver(Action<string>? onLine)
+    {
+        private readonly StringBuilder _line = new();
+        private bool _done = onLine is null;
+
+        internal void Observe(ReadOnlySpan<char> chars)
+        {
+            if (_done)
+            {
+                return;
+            }
+
+            foreach (char value in chars)
+            {
+                if (value == '\n')
+                {
+                    _done = true;
+                    onLine!(_line.ToString().TrimEnd('\r'));
+                    return;
+                }
+
+                if (_line.Length >= 128)
+                {
+                    _done = true;
+                    return;
+                }
+
+                _line.Append(value);
+            }
+        }
+    }
+
+    private static async Task NotifyCancelAsync(Func<CancellationToken, Task>? onCancel)
+    {
+        if (onCancel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await onCancel(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+            when (exception is not OperationCanceledException and not OutOfMemoryException)
+        {
+            // The host tree kill still runs; a failed container-side kill is reported by the
+            // environment's own status and must not turn a cancellation into a crash.
+        }
     }
 
     private static bool IsPipeClosed(Exception exception) =>

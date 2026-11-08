@@ -24,6 +24,12 @@ internal sealed record LaunchOptions
     /// <summary>The model id for this run; null keeps the resolved setting.</summary>
     public string? Model { get; init; }
 
+    /// <summary>
+    /// The container environment for this run (<c>docker:&lt;image&gt;</c> or
+    /// <c>podman:&lt;image&gt;</c>); null keeps the resolved setting.
+    /// </summary>
+    public string? Environment { get; init; }
+
     /// <summary>The thinking level for this run; null keeps the resolved setting.</summary>
     public ThinkingLevel? Thinking { get; init; }
 
@@ -97,6 +103,7 @@ internal sealed record LaunchOptions
         var allowUnpriced = false;
         string? session = null;
         string? model = null;
+        string? environment = null;
         string? tools = null;
         string? extraToolsFlag = null;
         string? systemPrompt = null;
@@ -180,6 +187,21 @@ internal sealed record LaunchOptions
                     break;
                 case "--model":
                     if (!TryValue(args, ref index, "--model", inline, out model, out error))
+                    {
+                        return false;
+                    }
+                    break;
+                case "--env":
+                    if (
+                        !TryValue(
+                            args,
+                            ref index,
+                            ExecutionEnvironmentSelection.Flag,
+                            inline,
+                            out environment,
+                            out error
+                        )
+                    )
                     {
                         return false;
                     }
@@ -270,6 +292,7 @@ internal sealed record LaunchOptions
         if (
             !TryTools(tools, out IReadOnlyList<string>? toolNames, out error)
             || !TryExtraTools(extraToolsFlag, out IReadOnlyList<string>? extraTools, out error)
+            || !TryEnvironment(environment, out error)
         )
         {
             return false;
@@ -355,6 +378,7 @@ internal sealed record LaunchOptions
             Session = session,
             NoSession = noSession,
             Model = model,
+            Environment = environment,
             Thinking = thinking,
             MaxCostUsd = maxCost,
             MaxTime = maxTime,
@@ -445,6 +469,26 @@ internal sealed record LaunchOptions
 
         thinking = parsed;
         return true;
+    }
+
+    /// <summary>
+    /// Accepts only the container environment shapes; a malformed value is a launch usage error,
+    /// never a silent fallback to host execution.
+    /// </summary>
+    private static bool TryEnvironment(string? value, out string? error)
+    {
+        if (
+            ExecutionEnvironmentSelection.TryParse(
+                value,
+                out ExecutionEnvironmentSelection? selection,
+                out error
+            )
+        )
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

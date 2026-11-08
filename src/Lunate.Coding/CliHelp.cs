@@ -175,6 +175,12 @@ internal static class CliHelp
         );
         output.WriteLine("  --thinking <level>             off, low, medium or high for the run");
         output.WriteLine(
+            "  --env <engine>:<image>         run bash commands in a docker or podman container;"
+        );
+        output.WriteLine(
+            "                                 only the workspace is mounted (wins over settings)"
+        );
+        output.WriteLine(
             "  --tools <list>                 expose only these comma-separated tool names"
         );
         output.WriteLine(

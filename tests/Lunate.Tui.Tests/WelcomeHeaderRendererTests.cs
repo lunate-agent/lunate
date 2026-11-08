@@ -160,6 +160,50 @@ public sealed class WelcomeHeaderRendererTests
         Assert.Equal("bash guard disabled · none · probe not run", text[4]);
     }
 
+    [Fact]
+    public void The_header_names_the_selected_execution_environment()
+    {
+        WelcomeHeaderState withEnvironment = Full with
+        {
+            EnvironmentStatus = new EnvironmentStatus("podman", "alpine", "ready"),
+        };
+
+        string[] text = Text(
+            withEnvironment,
+            width: 80,
+            Capabilities(unicode: true, colored: false)
+        );
+
+        Assert.True(
+            text.Any(line => line.Contains("environment podman:alpine", StringComparison.Ordinal))
+        );
+    }
+
+    [Fact]
+    public void The_one_line_form_names_the_environment_with_ascii_punctuation()
+    {
+        WelcomeHeaderState withEnvironment = Full with
+        {
+            EnvironmentStatus = new EnvironmentStatus("docker", "debian", "starting"),
+        };
+
+        string[] text = Text(
+            withEnvironment,
+            width: 60,
+            Capabilities(unicode: false, colored: false)
+        );
+
+        Assert.Contains(" - environment docker:debian", text[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void No_environment_segment_when_the_host_path_is_active()
+    {
+        string[] text = Text(Full, width: 80, Capabilities(unicode: true, colored: false));
+
+        Assert.DoesNotContain(text, line => line.Contains("environment", StringComparison.Ordinal));
+    }
+
     [Theory]
     [MemberData(nameof(Matrix))]
     public void The_header_matches_the_snapshot_matrix_cell(
