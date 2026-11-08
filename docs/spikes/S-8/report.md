@@ -4,7 +4,7 @@
 - Card: #680 (setup wizard improvements, 0.4.0)
 - Question: how should Lunate's setup wizard behave when compared with OpenCode, `openspec init`, Pi and Gemini CLI, and which behaviour should each follow-on issue implement?
 - Method: read the installed CLI help, shipped source and documentation for each tool, ran one real `openspec init`, and read the current wizard, its spec and its width tests. No provider request was made and no credential was entered; OAuth flows were read, not run. Raw notes and commands are in [`evidence/research-setup-flows.txt`](evidence/research-setup-flows.txt).
-- Outcome: **adopt one model — one wizard, one write gate, three verbs, menus that return, and a review that is a file manifest.** The model is set out below; each comparison point ends in the issue that implements it; three gaps the existing issues did not cover are filed as #686–#688.
+- Outcome: **adopt one model — one wizard, one write gate, three verbs, menus that return, and a review that is a file manifest.** The model is set out below; each comparison point ends in the issue that implements it; three gaps the existing issues did not cover are filed as #692–#694.
 
 ## The interaction model we adopt
 
@@ -85,12 +85,12 @@ Each credential prompt says where the key comes from (the provider console for a
 | Point | What the others show | Verdict | What we do (issue) |
 | --- | --- | --- | --- |
 | First screen | `openspec init` states what it will configure before asking; Gemini's first screen is the auth dialog; OpenCode and Pi drop into the session and use `/connect` or `/login`. | Adopt the statement; keep the in-session wizard. | Header states the four stages; the first question is still the provider. #681 |
-| Provider and method | OpenCode picks an integration, then an API-key/OAuth/command/environment method, and renders provider forms; Pi does the same per provider; Gemini starts with the auth method. | Adopt the two-level choice; OAuth is out by ADR-0022. | Provider first, then the credential source; custom fields stay on the provider step. #681, #687 |
-| Credential | Gemini links where to get a key and says how it is stored; Pi accepts a literal, an env var or a `!command`; OpenCode lists environment connections. | Adopt the help line; keep env-first and masked entry; reject command refs for now. | Credential step names the console/docs and the next action. #687 |
+| Provider and method | OpenCode picks an integration, then an API-key/OAuth/command/environment method, and renders provider forms; Pi does the same per provider; Gemini starts with the auth method. | Adopt the two-level choice; OAuth is out by ADR-0022. | Provider first, then the credential source; custom fields stay on the provider step. #681, #693 |
+| Credential | Gemini links where to get a key and says how it is stored; Pi accepts a literal, an env var or a `!command`; OpenCode lists environment connections. | Adopt the help line; keep env-first and masked entry; reject command refs for now. | Credential step names the console/docs and the next action. #693 |
 | Validation | OpenCode, Pi and Gemini find a bad key or model at the first real request; `openspec init` has no check. | **We are ahead.** | Keep the connection test and model check; the summary states passed/skipped/failed. No new issue. |
-| Model choice | OpenCode `/models` and Pi `/model` list models across connected providers; Gemini chooses at the prompt. | Adopt the flat list. | Every usage picker lists `provider/model` across configured providers; inline new provider. #684, #688 |
-| Several providers | OpenCode `/connect` again adds an account; its account list activates, renames and deletes; newest is active. Pi stores several provider credentials. | Adopt the repeatable add; add management. | Provider list with Add another/Done (#683); manage/rename/remove/switch/rotate (#686). |
-| Re-run | OpenCode reopens `/connect`; Pi uses `/login` and `/logout`; Gemini uses `/auth`; `openspec init` refreshes configured tools, pre-selected. | **Our scoped entry menu is ahead.** | Keep `/setup`'s prefilled entries; add the Done loop and the manage entry. #681, #686 |
+| Model choice | OpenCode `/models` and Pi `/model` list models across connected providers; Gemini chooses at the prompt. | Adopt the flat list. | Every usage picker lists `provider/model` across configured providers; inline new provider. #684, #694 |
+| Several providers | OpenCode `/connect` again adds an account; its account list activates, renames and deletes; newest is active. Pi stores several provider credentials. | Adopt the repeatable add; add management. | Provider list with Add another/Done (#683); manage/rename/remove/switch/rotate (#692). |
+| Re-run | OpenCode reopens `/connect`; Pi uses `/login` and `/logout`; Gemini uses `/auth`; `openspec init` refreshes configured tools, pre-selected. | **Our scoped entry menu is ahead.** | Keep `/setup`'s prefilled entries; add the Done loop and the manage entry. #681, #692 |
 | Back and forward | Every tool lets you cancel a prompt back to the session; `openspec init` is one screen, so no step-back exists. | Adopt general back/forward. | `b`/Left back with answers kept; `f`/Right forward only through answered steps; Esc menu-local then run-local. #681 |
 | Multi-select and filter | `openspec init` has a searchable multi-select with pre-selected detected tools, a no-match hint and at-least-one validation; Gemini uses a radio list. | Adopt the grammar. | Space toggles, Enter confirms, count visible; filter over 15 rows; multi-select only for plural answers. #681 |
 | Defaults and modes | `openspec init` pre-selects what it detects and names what it will configure; Gemini pre-selects the remembered auth type; OpenCode's connect/model split is effectively a fast path. | Adopt quick/detailed on one spine. | Quick names every default in the review; detailed asks every setting. #682 |
@@ -129,7 +129,7 @@ The five issues keep their scope; their bodies now carry the interaction decisio
 
 - Add the visible four-stage path and the three verbs (`Enter`, `b`/Left, Esc) with the menu-local/run-local split.
 - Add forward replay through answered steps only.
-- Generalise the decisions-settings menu into the return-to-menu-with-Done shape; do not rebuild it per menu.
+- Generalise the decisions-settings menu into the return-to-menu-with-Done shape; the open #687 keeps that list open, so #681 generalises its shape rather than duplicating it.
 - Multi-select only for plural answers (routing profiles, a multi-switch edit); single-select everywhere else; filter over 15 rows.
 - Acceptance additions: back from the summary changes two answers and comes forward without re-asking; a menu action returns to the same menu and shows the change; a three-item multi-select leaves a visible count; the tests drive key sequences, not labels.
 
@@ -159,22 +159,22 @@ The five issues keep their scope; their bodies now carry the interaction decisio
 - The pre-write manifest is grouped by file: `providers.json`, `auth.json`, `settings.json`; every provider, profile, usage and decision setting names its file.
 - A **Left at default / unchanged** block names what the mode did not ask, with how to change it later (`/setup`, `/settings`, `lunate auth login`, the file path).
 - The post-write receipt is the short form: one line per file, the change-later commands, and a return to the session.
-- The 40-column rule: one fact per line, label-then-indented-value, no tables, paged lists, no secret values.
+- The 40-column rule: one fact per line, label-then-indented-value, no tables, paged lists, no secret values; reuse #689's real narrow-width harness rather than adding a second width rig.
 - Acceptance additions: both surfaces render and are checked at 40 columns; a test maps every staged write to its file; a secret never appears.
 
-### #686 — manage configured providers and credentials (new)
+### #692 — manage configured providers and credentials (new)
 
 The comparison's clearest missing capability. `openspec init` refreshes configured tools, but OpenCode's account list (activate, rename, delete) and Pi's `/logout` have no Lunate equivalent: `/setup` can add a provider but cannot inspect, rename, remove, test or replace one.
 
 Scope: a **Manage providers** entry in `/setup` listing each configured provider with its kind, region, credential source/status and whether the chat usage binds it; actions to rename, remove, test, replace the credential, and switch the chat binding. Rename and remove update every reference in `providers.json` and `settings.json`; removal is refused, with the referencing profiles named, when a profile or usage still uses it. Acceptance: rename and remove round-trip through the stores; a refused remove names the references; a replaced credential is written only through AuthStore; the list renders at 40 columns. Milestone 0.4.0.
 
-### #687 — contextual help and credential acquisition (new)
+### #693 — contextual help and credential acquisition (new)
 
 Gemini's API-key dialog links where to get a key and says how it is stored; OpenCode's OAuth dialog opens or copies the authorization details; Pi names the environment variable per provider. Lunate's credential step does not yet say where the key comes from.
 
 Scope: a provider-specific help line at the credential step (the preset's console link, or "see your gateway's docs" for a custom endpoint), plus a one-line storage statement and the next action on every check failure. Help text lives in `Lunate.Coding`; no provider-schema or public-API change. Acceptance: every preset has a help line, the custom path has one, the credential prompt never contains a secret, and the help wraps at 40 columns. Milestone 0.4.0.
 
-### #688 — chat profile picker across configured providers (new)
+### #694 — chat profile picker across configured providers (new)
 
 The same flat-list rule #684 applies to fast and decision also applies to the chat usage on a configured install: today the re-run prefills the current provider and cannot move chat to another provider's model. OpenCode `/models` and Pi `/model` both list every connected provider.
 
