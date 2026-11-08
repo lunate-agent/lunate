@@ -17,6 +17,6 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Run the focused settings, provider and race test classes; run CSharpier over the tree.
-- [ ] 3.2 Run `openspec validate cross-process-store-locks --strict` and
+- [x] 3.1 Run the focused settings, provider and race test classes; run CSharpier over the tree.
+- [x] 3.2 Run `openspec validate cross-process-store-locks --strict` and
   `bash scripts/check-openspec-skills.sh`.
