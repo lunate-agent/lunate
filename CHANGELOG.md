@@ -8,46 +8,6 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
-## [0.3.0-rc.3] - 2026-11-08
-
-Proof-pass fixes on top of rc.2, found by a real phone session over SSH as well as by CI.
-
-### Fixed
-
-- **Only the credential prompt masks.** The wizard, `/auth` and `/login` were masking every input, so a
-  typo in a profile name hid behind asterisks and only showed up in the summary. Provider, endpoint,
-  model id, profile name, region and descriptions echo normally; a secret's plaintext still never
-  reaches a frame (#617).
-- **The model check sends what the session sends.** The check built its client on a path of its own and
-  reported `HTTP 400 — Model is unavailable` for a profile whose session then ran fine, because the
-  request carried the provider-qualified id in the model field. It now builds through the production
-  path (profile → provider → family → client), with a test asserting the check's request and the first
-  session request are identical except the prompt (#613).
-- **`/quit` during a running turn** cancels the turn and exits, per the in-force tui spec (#635).
-- **SIGTERM and SIGHUP restore the terminal** before exit, so a killed session no longer leaves the
-  terminal raw (#636).
-- **Esc and Ctrl+C cancel a running tool call**, including a long `dotnet test`: a lone Esc byte is
-  recognised after a short timeout because mobile terminals send it that way, the process tree is
-  terminated, the tool result is recorded as cancelled by the user, and the live area shows
-  `esc to interrupt` while a run is in progress (#621).
-- **Repeated lines at narrow width.** The live area counted a wrapped line as one row, so every redraw
-  left its overflow behind — a wizard walk at 40 columns printed the same notice 10–20 times (#617).
-- **Skills notices** are setting-only and go to stderr: an over-limit description warns without
-  disabling the skill, and an unknown context window means no threshold and the full index (#631).
-
-### Changed
-
-- **Tool processes no longer inherit provider API keys.** Every preset `KeyVariable` and its alias,
-  plus each configured custom provider's `env:` reference, is stripped from a tool child's environment
-  on all platforms — including Windows, where the spawn built its own environment. The user's own
-  variables are untouched. An explicit pass-through list for named variables is #642 (0.4.0).
-
-### Added
-
-- **OpenCode Go / Jev.** The systemone family joins the opencode-go preset with `jev-1.13` pinned, and
-  the wizard prints one line when it offers it: billed to the pay-as-you-go balance, not the Go plan
-  (#618).
-
 ## [0.3.0] - 2026-11-06
 
 The 0.3.0 quality release: a fresh install gets one guided setup path, a configured install gets a re-runnable entry menu, each model can route to its own native API family, and the decision layer's native System One transport lands behind the existing seam. The release also carries every rc.1 review fix, the rc.2 proof pass, and the docs/spec agreement work the milestone asked for.
