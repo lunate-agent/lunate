@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Lunate.Ai;
 using Lunate.Tui;
 
 namespace Lunate.Coding;
@@ -170,6 +171,7 @@ public static partial class SettingsStore
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
+            using FileLock lease = AcquireWriteLock(path);
             JsonObject root = ReadRoot(path);
             root["schemaVersion"] = SupportedSchemaVersion;
             var section = new JsonObject { ["theme"] = tui.Theme };

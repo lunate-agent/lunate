@@ -32,6 +32,7 @@ public static partial class SettingsStore
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
+            using FileLock lease = AcquireWriteLock(path);
             JsonObject root = ReadRoot(path);
             WriteProfileLocked(root, profile);
             WriteValidated(path, root);
@@ -58,6 +59,7 @@ public static partial class SettingsStore
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
+            using FileLock lease = AcquireWriteLock(path);
             JsonObject root = ReadRoot(path);
             JsonObject usages = root["usages"] as JsonObject ?? new JsonObject();
             usages[usage] = profileName;
@@ -87,6 +89,7 @@ public static partial class SettingsStore
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
+            using FileLock lease = AcquireWriteLock(path);
             JsonObject root = ReadRoot(path);
             JsonObject decisions = root["decisions"] as JsonObject ?? new JsonObject();
             if (value is null)

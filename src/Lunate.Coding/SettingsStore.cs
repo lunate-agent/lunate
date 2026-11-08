@@ -272,9 +272,50 @@ public static partial class SettingsStore
     /// overlaps a read fails with access-denied however long it retries, and a read that overlaps a
     /// save would otherwise see the replacement mid-flight. Reads are short and settings change
     /// rarely, so one gate costs nothing and makes the two sides of this store mutual exclusion.
-    /// Another process's reader is still best effort: the replace retries briefly and reports.
+    /// A writer also takes the file's cross-process claim (<see cref="AcquireWriteLock(string)"/>),
+    /// so another process's writer cannot land between its read and its replace; another process's
+    /// reader is still best effort — the replace retries briefly and reports.
     /// </summary>
     private static readonly Lock Gate = new();
+
+    /// <summary>How long a read-modify-write waits for another process before it refuses.</summary>
+    private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// The cross-process claim beside a settings file: <c>settings.lock</c> for
+    /// <c>settings.json</c>. The in-process <see cref="Gate"/> serializes threads; this file claim
+    /// serializes processes, so two Lunate processes that each read first merge instead of each
+    /// replacing the file with a document that lacks the other's change.
+    /// </summary>
+    internal static string WriteLockPath(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return Path.ChangeExtension(path, ".lock");
+    }
+
+    /// <summary>
+    /// Takes the settings file's cross-process claim, waiting a bounded time for its current
+    /// holder. A write that cannot take it refuses rather than replacing a document another
+    /// process is editing.
+    /// </summary>
+    private static FileLock AcquireWriteLock(string path) => AcquireWriteLock(path, LockTimeout);
+
+    internal static FileLock AcquireWriteLock(string path, TimeSpan timeout)
+    {
+        string lockPath = WriteLockPath(path);
+        try
+        {
+            return FileLock.Acquire(lockPath, timeout);
+        }
+        catch (TimeoutException exception)
+        {
+            throw new InvalidOperationException(
+                $"the settings file '{path}' is being written by another Lunate process (lock "
+                    + $"'{lockPath}'); nothing was changed. Try again.",
+                exception
+            );
+        }
+    }
 
     /// <summary>Resolves the effective settings; throws one <see cref="InvalidDataException"/> naming every problem.</summary>
     public static AgentSettings Resolve(
@@ -310,7 +351,8 @@ public static partial class SettingsStore
     /// Writes the favourites through read-modify-write: every other value in the existing JSON is
     /// preserved, the result is validated by the same parser, and the file is replaced atomically
     /// with <c>schemaVersion: 2</c>. On any failure the old file is left untouched. The read and the
-    /// replace happen under one gate, so no read in this process can see the file between them.
+    /// replace happen under one process gate and one cross-process claim, so no other writer can
+    /// land between them.
     /// </summary>
     public static void WriteFavorites(IReadOnlyList<string> favorites, string? filePath = null)
     {
@@ -318,6 +360,7 @@ public static partial class SettingsStore
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
+            using FileLock lease = AcquireWriteLock(path);
             JsonObject root = ReadRoot(path);
             root["schemaVersion"] = SupportedSchemaVersion;
             var list = new JsonArray();

@@ -33,6 +33,7 @@ public static partial class SettingsStore
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
+            using FileLock lease = AcquireWriteLock(path);
             JsonObject root = ReadRoot(path);
             if (
                 profileName is not { Length: > 0 }

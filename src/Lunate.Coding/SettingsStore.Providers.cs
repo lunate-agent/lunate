@@ -261,6 +261,7 @@ public static partial class SettingsStore
         string path = filePath ?? DefaultFilePath();
         lock (Gate)
         {
+            using FileLock lease = AcquireWriteLock(path);
             JsonObject root = ReadRoot(path);
             root["schemaVersion"] = SupportedSchemaVersion;
             JsonObject providers = root["providers"] as JsonObject ?? new JsonObject();

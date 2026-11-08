@@ -5,11 +5,18 @@ using Lunate.Ai;
 
 namespace Lunate.Coding;
 
-/// <summary>Loads and migrates the user-scoped provider registry.</summary>
+/// <summary>
+/// Loads and migrates the user-scoped provider registry. A save and a migration take the store's
+/// cross-process claim beside the file, so two processes cannot each write a document from a stale
+/// read; a read-only load takes no claim.
+/// </summary>
 internal sealed class ProviderStore
 {
     private const int SchemaVersion = 1;
     private static readonly object Gate = new();
+
+    /// <summary>How long a read-modify-write waits for another process before it refuses.</summary>
+    private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(10);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
@@ -30,6 +37,7 @@ internal sealed class ProviderStore
 
         lock (Gate)
         {
+            using FileLock lease = AcquireLock(filePath);
             var validated = new List<ProviderEntry>(entries.Count);
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (ProviderEntry entry in entries)
@@ -82,59 +90,106 @@ internal sealed class ProviderStore
 
         lock (Gate)
         {
-            ProviderFile file = Read(filePath);
-            var entries = new Dictionary<string, ProviderEntry>(StringComparer.Ordinal);
-            foreach (ProviderFileRecord record in file.Providers)
+            (ProviderStore store, bool migrated) = LoadOnce(filePath, auth, legacyProviders);
+            if (!migrated)
             {
-                // Read validated every row already, so this conversion cannot fail.
-                TryCreateRecord(record, out ProviderEntry? entry, out _);
-                entries.Add(entry!.Name, entry);
+                return store;
             }
 
-            bool migrated = false;
+            using FileLock lease = AcquireLock(filePath);
 
-            foreach ((string name, _) in auth.Keys)
-            {
-                if (entries.ContainsKey(name))
-                {
-                    continue;
-                }
-
-                ProviderEntry? entry = Migrate(name, legacyProviders);
-                if (entry is null)
-                {
-                    continue;
-                }
-
-                entries.Add(name, entry);
-                migrated = true;
-            }
-
+            // Re-read under the claim: another process may have migrated between the first read and
+            // this claim, and a write based on the stale document would drop whatever it landed.
+            (store, migrated) = LoadOnce(filePath, auth, legacyProviders);
             if (migrated)
             {
-                Write(
-                    filePath,
-                    entries.Values.OrderBy(entry => entry.Name, StringComparer.Ordinal)
-                );
+                Write(filePath, store.Entries);
             }
 
-            ProviderEntry[] ordered = entries
-                .Values.OrderBy(entry => entry.Name, StringComparer.Ordinal)
-                .ToArray();
+            return store;
+        }
+    }
 
-            // Every configured provider names its credential source here, and this is the one seam
-            // every path that resolves providers goes through — so a tool child started after
-            // composition strips exactly the variables Lunate can turn into a credential.
-            foreach (ProviderEntry entry in ordered)
+    private static (ProviderStore Store, bool Migrated) LoadOnce(
+        string filePath,
+        AuthStore auth,
+        IReadOnlyList<CustomProvider> legacyProviders
+    )
+    {
+        ProviderFile file = Read(filePath);
+        var entries = new Dictionary<string, ProviderEntry>(StringComparer.Ordinal);
+        foreach (ProviderFileRecord record in file.Providers)
+        {
+            // Read validated every row already, so this conversion cannot fail.
+            TryCreateRecord(record, out ProviderEntry? entry, out _);
+            entries.Add(entry!.Name, entry);
+        }
+
+        bool migrated = false;
+
+        foreach ((string name, _) in auth.Keys)
+        {
+            if (entries.ContainsKey(name))
             {
-                CredentialVariables.RegisterReference(entry.CredentialReference);
-                foreach (string reference in HeaderValues(entry))
-                {
-                    CredentialVariables.RegisterReference(reference);
-                }
+                continue;
             }
 
-            return new ProviderStore(ordered);
+            ProviderEntry? entry = Migrate(name, legacyProviders);
+            if (entry is null)
+            {
+                continue;
+            }
+
+            entries.Add(name, entry);
+            migrated = true;
+        }
+
+        ProviderEntry[] ordered = entries
+            .Values.OrderBy(entry => entry.Name, StringComparer.Ordinal)
+            .ToArray();
+
+        // Every configured provider names its credential source here, and this is the one seam
+        // every path that resolves providers goes through — so a tool child started after
+        // composition strips exactly the variables Lunate can turn into a credential.
+        foreach (ProviderEntry entry in ordered)
+        {
+            CredentialVariables.RegisterReference(entry.CredentialReference);
+            foreach (string reference in HeaderValues(entry))
+            {
+                CredentialVariables.RegisterReference(reference);
+            }
+        }
+
+        return (new ProviderStore(ordered), migrated);
+    }
+
+    /// <summary>
+    /// The cross-process claim beside a provider store: <c>providers.lock</c> for
+    /// <c>providers.json</c>. It serializes a migration and a save against another process's
+    /// read-modify-write; a read-only load does not take it.
+    /// </summary>
+    internal static string WriteLockPath(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        return Path.ChangeExtension(filePath, ".lock");
+    }
+
+    private static FileLock AcquireLock(string filePath) => AcquireLock(filePath, LockTimeout);
+
+    internal static FileLock AcquireLock(string filePath, TimeSpan timeout)
+    {
+        string lockPath = WriteLockPath(filePath);
+        try
+        {
+            return FileLock.Acquire(lockPath, timeout);
+        }
+        catch (TimeoutException exception)
+        {
+            throw new InvalidOperationException(
+                $"the provider store '{filePath}' is being written by another Lunate process (lock "
+                    + $"'{lockPath}'); nothing was changed. Try again.",
+                exception
+            );
         }
     }
 

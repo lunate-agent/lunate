@@ -418,7 +418,10 @@ public sealed class SettingsStoreProvidersTests
 
         SettingsStore.WriteProvider(provider, path);
 
-        Assert.Equal([path], Directory.GetFiles(temp.Root));
+        Assert.Equal(
+            new[] { path, SettingsStore.WriteLockPath(path) }.Order(StringComparer.Ordinal),
+            Directory.GetFiles(temp.Root).Order(StringComparer.Ordinal)
+        );
         AgentSettings settings = SettingsStore.Resolve(path, _ => null);
         CustomProvider stored = Assert.Single(settings.Providers);
         Assert.Equal(provider, stored);
