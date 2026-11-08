@@ -59,6 +59,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--eval-python", default=sys.executable, help="interpreter with the official swebench package")
     parser.add_argument("--docker", default="docker")
     parser.add_argument("--limit", type=int, help="run only the first N instances (smoke runs)")
+    parser.add_argument("--resume", action="store_true", help="reuse completed Lunate instance runs")
     parser.add_argument("--keep-images", action="store_true", help="do not remove an instance image afterwards")
     return parser.parse_args(argv)
 
@@ -104,18 +105,9 @@ def adapter_command(
     return command
 
 
-def run_lunate_instance(
-    definition: dict, instance_id: str, model: dict, work_root: Path, remaining: float
+def read_lunate_row(
+    definition: dict, instance_id: str, model: dict, run_dir: Path, returncode: int
 ) -> dict:
-    run_root = work_root / "lunate"
-    run_root.mkdir(parents=True, exist_ok=True)
-    command = adapter_command(definition, instance_id, model, remaining, run_root)
-    env = os.environ.copy()
-    if platform.machine() not in ("x86_64", "AMD64"):
-        env["DOTNET_EnableWriteXorExecute"] = "0"
-    log = work_root / "logs" / f"lunate-{model['tier']}-{safe(instance_id)}.log"
-    result = run_command(command, cwd=REPOSITORY, env=env, log=log)
-    run_dir = run_root / f"{model['tier']}-{safe(instance_id)}"
     run_json = {}
     if (run_dir / "run.json").is_file():
         run_json = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
@@ -124,7 +116,7 @@ def run_lunate_instance(
     spend = instance_spend(totals, pricing)
     counts = official_counts(run_dir)
     instance = (run_json.get("instances") or [{}])[0]
-    exit_code = int(instance.get("exitCode", result.returncode))
+    exit_code = int(instance.get("exitCode", returncode))
     has_patch = bool(instance.get("hasPatch"))
     failure = None
     if totals.get("limit") and totals["limit"].get("kind") == "cost":
@@ -153,6 +145,21 @@ def run_lunate_instance(
     }
 
 
+def run_lunate_instance(
+    definition: dict, instance_id: str, model: dict, work_root: Path, remaining: float
+) -> dict:
+    run_root = work_root / "lunate"
+    run_root.mkdir(parents=True, exist_ok=True)
+    command = adapter_command(definition, instance_id, model, remaining, run_root)
+    env = os.environ.copy()
+    if platform.machine() not in ("x86_64", "AMD64"):
+        env["DOTNET_EnableWriteXorExecute"] = "0"
+    log = work_root / "logs" / f"lunate-{model['tier']}-{safe(instance_id)}.log"
+    result = run_command(command, cwd=REPOSITORY, env=env, log=log)
+    run_dir = run_root / f"{model['tier']}-{safe(instance_id)}"
+    return read_lunate_row(definition, instance_id, model, run_dir, result.returncode)
+
+
 def run_arm(
     definition: dict, subset: list[str], arm: str, work_root: Path, initial_spent: float = 0.0
 ) -> dict:
@@ -166,15 +173,28 @@ def run_arm(
         if spent >= cap:
             cap_reached = True
             break
-        remaining = max(cap - spent, 0.0)
-        per_model = remaining / len(models)
         runner = run_lunate_instance if arm == "lunate" else run_baseline_instance
-        with ThreadPoolExecutor(max_workers=len(models)) as executor:
-            futures = [
-                executor.submit(runner, definition, instance_id, model, work_root, per_model)
-                for model in models
-            ]
-            rows = [future.result() for future in futures]
+        rows_by_model: dict[str, dict] = {}
+        pending: list[dict] = []
+        for model in models:
+            run_dir = work_root / "lunate" / f"{model['tier']}-{safe(instance_id)}"
+            if arm == "lunate" and definition.get("_resume") and (run_dir / "run.json").is_file():
+                rows_by_model[model["tier"]] = read_lunate_row(definition, instance_id, model, run_dir, 0)
+            else:
+                if run_dir.exists():
+                    shutil.rmtree(run_dir)
+                pending.append(model)
+        if pending:
+            remaining = max(cap - spent - sum(row["spendUsd"] or 0.0 for row in rows_by_model.values()), 0.0)
+            per_model = remaining / len(pending)
+            with ThreadPoolExecutor(max_workers=len(pending)) as executor:
+                futures = [
+                    executor.submit(runner, definition, instance_id, model, work_root, per_model)
+                    for model in pending
+                ]
+                for model, future in zip(pending, futures):
+                    rows_by_model[model["tier"]] = future.result()
+        rows = [rows_by_model[model["tier"]] for model in models]
         for row in rows:
             if row.get("spendUsd") is not None:
                 spent += row["spendUsd"]
@@ -257,6 +277,7 @@ def main(argv: list[str] | None = None) -> int:
             "_eval_python": args.eval_python,
             "_docker": args.docker,
             "_adapter": args.adapter,
+            "_resume": args.resume,
             "_keep_images": args.keep_images,
         }
     )

@@ -329,6 +329,44 @@ run_dir = output / run_id
             self.assertEqual(1, arm["arms"][0]["resolved"])
             self.assertAlmostEqual(4.1706, arm["totalSpendUsd"], places=6)
 
+            marker = root / "invoked"
+            adapter.write_text(
+                "import sys\nfrom pathlib import Path\n"
+                f"Path({str(marker)!r}).write_text('invoked', encoding='utf-8')\n"
+                "sys.exit(1)\n",
+                encoding="utf-8",
+            )
+            resumed = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPOSITORY / "scripts" / "eval" / "swebench_run.py"),
+                    "--config",
+                    str(config),
+                    "--work-dir",
+                    str(work),
+                    "--summary-dir",
+                    str(summary),
+                    "--run-id",
+                    "run-1",
+                    "--arm",
+                    "lunate",
+                    "--resume",
+                    "--adapter",
+                    str(adapter),
+                    "--lunate-bin",
+                    str(binary),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**__import__("os").environ, "FAKE_KEY": "placeholder"},
+            )
+
+            self.assertEqual(0, resumed.returncode, resumed.stderr)
+            self.assertFalse(marker.exists())
+            resumed_arm = json.loads((summary / "run-1.lunate.json").read_text(encoding="utf-8"))
+            self.assertEqual(1, resumed_arm["arms"][0]["resolved"])
+
 
 if __name__ == "__main__":
     unittest.main()
