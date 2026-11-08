@@ -17,7 +17,7 @@ from swebench_run_support import (  # noqa: E402
     summarize_arm,
     trajectory_totals,
 )
-from swebench_run import baseline_command  # noqa: E402
+from swebench_baseline import baseline_command  # noqa: E402
 
 EVAL = REPOSITORY / "eval" / "swebench"
 

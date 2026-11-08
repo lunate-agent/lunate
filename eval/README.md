@@ -127,6 +127,36 @@ of the whole generated codebase evaluated by `programbench eval`; a SWE-bench pa
 that handoff. A second adapter for ProgramBench, if wanted, is a separate change against the
 official `programbench` CLI.
 
+## Published SWE-bench run
+
+The first published run is pinned in `eval/swebench/`:
+
+| File | Contents |
+| --- | --- |
+| `instances.txt` | The fixed five-instance subset: every 100th id in lexicographic order of the 500-instance Verified test split. |
+| `run.json` | The dataset and split, the budget and frontier models, one run cost cap, the timeout, the evaluation worker count and the mini-swe-agent settings. |
+| `litellm-models.json` | The baseline models' token prices, because LiteLLM does not know these new ids. |
+| `mini-swe-agent.yaml` | The `x-opencode-session` header that OpenCode Go requires and LiteLLM does not send. |
+
+Run both arms and write the committed summary:
+
+```bash
+dotnet publish src/Lunate.Coding -c Release -r linux-x64 --self-contained true \
+  -p:PublishSingleFile=true -o artifacts/linux-x64
+export OPENCODE_GO_API_KEY=... OPENROUTER_API_KEY=...
+python3 scripts/eval/swebench_run.py --arm all \
+  --lunate-bin artifacts/linux-x64/lunate --mini-extra mini-extra --run-id <run-id>
+```
+
+The orchestrator passes the run's remaining budget to each Lunate invocation as `--max-cost`, runs
+mini-swe-agent on the same subset and models with its own cost limit, and takes every resolved count
+from `swebench.harness.run_evaluation`. The committed `eval/swebench/summary.json` and `summary.md`
+are the evidence; the per-instance patches and trajectories stay under the ignored `eval/runs/`.
+
+On an arm64 host running the official `linux/amd64` images under QEMU, export
+`DOTNET_EnableWriteXorExecute=0`; the adapter sets invariant globalization itself because the
+images have no ICU.
+
 ## Row schema
 
 `results.csv` header (committed once): `date,phase,tool,model,tasks,passed,pass_rate,steps,total_tokens,seconds,edit_tiers,notes`.
