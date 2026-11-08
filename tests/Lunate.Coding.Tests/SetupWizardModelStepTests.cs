@@ -79,6 +79,52 @@ public sealed class SetupWizardModelStepTests
         await run;
     }
 
+    /// <summary>
+    /// Regression: a confirmed wizard pick's continuation runs off-thread and opens the next step's
+    /// picker. The dismissal used to complete the pick first, so a dismissal still running when that
+    /// continuation landed cleared the newer picker and cancelled its pick — the walk aborted on a
+    /// step the user never saw (the "Model id" frame never arrived on the Linux shard).
+    /// </summary>
+    [PosixFact]
+    public async Task A_confirmed_pick_does_not_abort_the_step_its_continuation_opens()
+    {
+        using var host = new InteractiveSessionHost(
+            freshInstall: true,
+            interactiveConsole: true,
+            discoveryTransport: Response(500, "{}")
+        );
+        // Hold every dismissal so the just-completed pick's continuation has ample time to open
+        // the next picker before the dismissal clears anything. With the ordering fixed the pick
+        // is not completed yet, so nothing can open until the dismissal returns and the walk
+        // proceeds to the model id.
+        host.Session.PickerDismissalSeam = () => Task.Delay(150);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await host.WaitForFrameAsync("Select provider");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Credential for openai");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("API key for openai");
+        host.Console.SendText(Credential);
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Connection test (one discovery request");
+        host.Console.SendEnter(); // run the test
+        await host.WaitForFrameAsync("connection test failed");
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("discovery listed nothing — enter an id manually");
+        host.Console.SendEnter();
+
+        // Before the fix the wizard had already aborted here: this wait never saw its frame.
+        await host.WaitForFrameAsync("Model id");
+        Assert.Contains("Model id", host.Frames, StringComparison.Ordinal);
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        host.Console.Complete();
+        await run;
+    }
+
     private static async Task ReachModelPickerAsync(InteractiveSessionHost host)
     {
         await host.WaitForFrameAsync("Select provider");
