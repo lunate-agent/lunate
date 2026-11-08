@@ -160,6 +160,15 @@ and `maxTime` (seconds), or per invocation with `--max-cost <usd>` and `--max-ti
 Print mode is usually unattended, so set a cost limit there: `lunate -p --max-cost 2 "…"` is a
 budget the run cannot exceed without saying so.
 
+## Run commands in a container
+
+`bash` normally runs on the host. `--env podman:<image>` or `--env docker:<image>`, or the
+user-scoped `environment` setting with `--env` winning, runs the command half in one session
+container while `read`/`write`/`edit` stay on the host. The workspace is mounted at the same
+absolute path, so file tools, approvals and change tracking keep working; the state root, install
+prefix and `auth.json` are not mounted. [Run tool calls in a container](execution-environments.md)
+has the full flow, the measurements and the platform limits.
+
 ## Modes
 
 - **Interactive** — `lunate`: the TUI session with approvals, the live area and command history
@@ -212,6 +221,8 @@ Project skills need a trust decision like any other repository code.
 
 - [First run](first-run.md) — choosing a provider, `lunate auth`, the setup wizard
 - [Configuration reference](configuration.md) — every settings key, generated from the schema
+- [Run tool calls in a container](execution-environments.md) — the container mode, its settings and
+  what stays on the host
 - [Export contract](spec/export.md) — what `/copy` and `/export` guarantee
 - [The Roslyn MCP server](mcp-roslyn.md) — the C# tools from another MCP host
 - [Security policy](../SECURITY.md) — the full trust model and how to report
