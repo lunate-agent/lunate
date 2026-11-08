@@ -189,6 +189,36 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
     }
 
     [Fact]
+    public void The_summary_names_the_model_the_passed_decision_check_used()
+    {
+        var wizard = new SetupWizardModel();
+        wizard.RecordProvider(
+            new WizardProviderChoice(
+                "openai",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                "openai-chat",
+                CredentialPlacement.Bearer,
+                null
+            )
+        );
+        wizard.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
+        wizard.RecordDecisionProfile(
+            new WizardDecisionChoice("decisions", "gpt-5", Native: false, PinnedVersion: null)
+        );
+        wizard.RecordDecisionCheck(new WizardCheckResult(WizardProgress.Passed));
+
+        string summary = string.Join("\n", SetupWizardSummary.Render(wizard));
+
+        Assert.Contains(
+            "decision check: passed — gpt-5 (adapter)",
+            summary,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public void A_decision_profile_without_a_check_is_named_unverified()
     {
         var wizard = new SetupWizardModel();
@@ -275,7 +305,11 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         await host.WaitForFrameAsync("Write this configuration?");
-        Assert.Contains("decision check: passed", Flatten(summary), StringComparison.Ordinal);
+        Assert.Contains(
+            "decision check: passed — openrouter/typesafe/jev-1.14 (native)",
+            Flatten(summary),
+            StringComparison.Ordinal
+        );
         Assert.Equal(1, handler.RequestCount);
 
         host.Console.SendEscape(); // abort at the summary: nothing is written

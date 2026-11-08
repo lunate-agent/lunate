@@ -370,8 +370,10 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
 
         // The list must come back after the first answer; before the fix the walk went straight
-        // to the summary and this frame never appeared.
+        // to the summary and this frame never appeared. It must also show the value the switch
+        // now holds, not the value it had when the step was entered.
         await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        await host.WaitForFrameAsync("approval gate shadow — screen staged actions");
         await PickRowAsync(
             host,
             "Decisions settings",
@@ -385,6 +387,9 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
 
         await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        await host.WaitForFrameAsync(
+            "decide tool on — offer the decide tool when a decision profile resolves"
+        );
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);

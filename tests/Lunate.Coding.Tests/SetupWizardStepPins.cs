@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Lunate.Ai;
 using Lunate.Tui;
 
@@ -139,6 +140,7 @@ public sealed class SetupWizardStepPins
             StringComparison.Ordinal
         );
 
+        await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEscape(); // abort at the summary: nothing is written
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
         host.Console.Complete();
@@ -198,6 +200,7 @@ public sealed class SetupWizardStepPins
             StringComparison.Ordinal
         );
 
+        await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEscape(); // abort at the summary: nothing is written
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
         host.Console.Complete();
@@ -277,6 +280,17 @@ public sealed class SetupWizardStepPins
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("setup written");
+        // The commit notice is painted first and the reconciliation notice replaces it; wait for
+        // the wording itself rather than the shared prefix, or the read can race the repaint.
+        await host.WaitUntilAsync(() =>
+            PlainFrames(host.Frames)
+                .Contains(
+                    "setup written: the files this walk changed are saved now and read at "
+                        + "startup; this session keeps its current composition, so the new "
+                        + "settings apply from the next session.",
+                    StringComparison.Ordinal
+                )
+        );
 
         Assert.False(File.Exists(AuthStore.SettingsFilePath(host.Temp.File("auth.json"))));
         Assert.False(
@@ -404,6 +418,15 @@ public sealed class SetupWizardStepPins
         string.Join(
             " ",
             text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())
+        );
+
+    /// <summary>Terminal writes with the ANSI control sequences removed and whitespace collapsed,
+    /// so a notice wrapped across live-area lines reads as one phrase.</summary>
+    private static string PlainFrames(string frames) =>
+        Regex.Replace(
+            Regex.Replace(frames, "\u001b\\[[0-9;?]*[ -/]*[@-~]", string.Empty),
+            "\\s+",
+            " "
         );
 
     private static HttpMessageHandler Recording(string body) =>

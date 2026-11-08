@@ -115,7 +115,11 @@ internal sealed partial class InteractiveSession
             }
         }
 
-        Notify("setup written — the walk's fixed answer waits for the next session");
+        Notify(
+            "setup written: the files this walk changed are saved now and read at startup; "
+                + "this session keeps its current composition, so the new settings apply from "
+                + "the next session."
+        );
     }
 
     // --- the primitives ---
@@ -313,7 +317,10 @@ internal static class SetupWizardSummary
             switch (wizard.DecisionCheck?.Outcome)
             {
                 case WizardProgress.Passed:
-                    lines.Add("decision check: passed");
+                    lines.Add(
+                        $"decision check: passed — {wizard.DecisionProfile.ModelId} "
+                            + $"({(wizard.DecisionProfile.Native ? "native" : "adapter")})"
+                    );
                     break;
                 case WizardProgress.Skipped:
                     lines.Add("decision check: skipped — the decision profile stays unverified");
