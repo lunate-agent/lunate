@@ -43,3 +43,4 @@ Confirmed 2026-10-04:
 | S-3 | Startup baselines and calibrated budgets | done 2026-10-04 | CI 250/300/350 ms, local 150 ms; ADR 0005 proposed |
 | S-4 | Does in-process Roslyn load real solutions? | done 2026-10-04 | Go in-process; single-file keeps the MSBuild build host loose (ADR 0006 proposed) |
 | S-5 | Rx or plain async for the TUI live area, optionally plus ReactiveUI? | done 2026-10-04 | System.Reactive at the TUI boundary, no ReactiveUI (ADR 0007 proposed) |
+| S-8 | Which setup interaction model do OpenCode, `openspec init`, Pi and Gemini CLI imply for us? | done 2026-11-08 | One wizard, one write gate, three verbs, menus that return, review as a file manifest; issues #681–#688 refined/filed |
