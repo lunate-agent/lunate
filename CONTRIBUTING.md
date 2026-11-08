@@ -81,7 +81,7 @@ condition that was polled, how many times it was observed and the longest gap be
 the thread pool's state, the test process's process tree (with `/proc` descriptors on Linux) and the
 session state the condition reads. Many polls with no long gap is a hang; few polls with long gaps is
 a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis` and lives in
-`tests/Lunate.Coding.Tests/WaitDiagnosis.cs`.
+`tests/Lunate.Coding.Tests/WaitDiagnosis.cs` and `ProcessTable.cs`.
 
 ## Repository map
 

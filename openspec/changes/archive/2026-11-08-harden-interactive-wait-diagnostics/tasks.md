@@ -39,7 +39,7 @@
 
 ## 4. Close out
 
-- [ ] 4.1 Answer every acceptance check from the card by number in a PR comment, with `file:line` or
+- [x] 4.1 Answer every acceptance check from the card by number in a PR comment, with `file:line` or
   test names.
-- [ ] 4.2 `openspec sync-specs` then `openspec archive harden-interactive-wait-diagnostics --yes` as
+- [x] 4.2 `openspec sync-specs` then `openspec archive harden-interactive-wait-diagnostics --yes` as
   the final commit.

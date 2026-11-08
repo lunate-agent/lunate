@@ -108,7 +108,7 @@ public sealed class WaitDiagnosisTests
 
             """;
 
-        IReadOnlyList<string> lines = WaitDiagnosis.DescribeTable(table, 10, "/bin/ps");
+        IReadOnlyList<string> lines = ProcessTable.Describe(table, 10, "/bin/ps");
 
         Assert.Contains(
             lines,
@@ -135,7 +135,7 @@ public sealed class WaitDiagnosisTests
     [Fact]
     public void An_empty_process_table_is_reported_as_unavailable()
     {
-        IReadOnlyList<string> lines = WaitDiagnosis.DescribeTable(string.Empty, 10, "/bin/ps");
+        IReadOnlyList<string> lines = ProcessTable.Describe(string.Empty, 10, "/bin/ps");
 
         Assert.Contains(lines, line => line.StartsWith("unavailable:", StringComparison.Ordinal));
     }
