@@ -23,7 +23,7 @@ internal static class WizardModelCheck
     )
     {
         WizardProviderChoice provider = wizard.Provider!;
-        ModelInfo? known = catalog.Find(choice.ModelId);
+        ModelInfo? known = WizardModelLookup.Resolve(provider, catalog, choice.ModelId).Match;
         if (provider.Custom)
         {
             _ = ProviderApiFamilies.TryParse(choice.ApiFamily, out ProviderApiFamily family);
@@ -203,7 +203,7 @@ internal static class WizardModelCheck
         }
 
         ModelInfo model =
-            catalog.Find(decision.ModelId)
+            WizardModelLookup.Resolve(provider, catalog, decision.ModelId).Match
             ?? new ModelInfo(decision.ModelId, provider.Id, null, 0, false);
         return model with
         {
@@ -261,7 +261,7 @@ internal static class WizardModelCheck
             // catalog, so its ModelFor result supplies the endpoint and wire id; a preset model
             // goes through ModelProfileResolver, which keeps the catalog's unqualified wire id.
             ResolvedModelProfile profile;
-            ModelInfo? known = catalog.Find(choice.ModelId);
+            ModelInfo? known = WizardModelLookup.Resolve(provider, catalog, choice.ModelId).Match;
             if (
                 provider.Custom
                 || known is null

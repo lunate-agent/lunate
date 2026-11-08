@@ -426,6 +426,48 @@ public sealed class ModelCatalogTests
         }
     }
 
+    [Fact]
+    public void A_provider_scoped_lookup_answers_the_providers_own_entry()
+    {
+        ModelCatalog catalog = ModelCatalog.Load(MissingUserFile());
+
+        ScopedModelLookup lookup = catalog.FindFor("opencode", "kimi-k2.7-code");
+
+        Assert.NotNull(lookup.Match);
+        Assert.Equal("opencode/kimi-k2.7-code", lookup.Match.Id);
+        Assert.False(lookup.IsAmbiguous);
+        Assert.Empty(lookup.Candidates);
+    }
+
+    [Fact]
+    public void A_provider_scoped_lookup_returns_the_candidates_its_scope_cannot_answer()
+    {
+        ModelCatalog catalog = ModelCatalog.Load(MissingUserFile());
+
+        ScopedModelLookup lookup = catalog.FindFor("local", "kimi-k2.7-code");
+
+        Assert.Null(lookup.Match);
+        Assert.True(lookup.IsAmbiguous);
+        Assert.Equal(
+            ["moonshotai/kimi-k2.7-code", "opencode/kimi-k2.7-code", "opencode-go/kimi-k2.7-code"],
+            lookup.Candidates.Select(candidate => candidate.Id)
+        );
+    }
+
+    [Fact]
+    public void The_unscoped_lookup_still_refuses_an_ambiguous_bare_id()
+    {
+        ModelCatalog catalog = ModelCatalog.Load(MissingUserFile());
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            catalog.Find("kimi-k2.7-code")
+        );
+
+        Assert.Contains("moonshotai/kimi-k2.7-code", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("opencode/kimi-k2.7-code", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("opencode-go/kimi-k2.7-code", exception.Message, StringComparison.Ordinal);
+    }
+
     private static string MissingUserFile() =>
         Path.Combine(Path.GetTempPath(), $"lunate-model-catalog-missing-{Guid.NewGuid():N}.json");
 

@@ -293,6 +293,69 @@ public sealed class ModelProfileResolutionTests
     }
 
     [Fact]
+    public void A_profile_resolves_a_bare_id_its_own_provider_entry_owns()
+    {
+        // The setup wizard writes a custom endpoint's profile with the discovery listing's bare
+        // wire id, while the shipped catalog holds the same bare id under several providers. The
+        // profile's own provider answers it, so the configuration the walk wrote loads (#675).
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = Catalog(
+            temp,
+            """
+            { "id": "local/kimi-k2.7-code", "provider": "openai", "wireId": "kimi-k2.7-code",
+              "contextWindow": 262144, "supportsTools": true }
+            """
+        );
+        var profile = new ModelProfile("chat-main", "local", "kimi-k2.7-code");
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            profile,
+            [Provider("local", "https://local.example.test/v1")],
+            catalog
+        );
+
+        Assert.Equal("local/kimi-k2.7-code", resolved.Model.Id);
+        Assert.Equal("kimi-k2.7-code", resolved.Model.WireId);
+        Assert.Equal("https://local.example.test/v1", resolved.Model.Endpoint?.ToString());
+    }
+
+    [Fact]
+    public void A_profile_resolves_a_bare_id_its_preset_owns()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "moonshotai", "kimi-k2.7-code");
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            profile,
+            [Provider("moonshotai", "https://api.moonshot.example/v1", "moonshotai")],
+            catalog
+        );
+
+        Assert.Equal("moonshotai/kimi-k2.7-code", resolved.Model.Id);
+    }
+
+    [Fact]
+    public void A_bare_id_no_provider_entry_owns_still_names_its_candidates()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "local", "kimi-k2.7-code");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ModelProfileResolver.Resolve(
+                profile,
+                [Provider("local", "https://local.example.test/v1")],
+                catalog
+            )
+        );
+
+        Assert.Contains("model", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("moonshotai/kimi-k2.7-code", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("opencode/kimi-k2.7-code", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_systemone_profile_with_an_exact_version_resolves()
     {
         using var temp = new TempDirectory();

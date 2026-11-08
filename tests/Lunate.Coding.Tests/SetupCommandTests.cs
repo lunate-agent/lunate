@@ -253,6 +253,43 @@ public sealed class SetupCommandTests : IDisposable
     }
 
     [PosixFact]
+    public void A_custom_endpoints_bare_model_id_ambiguous_in_the_catalog_completes_the_run()
+    {
+        // #675 on the flag path: the id is three catalog entries' wire id, and the walked provider
+        // (a custom endpoint) owns none of them. The run must not fail with an ambiguity message.
+        (int exit, string output, string errors) = Run(
+            [
+                "setup",
+                "--provider",
+                "local",
+                "--endpoint",
+                "https://local.example.test/v1",
+                "--model",
+                "kimi-k2.7-code",
+                "--profile",
+                "main",
+                "--key-stdin",
+            ],
+            stdinIsTerminal: false,
+            input: Secret + "\n",
+            discovery: Discovery("""{"data":[{"id":"kimi-k2.7-code"}]}""")
+        );
+
+        Assert.Equal(0, exit);
+        Assert.DoesNotContain("ambiguous", output + errors, StringComparison.Ordinal);
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+        Assert.Equal(
+            "kimi-k2.7-code",
+            settings
+                .RootElement.GetProperty("profiles")
+                .GetProperty("main")
+                .GetProperty("model")
+                .GetString()
+        );
+        Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
+    }
+
+    [PosixFact]
     public void As_decision_binds_decisions_profile_instead_of_the_chat_usage()
     {
         (int exit, string output, string errors) = Run(
@@ -453,17 +490,15 @@ public sealed class SetupCommandTests : IDisposable
         return (exit, output.ToString(), errors.ToString());
     }
 
-    private static HttpMessageHandler Discovery() =>
+    private static HttpMessageHandler Discovery(
+        string body = """{"data":[{"id":"deep/deepseek-chat"}]}"""
+    ) =>
         new RecordingHandler(
             (_, _) =>
                 Task.FromResult(
                     new HttpResponseMessage(HttpStatusCode.OK)
                     {
-                        Content = new StringContent(
-                            """{"data":[{"id":"deep/deepseek-chat"}]}""",
-                            Encoding.UTF8,
-                            "application/json"
-                        ),
+                        Content = new StringContent(body, Encoding.UTF8, "application/json"),
                     }
                 )
         );

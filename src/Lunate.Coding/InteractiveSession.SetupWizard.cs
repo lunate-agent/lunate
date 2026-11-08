@@ -705,7 +705,9 @@ internal sealed partial class InteractiveSession
         };
 
     /// <summary>Step 4: the model from the listing (type-ahead over ids, the resolved family shown
-    /// beside each) or manual entry when discovery was skipped or unavailable.</summary>
+    /// beside each) or manual entry when discovery was skipped or unavailable. The chosen id is read
+    /// in the walked provider's scope before it is staged, so a bare id the catalogue also holds
+    /// under other providers neither aborts the walk nor needs a qualified id here.</summary>
     private async Task<WizardMove> ModelStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         if (wizard.Provider is not { } provider)
@@ -750,6 +752,7 @@ internal sealed partial class InteractiveSession
 
         string modelId;
         string familyName;
+        string? reasoning = null;
         if (chosen is WizardTypedValue)
         {
             string? manual = await PromptAsync("Model id", ct).ConfigureAwait(false);
@@ -771,12 +774,56 @@ internal sealed partial class InteractiveSession
             WizardModelListing entry = _listing[values.IndexOf(chosen)];
             modelId = entry.Id;
             familyName = entry.ApiFamily ?? provider.ApiFamily;
-            wizard.RecordModel(new WizardModelChoice(modelId, familyName, entry.Reasoning));
-            return WizardMove.Advance;
+            reasoning = entry.Reasoning;
         }
 
-        wizard.RecordModel(new WizardModelChoice(modelId, familyName));
+        if (
+            await QualifiedIdAsync(wizard, provider, modelId, ct).ConfigureAwait(false)
+            is not { } staged
+        )
+        {
+            // The qualified-id picker dismissed: back to the model list, not out of the walk.
+            return WizardMove.Stay;
+        }
+
+        wizard.RecordModel(new WizardModelChoice(staged, familyName, reasoning));
         return WizardMove.Advance;
+    }
+
+    /// <summary>
+    /// The catalogue side of the model step: the id read in the walked provider's scope. A scope
+    /// that answers resolves it, and a scope that answers nothing leaves the id as given (the model
+    /// check decides). Only a bare id the catalogue holds under several other providers is asked
+    /// about, and then the qualified ids are the answer; null means the user stepped back.
+    /// </summary>
+    private async Task<string?> QualifiedIdAsync(
+        SetupWizardModel wizard,
+        WizardProviderChoice provider,
+        string modelId,
+        CancellationToken ct
+    )
+    {
+        ScopedModelLookup lookup = WizardModelLookup.Resolve(provider, _catalog, modelId);
+        if (!lookup.IsAmbiguous)
+        {
+            return modelId;
+        }
+
+        List<string> labels =
+        [
+            .. lookup.Candidates.Select(candidate =>
+                $"{candidate.Id} ({candidate.ApiFamily ?? provider.ApiFamily})"
+            ),
+        ];
+        List<string> values = [.. lookup.Candidates.Select(candidate => candidate.Id)];
+        return await PickAsync(
+                $"'{modelId}' is held by several catalogue providers — pick the qualified id this entry serves",
+                labels,
+                values,
+                PickerKind.WizardChoice,
+                ct
+            )
+            .ConfigureAwait(false);
     }
 
     /// <summary>Step 5: one minimal real request through the resolved family — the cost stated

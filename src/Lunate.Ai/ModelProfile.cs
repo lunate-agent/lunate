@@ -53,7 +53,12 @@ internal static class ModelProfileResolver
         ModelInfo? model;
         try
         {
-            model = catalog.Find(profile.Model);
+            // The profile names its provider, so the model id is read in that scope first: the
+            // entry's own catalogue id, then the exact id, then the unqualified lookup. A bare id
+            // the provider owns therefore resolves instead of failing as ambiguous (#675).
+            model = catalog.FindFor(provider.Name, profile.Model) is { Match: { } scoped }
+                ? scoped
+                : catalog.Find(profile.Model);
         }
         catch (InvalidOperationException exception)
         {

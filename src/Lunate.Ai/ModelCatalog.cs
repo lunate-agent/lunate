@@ -128,6 +128,45 @@ public sealed class ModelCatalog
         );
     }
 
+    /// <summary>
+    /// Finds an entry in the scope of one provider entry: the entry's own catalogue id
+    /// (<c>&lt;provider&gt;/&lt;id&gt;</c>), then the exact catalogue id, then the single entry whose
+    /// wire id the id is. A bare id that several entries' wire ids match comes back as the candidate
+    /// list instead of an exception, because the caller knows the provider and either resolves from
+    /// it or asks. <see cref="Find"/> keeps refusing that case for callers without the context.
+    /// </summary>
+    internal ScopedModelLookup FindFor(string provider, string id)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(id);
+        if (FindById($"{provider}/{id}") is { } scoped)
+        {
+            return new ScopedModelLookup(scoped, []);
+        }
+
+        if (FindById(id) is { } exact)
+        {
+            return new ScopedModelLookup(exact, []);
+        }
+
+        ModelInfo[] matches =
+        [
+            .. _models.Where(candidate =>
+                candidate.WireId is not null
+                && string.Equals(candidate.WireId, id, StringComparison.Ordinal)
+            ),
+        ];
+        return matches switch
+        {
+            [] => new ScopedModelLookup(null, []),
+            [ModelInfo only] => new ScopedModelLookup(only, []),
+            _ => new ScopedModelLookup(null, matches),
+        };
+    }
+
+    /// <summary>The entry with exactly this catalogue id, or null. Never throws.</summary>
+    internal ModelInfo? FindById(string id) => _modelsById.GetValueOrDefault(id);
+
     private static ModelInfo? Single(string id, ModelInfo[] matches) =>
         matches switch
         {

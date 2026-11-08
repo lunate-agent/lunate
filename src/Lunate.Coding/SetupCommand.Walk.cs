@@ -442,7 +442,9 @@ internal static partial class SetupCommand
             return listed;
         }
 
-        return catalog.Find(modelId)?.ApiFamily is { Length: > 0 } catalogued
+        return
+            WizardModelLookup.Resolve(provider, catalog, modelId).Match?.ApiFamily
+                is { Length: > 0 } catalogued
             ? catalogued
             : provider.ApiFamily;
     }
