@@ -72,9 +72,9 @@ commit tests already pin the file bytes, so the two cannot drift silently.
 
 ### 3. One fact per line, wrapped with `CellText.Wrap`
 
-The renderer emits a file heading at column 0 and each fact as `  label: value` when it fits. When
-it does not fit, it emits `  label:` and then the value wrapped at `width - 4`, indented four
-spaces. `CellText.Wrap` already breaks on spaces, `/` and `\`, and hard-breaks a token that cannot
+The renderer emits a file heading at column 0 and each fact as `label: value` under a two-space
+indent when it fits. When it does not fit, it emits `label:` and then the value wrapped at
+`width - 4`, indented four spaces. `CellText.Wrap` already breaks on spaces, `/` and `\`, and hard-breaks a token that cannot
 fit, so a long URL or model id cannot overflow. This is the same cell-width measure the live area
 and the terminal-screen tests use; no second width rig is introduced.
 
