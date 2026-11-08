@@ -19,6 +19,14 @@ internal sealed partial class InteractiveSession
     /// <summary>The picked value of an open wizard picker; null means the picker dismissed it.</summary>
     private TaskCompletionSource<string?>? _wizardPick;
 
+    /// <summary>
+    /// Test seam: awaited after a picker's answer is taken and before the dismissal clears it. A
+    /// completed pick's continuation runs off-thread and opens the next step's picker; a test
+    /// holds this point to prove the dismissal cannot then clear or cancel that newer picker.
+    /// Production leaves this null.
+    /// </summary>
+    internal Func<Task>? PickerDismissalSeam { get; set; }
+
     /// <summary>The discovery listing the connection test collected; empty when it skipped or failed.</summary>
     private IReadOnlyList<WizardModelListing> _listing = [];
 

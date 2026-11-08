@@ -970,7 +970,22 @@ internal sealed partial class InteractiveSession
                     break;
                 }
 
-                DismissPicker();
+                // A wizard picker dismissed with Esc is the walk leaving the wizard: nothing is
+                // written. Capture the pick first: a stale dismissal must cancel the pick it
+                // dismissed, not one a continuation opened for the next step.
+                SelectListModel dismissing = _picker!;
+                TaskCompletionSource<string?>? dismissed = _wizardPick;
+                if (PickerDismissalSeam is { } escapeSeam)
+                {
+                    await escapeSeam().ConfigureAwait(false);
+                }
+
+                DismissPicker(dismissing);
+                if (dismissed is { Task.IsCompleted: false } pick)
+                {
+                    pick.TrySetResult(null);
+                }
+
                 break;
             case KeyKind.Character when plain && key.Text is { Length: > 0 } text:
                 if (PickerFiltersOn())
@@ -1035,8 +1050,19 @@ internal sealed partial class InteractiveSession
         _live.SetPicker(picker);
     }
 
-    private void DismissPicker()
+    /// <summary>
+    /// Clears <paramref name="picker"/> when it is still the open one. It is not when a completed
+    /// wizard pick's continuation ran off-thread and opened the next step's picker; that newer
+    /// picker is the walk's, so this dismissal must leave it (and its pending pick) alone. The
+    /// caller completes the pick it dismissed, never whichever pick is current when this returns.
+    /// </summary>
+    private void DismissPicker(SelectListModel picker)
     {
+        if (!ReferenceEquals(_picker, picker))
+        {
+            return;
+        }
+
         _picker = null;
         _pickerTitlePrefix = string.Empty;
         _pickerLabels = [];
@@ -1044,11 +1070,6 @@ internal sealed partial class InteractiveSession
         _pickerVisibleValues = [];
         _pickerFilter = string.Empty;
         _live.SetPicker(null);
-        // A wizard picker dismissed with Esc is the walk leaving the wizard: nothing is written.
-        if (_wizardPick is { Task.IsCompleted: false } pick)
-        {
-            pick.TrySetResult(null);
-        }
     }
 
     private async ValueTask ConfirmPicker(CancellationToken ct)
@@ -1065,15 +1086,21 @@ internal sealed partial class InteractiveSession
             return;
         }
 
-        // The wizard's pick completes before the dismissal clears it, so an Esc between frames
-        // and a confirm cannot race for the same pending answer (the dismissal only cancels an
-        // unanswered pick).
+        // The pick completes before the dismissal clears the picker, so the next key cannot be read
+        // between the two. Its continuation runs off-thread and may open the next step's picker
+        // before the dismissal runs; the identity check in the dismissal leaves that one alone.
+        TaskCompletionSource<string?>? pick = _wizardPick;
         if (kind is PickerKind.WizardProvider or PickerKind.WizardChoice or PickerKind.WizardModel)
         {
-            _wizardPick?.TrySetResult(value);
+            pick?.TrySetResult(value);
         }
 
-        DismissPicker();
+        if (PickerDismissalSeam is { } seam)
+        {
+            await seam().ConfigureAwait(false);
+        }
+
+        DismissPicker(picker);
         switch (kind)
         {
             case PickerKind.Model:
