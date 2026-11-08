@@ -47,7 +47,7 @@ public sealed class SettingsStoreTests
         AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
 
         Assert.Equal(1.25m, settings.MaxCostUsd);
-        Assert.Equal(TimeSpan.FromSeconds(90), settings.MaxTime);
+        Assert.Equal(TimeSpan.FromTicks(90 * TimeSpan.TicksPerSecond), settings.MaxTime);
     }
 
     [Theory]

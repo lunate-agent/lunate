@@ -704,7 +704,7 @@ public sealed class CliTests
         LaunchOptions options = Parse("--max-cost", "1.25", "--max-time", "5m", "--allow-unpriced");
 
         Assert.Equal(1.25m, options.MaxCostUsd);
-        Assert.Equal(TimeSpan.FromMinutes(5), options.MaxTime);
+        Assert.Equal(TimeSpan.FromTicks(5 * TimeSpan.TicksPerMinute), options.MaxTime);
         Assert.True(options.AllowUnpriced);
     }
 

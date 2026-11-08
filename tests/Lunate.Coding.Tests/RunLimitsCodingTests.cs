@@ -52,7 +52,10 @@ public sealed class RunLimitsCodingTests
     {
         using var temp = new TempDirectory();
         var clock = new ManualTimeProvider();
-        var client = new AdvancingChatClient(clock, TimeSpan.FromSeconds(5));
+        var client = new AdvancingChatClient(
+            clock,
+            TimeSpan.FromTicks(5 * TimeSpan.TicksPerSecond)
+        );
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(
             temp,
             new FakeChatClientFactory(client)
@@ -61,7 +64,10 @@ public sealed class RunLimitsCodingTests
             Prompt = "Go",
             Json = true,
             TimeProvider = clock,
-            Launch = new LaunchOptions { MaxTime = TimeSpan.FromSeconds(5) },
+            Launch = new LaunchOptions
+            {
+                MaxTime = TimeSpan.FromTicks(5 * TimeSpan.TicksPerSecond),
+            },
         };
 
         (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
