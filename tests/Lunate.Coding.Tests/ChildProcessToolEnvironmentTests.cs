@@ -53,11 +53,14 @@ public sealed class ChildProcessToolEnvironmentTests
             [
                 "/d",
                 "/c",
-                "echo [%OPENAI_API_KEY%][%GEMINI_API_KEY%][%OPENAI_API_KEY_BACKUP%][%MY_PROJECT_TOKEN%]",
+                // cmd leaves an undefined %VAR% literal on the command line, so absence is
+                // asked with `if defined` instead of printing the variable and expecting empty.
+                "echo [%OPENAI_API_KEY%][%OPENAI_API_KEY_BACKUP%][%MY_PROJECT_TOKEN%]"
+                    + "& if defined GEMINI_API_KEY (echo leaked) else (echo stripped)",
             ]
         );
 
-        Assert.Equal($"[{PassedThroughToken}][][{LookAlike}][{UserToken}]", stdout.Trim());
+        Assert.Equal($"[{PassedThroughToken}][{LookAlike}][{UserToken}]\nstripped", stdout.Trim());
     }
 
     private static async Task<string> RunAsync(string fileName, IReadOnlyList<string> arguments)
