@@ -141,6 +141,15 @@ When a tool result would flood the window, the text is spilled to a file and the
 stub it can page back through; observation masking trims old turns without losing the transcript.
 `/context` reports what each saved: `saved tokens: spills 0, masking 0, read stubs 0`.
 
+## Run commands in a container
+
+`bash` normally runs on the host. `--env podman:<image>` or `--env docker:<image>`, or the
+user-scoped `environment` setting with `--env` winning, runs the command half in one session
+container while `read`/`write`/`edit` stay on the host. The workspace is mounted at the same
+absolute path, so file tools, approvals and change tracking keep working; the state root, install
+prefix and `auth.json` are not mounted. [Run tool calls in a container](execution-environments.md)
+has the full flow, the measurements and the platform limits.
+
 ## Modes
 
 - **Interactive** — `lunate`: the TUI session with approvals, the live area and command history
@@ -193,6 +202,8 @@ Project skills need a trust decision like any other repository code.
 
 - [First run](first-run.md) — choosing a provider, `lunate auth`, the setup wizard
 - [Configuration reference](configuration.md) — every settings key, generated from the schema
+- [Run tool calls in a container](execution-environments.md) — the container mode, its settings and
+  what stays on the host
 - [Export contract](spec/export.md) — what `/copy` and `/export` guarantee
 - [The Roslyn MCP server](mcp-roslyn.md) — the C# tools from another MCP host
 - [Security policy](../SECURITY.md) — the full trust model and how to report
