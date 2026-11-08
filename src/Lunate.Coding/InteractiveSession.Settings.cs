@@ -58,6 +58,9 @@ internal sealed partial class InteractiveSession
         lines.Add(Row("updateCheck", BooleanLiteral(_settings.UpdateCheck)));
         lines.Add(Row("favorites", ListValue(_settings.Favorites)));
         lines.Add(Row("tools.extra", ListValue(_settings.Tools.Extra)));
+        lines.Add(
+            Row("toolEnvironment.passthrough", ListValue(_settings.ToolEnvironment.Passthrough))
+        );
         lines.Add(Row("providers", ListCount("endpoint", _settings.Providers)));
         lines.Add(Row("decisions.profile", _settings.Decisions.Profile ?? "none"));
         lines.Add(
@@ -120,6 +123,7 @@ internal sealed partial class InteractiveSession
             "updateCheck" => BooleanLiteral(_settings.UpdateCheck),
             "favorites" => ListValue(_settings.Favorites),
             "tools.extra" => ListValue(_settings.Tools.Extra),
+            "toolEnvironment.passthrough" => ListValue(_settings.ToolEnvironment.Passthrough),
             "providers" => ListCount("endpoint", _settings.Providers),
             "decisions.profile" => _settings.Decisions.Profile ?? "none",
             "decisions.approvals" => _settings.Decisions.Approvals.ToString().ToLowerInvariant(),
@@ -275,6 +279,7 @@ internal sealed partial class InteractiveSession
                 or "updateCheck"
                 or "favorites"
                 or "tools.extra"
+                or "toolEnvironment.passthrough"
                 or "providers"
                 or "decisions.profile"
                 or "decisions.approvals"

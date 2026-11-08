@@ -73,13 +73,15 @@ public static class EnvironmentScrubber
     /// is the minimal base set, then the declared pass-through names, then the declared values; a
     /// name the parent holds and does not declare never arrives. <see cref="ChildEnvironmentPolicy.Inherited"/>
     /// is the parent's whole environment, then the declared values, minus every declared strip name
-    /// (the credential variables Lunate resolved) — the strip wins over a declared value, so a
-    /// spawn site cannot re-introduce a stripped name by accident.
+    /// (the credential variables Lunate resolved) — and then the declared pass-through names are
+    /// re-admitted from the parent, so an exact name the user opted back in wins over the strip for
+    /// that name alone. The strip still wins over a declared value, so a spawn site cannot
+    /// re-introduce a stripped name by accident.
     /// </summary>
     /// <param name="policy">The policy; the call site always names one.</param>
     /// <param name="read">Reads one parent variable; null reads the process environment.</param>
     /// <param name="set">Values to set; null sets none.</param>
-    /// <param name="passthrough">Names read from the parent under <see cref="ChildEnvironmentPolicy.Scrubbed"/>; null passes none through.</param>
+    /// <param name="passthrough">Names read from the parent: the whole allow-list under <see cref="ChildEnvironmentPolicy.Scrubbed"/>, and the names re-admitted after the strip under <see cref="ChildEnvironmentPolicy.Inherited"/>; null passes none through.</param>
     /// <param name="strip">Names removed under <see cref="ChildEnvironmentPolicy.Inherited"/>; null strips none.</param>
     /// <param name="inherited">
     /// The set <see cref="ChildEnvironmentPolicy.Inherited"/> starts from; null reads the process
@@ -107,9 +109,26 @@ public static class EnvironmentScrubber
             {
                 environment[name] = value;
             }
+
+            // The pass-through is the user's explicit act against the credential strip: remember the
+            // exact names' inherited values before the strip, so they can be re-admitted after it.
+            List<KeyValuePair<string, string>> passedThrough = [];
+            foreach (string name in passthrough ?? [])
+            {
+                if (environment.TryGetValue(name, out string? value))
+                {
+                    passedThrough.Add(new KeyValuePair<string, string>(name, value));
+                }
+            }
+
             foreach (string name in strip ?? [])
             {
                 environment.Remove(name);
+            }
+
+            foreach ((string name, string value) in passedThrough)
+            {
+                environment[name] = value;
             }
         }
         else

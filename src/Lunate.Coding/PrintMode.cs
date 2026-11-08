@@ -167,6 +167,7 @@ internal static class PrintMode
                 // provider store, else the legacy top-level model. The provider entries load
                 // here, after the store guard, because both resolution paths may read them.
                 (auth, providers) = LoadProviderSources(options, settings);
+                ApplyToolEnvironment(settings, interaction);
                 chat = ChatModelResolver.Resolve(settings, providers, catalog);
                 model = chat.Model;
                 if (
@@ -698,6 +699,30 @@ internal static class PrintMode
     /// The provider entries model resolution reads: the provider store layered over the auth
     /// store, with the settings file's legacy <c>providers</c> section migrated in by the store.
     /// </summary>
+    /// <summary>
+    /// Installs the tool-process pass-through list from the resolved settings, once the provider
+    /// store has registered each custom provider's <c>env:</c> names, and warns once when a listed
+    /// name is also a credential. The list is read later, where the tool child's policy is built.
+    /// </summary>
+    private static void ApplyToolEnvironment(
+        AgentSettings settings,
+        PrintUserInteraction interaction
+    )
+    {
+        if (
+            ToolEnvironmentPassthrough.Configure(settings.ToolEnvironment.Passthrough) is
+            { Count: > 0 } collisions
+        )
+        {
+            interaction.Notify(
+                new UserNotice(
+                    NoticeLevel.Warning,
+                    ToolEnvironmentPassthrough.CollisionWarning(collisions)
+                )
+            );
+        }
+    }
+
     private static (AuthStore Auth, IReadOnlyList<ProviderEntry> Providers) LoadProviderSources(
         PrintModeOptions options,
         AgentSettings settings

@@ -359,6 +359,13 @@
       "description": "How much of a tool call the scrollback commits: the header line only, or the header with the bounded output excerpt and diff panel. `LUNATE_TOOL_DETAILS` overrides it."
     },
     {
+      "name": "toolEnvironment.passthrough",
+      "type": "string array",
+      "default": "[]",
+      "scope": "user",
+      "description": "Exact environment variable names to admit into tool processes after the inherited environment's credential strip; a listed name the parent does not hold stays absent. No wildcards, prefixes or patterns. A name that is also a Lunate credential name is admitted with one startup warning. `Scrubbed` extension hosts are unaffected. There is no environment-variable override."
+    },
+    {
       "name": "tools.extra",
       "type": "string array",
       "default": "[]",
