@@ -317,6 +317,8 @@ public sealed class SetupWizardEntryMenuTests
         await host.WaitForFrameAsync("> shadow");
         host.Advance(500);
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
         Assert.Contains(
@@ -338,6 +340,130 @@ public sealed class SetupWizardEntryMenuTests
         Assert.Contains("\"shadow\"", settings, StringComparison.Ordinal);
         Assert.Equal(providers, File.ReadAllBytes(ProviderPath(host)));
         Assert.Equal(auth, AuthSnapshot(host));
+    }
+
+    [PosixFact]
+    public async Task Editing_decisions_collects_two_changes_in_one_pass()
+    {
+        using var host = ConfiguredHost();
+        byte[] providers = File.ReadAllBytes(ProviderPath(host));
+        byte[]? auth = AuthSnapshot(host);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("/setup");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Setup — what do you want to configure?");
+        for (var down = 0; down < 3; down++)
+        {
+            host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        }
+
+        await host.WaitForFrameAsync("> Edit the decisions layer");
+        host.Console.SendEnter();
+        await PickRowAsync(host, "Decisions settings", "approval gate off — screen staged actions");
+        await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
+        host.Advance(500);
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        await host.WaitForFrameAsync("> shadow");
+        host.Advance(500);
+        host.Console.SendEnter();
+
+        // The list must come back after the first answer; before the fix the walk went straight
+        // to the summary and this frame never appeared.
+        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        await PickRowAsync(
+            host,
+            "Decisions settings",
+            "decide tool off — offer the decide tool when a decision profile resolves"
+        );
+        await host.WaitForFrameAsync("decisions.tool");
+        host.Advance(500);
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        await host.WaitForFrameAsync("> on");
+        host.Advance(500);
+        host.Console.SendEnter();
+
+        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        host.Console.SendEnter();
+        string summary = await host.WaitForScrollbackAsync("confirm these values");
+        Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
+        Assert.Contains("decisions.tool: on", summary, StringComparison.Ordinal);
+
+        await host.WaitForFrameAsync("Write this configuration?");
+        host.Console.SendEnter();
+
+        host.Console.Complete();
+        await run;
+        await host.WaitUntilAsync(() =>
+            File.Exists(SettingsPath(host))
+            && File.ReadAllText(SettingsPath(host))
+                .Contains("\"tool\": \"on\"", StringComparison.Ordinal)
+        );
+
+        string settings = File.ReadAllText(SettingsPath(host));
+        Assert.Contains("\"approvals\": \"shadow\"", settings, StringComparison.Ordinal);
+        Assert.Contains("\"tool\": \"on\"", settings, StringComparison.Ordinal);
+        Assert.Equal(providers, File.ReadAllBytes(ProviderPath(host)));
+        Assert.Equal(auth, AuthSnapshot(host));
+    }
+
+    [PosixFact]
+    public async Task Escape_at_a_decision_switch_ends_the_run_without_writing()
+    {
+        using var host = ConfiguredHost();
+        byte[] settings = File.ReadAllBytes(SettingsPath(host));
+        byte[] providers = File.ReadAllBytes(ProviderPath(host));
+        byte[]? auth = AuthSnapshot(host);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("/setup");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Setup — what do you want to configure?");
+        for (var down = 0; down < 3; down++)
+        {
+            host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        }
+
+        await host.WaitForFrameAsync("> Edit the decisions layer");
+        host.Console.SendEnter();
+        await PickRowAsync(host, "Decisions settings", "approval gate off — screen staged actions");
+        await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
+        host.Advance(500);
+        host.Console.SendEscape();
+
+        await host.WaitForFrameAsync("setup cancelled — nothing was changed");
+        host.Console.Complete();
+        await run;
+
+        Assert.Equal(settings, File.ReadAllBytes(SettingsPath(host)));
+        Assert.Equal(providers, File.ReadAllBytes(ProviderPath(host)));
+        Assert.Equal(auth, AuthSnapshot(host));
+    }
+
+    private static async Task PickRowAsync(InteractiveSessionHost host, string title, string row)
+    {
+        await host.WaitForFrameAsync(title);
+        string previous = host.LastFrame;
+        for (var step = 0; step < 12; step++)
+        {
+            if (host.LastFrame.Contains($"> {row}", StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+            await host.WaitUntilAsync(() =>
+            {
+                host.Advance(33);
+                return host.LastFrame != previous;
+            });
+            previous = host.LastFrame;
+        }
+
+        Assert.Contains($"> {row}", host.LastFrame, StringComparison.Ordinal);
+        host.Console.SendEnter();
     }
 
     private static HttpResponseMessage Response(int status, string body) =>

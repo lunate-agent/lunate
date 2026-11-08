@@ -129,7 +129,10 @@ public sealed class SecretMaskingAuditTests
         host.Advance(500);
         host.Console.SendEnter();
 
-        // The two descriptions are read by the recording prompt; the summary confirms.
+        // The two descriptions are read by the recording prompt; Done leaves the list and the
+        // summary confirms.
+        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        host.Console.SendEnter();
         await host.WaitForScrollbackAsync("confirm these values");
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEscape(); // abort: nothing is written

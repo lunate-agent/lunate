@@ -258,11 +258,7 @@ public sealed class SetupWizardStepPins
         // their value untouched, so the walk lands on the decisions step with every dependent
         // step named skipped in the summary.
         await PickRowAsync(host, "Select provider", "Skip provider setup");
-        await PickRowAsync(
-            host,
-            "Decisions settings",
-            "Keep the defaults (nothing written for the layer)"
-        );
+        await PickRowAsync(host, "Decisions settings", "Done — leave the decisions settings");
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         // The summary wraps at the terminal width; flatten the wrapped lines so the pinned
@@ -361,6 +357,9 @@ public sealed class SetupWizardStepPins
             host.Advance(500);
             host.Console.SendEnter();
         }
+
+        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        host.Console.SendEnter();
 
         string summary = await host.WaitForScrollbackAsync("routing description");
         Assert.Contains(

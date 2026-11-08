@@ -1199,182 +1199,176 @@ internal sealed partial class InteractiveSession
         ];
 
     /// <summary>Step 8: every switch shown with its off/unset default and one explanatory line;
-    /// accepting the defaults writes nothing for the layer. Routing asks each routing profile for
+    /// the list returns after each switch so one pass can change several, and Done leaves it.
+    /// Accepting the defaults writes nothing for the layer. Routing asks each routing profile for
     /// a description and warns once when one is left blank.</summary>
     private async Task<WizardMove> DecisionsStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
-        string? answered = await PickAsync(
-                "Decisions settings",
-                [
-                    "Keep the defaults (nothing written for the layer)",
-                    "approval gate off — screen staged actions",
-                    "routing unset — choose a profile per request",
-                    "questions off — probability marker on top option; user still chooses",
-                    "decide tool off — offer the decide tool when a decision profile resolves",
-                ],
-                ["defaults", "approvals", "routing", "questions", "tool"],
-                PickerKind.WizardChoice,
-                ct,
-                "defaults"
-            )
-            .ConfigureAwait(false);
-        if (answered is null)
-        {
-            return WizardMove.Abort;
-        }
-
-        if (answered == "defaults")
-        {
-            wizard.RecordDecisions(null);
-            return WizardMove.Advance;
-        }
-
-        if (answered != "defaults" && wizard.ChatProfile is null)
-        {
-            Notify(
-                "the decisions settings bind profiles, but no chat profile was configured; choose "
-                    + "the defaults or add a profile first",
-                NoticeLevel.Warning
-            );
-            return WizardMove.Stay;
-        }
-
         string? approvals = null;
         string? routing = null;
         string? tool = null;
         string? questions = null;
-        switch (answered)
-        {
-            case "approvals":
-                approvals = await ModeSwitchAsync(
-                        "The approval gate (decisions.approvals)",
-                        "A decision model screens staged actions; shadow answers are display-only, "
-                            + "enforce turns the recommendation into the approval.",
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                if (approvals == "\0")
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (approvals is null)
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-            case "routing":
-                routing = await ModeSwitchAsync(
-                        "Routing (decisions.routing)",
-                        "The decision model picks which configured profile answers; routing needs "
-                            + "at least two profiles.",
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                if (routing == "\0")
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (routing is null)
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-            case "tool":
-                tool = await ToolSwitchAsync(ct).ConfigureAwait(false);
-                if (tool == "\0")
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (tool is null)
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-            case "questions":
-                questions = await AskQuestionAsync(
-                        "Questions (decisions.questions)",
-                        "A probability marker appears beside the top option; the user still chooses.",
-                        ["off", "suggest"],
-                        ct
-                    )
-                    .ConfigureAwait(false);
-                if (questions == WizardAbortValue)
-                {
-                    return WizardMove.Abort;
-                }
-
-                if (questions == "off")
-                {
-                    wizard.RecordDecisions(null);
-                    return WizardMove.Advance;
-                }
-
-                break;
-        }
-
+        IReadOnlyList<string> routingProfiles = [];
         var descriptions = new Dictionary<string, string>(StringComparer.Ordinal);
-        IReadOnlyList<string> routingProfiles = RoutingCandidates(wizard);
-        if (routing is not null)
+
+        while (true)
         {
-            if (routingProfiles.Count < 2)
+            string? answered = await PickAsync(
+                    "Decisions settings",
+                    [
+                        "Done — leave the decisions settings",
+                        "approval gate off — screen staged actions",
+                        "routing unset — choose a profile per request",
+                        "questions off — probability marker on top option; user still chooses",
+                        "decide tool off — offer the decide tool when a decision profile resolves",
+                    ],
+                    ["done", "approvals", "routing", "questions", "tool"],
+                    PickerKind.WizardChoice,
+                    ct,
+                    "done"
+                )
+                .ConfigureAwait(false);
+            if (answered is null)
+            {
+                return WizardMove.Abort;
+            }
+
+            if (answered == "done")
+            {
+                bool changed =
+                    approvals is not null
+                    || routing is not null
+                    || tool is not null
+                    || questions is not null;
+                wizard.RecordDecisions(
+                    changed
+                        ? new WizardDecisionsChoice(
+                            approvals,
+                            routing,
+                            tool,
+                            routingProfiles,
+                            descriptions,
+                            questions
+                        )
+                        : null
+                );
+                return WizardMove.Advance;
+            }
+
+            if (wizard.ChatProfile is null)
             {
                 Notify(
-                    "routing needs at least two profiles to choose between; the routing key is "
-                        + "not written this walk",
+                    "the decisions settings bind profiles, but no chat profile was configured; "
+                        + "choose Done or add a profile first",
                     NoticeLevel.Warning
                 );
-                routing = null;
+                continue;
             }
-            else
+
+            switch (answered)
             {
-                foreach (string profile in routingProfiles)
-                {
-                    string? description = await PromptAsync(
-                            $"What is profile '{profile}' for, what is it not, an example (Enter leaves it blank)",
+                case "approvals":
+                    approvals = await ModeSwitchAsync(
+                            "The approval gate (decisions.approvals)",
+                            "A decision model screens staged actions; shadow answers are display-only, "
+                                + "enforce turns the recommendation into the approval.",
                             ct
                         )
                         .ConfigureAwait(false);
-                    if (description is null)
+                    if (approvals == WizardAbortValue)
                     {
                         return WizardMove.Abort;
                     }
 
-                    if (description.Trim().Length == 0)
+                    break;
+                case "routing":
+                    routing = await ModeSwitchAsync(
+                            "Routing (decisions.routing)",
+                            "The decision model picks which configured profile answers; routing needs "
+                                + "at least two profiles.",
+                            ct
+                        )
+                        .ConfigureAwait(false);
+                    if (routing == WizardAbortValue)
                     {
-                        Notify(
-                            $"profile '{profile}' has no description; routing warns once about a "
-                                + "blank description at composition",
-                            NoticeLevel.Warning
-                        );
+                        return WizardMove.Abort;
                     }
-                    else
+
+                    routingProfiles = [];
+                    descriptions.Clear();
+                    if (routing is not null)
                     {
-                        descriptions.Add(profile, description.Trim());
+                        IReadOnlyList<string> candidates = RoutingCandidates(wizard);
+                        if (candidates.Count < 2)
+                        {
+                            Notify(
+                                "routing needs at least two profiles to choose between; the routing "
+                                    + "key is not written this walk",
+                                NoticeLevel.Warning
+                            );
+                            routing = null;
+                        }
+                        else
+                        {
+                            routingProfiles = candidates;
+                            foreach (string profile in routingProfiles)
+                            {
+                                string? description = await PromptAsync(
+                                        $"What is profile '{profile}' for, what is it not, an example (Enter leaves it blank)",
+                                        ct
+                                    )
+                                    .ConfigureAwait(false);
+                                if (description is null)
+                                {
+                                    return WizardMove.Abort;
+                                }
+
+                                if (description.Trim().Length == 0)
+                                {
+                                    Notify(
+                                        $"profile '{profile}' has no description; routing warns once about a "
+                                            + "blank description at composition",
+                                        NoticeLevel.Warning
+                                    );
+                                }
+                                else
+                                {
+                                    descriptions[profile] = description.Trim();
+                                }
+                            }
+                        }
                     }
-                }
+
+                    break;
+                case "tool":
+                    tool = await ToolSwitchAsync(ct).ConfigureAwait(false);
+                    if (tool == WizardAbortValue)
+                    {
+                        return WizardMove.Abort;
+                    }
+
+                    break;
+                case "questions":
+                    questions = await AskQuestionAsync(
+                            "Questions (decisions.questions)",
+                            "A probability marker appears beside the top option; the user still chooses.",
+                            ["off", "suggest"],
+                            ct
+                        )
+                        .ConfigureAwait(false);
+                    if (questions == WizardAbortValue)
+                    {
+                        return WizardMove.Abort;
+                    }
+
+                    if (questions == "off")
+                    {
+                        questions = null;
+                    }
+
+                    break;
             }
         }
-
-        wizard.RecordDecisions(
-            new WizardDecisionsChoice(
-                approvals,
-                routing,
-                tool,
-                routingProfiles,
-                descriptions,
-                questions
-            )
-        );
-        return WizardMove.Advance;
     }
 
     private static IReadOnlyList<string> RoutingCandidates(SetupWizardModel wizard)
@@ -1402,7 +1396,8 @@ internal sealed partial class InteractiveSession
     }
 
     /// <summary>One mode switch: the exact literals with the defaults; keeping the default writes
-    /// nothing. The coach returns a literal, null for the unwritten default, or "\0" for Esc.</summary>
+    /// nothing. The coach returns a literal, null for the unwritten default, or the abort sentinel
+    /// for Esc.</summary>
     private async Task<string?> ModeSwitchAsync(
         string title,
         string description,
