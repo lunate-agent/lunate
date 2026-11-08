@@ -17,9 +17,11 @@ HOME_DIR="$WORK/home"
 PROJECT="$WORK/project"
 STUB="$REPO/docs/media/stubs/setup-wizard-provider.py"
 GIF="$REPO/docs/media/setup-wizard.gif"
+TAPE="$REPO/docs/media/setup-wizard.tape"
 
 [ -x "$BIN" ] || { echo "missing $BIN — build first or set LUNATE_BIN" >&2; exit 1; }
 [ -f "$STUB" ] || { echo "missing $STUB" >&2; exit 1; }
+[ -f "$TAPE" ] || { echo "missing $TAPE" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 missing" >&2; exit 1; }
 command -v vhs >/dev/null || { echo "vhs missing: brew install vhs" >&2; exit 1; }
 
@@ -45,7 +47,22 @@ curl -fsS "http://127.0.0.1:$PORT/v1/models" >/dev/null || {
   exit 1
 }
 
+# The recording itself. `vhs` inherits this environment, so the tape's `lunate` is the published
+# binary, its LUNATE_HOME is the throw-away directory and its provider is the stub — nothing on this
+# machine's real configuration is read. The working directory is the project, deliberately not the
+# home: a LUNATE_HOME inside the workspace is refused by the binary.
+before=$(stat -f %m "$GIF" 2>/dev/null || echo 0)
+# Run from the repository root: the tape's `Output docs/media/setup-wizard.gif` is relative to the
+# working directory, and only the LUNATE_HOME has to stay out of the workspace (the binary refuses a
+# home inside it), not the recording's own directory.
 (
-  cd "$PROJECT"
-  LUNATE_HOME="$HOME_DIR" LUNATE_DEMO_PORT="$PORT" "$BIN" setup
+  cd "$REPO"
+  PATH="$(dirname "$BIN"):$PATH" LUNATE_HOME="$HOME_DIR" LUNATE_DEMO_PORT="$PORT" \
+    LUNATE_BIN="$BIN" vhs "$TAPE"
 )
+after=$(stat -f %m "$GIF" 2>/dev/null || echo 0)
+if [ "$after" = "$before" ]; then
+  echo "vhs did not write $GIF" >&2
+  exit 1
+fi
+echo "wrote $GIF ($(stat -f %z "$GIF") bytes)"
