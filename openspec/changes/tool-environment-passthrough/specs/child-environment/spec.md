@@ -10,8 +10,9 @@ does not hold SHALL stay absent from the child, and a credential name the user d
 still be stripped.
 
 The tool child's pass-through list SHALL be read where its policy is built
-(`ChildProcess.BuildEnvironment`), never at a spawn site, and the `Scrubbed` policy SHALL ignore it:
-extension hosts never receive the inherited set at all.
+(`ChildProcess.BuildEnvironment`), never at a spawn site, and SHALL be handed only to the
+`Inherited` policy — the `Scrubbed` policy receives only its own declared names, because extension
+hosts never receive the inherited set at all.
 
 #### Scenario: A passed-through name reaches the POSIX tool child
 
@@ -49,9 +50,9 @@ extension hosts never receive the inherited set at all.
 - **WHEN** a tool child's environment is built with `Inherited`
 - **THEN** `MY_PROJECT_TOKEN` is absent from the child, never set to an empty value
 
-#### Scenario: The extension host ignores the tool pass-through list
+#### Scenario: The extension host never receives the tool pass-through list
 
-- **GIVEN** a pass-through list naming a variable the parent holds
+- **GIVEN** a configured tool pass-through list naming a variable the parent holds
 - **WHEN** an extension host's environment is built with `Scrubbed`
 - **THEN** the variable is absent unless the host's own declared names include it
 
