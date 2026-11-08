@@ -1,4 +1,6 @@
 # Build output
+__pycache__/
+*.pyc
 bin/
 obj/
 artifacts/
@@ -20,6 +22,9 @@ TestResults/
 
 # Lunate local data
 .lunate/
+
+# Benchmark run artifacts (patches, trajectories, official reports)
+eval/runs/
 
 # opencode local cache
 .opencode/node_modules/
