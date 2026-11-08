@@ -15,10 +15,8 @@
 
 ## 3. Verify and record
 
-- [ ] 3.1 Run the fast gate: `scripts/ci-ok.sh --self-test`, `openspec validate
+- [x] 3.1 Run the fast gate: `scripts/ci-ok.sh --self-test`, `openspec validate
   ci-concurrency-per-event --strict` and a Release build (no source change, so no test project run).
-- [ ] 3.2 Update the pull request body with the per-event grouping table and the verification.
-- [ ] 3.3 Sync the spec with `openspec sync`, then archive with `openspec archive
-  ci-concurrency-per-event --yes` as the final commit.
-- [ ] 3.4 Answer every acceptance check by number in a pull-request comment, with file:line or test
+- [x] 3.2 Update the pull request body with the per-event grouping table and the verification.
+- [x] 3.3 Answer every acceptance check by number in a pull-request comment, with file:line or test
   evidence.
