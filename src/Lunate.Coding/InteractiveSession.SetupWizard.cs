@@ -1175,6 +1175,7 @@ internal sealed partial class InteractiveSession
             _auth,
             _environment,
             () => ResolveWizardCredential(wizard),
+            SessionRequestContext(),
             ct
         );
 

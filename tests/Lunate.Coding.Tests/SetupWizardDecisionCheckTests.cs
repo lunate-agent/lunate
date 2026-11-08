@@ -2,6 +2,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using Lunate.Agent;
 using Lunate.Ai;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
@@ -50,6 +51,35 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
             "Answer yes when the decision transport answered this request.",
             question.GetProperty("instructions").GetString()
         );
+        Assert.Null(handler.SessionHeader);
+    }
+
+    [Fact]
+    public async Task The_opencode_go_native_check_passes_and_carries_the_session_header()
+    {
+        using var handler = new DecisionTransportHandler(
+            """{"model":"jev-1.13","answers":{"transport_reachable":{"type":"noul","noul":0.91}}}"""
+        );
+        SetupWizardModel wizard = NativeWalk(
+            new WizardCredentialChoice("opencode-go", Key: "walk-key"),
+            provider: "opencode-go",
+            model: "opencode-go/jev-1.13",
+            decisionModel: "opencode-go/jev-1.13"
+        );
+
+        WizardCheckResult result = await RunAsync(wizard, handler, credential: "walk-key");
+
+        Assert.True(
+            result.Outcome == WizardProgress.Passed,
+            result.Detail ?? "the decision check failed without a reason"
+        );
+        Assert.Equal(
+            "https://opencode.ai/inference/systemone/v1/systemone",
+            handler.RequestUri!.AbsoluteUri
+        );
+        Assert.False(string.IsNullOrWhiteSpace(handler.SessionHeader));
+        using JsonDocument body = JsonDocument.Parse(handler.RequestBody);
+        Assert.Equal("jev-1.13", body.RootElement.GetProperty("model").GetString());
     }
 
     [Fact]
@@ -104,6 +134,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
             AuthStore.Load(_temp.File("auth.json")),
             name => name == "OPENAI_API_KEY" ? "adapter-walk-key" : null,
             () => "adapter-walk-key",
+            context: null,
             TestContext.Current.CancellationToken
         );
 
@@ -253,6 +284,82 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         await run;
     }
 
+    [PosixFact]
+    public async Task The_decision_check_inside_a_setup_session_carries_that_sessions_id()
+    {
+        using var handler = new DecisionTransportHandler(
+            """{"model":"jev-1.13","answers":{"transport_reachable":{"type":"noul","noul":0.91}}}"""
+        );
+        using ILoggerFactory loggerFactory = LoggerFactory.Create(_ => { });
+        var factory = new ChatClientFactory(loggerFactory) { BaseTransportFactory = () => handler };
+        using var host = ConfiguredHost(factory);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("/setup");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Setup — what do you want to configure?");
+        foreach (
+            string row in new[]
+            {
+                "> Add a profile",
+                "> Change the chat profile",
+                "> Edit the decisions layer",
+                "> Walk everything",
+            }
+        )
+        {
+            host.Console.Send(
+                new Lunate.Tui.KeyEvent(Lunate.Tui.KeyKind.Down, null, false, false, false)
+            );
+            await host.WaitForFrameAsync(row);
+        }
+
+        host.Advance(500);
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Select provider");
+        await PickRowAsync(host, "Select provider", "opencode-go — OpenCode Go");
+        await host.WaitForFrameAsync("Credential for opencode-go");
+        host.Console.SendEnter(); // the "enter a key" row
+        await host.WaitForFrameAsync("API key for opencode-go");
+        host.Console.SendText("walk-decision-key");
+        host.Console.SendEnter();
+        await PickRowAsync(host, "Connection test", "Skip the connection test");
+        await PickRowAsync(host, "Model (discovery listed nothing", "enter a model id manually");
+        await host.WaitForFrameAsync("Model id");
+        host.Console.SendText("any-model");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Model check");
+        host.Console.SendEnter(); // skip the chat check
+        await host.WaitForFrameAsync("Profile name");
+        host.Console.SendText("chat-go");
+        host.Console.SendEnter();
+        await PickRowAsync(host, "fast usage", "Skip");
+        await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
+        await PressUpAsync(host);
+        await PressUpAsync(host);
+        Assert.Contains(
+            "> opencode-go/jev-1.13 (native Jev",
+            host.LastFrame,
+            StringComparison.Ordinal
+        );
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Decision check");
+        await PressUpAsync(host);
+        Assert.Contains("> Send the decision check", host.LastFrame, StringComparison.Ordinal);
+        host.Console.SendEnter();
+
+        await host.WaitForFrameAsync("Decisions settings");
+        string sessionId = SessionId(host);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Equal(sessionId, handler.SessionHeader);
+
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        host.Console.Complete();
+        await run;
+    }
+
     /// <summary>Sends one Up press and waits for the picker's repaint.</summary>
     private static async Task PressUpAsync(InteractiveSessionHost host)
     {
@@ -299,12 +406,17 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
             text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())
         );
 
-    private static SetupWizardModel NativeWalk(WizardCredentialChoice credential)
+    private static SetupWizardModel NativeWalk(
+        WizardCredentialChoice credential,
+        string provider = "openrouter",
+        string model = "deepseek/deepseek-chat",
+        string? decisionModel = null
+    )
     {
         var wizard = new SetupWizardModel();
         wizard.RecordProvider(
             new WizardProviderChoice(
-                "openrouter",
+                provider,
                 Custom: false,
                 Region: null,
                 Endpoint: null,
@@ -314,17 +426,60 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
             )
         );
         wizard.RecordCredential(credential);
-        wizard.RecordModel(new WizardModelChoice("deepseek/deepseek-chat", "openai-chat"));
+        wizard.RecordModel(new WizardModelChoice(model, "openai-chat"));
+        string decisionId = decisionModel ?? JevModel;
         wizard.RecordDecisionProfile(
-            new WizardDecisionChoice("decisions", JevModel, Native: true, PinnedVersion: JevModel)
+            new WizardDecisionChoice(
+                "decisions",
+                decisionId,
+                Native: true,
+                PinnedVersion: decisionId
+            )
         );
         return wizard;
+    }
+
+    private static string SessionId(InteractiveSessionHost host) =>
+        Session
+            .Load(Assert.Single(Directory.GetFiles(host.Temp.File("sessions"), "*.jsonl")))
+            .SessionId;
+
+    /// <summary>A configured install, so `/setup` opens its entry menu instead of the first-run
+    /// auth picker taking the keys.</summary>
+    private static InteractiveSessionHost ConfiguredHost(ChatClientFactory factory)
+    {
+        var host = new InteractiveSessionHost(factory: factory, interactiveConsole: true);
+        bool valid = ProviderEntry.TryCreate(
+            "openai",
+            "openai",
+            new Uri("https://provider.example.test/v1"),
+            "auth:openai",
+            headers: null,
+            region: null,
+            out ProviderEntry? entry,
+            out string? error
+        );
+        Assert.True(valid, error);
+        ProviderStore.Save(AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json")), [entry!]);
+        File.WriteAllText(
+            AuthStore.SettingsFilePath(host.Temp.File("auth.json")),
+            """
+            {
+              "schemaVersion": 2,
+              "model": "gpt-4.1",
+              "profiles": { "chat-main": { "provider": "openai", "model": "gpt-4.1" } },
+              "usages": { "chat": "chat-main" }
+            }
+            """
+        );
+        return host;
     }
 
     private Task<WizardCheckResult> RunAsync(
         SetupWizardModel wizard,
         HttpMessageHandler handler,
-        string? credential
+        string? credential,
+        RequestContext? context = null
     ) =>
         WizardModelCheck.RunDecisionAsync(
             wizard,
@@ -336,6 +491,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
             AuthStore.Load(_temp.File("auth.json")),
             name => name == "OPENROUTER_API_KEY" ? "env-walk-key" : null,
             () => credential,
+            context,
             TestContext.Current.CancellationToken
         );
 
@@ -349,6 +505,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         public Uri? RequestUri { get; private set; }
         public string RequestBody { get; private set; } = string.Empty;
         public string? Authorization { get; private set; }
+        public string? SessionHeader { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -359,6 +516,9 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
             RequestUri = request.RequestUri;
             RequestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
             Authorization = request.Headers.Authorization?.ToString();
+            SessionHeader = request.Headers.TryGetValues("x-opencode-session", out var sessions)
+                ? sessions.Single()
+                : null;
             return new HttpResponseMessage(status)
             {
                 Content = new StringContent(responseBody, Encoding.UTF8, "application/json"),
