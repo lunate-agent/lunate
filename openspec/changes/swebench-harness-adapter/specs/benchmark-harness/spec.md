@@ -1,3 +1,7 @@
+## Purpose
+
+The reproducible SWE-bench adapter: run Lunate inside the official instance images, keep the patch and trajectory under known paths, forward credentials only by environment-variable name, and hand the predictions to the official evaluation without local scoring.
+
 ## ADDED Requirements
 
 ### Requirement: One documented entry point
