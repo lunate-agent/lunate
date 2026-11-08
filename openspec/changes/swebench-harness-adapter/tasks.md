@@ -26,5 +26,5 @@
 ## 5. Documentation and close-out
 
 - [x] 5.1 Document the adapter in `eval/README.md`: the publish command, every CLI flag, artifact paths, credential forwarding, the official evaluation handoff and the explicit ProgramBench out-of-scope reason.
-- [ ] 5.2 Run the focused checks: the new Python test, `python3 scripts/check-scratch-paths.py`, `openspec validate swebench-harness-adapter --strict`, `openspec validate --all --strict`, `bash scripts/check-openspec-skills.sh`, `dotnet csharpier check .` and `git status --short`.
-- [ ] 5.3 Run `openspec sync` and `openspec archive swebench-harness-adapter --yes` as the final commit on the branch, after review and before merge.
+- [x] 5.2 Run the focused checks: the new Python test, `python3 scripts/check-scratch-paths.py`, `openspec validate swebench-harness-adapter --strict`, `openspec validate --all --strict`, `bash scripts/check-openspec-skills.sh`, `dotnet csharpier check .` and `git status --short`.
+- [x] 5.3 Run `openspec sync` and `openspec archive swebench-harness-adapter --yes` as the final commit on the branch, after review and before merge.
