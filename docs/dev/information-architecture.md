@@ -80,7 +80,7 @@ docs/
 
 | Today | 0.4.0 home | Notes |
 | --- | --- | --- |
-| `docs/README.md` | `docs/dev/README.md` | Stub at the old path for one release; `AGENTS.md` and package docs keep working |
+| `docs/README.md` | `docs/dev/README.md` | Stub at the old path for one release; `AGENTS.md` keeps working |
 | `docs/guide.md` | `docs/dev/guide.md` | The AGENTS.md rule copy is removed now (see below); a stub stays at the old path |
 | `docs/architecture.md` | `docs/dev/architecture.md` | No stub; maintainer page |
 | `docs/distribution.md` | `docs/dev/distribution.md` | No stub; maintainer page |
@@ -211,7 +211,7 @@ After sign-off, each row becomes one sub-issue and one pull request. Every slice
 | S6 | `docs(customize): give each customization its own page` | `configuration.md` (tasks), `agents-md.md`, `skills.md`, `mcp-servers.md`, `themes-and-keys.md`; `settings.md` keeps the table | Configuration reads as tasks; generated reference stays in Reference |
 | S7 | `docs(automate): add the print, JSON, ACP and CI pages` | `print.md`, `json-events.md`, `acp.md`, `ci.md`, `cli.md`, `providers.md`, `environment-variables.md` | Automate and Reference groups complete; CLI options checked against `--help` |
 | S8 | `docs(security): add the safety and troubleshooting pages` | `security.md`, `troubleshooting.md`; link `SECURITY.md` as the reporting policy | A user can find the posture and a next step without reading the guide |
-| S9 | `docs(index): make docs/index.md the entry point` | `index.md`, `quickstart.md`, `how-lunate-works.md`; generated navigation region; README links; remove moved-page stubs in the next release | `docs/index.md` leads with the governing thought and every group resolves |
+| S9 | `docs(index): make docs/index.md the entry point` | `index.md`, `quickstart.md`, `how-lunate-works.md`; generated navigation region; README links; the moved-page stubs stay until the next release | `docs/index.md` leads with the governing thought and every group resolves |
 
 S1 must land first; S2 before S3 because the key table leaves the guide. S3 and S4 are independent of S5–S8. S9 is last because it links only to pages that already exist.
 
