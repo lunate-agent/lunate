@@ -105,6 +105,12 @@ a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis
 | `templates/`, `samples/` | the extension template and the reference extensions (the fitness suite) |
 | `extensions/` | the first-party supported extension tier, shipped as `Lunate.Extensions.*` packages |
 
+A source file is named after a type it declares: the text before the first dot of its base name is a
+type the file declares (a partial-class file such as `AgentHarness.Retries.cs`), or it names no type
+at all (an aggregate file such as `HookPayloads.cs`). A file named after a type another file owns
+resolves to the wrong file — `tests/Lunate.Agent.Tests/SourceFileNameTests.cs` enforces the rule and
+names both files when it fails. The requirement lives in the `repo-quality` spec.
+
 ## Documentation
 
 Start at [`docs/README.md`](docs/README.md) — the map of every document kind and the writing
