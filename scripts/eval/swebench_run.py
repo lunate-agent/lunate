@@ -41,7 +41,7 @@ from swebench_run_support import (
 REPOSITORY = Path(__file__).resolve().parents[2]
 ADAPTER = REPOSITORY / "scripts" / "eval" / "swebench.py"
 CATALOG = REPOSITORY / "src" / "Lunate.Ai" / "models.json"
-EVAL_ROOT = Path(__file__).resolve().parent
+SWEBENCH_DIR = REPOSITORY / "eval" / "swebench"
 
 
 def utc_now() -> str:
@@ -58,9 +58,9 @@ def instance_image(instance_id: str) -> str:
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--config", default=str(EVAL_ROOT / "run.json"))
+    parser.add_argument("--config", default=str(SWEBENCH_DIR / "run.json"))
     parser.add_argument("--work-dir", default=str(REPOSITORY / "eval" / "runs" / "swebench-first-run"))
-    parser.add_argument("--summary-dir", default=str(EVAL_ROOT))
+    parser.add_argument("--summary-dir", default=str(SWEBENCH_DIR))
     parser.add_argument("--run-id", default="swebench-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
     parser.add_argument("--arm", choices=("lunate", "baseline", "merge", "all"), default="all")
     parser.add_argument("--lunate-bin", help="self-contained linux-x64 Lunate executable")
@@ -184,7 +184,7 @@ def baseline_environment(definition: dict, model: dict) -> dict[str, str]:
 def baseline_command(definition: dict, instance_id: str, model: dict, trajectory: Path, remaining: float) -> list[str]:
     baseline = definition["baseline"]
     alias = baseline["models"][model["id"]]
-    registry = (EVAL_ROOT / "litellm-models.json").resolve()
+    registry = (SWEBENCH_DIR / "litellm-models.json").resolve()
     cost_limit = min(float(baseline.get("costLimitUsd") or remaining), remaining)
     return [
         definition["_mini_extra"],
@@ -306,10 +306,12 @@ def run_baseline_instance(
     }
 
 
-def run_arm(definition: dict, subset: list[str], arm: str, work_root: Path) -> dict:
+def run_arm(
+    definition: dict, subset: list[str], arm: str, work_root: Path, initial_spent: float = 0.0
+) -> dict:
     models = definition["models"]
     cap = float(definition["limits"]["maxCostUsd"])
-    spent = 0.0
+    spent = initial_spent
     arms = []
     rows_by_tier = {model["tier"]: [] for model in models}
     cap_reached = False
@@ -371,7 +373,7 @@ def merge(summary_dir: Path, run_id: str) -> Path:
         "total": lunate["total"],
         "maxCostUsd": lunate["maxCostUsd"],
         "totalSpendUsd": round(
-            lunate["totalSpendUsd"] + (baseline["totalSpendUsd"] if baseline else 0.0), 6
+            (baseline or lunate)["totalSpendUsd"], 6
         ),
         "capReached": lunate["capReached"] or bool(baseline and baseline.get("capReached")),
         "arms": arms,
@@ -420,8 +422,16 @@ def main(argv: list[str] | None = None) -> int:
         (summary_dir / f"{args.run_id}.lunate.json").write_text(
             json.dumps(arm, indent=2) + "\n", encoding="utf-8", newline="\n"
         )
+        previous_spent = arm["totalSpendUsd"]
+    else:
+        lunate_path = summary_dir / f"{args.run_id}.lunate.json"
+        previous_spent = (
+            float(json.loads(lunate_path.read_text(encoding="utf-8"))["totalSpendUsd"])
+            if lunate_path.is_file()
+            else 0.0
+        )
     if args.arm in ("baseline", "all"):
-        arm = run_arm(definition, subset, "baseline", work_root)
+        arm = run_arm(definition, subset, "baseline", work_root, initial_spent=previous_spent)
         (summary_dir / f"{args.run_id}.baseline.json").write_text(
             json.dumps(arm, indent=2) + "\n", encoding="utf-8", newline="\n"
         )
