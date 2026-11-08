@@ -1210,6 +1210,7 @@ the motion).
 - **WHEN** the user presses Esc
 - **THEN** the turn is cancelled through the normal run-cancellation path and the host does not
   write the staged content
+
 ### Requirement: Cache usage in `/context`
 
 The `/context` notice SHALL show the session's accumulated prompt-cache tokens when the provider has reported them: cache reads and cache writes as separate counts, formatted culture-invariantly, in a `cache: read <n>, write <m>` segment. A count the provider never reported, or reported as zero, SHALL be treated as unknown and omitted from the segment; the command SHALL NOT display a zero for an unknown count. The footer line itself SHALL remain unchanged — cache counts belong to the explicit `/context` readout, not to the always-visible status.
@@ -2150,3 +2151,22 @@ An `ask_user` interaction SHALL appear as a question-and-answer-or-outcome pair 
 - **GIVEN** an MCP tool call that contains an elicitation from `catalog-server`
 - **WHEN** the session transcript or export is viewed
 - **THEN** the elicitation question and answer appear together under that tool call and name `catalog-server`
+
+### Requirement: Run-limit notices
+
+The interactive session SHALL consume `CostLimitReached` and `TimeLimitReached` as warning notices.
+Each notice SHALL name the limit, its configured value and the spend or elapsed time reached,
+formatted with the invariant culture. The interactive session SHALL NOT set a cost or wall-clock
+limit of its own; the limits come only from the resolved settings.
+
+#### Scenario: A cost limit is a notice
+
+- **GIVEN** a run that emits `CostLimitReached`
+- **WHEN** the interactive session handles it
+- **THEN** one warning notice names the cost limit and the spend reached
+
+#### Scenario: A time limit is a notice
+
+- **GIVEN** a run that emits `TimeLimitReached`
+- **WHEN** the interactive session handles it
+- **THEN** one warning notice names the time limit and the elapsed time reached
