@@ -325,6 +325,34 @@ public sealed class SetupCommandTests : IDisposable
     }
 
     [PosixFact]
+    public void A_systemone_model_is_refused_for_the_chat_profile_with_the_shared_words()
+    {
+        (int exit, string output, string errors) = Run(
+            [
+                "setup",
+                "--provider",
+                "opencode-go",
+                "--model",
+                "opencode-go/jev-1.13",
+                "--profile",
+                "main",
+                "--no-test",
+                "--no-model-check",
+            ],
+            stdinIsTerminal: false,
+            environment: name => name == "OPENCODE_GO_API_KEY" ? "systemone-key" : null
+        );
+
+        Assert.Equal(2, exit);
+        Assert.Contains("decision-only", errors, StringComparison.Ordinal);
+        Assert.Contains("lunate setup", errors, StringComparison.Ordinal);
+        Assert.DoesNotContain("; Usage:", errors, StringComparison.Ordinal);
+        Assert.False(File.Exists(SettingsPath), "a refused binding writes no settings");
+        Assert.False(File.Exists(ProviderStorePath), "a refused binding writes no provider");
+        Assert.DoesNotContain("systemone-key", output + errors, StringComparison.Ordinal);
+    }
+
+    [PosixFact]
     public void Api_family_overrides_the_presets_default_for_the_check_and_the_writes()
     {
         // S-12: the flag used to be validated and then ignored; the check, the entry and the

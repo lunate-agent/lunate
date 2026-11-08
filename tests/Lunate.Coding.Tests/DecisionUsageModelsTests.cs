@@ -106,6 +106,24 @@ public sealed class DecisionUsageModelsTests
     }
 
     [Fact]
+    public void The_shared_validation_names_the_family_and_the_repair_command()
+    {
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            UsageProfileValidation.RequireChatFamily(
+                "decisions",
+                "opencode-go/jev-1.13",
+                "systemone",
+                "chat"
+            )
+        );
+
+        Assert.Contains("systemone", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("decision-only", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("lunate setup", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("/setup", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_decision_profile_with_known_missing_structured_output_is_refused()
     {
         using var temp = new TempDirectory();

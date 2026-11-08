@@ -91,6 +91,8 @@ internal sealed partial class InteractiveSession
                     _providerEntries,
                     _catalog
                 );
+                UsageProfileValidation.RequireChatFamily(resolved, SetupState.ChatUsage);
+                _invalidChatBinding = null;
                 if (!_providerEntries.Any(entry => entry.Name == resolved.Provider.Name))
                 {
                     _providerEntries = [.. _providerEntries, resolved.Provider];

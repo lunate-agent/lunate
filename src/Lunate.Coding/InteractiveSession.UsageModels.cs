@@ -10,8 +10,10 @@ internal sealed partial class InteractiveSession
         ModelInfo fallbackChat
     )
     {
-        if (_extensionModelId is not null)
+        if (_extensionModelId is not null || _invalidChatBinding is not null)
         {
+            // A refused chat binding is waiting for /setup; composing it here would report the
+            // same refusal a second time and crash before the repair path is reachable.
             return null;
         }
 

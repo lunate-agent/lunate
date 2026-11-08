@@ -214,6 +214,10 @@ internal sealed partial class InteractiveSession : IDisposable
     private readonly SkillReadAllowance _skillAllowance = new();
     private string _sessionDirectory = string.Empty;
     private ModelInfo _model = null!;
+
+    /// <summary>The shared usage/profile refusal for the configured chat binding, or null when
+    /// the binding is usable. Startup keeps the session alive so /setup can repair it.</summary>
+    private string? _invalidChatBinding;
     private ThinkingLevel _thinkingLevel;
     private AgentHarness? _harness;
     private SessionApprover? _approver;
@@ -564,6 +568,14 @@ internal sealed partial class InteractiveSession : IDisposable
         ApplyTuiPresentation();
         _thinkingLevel = _settings.Thinking;
         _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
+        _invalidChatBinding = ConfiguredChatRefusal();
+        if (_invalidChatBinding is { } refusal)
+        {
+            // The binding is broken but repairable: keep the session alive with one notice that
+            // names the command, instead of exiting before /setup or `lunate setup` is reachable.
+            Notify(refusal, NoticeLevel.Warning);
+        }
+
         _environment = _options.Environment ?? Environment.GetEnvironmentVariable;
         _factory = _options.Factory ?? HarnessFactory.CreateFactory(_auth);
         // Collected exactly once, the collection the session persistence and the write/edit guards
@@ -698,6 +710,23 @@ internal sealed partial class InteractiveSession : IDisposable
         );
 
     /// <summary>
+    /// The configured chat binding's shared compatibility refusal, or null when it is usable.
+    /// Only the one typed refusal is caught: other resolution failures keep their existing path.
+    /// </summary>
+    private string? ConfiguredChatRefusal()
+    {
+        try
+        {
+            _ = ChatModelResolver.ResolveChatProfile(_settings, _providerEntries, _catalog);
+            return null;
+        }
+        catch (InvalidDataException exception) when (UsageProfileValidation.IsRefusal(exception))
+        {
+            return exception.Message;
+        }
+    }
+
+    /// <summary>
     /// Resolves the configured model: an extension-registered id (virtual models included) comes
     /// from the registry with its derived capabilities; everything else stays a catalog lookup.
     /// With <c>--no-extensions</c> the registry is empty, so extension ids fail as unknown.
@@ -738,8 +767,9 @@ internal sealed partial class InteractiveSession : IDisposable
             );
         }
         else if (
-            ChatModelResolver.ResolveChatProfile(_settings, _providerEntries, _catalog) is
-            { } chatProfile
+            _invalidChatBinding is null
+            && ChatModelResolver.ResolveChatProfile(_settings, _providerEntries, _catalog)
+                is { } chatProfile
         )
         {
             _extensionModelId = null;
@@ -755,7 +785,7 @@ internal sealed partial class InteractiveSession : IDisposable
                 _model = HarnessFactory.ResolveModel(configured, _catalog);
             }
             catch (InvalidOperationException exception)
-                when (WantsSetupWizard() && configured is null)
+                when ((WantsSetupWizard() || _invalidChatBinding is not null) && configured is null)
             {
                 // A machine the setup wizard applies to (design §1) has no chat answer yet: the
                 // composition succeeds, the trigger opens the walk once the first frame is live,

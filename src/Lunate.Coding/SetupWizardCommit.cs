@@ -346,6 +346,14 @@ internal static class SetupWizardCommit
         WizardDecisionsChoice? decisions = model.Decisions;
         if (model.ChatProfile is { } chat && !model.IsCarried(SetupStep.ChatProfile))
         {
+            // The same shared rule the wizard step and the next startup apply: no writer may
+            // persist a chat usage on a decision-only family.
+            UsageProfileValidation.RequireChatFamily(
+                chat.Name,
+                chat.ModelId,
+                ChatFamily(model) ?? model.Model?.ApiFamily,
+                SetupState.ChatUsage
+            );
             // The chat profile's routing description is part of the same profile entry, so one
             // writer pass carries both (settings: profiles.<name>.description). The family is
             // written when the walk resolved one the entry would not resolve by itself (#569),
@@ -399,7 +407,7 @@ internal static class SetupWizardCommit
     /// default family, or the custom entry's one — so an ordinary single-family walk writes
     /// nothing extra while an override is recorded where it applies.
     /// </summary>
-    private static string? ChatFamily(SetupWizardModel model)
+    internal static string? ChatFamily(SetupWizardModel model)
     {
         if (model.Provider is not { } provider || model.Model is not { } choice)
         {
