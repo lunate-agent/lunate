@@ -23,7 +23,8 @@ the wizard opens instead of the prompt:
 - **Chat profile and thinking** — the name the session uses and the reasoning level the model
   declares.
 - **Fast and decision profiles** — optional; both default to skip.
-- **Decisions** — each switch is shown with its off/unset default and one explanatory line.
+- **Decisions** — each switch is shown with its off/unset default and one explanatory line; the
+  list stays open after each change, and **Done — leave the decisions settings** leaves it.
 - **Summary** — every collected value, the connection/model-check results, and the skipped steps.
 
 `Esc` at any prompt ends the run with nothing written. The full walk is the only path that writes
