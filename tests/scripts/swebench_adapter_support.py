@@ -97,8 +97,16 @@ for record in records:
         json.dumps({record["instance_id"]: {"resolved": True, "patch_successfully_applied": True}}),
         encoding="utf-8",
     )
-(root / "results.json").write_text(
-    json.dumps({"resolved_instances": len(records), "dataset_instances": len(dataset)}),
+model_safe = records[0]["model_name_or_path"].replace("/", "__")
+Path(f"{model_safe}.{run_id}.json").write_text(
+    json.dumps(
+        {
+            "resolved_instances": len(records),
+            "unresolved_instances": 0,
+            "dataset_instances": len(dataset),
+            "resolved_ids": [record["instance_id"] for record in records],
+        }
+    ),
     encoding="utf-8",
 )
 print("fake official evaluation ok")

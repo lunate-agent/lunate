@@ -57,12 +57,14 @@ class SwebenchAdapterRunTests(AdapterTestCase):
         self.assertIn("--platform", arguments)
         self.assertEqual("linux/amd64", arguments[arguments.index("--platform") + 1])
         self.assertIn("LUNATE_MODEL=example/model", arguments)
+        self.assertIn("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1", arguments)
         self.assertIn("FAKE_API_KEY", arguments)
         self.assertIn("example/alpha-one:latest", arguments)
         self.assertNotIn(SECRET, json.dumps(arguments))
         instance = self.run_root("run-2") / "alpha__one-1"
         container_script = (instance / "run.sh").read_text()
-        self.assertIn("lunate -p --json --yolo", container_script)
+        self.assertIn('/opt/lunate/lunate "${args[@]}"', container_script)
+        self.assertIn("args=(-p --json --yolo", container_script)
         self.assertIn("prompt.md", container_script)
         self.assertIn("Fix the alpha parser.", (instance / "prompt.md").read_text())
         environment = (self.docker_args.parent / (self.docker_args.name + ".envs")).read_text()
@@ -187,6 +189,86 @@ class SwebenchAdapterRunTests(AdapterTestCase):
         run = json.loads((self.run_root("run-8") / "run.json").read_text())
         self.assertEqual(2, run["instances"][0]["exitCode"])
         self.assertFalse(run["instances"][0]["completed"])
+
+    def test_cost_and_time_limits_reach_the_agent(self) -> None:
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--dry-run",
+                "--instance",
+                "alpha__one-1",
+                "--run-id",
+                "run-limits",
+                "--env",
+                "FAKE_API_KEY",
+                "--max-cost",
+                "12.5",
+                "--max-time",
+                "600",
+            )
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        arguments = json.loads(self.docker_args.read_text())
+        self.assertIn("LUNATE_MAX_COST=12.5", arguments)
+        self.assertIn("LUNATE_MAX_TIME=600", arguments)
+        script = (self.run_root("run-limits") / "alpha__one-1" / "run.sh").read_text()
+        self.assertIn("--max-cost", script)
+        self.assertIn("--max-time", script)
+        run = json.loads((self.run_root("run-limits") / "run.json").read_text())
+        self.assertEqual(12.5, run["maxCostUsd"])
+        self.assertEqual(600, run["maxTimeSeconds"])
+
+    def test_the_official_harness_receives_the_worker_count(self) -> None:
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--instance",
+                "alpha__one-1",
+                "--run-id",
+                "run-workers",
+                "--env",
+                "FAKE_API_KEY",
+                "--evaluate",
+                "always",
+                "--max-workers",
+                "2",
+            )
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        run = json.loads((self.run_root("run-workers") / "run.json").read_text())
+        command = run["evaluation"]["command"]
+        self.assertEqual("2", command[command.index("--max_workers") + 1])
+
+    def test_a_local_dataset_record_without_an_image_gets_the_resolved_image(self) -> None:
+        dataset = self.tmp / "old-dataset.json"
+        dataset.write_text(
+            json.dumps(
+                [
+                    {
+                        "instance_id": "alpha__one-1",
+                        "problem_statement": "Fix the alpha parser.",
+                        "repo": "alpha/one",
+                    }
+                ]
+            ),
+            encoding="utf-8",
+        )
+        arguments = self.base_arguments(
+            "--dry-run",
+            "--instance",
+            "alpha__one-1",
+            "--run-id",
+            "run-image",
+            "--env",
+            "FAKE_API_KEY",
+        )
+        arguments[arguments.index("--dataset-file") + 1] = str(dataset)
+
+        result = self.run_adapter(*arguments)
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        written = json.loads((self.run_root("run-image") / "dataset.json").read_text())
+        self.assertEqual("swebench/sweb.eval.x86_64.alpha_1776_one-1", written[0]["image"])
 
 
 if __name__ == "__main__":

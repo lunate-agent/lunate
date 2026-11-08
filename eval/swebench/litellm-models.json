@@ -1,0 +1,40 @@
+{
+  "openai/deepseek-v4.1-flash": {
+    "input_cost_per_token": 0.00000015,
+    "output_cost_per_token": 0.0000006,
+    "cache_read_input_token_cost": 0.000000003,
+    "litellm_provider": "openai",
+    "mode": "chat",
+    "max_tokens": 384000,
+    "max_input_tokens": 1000000
+  },
+  "deepseek-v4.1-flash": {
+    "input_cost_per_token": 0.00000015,
+    "output_cost_per_token": 0.0000006,
+    "cache_read_input_token_cost": 0.000000003,
+    "litellm_provider": "openai",
+    "mode": "chat",
+    "max_tokens": 384000,
+    "max_input_tokens": 1000000
+  },
+  "openrouter/anthropic/claude-opus-5.5": {
+    "input_cost_per_token": 0.000004,
+    "output_cost_per_token": 0.00002,
+    "cache_read_input_token_cost": 0.0000002,
+    "cache_creation_input_token_cost": 0.000005,
+    "litellm_provider": "openrouter",
+    "mode": "chat",
+    "max_tokens": 128000,
+    "max_input_tokens": 1000000
+  },
+  "anthropic/claude-opus-5.5": {
+    "input_cost_per_token": 0.000004,
+    "output_cost_per_token": 0.00002,
+    "cache_read_input_token_cost": 0.0000002,
+    "cache_creation_input_token_cost": 0.000005,
+    "litellm_provider": "openrouter",
+    "mode": "chat",
+    "max_tokens": 128000,
+    "max_input_tokens": 1000000
+  }
+}
