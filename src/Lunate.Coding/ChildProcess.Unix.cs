@@ -21,6 +21,15 @@ internal sealed class UnixChildProcess : ChildProcess
     private static readonly short PosixSpawnSetSid = OperatingSystem.IsMacOS()
         ? (short)0x0400
         : (short)0x0080;
+
+    // POSIX_SPAWN_CLOEXEC_DEFAULT is Darwin-only: 0x4000 in usr/include/spawn.h on macOS 26. It
+    // closes every descriptor the child's file actions did not name, which is the same guarantee
+    // a Linux child gets from inheriting close-on-exec handles and having the actions dup2 them
+    // onto 0/1/2. glibc and musl define no equivalent flag, and passing this value on Linux would
+    // be rejected by setflags (measured the same way as the SETSID value above, #621).
+    private static readonly short PosixSpawnCloExecDefault = OperatingSystem.IsMacOS()
+        ? (short)0x4000
+        : (short)0;
     private const int OpenReadOnly = 0;
     private const int WaitNoHang = 1;
     private static readonly TimeSpan ReapTimeout = TimeSpan.FromSeconds(5);
@@ -73,20 +82,16 @@ internal sealed class UnixChildProcess : ChildProcess
         AnonymousPipeServerStream? stdinPipe = null;
         try
         {
-            stdoutPipe = new AnonymousPipeServerStream(
-                PipeDirection.In,
-                HandleInheritability.Inheritable
-            );
-            stderrPipe = new AnonymousPipeServerStream(
-                PipeDirection.In,
-                HandleInheritability.Inheritable
-            );
+            // Invariant: no descriptor another spawn created may be visible to this child. The
+            // pipes are created close-on-exec (None leaves FD_CLOEXEC set on Unix), so a concurrent
+            // spawn cannot inherit these ends while they wait for posix_spawn. The child still
+            // receives its own ends because the file actions dup2 them onto 0/1/2 before exec,
+            // and dup2 clears close-on-exec on the new descriptors.
+            stdoutPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.None);
+            stderrPipe = new AnonymousPipeServerStream(PipeDirection.In, HandleInheritability.None);
             stdinPipe = request.LineHandler is null
                 ? null
-                : new AnonymousPipeServerStream(
-                    PipeDirection.Out,
-                    HandleInheritability.Inheritable
-                );
+                : new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.None);
 
             int stdoutWrite = stdoutPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt32();
             int stderrWrite = stderrPipe.ClientSafePipeHandle.DangerousGetHandle().ToInt32();
@@ -99,7 +104,10 @@ internal sealed class UnixChildProcess : ChildProcess
             try
             {
                 ThrowIfNegative(
-                    posix_spawnattr_setflags(attributes, PosixSpawnSetSid),
+                    posix_spawnattr_setflags(
+                        attributes,
+                        (short)(PosixSpawnSetSid | PosixSpawnCloExecDefault)
+                    ),
                     "posix_spawnattr_setflags"
                 );
                 ThrowIfNegative(
