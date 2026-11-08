@@ -18,7 +18,7 @@ namespace Lunate.Tui;
 /// held. The file also carries <c>guideRows</c> (the guide's table rows, each naming the bindings
 /// it documents); this assembly ignores them — they exist so the docs and the router cannot drift.
 /// </remarks>
-internal static class KeyBindingCatalog
+internal static partial class KeyBindingCatalog
 {
     /// <summary>The embedded resource that carries the keymap.</summary>
     internal const string ResourceName = "Lunate.Tui.keys.json";
@@ -93,7 +93,7 @@ internal static class KeyBindingCatalog
     }
 
     /// <summary>
-    /// The binding by id closest to <paramref name="id"/> in edit distance, the missing-id error's
+    /// A binding id's nearest-id suggestion. The missing-id error's
     /// "did you mean" suggestion.
     /// </summary>
     internal static IReadOnlyList<string> NearestIds(string id, int count = 3)
@@ -114,6 +114,27 @@ internal static class KeyBindingCatalog
                 .Distinct(StringComparer.Ordinal)
                 .Take(count),
         ];
+    }
+
+    /// <summary>
+    /// Catalogue ids close to <paramref name="id"/> — within <paramref name="maxDistance"/> edits,
+    /// sorted by name and capped at <paramref name="count"/>. The user keymap file's unknown-id
+    /// failure names these: names close enough to be the intended one, in a stable order a reader
+    /// can scan, not the distance order the single-suggestion error uses.
+    /// </summary>
+    internal static IReadOnlyList<string> SimilarIds(string id, int maxDistance = 3, int count = 3)
+    {
+        lock (Gate)
+        {
+            return
+            [
+                .. All.Select(binding => binding.Id)
+                    .Distinct(StringComparer.Ordinal)
+                    .Where(catalogueId => Levenshtein(id, catalogueId) <= maxDistance)
+                    .Order(StringComparer.Ordinal)
+                    .Take(count),
+            ];
+        }
     }
 
     /// <summary>
