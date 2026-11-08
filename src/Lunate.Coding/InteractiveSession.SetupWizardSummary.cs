@@ -183,7 +183,8 @@ internal sealed partial class InteractiveSession
         IReadOnlyList<string> options,
         CancellationToken ct
     ) =>
-        await AskSelectAsync(header, question, options, multiSelect: false, ct).ConfigureAwait(false)
+        await AskSelectAsync(header, question, options, multiSelect: false, ct)
+            .ConfigureAwait(false)
             is { Count: > 0 } selected
             ? selected[0]
             : WizardAbortValue;
@@ -198,7 +199,8 @@ internal sealed partial class InteractiveSession
         IReadOnlyList<string> options,
         CancellationToken ct
     ) =>
-        await AskSelectAsync(header, question, options, multiSelect: true, ct).ConfigureAwait(false);
+        await AskSelectAsync(header, question, options, multiSelect: true, ct)
+            .ConfigureAwait(false);
 
     private async Task<IReadOnlyList<string>?> AskSelectAsync(
         string header,

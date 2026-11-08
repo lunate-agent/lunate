@@ -270,10 +270,7 @@ internal sealed partial class InteractiveSession
             };
 
         public WizardDecisionsChoice? ToChoice() =>
-            Approvals is null
-            && Routing is null
-            && Questions is null
-            && Tool is null
+            Approvals is null && Routing is null && Questions is null && Tool is null
                 ? null
                 : new WizardDecisionsChoice(
                     Approvals,

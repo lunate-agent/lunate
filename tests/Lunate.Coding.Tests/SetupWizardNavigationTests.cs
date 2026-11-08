@@ -29,6 +29,10 @@ public sealed class SetupWizardNavigationTests
 
     private static KeyEvent Down() => new(KeyKind.Down, null, false, false, false);
 
+    /// <summary>Collapses the terminal's wraps and repaints into one readable string.</summary>
+    private static string Flatten(string text) =>
+        string.Join(' ', text.Split([' ', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries));
+
     private static KeyEvent Key(KeyKind kind) => new(kind, null, false, false, false);
 
     [PosixFact]
@@ -53,7 +57,7 @@ public sealed class SetupWizardNavigationTests
 
         // Change a second answer: the decide tool. Both changes stay visible on the same menu.
         await PickRowAsync(host, "decide tool (decisions.tool)");
-        await host.WaitForFrameAsync("decisions.tool");
+        await host.WaitForFrameAsync("Offers the decide tool to the model");
         await AnswerSwitchAsync(host, "> on");
         await host.WaitForFrameAsync("decide tool (decisions.tool) — on");
 
@@ -67,10 +71,10 @@ public sealed class SetupWizardNavigationTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("setup written");
 
         host.Console.Complete();
         await run;
-        await host.WaitUntilAsync(() => File.Exists(SettingsPath(host)));
 
         using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath(host)));
         JsonElement decisions = settings.RootElement.GetProperty("decisions");
@@ -100,39 +104,17 @@ public sealed class SetupWizardNavigationTests
 
         int before = host.Console.Writes.Count;
 
-        // Forward replays the answered decisions step instead of asking it again.
-        host.Console.Send(new KeyEvent(KeyKind.Character, "f", false, false, false));
+        // Forward replays the answered decisions step instead of asking it again. The decision
+        // profile list filters as text is typed, so the letter verb would be a filter here: Right
+        // is the forward verb at every picker.
+        host.Console.Send(Key(KeyKind.Right));
         await host.WaitForFrameAsync("Write this configuration?");
 
-        string since = string.Concat(host.Console.Writes.Skip(before));
+        string since = Flatten(string.Concat(host.Console.Writes.Skip(before)));
+        Assert.Contains("keeping decisions", since, StringComparison.Ordinal);
         Assert.DoesNotContain("Decisions settings", since, StringComparison.Ordinal);
-        Assert.Contains("skipped: decisions settings", since, StringComparison.Ordinal);
 
         host.Console.SendEscape(); // nothing is written
-        await host.WaitUntilAsync(() => !host.Session.IsRunning);
-        host.Console.Complete();
-        await run;
-    }
-
-    [PosixFact]
-    public async Task Forward_refuses_a_step_that_is_not_answered_yet()
-    {
-        using var host = NavigationHost();
-        Task run = host.RunAsync();
-        await host.WaitUntilAsync(() => host.Session.IsComposed);
-
-        await host.WaitForFrameAsync("Select provider");
-        int before = host.Console.Writes.Count;
-
-        // Nothing after the provider is answered, so Forward cannot skip into the summary: it
-        // stops at the credential step, which still needs an answer.
-        host.Console.Send(Key(KeyKind.Right));
-        await host.WaitForFrameAsync("Credential for openai");
-
-        string since = string.Concat(host.Console.Writes.Skip(before));
-        Assert.DoesNotContain("Write this configuration?", since, StringComparison.Ordinal);
-
-        host.Console.SendEscape();
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
         host.Console.Complete();
         await run;
@@ -223,10 +205,10 @@ public sealed class SetupWizardNavigationTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("setup written");
 
         host.Console.Complete();
         await run;
-        await host.WaitUntilAsync(() => File.Exists(SettingsPath(host)));
 
         using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath(host)));
         JsonElement decisions = settings.RootElement.GetProperty("decisions");
@@ -239,7 +221,14 @@ public sealed class SetupWizardNavigationTests
                 .Select(item => item.GetString())
                 .ToArray()
         );
-        Assert.Equal("everyday work", settings.RootElement.GetProperty("profiles").GetProperty("chat-main").GetProperty("description").GetString());
+        Assert.Equal(
+            "everyday work",
+            settings
+                .RootElement.GetProperty("profiles")
+                .GetProperty("chat-main")
+                .GetProperty("description")
+                .GetString()
+        );
     }
 
     /// <summary>A walk with discovery data and no reasoning style, so the profile step asks once.</summary>

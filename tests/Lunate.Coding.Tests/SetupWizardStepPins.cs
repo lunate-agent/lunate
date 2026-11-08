@@ -388,6 +388,7 @@ public sealed class SetupWizardStepPins
         }
 
         // The menu returned with the routing row showing the change; Up twice reaches Done.
+        await host.WaitForFrameAsync("routing (decisions.routing) — shadow");
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         await host.WaitForFrameAsync("> Done");

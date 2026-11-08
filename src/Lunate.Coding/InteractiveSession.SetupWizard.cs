@@ -162,13 +162,20 @@ internal sealed partial class InteractiveSession
     private async Task WalkAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         wizard.Enter(wizard.FirstWalked);
+        SetupStep? headed = null;
         while (true)
         {
             while (wizard.Step is not SetupStep.Summary)
             {
                 // The path header names the stage and the position before the step asks (spec: The
-                // walk is navigable). It is one line and fits the 60-column pin.
-                Notify(wizard.HeaderLine);
+                // walk is navigable). It is one line and fits the 60-column pin, and it is only
+                // re-emitted when the step changes so a step's own notice survives a Stay.
+                if (headed != wizard.Step)
+                {
+                    Notify(wizard.HeaderLine);
+                    headed = wizard.Step;
+                }
+
                 WizardMove move = await RunStepAsync(wizard, ct).ConfigureAwait(false);
 
                 if (move == WizardMove.Abort)
@@ -196,6 +203,7 @@ internal sealed partial class InteractiveSession
                 // Back at the summary re-opens the walk at its last step; every answer is kept and
                 // Forward comes straight back here.
                 wizard.Enter(wizard.LastWalked);
+                headed = null;
                 Notify($"setup — back to {wizard.LastWalked}; every answer is kept");
                 continue;
             }
@@ -314,7 +322,7 @@ internal sealed partial class InteractiveSession
                 selected
             )
             .ConfigureAwait(false);
-                {
+        {
             if (picked is null)
             {
                 return WizardMove.Abort;
@@ -649,7 +657,7 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-                {
+        {
             if (credential is null)
             {
                 return WizardMove.Abort;
@@ -745,7 +753,7 @@ internal sealed partial class InteractiveSession
                 "run"
             )
             .ConfigureAwait(false);
-                {
+        {
             if (action is null)
             {
                 return WizardMove.Abort;
@@ -798,7 +806,7 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-                {
+        {
             if (after is null)
             {
                 return WizardMove.Abort;
@@ -864,7 +872,7 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-                {
+        {
             if (chosen is null)
             {
                 return WizardMove.Abort;
@@ -988,7 +996,7 @@ internal sealed partial class InteractiveSession
                 "skip"
             )
             .ConfigureAwait(false);
-                {
+        {
             if (answered is null)
             {
                 return WizardMove.Abort;
@@ -1028,7 +1036,7 @@ internal sealed partial class InteractiveSession
                 ct
             )
             .ConfigureAwait(false);
-                {
+        {
             if (after is null)
             {
                 return WizardMove.Abort;
@@ -1170,7 +1178,7 @@ internal sealed partial class InteractiveSession
                     ct
                 )
                 .ConfigureAwait(false);
-                        {
+            {
                 if (selected is null)
                 {
                     return WizardMove.Abort;
