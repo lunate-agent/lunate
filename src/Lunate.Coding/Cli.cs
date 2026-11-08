@@ -374,16 +374,21 @@ internal static class Cli
 
         if (ConsoleSupport.Check(console) is { } unsupportedMode)
         {
+            int columns = console.IsInteractive ? console.Size.Columns : 0;
             // A piped start on a machine with no chat answer is the configure-it case: the one
             // refusal names `lunate setup` and its flags and exits 2, instead of sending the user
             // to print mode on a machine print mode cannot run either (spec: The wizard trigger).
             if (NeedsSetup(options))
             {
-                errors.WriteLine($"lunate: {SetupRefusal.Text}");
+                TerminalMessage.Write(errors, $"lunate: {SetupRefusal.Text}", columns);
                 return SetupRefusal.ExitCode;
             }
 
-            errors.WriteLine($"lunate: {unsupportedMode}; use lunate -p \"<prompt>\"");
+            TerminalMessage.Write(
+                errors,
+                $"lunate: {unsupportedMode}; use lunate -p \"<prompt>\"",
+                columns
+            );
             return 2;
         }
 

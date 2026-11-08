@@ -1,4 +1,5 @@
 using Lunate.Ai;
+using Lunate.Tui;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Coding.Tests;
@@ -133,6 +134,28 @@ public sealed class InteractiveSessionLaunchOptionsTests
             host.Diagnostics,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task A_composition_failure_commits_the_whole_message_to_scrollback()
+    {
+        using var host = new InteractiveSessionHost(
+            launch: new LaunchOptions { Model = "nope-9000" }
+        );
+        host.Console.Size = new ConsoleSize(40, 24);
+        host.Console.Complete();
+
+        await host.RunAsync();
+
+        string scrollback = host
+            .Scrollback.Output.Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Replace("\n", string.Empty, StringComparison.Ordinal);
+        Assert.Contains(
+            "lunate: Model 'nope-9000' is not in the catalog.",
+            scrollback,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("to draft a models.json entry", scrollback, StringComparison.Ordinal);
     }
 
     [Fact]
