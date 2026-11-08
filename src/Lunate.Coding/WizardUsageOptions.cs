@@ -110,7 +110,8 @@ internal static class WizardUsageOptions
                     entry,
                     new WizardModelChoice(version, ProviderApiFamilies.SystemOne),
                     native: true,
-                    pinned: version
+                    pinned: version,
+                    adapterLabel: false
                 );
             }
         }
@@ -140,7 +141,8 @@ internal static class WizardUsageOptions
                 entry,
                 new WizardModelChoice(listed.Id, family, listed.Reasoning),
                 native: false,
-                pinned: null
+                pinned: null,
+                adapterLabel: decision
             );
         }
     }
@@ -185,7 +187,8 @@ internal static class WizardUsageOptions
                     model.Reasoning
                 ),
                 native,
-                native ? model.Id : null
+                native ? model.Id : null,
+                adapterLabel: decision
             );
         }
     }
@@ -198,7 +201,8 @@ internal static class WizardUsageOptions
         ProviderEntry entry,
         WizardModelChoice model,
         bool native,
-        string? pinned
+        string? pinned,
+        bool adapterLabel
     )
     {
         string key = string.Join('\0', native ? "native" : "chat", provider.Id, model.ModelId);
@@ -211,6 +215,7 @@ internal static class WizardUsageOptions
             ? NativeLabel(provider.Id, model.ModelId)
             : DisplayId(provider.Id, model.ModelId)
                 + " ("
+                + (adapterLabel ? "adapter, " : string.Empty)
                 + model.ApiFamily
                 + (model.Reasoning is { } reasoning ? $", thinking {reasoning}" : string.Empty)
                 + ")";

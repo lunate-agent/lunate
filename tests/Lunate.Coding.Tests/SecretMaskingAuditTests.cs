@@ -110,7 +110,7 @@ public sealed class SecretMaskingAuditTests
             "Decision profile (this provider serves no native Jev profile"
         );
         host.Console.SendText("local/any-model");
-        await host.WaitForFrameAsync("> local/any-model (openai-chat)");
+        await host.WaitForFrameAsync("> local/any-model (adapter, openai-chat)");
         host.Console.SendEnter();
 
         await host.WaitForFrameAsync("Decision check");

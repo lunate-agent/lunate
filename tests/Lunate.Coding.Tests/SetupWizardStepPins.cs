@@ -242,7 +242,11 @@ public sealed class SetupWizardStepPins
             host.LastFrame,
             StringComparison.Ordinal
         );
-        Assert.Contains("openai/any-model (openai-chat)", host.LastFrame, StringComparison.Ordinal);
+        Assert.Contains(
+            "openai/any-model (adapter, openai-chat)",
+            host.LastFrame,
+            StringComparison.Ordinal
+        );
 
         host.Console.SendEscape(); // the walk ends here, nothing written
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
