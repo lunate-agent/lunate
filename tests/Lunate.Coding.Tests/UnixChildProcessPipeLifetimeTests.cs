@@ -15,7 +15,6 @@ public sealed class UnixChildProcessPipeLifetimeTests
     // Enough simultaneous spawns that the pipe-creation-to-posix_spawn window always overlaps; the
     // pre-fix spawn leaked in every pair of the measured run (#699).
     private const int Pairs = 8;
-    private static readonly TimeSpan EofDeadline = TimeSpan.FromSeconds(5);
 
     [Fact]
     public async Task A_finished_child_stdout_reaches_eof_while_a_concurrent_child_lives()
@@ -160,7 +159,10 @@ public sealed class UnixChildProcessPipeLifetimeTests
                         );
                     try
                     {
-                        await read.WaitAsync(EofDeadline, TestContext.Current.CancellationToken);
+                        await read.WaitAsync(
+                            WaitBudgets.PipeEof,
+                            TestContext.Current.CancellationToken
+                        );
                         return null;
                     }
                     catch (TimeoutException)

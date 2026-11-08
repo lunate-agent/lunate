@@ -97,6 +97,14 @@ internal static class WaitBudgets
     public static readonly TimeSpan SpawnWindow = TimeSpan.FromSeconds(120);
 
     /// <summary>
+    /// A captured stream belonging to a child that has already exited: reading it to EOF is the
+    /// assertion. Before #699 a concurrent spawn inherited the write end and the read could hang
+    /// forever, so this is the failure bound that turns a hang into a red assertion; a correct pipe
+    /// reaches EOF in milliseconds and no product timeout is involved.
+    /// </summary>
+    public static readonly TimeSpan PipeEof = TimeSpan.FromSeconds(5);
+
+    /// <summary>
     /// A child process observed gone: killed by the tool, or asked to exit (<c>lunate --acp</c> after
     /// stdin closed, an MCP server after its set was disposed).
     /// <para>
