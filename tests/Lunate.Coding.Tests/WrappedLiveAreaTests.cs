@@ -84,6 +84,77 @@ public sealed class WrappedLiveAreaTests
         await run;
     }
 
+    /// <summary>
+    /// The reported symptom (#679): a status line repeated down the scrollback during the walk.
+    /// The model-check notice is the same one-slot text the decision check posts, and the walk
+    /// repaints it on every profile-name key. At a fixed 40 columns — the width the renderer and
+    /// the terminal both use — the line is painted once, never once per repaint.
+    /// </summary>
+    [Fact]
+    public async Task The_model_check_status_line_paints_once_while_the_walk_repaints_at_40_columns()
+    {
+        const int width = 40;
+        var factory = new FakeChatClientFactory(
+            new ScriptedChatClient().Enqueue(Scripts.Text("OK"))
+        );
+        using var host = new InteractiveSessionHost(
+            factory: factory,
+            interactiveConsole: true,
+            freshInstall: true,
+            discoveryTransport: new RecordingHandler((_, _) => Task.FromResult(Response())),
+            unifiedScrollback: true
+        );
+        host.Console.Size = new ConsoleSize(width, 24);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await host.WaitForFrameAsync("Select provider");
+        host.Console.SendEnter(); // openai
+        await host.WaitForFrameAsync("Credential for openai");
+        host.Console.SendEnter(); // the key row
+        await host.WaitForFrameAsync("API key for openai");
+        host.Console.SendText(Credential);
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Connection test (one discovery request");
+        host.Console.SendEnter(); // run it
+        await host.WaitForFrameAsync("Model (type to search");
+        host.Console.SendEnter(); // the listed model
+        await host.WaitForFrameAsync("Model check");
+        host.Console.SendUp(); // the send row, not the default skip
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Profile name");
+
+        // Every typed key is a repaint with the notice still up: the redraw loop the report saw.
+        foreach (char key in "chat-main")
+        {
+            host.Console.SendText(key.ToString());
+            host.Advance(33);
+        }
+
+        // The wizard reads the name through its own prompt, and the prompt label and the draft
+        // share one clipped line at 40 columns; submitting and waiting for the next step pins
+        // that every repaint happened before the frame is read.
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("as the fast");
+        var screen = new TerminalScreen(width);
+        foreach (string write in host.Console.Writes)
+        {
+            screen.Feed(write);
+        }
+
+        IReadOnlyList<string> lines = screen.Lines;
+        Assert.Equal(1, Occurrences(string.Join("\n", lines), "model check passed"));
+        Assert.All(
+            lines,
+            line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
+        );
+
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        host.Console.Complete();
+        await run;
+    }
+
     /// <summary>Drives every wizard step through the real console; the wait strings are the clipped
     /// forms of the step titles at 40/45 columns.</summary>
     private static async Task WalkToSummary(InteractiveSessionHost host)

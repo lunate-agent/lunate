@@ -61,3 +61,15 @@ fixture: `scripts/render-setup-wizard.sh` starts a local OpenAI-compatible stub 
 `LUNATE_HOME` a throw-away directory. Render it from this directory with
 `LUNATE_BIN=/path/to/lunate vhs tapes/setup-wizard.tape`; the tape writes `setup-wizard.gif`
 here. Nothing in the recording reaches a real provider or reads a real key.
+
+## Narrow-width captures
+
+A narrow capture takes its width from the geometry the renderer and the terminal share: the
+tape's `Width`, or a real tmux pane/window resize. Setting `stty cols N` inside a pane changes
+only the pty's reported width, so the frame and the terminal can disagree about where a line
+wraps. When the renderer believes it is wider than the terminal, a line occupies more physical
+rows than the writer counted and each repaint leaves the previous copy in the scrollback — a
+known way to fake repeated live-area lines. At a width both sides agree on the frame is
+idempotent: repainting unchanged state leaves one copy. Reproduce a narrow-width report at that
+geometry before treating it as a product defect; `WrappedLiveAreaTests` pins the 40- and
+45-column walk.
