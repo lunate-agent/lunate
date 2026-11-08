@@ -159,7 +159,14 @@ public sealed class SetupWizardModelTests
         model.RecordChatProfile(new WizardProfileChoice("chat-main", "openai/gpt-5", "high"));
         model.RecordFastProfile(false);
         model.RecordDecisionProfile(
-            new WizardDecisionChoice("decider", "jev-1.14", Native: true, "jev-1.14")
+            new WizardUsageChoice(
+                "decider",
+                "openai",
+                "jev-1.14",
+                ProviderApiFamilies.SystemOne,
+                Native: true,
+                PinnedVersion: "jev-1.14"
+            )
         );
         return model;
     }

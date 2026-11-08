@@ -29,7 +29,13 @@ the wizard opens instead of the prompt:
   request, and `--no-model-check`, `--no-test` or the skip row avoids it.
 - **Chat profile and thinking** — the name the session uses; Detailed also asks the reasoning level
   the model declares.
-- **Fast and decision profiles** — Detailed only; both default to skip.
+- **Fast and decision profiles** — Detailed only; both default to skip. Each offers a flat
+  `provider/model` list across the provider configured in this run, every provider already
+  configured on the machine, and any provider added inline with **Set up another provider inline…**
+  (which runs the provider, credential, connection-test and model steps without leaving the usage
+  step). The model check runs after the selection, states its cost first, and a skip stays marked
+  unverified. A `systemone` model is labelled native Jev, any other adapter model is labelled
+  adapter.
 - **Decisions** — Detailed only; each switch is shown with the value it holds now and one explanatory
   line; the list stays open after each change and refreshes every row, and **Done — leave the
   decisions settings** leaves it.

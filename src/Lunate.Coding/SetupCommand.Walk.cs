@@ -503,11 +503,11 @@ internal static partial class SetupCommand
                 }
 
                 wizard.RecordDecisionProfile(
-                    new WizardDecisionChoice(
+                    new WizardUsageChoice(
                         profileName,
+                        wizard.Provider!.Id,
                         model.ModelId,
-                        Native: false,
-                        PinnedVersion: null
+                        model.ApiFamily
                     )
                 );
                 return;

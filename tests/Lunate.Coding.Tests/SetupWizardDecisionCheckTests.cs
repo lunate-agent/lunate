@@ -124,7 +124,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         wizard.RecordCredential(new WizardCredentialChoice("env:OPENAI_API_KEY"));
         wizard.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
         wizard.RecordDecisionProfile(
-            new WizardDecisionChoice("decisions", "gpt-5", Native: false, PinnedVersion: null)
+            new WizardUsageChoice("decisions", "openai", "gpt-5", "openai-chat")
         );
 
         WizardCheckResult result = await WizardModelCheck.RunDecisionAsync(
@@ -168,7 +168,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         );
         wizard.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
         wizard.RecordDecisionProfile(
-            new WizardDecisionChoice("decisions", "gpt-5", Native: false, PinnedVersion: null)
+            new WizardUsageChoice("decisions", "openai", "gpt-5", "openai-chat")
         );
         wizard.RecordDecisionCheck(new WizardCheckResult(WizardProgress.Skipped));
 
@@ -235,7 +235,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         );
         wizard.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
         wizard.RecordDecisionProfile(
-            new WizardDecisionChoice("decisions", "gpt-5", Native: false, PinnedVersion: null)
+            new WizardUsageChoice("decisions", "openai", "gpt-5", "openai-chat")
         );
 
         string summary = string.Join("\n", SetupWizardSummary.Render(wizard));
@@ -282,13 +282,8 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         host.Console.SendEnter();
         await PickRowAsync(host, "fast usage", "Skip");
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
-        await PressUpAsync(host);
-        await PressUpAsync(host);
-        Assert.Contains(
-            "> openrouter/typesafe/jev-1.14 (native Jev)",
-            host.LastFrame,
-            StringComparison.Ordinal
-        );
+        host.Console.SendText("jev");
+        await host.WaitForFrameAsync("> openrouter/typesafe/jev-1.14 (native Jev)");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decision check");
         await PressUpAsync(host);
@@ -464,9 +459,11 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         wizard.RecordModel(new WizardModelChoice(model, "openai-chat"));
         string decisionId = decisionModel ?? JevModel;
         wizard.RecordDecisionProfile(
-            new WizardDecisionChoice(
+            new WizardUsageChoice(
                 "decisions",
+                provider,
                 decisionId,
+                ProviderApiFamilies.SystemOne,
                 Native: true,
                 PinnedVersion: decisionId
             )

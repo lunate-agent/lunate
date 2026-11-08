@@ -240,7 +240,7 @@ public sealed class SetupWizardCommitTests : IDisposable
             new WizardProfileChoice("chat-main", "gpt-5", ReasoningLevel: null)
         );
         model.RecordDecisionProfile(
-            new WizardDecisionChoice("decider", "jev-1.14", Native: false, PinnedVersion: null)
+            new WizardUsageChoice("decider", "openai", "jev-1.14", "openai-chat")
         );
         model.RecordDecisions(
             new WizardDecisionsChoice(

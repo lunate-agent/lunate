@@ -90,15 +90,46 @@ internal sealed record WizardModelChoice(
 internal sealed record WizardProfileChoice(string Name, string ModelId, string? ReasoningLevel);
 
 /// <summary>
-/// The decision-profile step's answer: its profile name, the Jev model it runs, and whether it is
-/// the provider's native <c>systemone</c> profile (labelled native, with the preset's pinned
-/// version) or an adapter profile (labelled as such in the picker and the summary).
+/// A model the fast and decision steps can offer: the provider answer that owns it, the entry the
+/// check resolves against, the credential the walk holds (null for an already-configured provider,
+/// whose entry names its own reference), and the model choice. A native decision model rides the
+/// provider's <c>systemone</c> family with its pinned version.
 /// </summary>
-internal sealed record WizardDecisionChoice(
+internal sealed record WizardModelRef(
+    WizardProviderChoice Provider,
+    WizardCredentialChoice? Credential,
+    ProviderEntry Entry,
+    WizardModelChoice Model,
+    bool Native = false,
+    string? PinnedVersion = null
+);
+
+/// <summary>
+/// A usage's answer: the profile it writes and the model that serves it. The fast usage may reuse
+/// the chat profile (<see cref="ReuseChatProfile"/>) when the picked model is the chat model; the
+/// decision usage carries the native <c>systemone</c> label and its pinned version.
+/// </summary>
+internal sealed record WizardUsageChoice(
     string ProfileName,
+    string ProviderId,
     string ModelId,
-    bool Native,
-    string? PinnedVersion
+    string ApiFamily,
+    string? ReasoningLevel = null,
+    bool Native = false,
+    string? PinnedVersion = null,
+    bool ReuseChatProfile = false
+);
+
+/// <summary>
+/// A provider added inside a usage step: its own answers, credential, check and model, staged for
+/// the same review and the same commit pass as the walk's own provider.
+/// </summary>
+internal sealed record WizardInlineProvider(
+    WizardProviderChoice Provider,
+    WizardCredentialChoice Credential,
+    WizardCheckResult ConnectionTest,
+    WizardModelChoice Model,
+    IReadOnlyList<WizardModelListing> Listing
 );
 
 /// <summary>
@@ -185,11 +216,22 @@ internal sealed partial class SetupWizardModel
     /// <summary>The chat profile answer, or null while the step has not been answered.</summary>
     public WizardProfileChoice? ChatProfile { get; private set; }
 
-    /// <summary>Whether the chat profile should also serve the <c>fast</c> usage (the fast step).</summary>
-    public bool FastProfile { get; private set; }
+    /// <summary>The fast usage answer, or null when the step skipped.</summary>
+    public WizardUsageChoice? FastUsage { get; private set; }
+
+    /// <summary>Whether the walk bound a <c>fast</c> usage.</summary>
+    public bool FastProfile => FastUsage is not null;
+
+    /// <summary>The fast usage's own check, or null when the chat model check stands for it.</summary>
+    public WizardCheckResult? FastCheck { get; private set; }
 
     /// <summary>The decision profile answer, or null when the step skipped or stayed unanswered.</summary>
-    public WizardDecisionChoice? DecisionProfile { get; private set; }
+    public WizardUsageChoice? DecisionProfile { get; private set; }
+
+    private readonly List<WizardInlineProvider> _inlineProviders = [];
+
+    /// <summary>The providers added inline from a usage step, for the review and the commit.</summary>
+    public IReadOnlyList<WizardInlineProvider> InlineProviders => _inlineProviders;
 
     /// <summary>The decisions answers, or null when the defaults were accepted (nothing written).</summary>
     public WizardDecisionsChoice? Decisions { get; private set; }
@@ -394,20 +436,54 @@ internal sealed partial class SetupWizardModel
         BindChatUsage = Entry is WizardEntry.WalkEverything;
     }
 
+    /// <summary>The flag path's fast answer: the chat profile also serves <c>fast</c>.</summary>
     public void RecordFastProfile(bool include)
     {
-        FastProfile = include;
-        if (include)
+        if (
+            include
+            && ChatProfile is { } chat
+            && Provider is { } provider
+            && Model is { } model
+        )
         {
-            _skipped.Remove(SetupStep.FastProfile);
+            RecordFastUsage(
+                new WizardUsageChoice(
+                    chat.Name,
+                    provider.Id,
+                    chat.ModelId,
+                    Model!.ApiFamily,
+                    chat.ReasoningLevel,
+                    ReuseChatProfile: true
+                )
+            );
+            return;
         }
-        else
+
+        RecordFastUsage(null, skipped: true);
+    }
+
+    /// <summary>Stages the fast usage the picker answered, or clears it when the step skipped.</summary>
+    public void RecordFastUsage(WizardUsageChoice? choice, bool skipped = false)
+    {
+        FastUsage = choice;
+        FastCheck = null;
+        if (choice is null || skipped)
         {
             _skipped.Add(SetupStep.FastProfile);
         }
+        else
+        {
+            _skipped.Remove(SetupStep.FastProfile);
+        }
     }
 
-    public void RecordDecisionProfile(WizardDecisionChoice? choice)
+    public void RecordFastCheck(WizardCheckResult result) => FastCheck = result;
+
+    /// <summary>Stages a provider added inline from a usage step, reviewed and written with the run.</summary>
+    public void RecordInlineProvider(WizardInlineProvider provider) =>
+        _inlineProviders.Add(provider);
+
+    public void RecordDecisionProfile(WizardUsageChoice? choice)
     {
         DecisionProfile = choice;
         DecisionCheck = null;
@@ -446,6 +522,7 @@ internal sealed partial class SetupWizardModel
         || (ChatProfile is not null && !IsCarried(SetupStep.ChatProfile))
         || (FastProfile && !IsCarried(SetupStep.FastProfile))
         || (DecisionProfile is not null && !IsCarried(SetupStep.DecisionProfile))
+        || _inlineProviders.Count > 0
         || (Decisions is not null && !IsCarried(SetupStep.Decisions))
         || ChatUsageBinding is not null;
 }

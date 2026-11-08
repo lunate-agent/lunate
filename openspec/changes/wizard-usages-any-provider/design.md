@@ -140,7 +140,7 @@ configured provider gets the same native/adapter treatment.
 - Summary adds `fast usage: <profile> (<provider>/<model>)` (with the reasoning level when the model
   declares one) and a `fast check:` line, and repeats the decision profile with its provider/model;
   it lists each inline provider with its credential source, connection test and model.
-- `SetupWizardCommit.StagedEntry(model)` is split into `StagedEntry(provider, credential, model)`
+- `SetupWizardCommit.StagedEntry(model)` is split into `StagedEntry(provider, credential)`
   plus the existing one-argument wrapper. The commit writes the walk's own provider as today, then
   every inline provider's entry through the same `ProviderStore.Save` and its typed key through the
   staged auth file, in the same transaction.
