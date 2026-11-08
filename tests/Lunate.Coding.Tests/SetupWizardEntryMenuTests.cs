@@ -378,7 +378,9 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
-        await host.WaitForFrameAsync("> approval gate off — screen staged actions");
+        await host.WaitForFrameAsync(
+            "> approval gate (decisions.approvals) — off (default)"
+        );
         host.Console.SendEnter();
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
@@ -386,7 +388,11 @@ public sealed class SetupWizardEntryMenuTests
         await host.WaitForFrameAsync("> shadow");
         host.Advance(500);
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+
+        // The menu returned with the chosen value visible; Up reaches Done, the only exit.
+        await host.WaitForFrameAsync("approval gate (decisions.approvals) — shadow");
+        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        await host.WaitForFrameAsync("> Done");
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);

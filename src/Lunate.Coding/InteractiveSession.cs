@@ -265,6 +265,10 @@ internal sealed partial class InteractiveSession : IDisposable
     private List<string> _pickerVisibleValues = [];
     private string _pickerTitlePrefix = string.Empty;
     private string _pickerFilter = string.Empty;
+
+    /// <summary>Whether the open wizard picker is a menu (Esc returns to its parent step) rather
+    /// than a question (Esc ends the run).</summary>
+    private bool _pickerMenu;
     private FileIndex? _fileIndex;
     private string _tail = string.Empty;
     private string _thinking = string.Empty;

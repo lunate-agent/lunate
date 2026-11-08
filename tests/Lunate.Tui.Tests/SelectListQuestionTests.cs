@@ -190,6 +190,26 @@ public sealed class SelectListQuestionTests
         Assert.Equal("keep this", question.FreeText);
     }
 
+    [Fact]
+    public void A_multi_select_shows_its_count_while_toggling()
+    {
+        SelectListQuestionModel question = Create(multiSelect: true)
+            .Handle(Key(KeyKind.Character, "1"))
+            .Handle(Key(KeyKind.Character, "3"));
+
+        IReadOnlyList<string> lines = SelectListRenderer.QuestionLines(question, width: 40);
+
+        Assert.Contains(lines, line => line.Contains("2 selected", StringComparison.Ordinal));
+        Assert.Equal(
+            2,
+            lines.Count(line => line.Contains("[x]", StringComparison.Ordinal))
+        );
+        Assert.DoesNotContain(
+            "2 selected",
+            SelectListRenderer.QuestionLines(question.Handle(Key(KeyKind.Enter)), width: 40)
+        );
+    }
+
     private static SelectListQuestionModel Create(
         bool multiSelect = false,
         string? recommended = null

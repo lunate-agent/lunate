@@ -54,9 +54,11 @@ internal sealed partial class SetupWizardModel
 
     /// <summary>Whether the current mode leaves this step at its default instead of asking it.</summary>
     public bool IsLeftAtDefault(SetupStep step) =>
-        IsQuick && DetailedOnlySteps.Contains(step) && !HasAnswer(step);
+        IsQuick && DetailedOnlySteps.Contains(step) && !HasStagedAnswer(step);
 
-    private bool HasAnswer(SetupStep step) =>
+    /// <summary>Whether the walk staged an answer for a detailed-only step; the walk's own
+    /// <see cref="HasAnswer"/> also counts a skip, which only a walked step can carry.</summary>
+    private bool HasStagedAnswer(SetupStep step) =>
         step switch
         {
             SetupStep.FastProfile => FastProfile,
