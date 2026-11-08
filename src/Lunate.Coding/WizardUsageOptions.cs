@@ -100,7 +100,7 @@ internal static class WizardUsageOptions
         ProviderEntry entry = SetupWizardCommit.StagedEntry(provider, credential);
         if (decision)
         {
-            foreach (string version in NativeDecisionModels(catalog, provider.Id, provider))
+            foreach (string version in NativeDecisionModels(catalog, provider.PresetKey, provider))
             {
                 AddOption(
                     options,
@@ -117,7 +117,7 @@ internal static class WizardUsageOptions
         }
 
         List<WizardModelListing> models =
-            listing.Count > 0 ? [.. listing] : [.. CatalogListing(catalog, provider.Id)];
+            listing.Count > 0 ? [.. listing] : [.. CatalogListing(catalog, provider.PresetKey)];
         if (chosen is { } choice && !models.Any(candidate => candidate.Id == choice.ModelId))
         {
             models.Add(
@@ -298,7 +298,7 @@ internal static class WizardUsageOptions
 
     private static bool ExposesSystemOne(WizardProviderChoice provider) =>
         !provider.Custom
-        && ProviderPresets.Find(provider.Id) is { } preset
+        && ProviderPresets.Find(provider.PresetKey) is { } preset
         && preset.Families.Contains(ProviderApiFamily.SystemOne);
 
     /// <summary>The native Jev row, with the Go preset's billing note exactly as step 7 states it.</summary>

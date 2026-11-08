@@ -97,7 +97,7 @@ internal static class WizardModelCheck
             );
         }
 
-        ProviderPreset? preset = ProviderPresets.Find(model.Provider.Id);
+        ProviderPreset? preset = ProviderPresets.Find(model.Provider.PresetKey);
         if (preset is null)
         {
             throw new InvalidDataException(

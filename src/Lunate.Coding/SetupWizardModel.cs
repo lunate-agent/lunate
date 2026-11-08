@@ -58,7 +58,27 @@ internal sealed record WizardProviderChoice(
     Uri? Endpoint,
     string ApiFamily,
     CredentialPlacement Placement,
-    Uri? ModelsUrl
+    Uri? ModelsUrl,
+    string? PresetId = null
+)
+{
+    /// <summary>The preset whose URL, families and placement the entry rides; a renamed preset
+    /// keeps its preset identity while the entry, key and profiles use <see cref="Id"/>.</summary>
+    internal string PresetKey => PresetId ?? Id;
+}
+
+/// <summary>One collected provider: the answers a provider's steps collected, snapshotted when
+/// the walk starts another provider. The active run stays on the model until then, so a single-run
+/// walk (and every check helper) keeps reading the same properties.</summary>
+internal sealed record WizardProviderRun(
+    WizardProviderChoice Provider,
+    WizardCredentialChoice? Credential,
+    WizardCheckResult? ConnectionTest,
+    WizardModelChoice? Model,
+    WizardCheckResult? ModelCheck,
+    WizardProfileChoice? ChatProfile,
+    bool FastProfile,
+    IReadOnlyList<SetupStep> Skipped
 );
 
 /// <summary>
@@ -173,10 +193,82 @@ internal sealed partial class SetupWizardModel
 
     private readonly HashSet<SetupStep> _skipped = [];
 
+    /// <summary>The provider runs already collected and left behind by **Add another provider…**;
+    /// the active run stays in the properties below until then.</summary>
+    private readonly List<WizardProviderRun> _providers = [];
+
     /// <summary>The steps whose answer was carried in from the current configuration: an entry
     /// run's prefill. Carried values drive the later steps and show in the summary, but they are
     /// never staged writes — an entry writes only what it collected (spec: the entry menu).</summary>
     private readonly HashSet<SetupStep> _carried = [];
+
+    /// <summary>Whether the active provider has completed its per-provider steps and the walk is
+    /// back at the provider list; set by the driver, never by a store writer.</summary>
+    public bool ProviderReady { get; private set; }
+
+    /// <summary>Every provider the run has collected: the sealed runs in collection order, then
+    /// the active run when one is set. A single-run walk is a one-element list.</summary>
+    public IReadOnlyList<WizardProviderRun> AllProviderRuns =>
+        Provider is null ? _providers : [.. _providers, ActiveRun()];
+
+    /// <summary>The provider names already collected, for the duplicate-name refusal.</summary>
+    public IReadOnlyList<string> ProviderIds => [.. AllProviderRuns.Select(run => run.Provider.Id)];
+
+    /// <summary>Whether a provider id is already collected in this run.</summary>
+    public bool IsProviderConfigured(string id) => ProviderIds.Contains(id, StringComparer.Ordinal);
+
+    /// <summary>Marks the active provider's per-provider steps complete; the driver re-enters the
+    /// provider list next.</summary>
+    public void MarkProviderReady() => ProviderReady = Provider is not null;
+
+    /// <summary>
+    /// Moves the active provider answers into the collected list and clears them for the next
+    /// provider. Called only when **Add another provider…** is chosen, so **Done** leaves the last
+    /// run active for the decision step and the commit.
+    /// </summary>
+    public void SealProvider()
+    {
+        if (Provider is null)
+        {
+            return;
+        }
+
+        _providers.Add(ActiveRun());
+        Provider = null;
+        Credential = null;
+        ConnectionTest = null;
+        Model = null;
+        ModelCheck = null;
+        ChatProfile = null;
+        FastUsage = null;
+        FastCheck = null;
+        ProviderReady = false;
+        ClearProviderSkips();
+    }
+
+    private WizardProviderRun ActiveRun() =>
+        new(
+            Provider!,
+            Credential,
+            ConnectionTest,
+            Model,
+            ModelCheck,
+            ChatProfile,
+            FastProfile,
+            [.. Order.Where(step => step <= SetupStep.FastProfile && _skipped.Contains(step))]
+        );
+
+    private void ClearProviderSkips()
+    {
+        foreach (SetupStep step in Order)
+        {
+            if (step is >= SetupStep.Provider and <= SetupStep.FastProfile)
+            {
+                _skipped.Remove(step);
+                _carried.Remove(step);
+            }
+        }
+    }
 
     /// <summary>The entry the walk serves; the driver asks it for the walked range.</summary>
     public WizardEntry Entry { get; private set; } = WizardEntry.WalkEverything;
@@ -379,6 +471,7 @@ internal sealed partial class SetupWizardModel
         }
 
         Provider = choice;
+        ProviderReady = false;
         Credential = null;
         ConnectionTest = null;
         Model = null;
@@ -511,7 +604,8 @@ internal sealed partial class SetupWizardModel
     /// the summary confirms). Carried values are not staged writes — the stores already have them.
     /// </summary>
     public bool HasStagedWrites =>
-        (Provider is not null && !IsCarried(SetupStep.Provider))
+        _providers.Count > 0
+        || (Provider is not null && !IsCarried(SetupStep.Provider))
         || (Credential is not null && !IsCarried(SetupStep.Credential))
         || (Model is not null && !IsCarried(SetupStep.Model))
         || (ChatProfile is not null && !IsCarried(SetupStep.ChatProfile))
