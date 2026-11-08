@@ -119,6 +119,14 @@ public sealed record AgentSettings
     /// <summary>The resolved subagent limits (the <c>subagents</c> section; defaults 4/100000/500000).</summary>
     public SubagentLimits Subagents { get; init; } = new();
 
+    /// <summary>
+    /// The cumulative cost ceiling of a session in US dollars; null (the default) is off.
+    /// </summary>
+    public decimal? MaxCostUsd { get; init; }
+
+    /// <summary>The wall-clock ceiling of one run; null (the default) is off.</summary>
+    public TimeSpan? MaxTime { get; init; }
+
     /// <summary>The resolved Roslyn settings (the <c>roslyn</c> section).</summary>
     public RoslynSettings Roslyn { get; init; } = new();
 
@@ -493,6 +501,18 @@ public static partial class SettingsStore
                             Subagents = ReadSubagents(property.Value, problems),
                         };
                         break;
+                    case "maxCost":
+                        settings = settings with
+                        {
+                            MaxCostUsd = ReadMaxCost(property.Value, problems),
+                        };
+                        break;
+                    case "maxTime":
+                        settings = settings with
+                        {
+                            MaxTime = ReadMaxTime(property.Value, problems),
+                        };
+                        break;
                     case "roslyn":
                         settings = settings with { Roslyn = ReadRoslyn(property.Value, problems) };
                         break;
@@ -651,6 +671,36 @@ public static partial class SettingsStore
             )
         );
         return ToolDetails.Collapsed;
+    }
+
+    private static decimal? ReadMaxCost(JsonElement value, List<string> problems)
+    {
+        if (
+            value.ValueKind == JsonValueKind.Number
+            && value.TryGetDecimal(out decimal parsed)
+            && parsed > 0m
+        )
+        {
+            return parsed;
+        }
+
+        problems.Add("'maxCost' must be a positive number of US dollars");
+        return null;
+    }
+
+    private static TimeSpan? ReadMaxTime(JsonElement value, List<string> problems)
+    {
+        if (
+            value.ValueKind == JsonValueKind.Number
+            && value.TryGetInt32(out int seconds)
+            && seconds >= 1
+        )
+        {
+            return TimeSpan.FromSeconds(seconds);
+        }
+
+        problems.Add("'maxTime' must be a positive integer number of seconds");
+        return null;
     }
 
     private static (int ToolOutputLimit, int SpillThresholdTokens) ReadOutput(
@@ -1439,6 +1489,8 @@ public static partial class SettingsStore
         {
             Model = launch.Model ?? settings.Model,
             Thinking = launch.Thinking ?? SeedReasoningLevel(settings) ?? settings.Thinking,
+            MaxCostUsd = launch.MaxCostUsd ?? settings.MaxCostUsd,
+            MaxTime = launch.MaxTime ?? settings.MaxTime,
         };
         if (launch.ExtraTools is { } extra)
         {

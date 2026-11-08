@@ -63,6 +63,9 @@ internal sealed partial record PrintModeOptions
 
     /// <summary>The launch flags parsed once by the CLI; defaults stand in for direct calls.</summary>
     public LaunchOptions Launch { get; init; } = new();
+
+    /// <summary>The run's monotonic clock; null uses the system clock. Tests inject one.</summary>
+    public TimeProvider? TimeProvider { get; init; }
 }
 
 /// <summary>
@@ -79,7 +82,7 @@ internal static class PrintMode
     internal const string YoloWarning =
         "--yolo disables the approval boundary: no tool call is shown before it runs, so the trust boundary goes with it.";
 
-    /// <summary>Runs one prompt; returns the process exit code (0 stop, 1 error, 2 launch usage error or length/step limit, 130 cancelled).</summary>
+    /// <summary>Runs one prompt; returns the process exit code (0 stop, 1 error, 2 launch usage error or length/step limit, 3 cost limit, 4 time limit, 130 cancelled).</summary>
     internal static async Task<int> RunAsync(
         PrintModeOptions options,
         TextWriter output,
@@ -166,6 +169,22 @@ internal static class PrintMode
                 (auth, providers) = LoadProviderSources(options, settings);
                 chat = ChatModelResolver.Resolve(settings, providers, catalog);
                 model = chat.Model;
+                if (
+                    settings.MaxCostUsd is not null
+                    && !options.Launch.AllowUnpriced
+                    && model.Pricing is null
+                )
+                {
+                    interaction.Notify(
+                        new UserNotice(
+                            NoticeLevel.Error,
+                            $"a cost limit is set, but model '{model.Id}' has no catalog price; "
+                                + "pass --allow-unpriced to run anyway or choose a priced model"
+                        )
+                    );
+                    return 2;
+                }
+
                 factory = options.Factory ?? HarnessFactory.CreateFactory(auth);
                 (Session? selected, string? selectionError) = ResolveSession(options, workspace);
                 if (selectionError is { } message)
@@ -479,6 +498,18 @@ internal static class PrintMode
                 NoticeLevel.Warning,
                 FormattableString.Invariant($"step limit reached ({limit.MaxSteps} steps)")
             ),
+            CostLimitReached limit => new UserNotice(
+                NoticeLevel.Warning,
+                FormattableString.Invariant(
+                    $"cost limit reached (limit {RunLimits.FormatCost(limit.MaxCostUsd)}, spent {RunLimits.FormatCost(limit.SpendUsd)})"
+                )
+            ),
+            TimeLimitReached limit => new UserNotice(
+                NoticeLevel.Warning,
+                FormattableString.Invariant(
+                    $"time limit reached (limit {RunLimits.FormatSeconds(limit.MaxTime)}, elapsed {RunLimits.FormatSeconds(limit.Elapsed)})"
+                )
+            ),
             ToolOutputSpillFailed failed => new UserNotice(NoticeLevel.Warning, failed.Message),
             _ => null,
         };
@@ -510,6 +541,12 @@ internal static class PrintMode
             case StopReasons.Length or StopReasons.StepLimit:
                 WriteAnswer(summary, json, output);
                 return 2;
+            case StopReasons.CostLimit:
+                WriteAnswer(summary, json, output);
+                return 3;
+            case StopReasons.TimeLimit:
+                WriteAnswer(summary, json, output);
+                return 4;
             default:
                 interaction.Notify(
                     new UserNotice(NoticeLevel.Error, "the run ended without a finish event.")
@@ -792,6 +829,10 @@ internal static class PrintMode
             // The same redactor masks the model-facing text whether or not a session exists.
             ToolOutputMask = redaction.Redact,
             SubagentLimits = settings.Subagents,
+            MaxCostUsd = settings.MaxCostUsd,
+            MaxTime = settings.MaxTime,
+            AllowUnpricedCost = options.Launch.AllowUnpriced,
+            TimeProvider = options.TimeProvider,
             ThinkingLevel = settings.Thinking,
             Approver = new NonInteractiveApprover(settings.Approval, options.Yolo),
             Hooks = extensions?.Hooks,

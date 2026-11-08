@@ -94,6 +94,14 @@ internal static partial class DiagnosticBundle
                 + compaction.EstimatedTokensAfter.ToString(CultureInfo.InvariantCulture),
             StepLimitReached limit => " max steps="
                 + limit.MaxSteps.ToString(CultureInfo.InvariantCulture),
+            CostLimitReached limit => " max cost="
+                + limit.MaxCostUsd.ToString(CultureInfo.InvariantCulture)
+                + " spent="
+                + limit.SpendUsd.ToString(CultureInfo.InvariantCulture),
+            TimeLimitReached limit => " max time="
+                + limit.MaxTime.TotalSeconds.ToString(CultureInfo.InvariantCulture)
+                + " elapsed="
+                + limit.Elapsed.TotalSeconds.ToString(CultureInfo.InvariantCulture),
             SteeringInjected injected => injected.Text is { } text
                 ? Count(" entry=" + (injected.EntryId ?? "(none)"), text)
                 : " entry=" + (injected.EntryId ?? "(none)"),

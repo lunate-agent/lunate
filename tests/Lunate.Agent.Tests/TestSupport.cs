@@ -141,6 +141,65 @@ internal sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     public override DateTimeOffset GetUtcNow() => now;
 }
 
+/// <summary>
+/// A controllable monotonic clock for run-limit tests: time moves only when the test advances it,
+/// and timers fire synchronously at their due time.
+/// </summary>
+internal sealed class ManualTimeProvider : TimeProvider
+{
+    private readonly List<ManualTimer> _timers = [];
+    private long _timestamp;
+
+    public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+    public override long GetTimestamp() => _timestamp;
+
+    public override ITimer CreateTimer(
+        TimerCallback callback,
+        object? state,
+        TimeSpan dueTime,
+        TimeSpan period
+    )
+    {
+        var timer = new ManualTimer(callback, state);
+        if (dueTime != Timeout.InfiniteTimeSpan)
+        {
+            timer.DueAt = _timestamp + dueTime.Ticks;
+            _timers.Add(timer);
+        }
+
+        return timer;
+    }
+
+    public void Advance(TimeSpan delta)
+    {
+        _timestamp += delta.Ticks;
+        foreach (ManualTimer timer in _timers.ToArray())
+        {
+            if (timer.DueAt > _timestamp)
+            {
+                continue;
+            }
+
+            _timers.Remove(timer);
+            timer.Fire();
+        }
+    }
+
+    private sealed class ManualTimer(TimerCallback callback, object? state) : ITimer
+    {
+        public long DueAt { get; set; }
+
+        public void Fire() => callback(state);
+
+        public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+        public void Dispose() { }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}
+
 internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()

@@ -94,6 +94,8 @@ public sealed class AcpEventMapperTests
             new UsageUpdated("run_1", new Microsoft.Extensions.AI.UsageDetails()),
             new Retrying("run_1", 1, "boom"),
             new StepLimitReached("run_1", 5),
+            new CostLimitReached("run_1", 1m, 1m),
+            new TimeLimitReached("run_1", TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)),
             new CompactionApplied("run_1", ["entry_1"], 10),
             new SteeringInjected("run_1", "entry_2"),
             new ApprovalRequested("run_1", "call_1", "echo", "{}"),

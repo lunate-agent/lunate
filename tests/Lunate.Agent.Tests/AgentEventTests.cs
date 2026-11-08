@@ -31,6 +31,8 @@ public sealed class AgentEventTests
             new Retrying(RunId, 2, "rate limited"),
             new CompactionApplied(RunId, ["e_01", "e_02"], 1234),
             new StepLimitReached(RunId, 50),
+            new CostLimitReached(RunId, 1m, 1m),
+            new TimeLimitReached(RunId, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)),
             new ToolProgressUpdate(RunId, "call_1", "half way"),
             new ToolOutputSpillFailed(RunId, "could not spill"),
         };
@@ -44,6 +46,8 @@ public sealed class AgentEventTests
             new Retrying(RunId, 1, "boom"),
             new CompactionApplied(RunId, ["e_01"], 1234),
             new StepLimitReached(RunId, 50),
+            new CostLimitReached(RunId, 1m, 1m),
+            new TimeLimitReached(RunId, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)),
             new ToolOutputSpillFailed(RunId, "could not spill"),
         };
 
@@ -77,7 +81,7 @@ public sealed class AgentEventTests
                 .Where(type => typeof(AgentEvent).IsAssignableFrom(type) && !type.IsAbstract),
         ];
 
-        Assert.Equal(25, concreteTypes.Length);
+        Assert.Equal(27, concreteTypes.Length);
         Assert.All(
             concreteTypes,
             type => Assert.True(type.IsSealed, $"{type.Name} must be sealed")

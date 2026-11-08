@@ -27,6 +27,15 @@ internal sealed record LaunchOptions
     /// <summary>The thinking level for this run; null keeps the resolved setting.</summary>
     public ThinkingLevel? Thinking { get; init; }
 
+    /// <summary>The cost limit for this run in US dollars; null keeps the resolved setting.</summary>
+    public decimal? MaxCostUsd { get; init; }
+
+    /// <summary>The wall-clock limit for this run; null keeps the resolved setting.</summary>
+    public TimeSpan? MaxTime { get; init; }
+
+    /// <summary>Whether a cost limit may run with a model the catalog cannot price.</summary>
+    public bool AllowUnpriced { get; init; }
+
     /// <summary>The exact model-facing tool names to expose; null keeps the composed registry.</summary>
     public IReadOnlyList<string>? Tools { get; init; }
 
@@ -85,12 +94,15 @@ internal sealed record LaunchOptions
         var noSession = false;
         var noTools = false;
         var toolsGiven = false;
+        var allowUnpriced = false;
         string? session = null;
         string? model = null;
         string? tools = null;
         string? extraToolsFlag = null;
         string? systemPrompt = null;
         string? appendSystemPrompt = null;
+        string? maxCostFlag = null;
+        string? maxTimeFlag = null;
         ThinkingLevel? thinking = null;
         List<string> positional = [];
 
@@ -140,6 +152,25 @@ internal sealed record LaunchOptions
                     break;
                 case "--no-tools":
                     noTools = true;
+                    break;
+                case "--allow-unpriced":
+                    allowUnpriced = true;
+                    break;
+                case "--max-cost":
+                    if (
+                        !TryValue(args, ref index, "--max-cost", inline, out maxCostFlag, out error)
+                    )
+                    {
+                        return false;
+                    }
+                    break;
+                case "--max-time":
+                    if (
+                        !TryValue(args, ref index, "--max-time", inline, out maxTimeFlag, out error)
+                    )
+                    {
+                        return false;
+                    }
                     break;
                 case "--session":
                     if (!TryValue(args, ref index, "--session", inline, out session, out error))
@@ -244,6 +275,32 @@ internal sealed record LaunchOptions
             return false;
         }
 
+        decimal? maxCost = null;
+        if (maxCostFlag is not null)
+        {
+            if (!RunLimits.TryParseCost(maxCostFlag, out decimal parsedCost))
+            {
+                error =
+                    $"option '--max-cost' expects a positive dollar amount, but was '{maxCostFlag}'";
+                return false;
+            }
+
+            maxCost = parsedCost;
+        }
+
+        TimeSpan? maxTime = null;
+        if (maxTimeFlag is not null)
+        {
+            if (!RunLimits.TryParseTime(maxTimeFlag, out TimeSpan parsedTime))
+            {
+                error =
+                    $"option '--max-time' expects a positive duration such as '30s', '5m' or '1h', but was '{maxTimeFlag}'";
+                return false;
+            }
+
+            maxTime = parsedTime;
+        }
+
         var selection = new List<string>();
         if (options.Continue)
         {
@@ -299,6 +356,9 @@ internal sealed record LaunchOptions
             NoSession = noSession,
             Model = model,
             Thinking = thinking,
+            MaxCostUsd = maxCost,
+            MaxTime = maxTime,
+            AllowUnpriced = allowUnpriced,
             Tools = toolNames,
             ExtraTools = extraTools,
             NoTools = noTools,
@@ -370,7 +430,8 @@ internal sealed record LaunchOptions
                 or "-r"
                 or "--resume"
                 or "--no-session"
-                or "--no-tools";
+                or "--no-tools"
+                or "--allow-unpriced";
 
     private static bool TryThinking(string value, out ThinkingLevel? thinking, out string? error)
     {

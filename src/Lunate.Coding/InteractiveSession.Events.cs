@@ -200,6 +200,22 @@ internal sealed partial class InteractiveSession
                     NoticeLevel.Warning
                 );
                 break;
+            case CostLimitReached limit:
+                Notify(
+                    FormattableString.Invariant(
+                        $"cost limit reached (limit {RunLimits.FormatCost(limit.MaxCostUsd)}, spent {RunLimits.FormatCost(limit.SpendUsd)})"
+                    ),
+                    NoticeLevel.Warning
+                );
+                break;
+            case TimeLimitReached limit:
+                Notify(
+                    FormattableString.Invariant(
+                        $"time limit reached (limit {RunLimits.FormatSeconds(limit.MaxTime)}, elapsed {RunLimits.FormatSeconds(limit.Elapsed)})"
+                    ),
+                    NoticeLevel.Warning
+                );
+                break;
             case ToolOutputSpillFailed failed:
                 Notify(failed.Message, NoticeLevel.Warning);
                 break;

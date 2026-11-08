@@ -929,3 +929,33 @@ static Lunate.Agent.GitIdentity.Canonicalize(string! path) -> string!
 static Lunate.Agent.GitIdentity.Detect(string! worktreeRoot) -> (string? RepoRoot, string? GitCommonDir)
 Lunate.Ai.ModelInfo.ModelsUrl.get -> System.Uri?
 Lunate.Ai.ModelInfo.ModelsUrl.init -> void
+Lunate.Agent.CostLimitReached
+Lunate.Agent.CostLimitReached.CostLimitReached(string! RunId, decimal MaxCostUsd, decimal SpendUsd) -> void
+Lunate.Agent.CostLimitReached.Deconstruct(out string! RunId, out decimal MaxCostUsd, out decimal SpendUsd) -> void
+Lunate.Agent.CostLimitReached.Equals(Lunate.Agent.CostLimitReached? other) -> bool
+Lunate.Agent.CostLimitReached.MaxCostUsd.get -> decimal
+Lunate.Agent.CostLimitReached.MaxCostUsd.init -> void
+Lunate.Agent.CostLimitReached.SpendUsd.get -> decimal
+Lunate.Agent.CostLimitReached.SpendUsd.init -> void
+Lunate.Agent.TimeLimitReached
+Lunate.Agent.TimeLimitReached.Deconstruct(out string! RunId, out System.TimeSpan MaxTime, out System.TimeSpan Elapsed) -> void
+Lunate.Agent.TimeLimitReached.Elapsed.get -> System.TimeSpan
+Lunate.Agent.TimeLimitReached.Elapsed.init -> void
+Lunate.Agent.TimeLimitReached.Equals(Lunate.Agent.TimeLimitReached? other) -> bool
+Lunate.Agent.TimeLimitReached.MaxTime.get -> System.TimeSpan
+Lunate.Agent.TimeLimitReached.MaxTime.init -> void
+Lunate.Agent.TimeLimitReached.TimeLimitReached(string! RunId, System.TimeSpan MaxTime, System.TimeSpan Elapsed) -> void
+override Lunate.Agent.CostLimitReached.<Clone>$() -> Lunate.Agent.CostLimitReached!
+override Lunate.Agent.CostLimitReached.Equals(object? obj) -> bool
+override Lunate.Agent.CostLimitReached.GetHashCode() -> int
+override Lunate.Agent.CostLimitReached.ToString() -> string!
+override Lunate.Agent.TimeLimitReached.<Clone>$() -> Lunate.Agent.TimeLimitReached!
+override Lunate.Agent.TimeLimitReached.Equals(object? obj) -> bool
+override Lunate.Agent.TimeLimitReached.GetHashCode() -> int
+override Lunate.Agent.TimeLimitReached.ToString() -> string!
+override sealed Lunate.Agent.CostLimitReached.Equals(Lunate.Agent.ExtensionEvent? other) -> bool
+override sealed Lunate.Agent.TimeLimitReached.Equals(Lunate.Agent.ExtensionEvent? other) -> bool
+static Lunate.Agent.CostLimitReached.operator !=(Lunate.Agent.CostLimitReached? left, Lunate.Agent.CostLimitReached? right) -> bool
+static Lunate.Agent.CostLimitReached.operator ==(Lunate.Agent.CostLimitReached? left, Lunate.Agent.CostLimitReached? right) -> bool
+static Lunate.Agent.TimeLimitReached.operator !=(Lunate.Agent.TimeLimitReached? left, Lunate.Agent.TimeLimitReached? right) -> bool
+static Lunate.Agent.TimeLimitReached.operator ==(Lunate.Agent.TimeLimitReached? left, Lunate.Agent.TimeLimitReached? right) -> bool

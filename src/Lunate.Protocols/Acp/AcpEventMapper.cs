@@ -59,6 +59,7 @@ internal static class AcpEventMapper
             StopReasons.Cancelled => StopReason.Cancelled,
             StopReasons.Length => StopReason.MaxTokens,
             StopReasons.StepLimit => StopReason.MaxTurnRequests,
+            StopReasons.CostLimit or StopReasons.TimeLimit => StopReason.MaxTurnRequests,
             _ => StopReason.EndTurn,
         };
 

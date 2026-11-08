@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Nodes;
 using Lunate.Ai;
 using Microsoft.Extensions.AI;
 
@@ -41,6 +42,11 @@ public sealed partial class AgentHarness
     private readonly UsageModelClient? _compactionModel;
     private long _tokenBudgetUsed;
     private string? _lastModelId;
+    private readonly TimeProvider _timeProvider;
+    private decimal _runCostUsd;
+    private bool _unpricedUsage;
+    private long _runStartedTimestamp;
+    private int _timeLimitFired;
 
     public AgentHarness(IChatClient client, ToolRegistry tools, AgentHarnessOptions? options = null)
     {
@@ -50,6 +56,7 @@ public sealed partial class AgentHarness
         _tools = tools;
         _options = options ?? new AgentHarnessOptions();
         ValidateOptions(_options);
+        _timeProvider = _options.TimeProvider ?? TimeProvider.System;
         UsageModelClient? decisionModel = ResolveUsageModel("decision");
         if (_options.DecideTool && decisionModel is not null && _tools.Find("decide") is null)
         {
@@ -85,7 +92,10 @@ public sealed partial class AgentHarness
 
             _historyUtf8 = CompactionReducer.Utf8Length(_history);
             _lastModelId = ResumeResolvedModelId(session, _options, _historyModels);
+            SeedSpend(session);
         }
+
+        EnsureCostLimitIsPriced();
     }
 
     /// <summary>The parent run id when this harness runs a child (subagent) run; null otherwise.</summary>
@@ -181,6 +191,8 @@ public sealed partial class AgentHarness
         {
             _treeState = InheritedTreeState ?? new SubagentTreeState(_options.SubagentLimits);
             _tokenBudgetUsed = 0;
+            _runStartedTimestamp = _timeProvider.GetTimestamp();
+            Interlocked.Exchange(ref _timeLimitFired, 0);
             _danglingCalls.Clear();
             _compactionInputTokens = 0;
             _compactionOutputTokens = 0;
@@ -190,6 +202,18 @@ public sealed partial class AgentHarness
             var channel = new AgentEventChannel(_options.Session?.SessionId);
             _subagentRunner = new SubagentRunner(this, channel, runId, _treeState!, SpawnDepth);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            using ITimer? timeLimitTimer = _options.MaxTime is { } maxTime
+                ? _timeProvider.CreateTimer(
+                    _ =>
+                    {
+                        Interlocked.Exchange(ref _timeLimitFired, 1);
+                        linked.Cancel();
+                    },
+                    null,
+                    maxTime,
+                    Timeout.InfiniteTimeSpan
+                )
+                : null;
             Task loop = RunLoopAsync(runId, userInput, skill, channel, linked.Token);
             try
             {
@@ -354,6 +378,153 @@ public sealed partial class AgentHarness
                 "The subagent tree token budget must be at least 1 or null (unlimited)."
             );
         }
+
+        if (options.MaxCostUsd is { } maxCost && maxCost <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(AgentHarnessOptions.MaxCostUsd),
+                maxCost,
+                "MaxCostUsd must be a positive amount of US dollars."
+            );
+        }
+
+        if (options.MaxTime is { } maxTime && maxTime <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(AgentHarnessOptions.MaxTime),
+                maxTime,
+                "MaxTime must be greater than zero."
+            );
+        }
+    }
+
+    /// <summary>
+    /// Seeds the session-cumulative spend from the loaded session's recorded usages: a
+    /// provider-reported amount wins, otherwise the catalog prices the record. A record that cannot
+    /// be priced contributes nothing and is remembered as unpriced.
+    /// </summary>
+    private void SeedSpend(Session session)
+    {
+        if (_options.MaxCostUsd is null)
+        {
+            return;
+        }
+
+        foreach (SessionEntry entry in session.Entries)
+        {
+            SessionUsage? usage = entry switch
+            {
+                SessionMessageEntry message => message.Usage,
+                SessionModelUsageEntry modelUsage => modelUsage.Usage,
+                _ => null,
+            };
+            if (usage is null)
+            {
+                continue;
+            }
+
+            string? modelId = entry switch
+            {
+                SessionMessageEntry message => message.Model,
+                SessionModelUsageEntry modelUsage => modelUsage.Model,
+                _ => null,
+            };
+            AddSpend(
+                usage.Cost,
+                modelId,
+                usage.Input,
+                usage.Output,
+                usage.CacheRead ?? 0,
+                usage.CacheWrite ?? 0
+            );
+        }
+    }
+
+    /// <summary>
+    /// Refuses a cost limit whose selected model has no known price unless the host explicitly
+    /// allowed unpriced accounting. A run that cannot price its main model cannot enforce the
+    /// limit honestly, and an unknown price is never treated as zero.
+    /// </summary>
+    private void EnsureCostLimitIsPriced()
+    {
+        if (_options.MaxCostUsd is null || _options.AllowUnpricedCost)
+        {
+            return;
+        }
+
+        if (_unpricedUsage)
+        {
+            throw new ArgumentException(
+                "A cost limit is set, but the session has usage that cannot be priced. "
+                    + "Set AllowUnpricedCost (--allow-unpriced in print mode) to run anyway.",
+                nameof(AgentHarnessOptions.MaxCostUsd)
+            );
+        }
+
+        ModelInfo? model = SelectedModel();
+        if (model?.Pricing is null)
+        {
+            string id = model?.Id ?? _options.ModelId ?? "unknown";
+            throw new ArgumentException(
+                $"A cost limit is set, but model '{id}' has no catalog price. "
+                    + "Set AllowUnpricedCost (--allow-unpriced in print mode) to run anyway.",
+                nameof(AgentHarnessOptions.MaxCostUsd)
+            );
+        }
+    }
+
+    private ModelInfo? SelectedModel() =>
+        ResolveUsageModel(_options.Usage)?.Model
+        ?? _options.Model
+        ?? (_options.ModelId is { } id ? FindModel(id) : null);
+
+    private ModelInfo? FindModel(string? modelId)
+    {
+        if (string.IsNullOrWhiteSpace(modelId))
+        {
+            return null;
+        }
+
+        try
+        {
+            return _options.ModelCatalog?.Find(modelId);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private void AddSpend(
+        decimal? reportedCost,
+        string? modelId,
+        long input,
+        long output,
+        long cacheRead,
+        long cacheWrite
+    )
+    {
+        decimal? cost =
+            reportedCost
+            ?? (
+                input >= 0 && output >= 0 && cacheRead >= 0 && cacheWrite >= 0
+                    ? CostCalculator.Compute(
+                        FindModel(modelId ?? _options.ModelId),
+                        input,
+                        output,
+                        cacheRead,
+                        cacheWrite
+                    )
+                    : null
+            );
+        if (cost is { } priced)
+        {
+            _runCostUsd += priced;
+        }
+        else
+        {
+            _unpricedUsage = true;
+        }
     }
 
     private async Task RunLoopAsync(
@@ -441,6 +612,12 @@ public sealed partial class AgentHarness
             int modelCalls = 0;
             while (true)
             {
+                if (TryEndForRunLimit(runId, channel))
+                {
+                    terminalEmitted = true;
+                    return;
+                }
+
                 if (modelCalls == _options.MaxSteps)
                 {
                     channel.Emit(new StepLimitReached(runId, _options.MaxSteps));
@@ -510,6 +687,14 @@ public sealed partial class AgentHarness
                     AppendHistoryMessage(persisted, stream.ModelId, stream.Usage);
                 }
 
+                // The usage this turn just accounted may have reached a limit exactly; stop before
+                // the tool batch and before another request.
+                if (TryEndForRunLimit(runId, channel))
+                {
+                    terminalEmitted = true;
+                    return;
+                }
+
                 List<FunctionCallContent> calls = DistinctCalls(stream.Updates);
                 if (calls.Count == 0)
                 {
@@ -544,6 +729,14 @@ public sealed partial class AgentHarness
                 {
                     await ExecuteCallAsync(runId, call, channel, ct);
                 }
+            }
+        }
+        catch (OperationCanceledException) when (Volatile.Read(ref _timeLimitFired) == 1)
+        {
+            ShieldDanglingCallRepair(runId, cancelled: true);
+            if (runStarted && !terminalEmitted)
+            {
+                EmitTimeLimit(runId, channel, _options.MaxTime!.Value, Elapsed);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -581,6 +774,91 @@ public sealed partial class AgentHarness
         {
             Trace.WriteLine(
                 $"lunate: run '{runId}' could not mirror its dangling-call repair to the session: {exception.Message}"
+            );
+        }
+    }
+
+    /// <summary>The elapsed run time from the run's monotonic start timestamp.</summary>
+    private TimeSpan Elapsed => _timeProvider.GetElapsedTime(_runStartedTimestamp);
+
+    /// <summary>
+    /// Ends the run when the cumulative spend or the run's elapsed time has reached its configured
+    /// limit. The check is <c>reached &gt;= limit</c>, so the exact boundary triggers.
+    /// </summary>
+    private bool TryEndForRunLimit(string runId, AgentEventChannel channel)
+    {
+        if (_options.MaxCostUsd is { } maxCost && _runCostUsd >= maxCost)
+        {
+            EmitCostLimit(runId, channel, maxCost, _runCostUsd);
+            return true;
+        }
+
+        if (_options.MaxTime is { } maxTime && Elapsed >= maxTime)
+        {
+            EmitTimeLimit(runId, channel, maxTime, Elapsed);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void EmitCostLimit(
+        string runId,
+        AgentEventChannel channel,
+        decimal maxCost,
+        decimal spend
+    )
+    {
+        channel.Emit(new CostLimitReached(runId, maxCost, spend));
+        RecordRunLimit(
+            new JsonObject
+            {
+                ["limit"] = "cost",
+                ["maxCostUsd"] = maxCost,
+                ["spendUsd"] = spend,
+            }
+        );
+        channel.Emit(new RunFinished(runId, StopReasons.CostLimit));
+    }
+
+    private void EmitTimeLimit(
+        string runId,
+        AgentEventChannel channel,
+        TimeSpan maxTime,
+        TimeSpan elapsed
+    )
+    {
+        channel.Emit(new TimeLimitReached(runId, maxTime, elapsed));
+        RecordRunLimit(
+            new JsonObject
+            {
+                ["limit"] = "time",
+                ["maxTimeSeconds"] = maxTime.TotalSeconds,
+                ["elapsedSeconds"] = elapsed.TotalSeconds,
+            }
+        );
+        channel.Emit(new RunFinished(runId, StopReasons.TimeLimit));
+    }
+
+    /// <summary>
+    /// Records a limit end in the session as an extension entry. The record is best-effort: a
+    /// session write must never stop the terminal event the run owes its consumer.
+    /// </summary>
+    private void RecordRunLimit(JsonObject payload)
+    {
+        if (_options.Session is not { } session)
+        {
+            return;
+        }
+
+        try
+        {
+            session.AppendExtension("ext/lunate/run-limit", payload.ToJsonString());
+        }
+        catch (Exception exception)
+        {
+            Trace.WriteLine(
+                $"lunate: the run-limit record could not be written to the session: {exception.Message}"
             );
         }
     }
@@ -861,6 +1139,24 @@ public sealed partial class AgentHarness
         long used = (details.InputTokenCount ?? 0) + (details.OutputTokenCount ?? 0);
         _tokenBudgetUsed += used;
         InheritedTreeState?.AddTokens(used);
+
+        long cacheWrite = 0;
+        if (
+            details.AdditionalCounts is { } counts
+            && counts.TryGetValue(CacheCreationInputTokensKey, out long reportedWrite)
+        )
+        {
+            cacheWrite = reportedWrite;
+        }
+
+        AddSpend(
+            providerCost is { } reported && double.IsFinite(reported) ? (decimal)reported : null,
+            modelId,
+            details.InputTokenCount ?? 0,
+            details.OutputTokenCount ?? 0,
+            details.CachedInputTokenCount ?? 0,
+            cacheWrite
+        );
     }
 
     private UsageModelClient? ResolveUsageModel(string usage)

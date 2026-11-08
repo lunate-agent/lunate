@@ -49,6 +49,8 @@ internal static class PrintEventJson
             typeof(Retrying),
             typeof(CompactionApplied),
             typeof(StepLimitReached),
+            typeof(CostLimitReached),
+            typeof(TimeLimitReached),
             typeof(SteeringInjected),
             typeof(ToolProgressUpdate),
             typeof(ToolOutputSpillFailed),
@@ -156,6 +158,18 @@ internal static class PrintEventJson
             StepLimitReached e => (
                 "step_limit_reached",
                 new JsonObject { ["maxSteps"] = e.MaxSteps }
+            ),
+            CostLimitReached e => (
+                "cost_limit_reached",
+                new JsonObject { ["maxCostUsd"] = e.MaxCostUsd, ["spendUsd"] = e.SpendUsd }
+            ),
+            TimeLimitReached e => (
+                "time_limit_reached",
+                new JsonObject
+                {
+                    ["maxTimeSeconds"] = e.MaxTime.TotalSeconds,
+                    ["elapsedSeconds"] = e.Elapsed.TotalSeconds,
+                }
             ),
             ToolProgressUpdate e => (
                 "tool_progress_update",

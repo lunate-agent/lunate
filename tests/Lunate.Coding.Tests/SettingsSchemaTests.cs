@@ -42,6 +42,8 @@ public sealed partial class SettingsSchemaTests
         ["thinking"] = "low",
         ["thinkingFull"] = true,
         ["favorites"] = new[] { ProbeModel },
+        ["maxCost"] = 1.25,
+        ["maxTime"] = 90,
         ["tools.extra"] = new[] { "grep" },
         ["output.toolResultLimit"] = 100,
         ["output.spillThresholdTokens"] = 50,
