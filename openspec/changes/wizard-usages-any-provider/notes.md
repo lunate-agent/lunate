@@ -19,6 +19,8 @@ list stops spanning the configured providers.
 
 ## Decisions taken
 
+- **A decision adapter row says "adapter" in the label** (`provider/model (adapter, family)`); the
+  fast rows say the family only, because a fast usage never binds the decision family.
 - **A picked fast model writes no thinking level.** The fast step never asks for one, so the
   profile carries the model and its family only; the picker still shows the model's declared
   thinking style.
