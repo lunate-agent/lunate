@@ -258,7 +258,11 @@ public sealed class SetupWizardStepPins
         // their value untouched, so the walk lands on the decisions step with every dependent
         // step named skipped in the summary.
         await PickRowAsync(host, "Select provider", "Skip provider setup");
-        await PickRowAsync(host, "Decisions settings", "Done — write these choices and leave the menu");
+        await PickRowAsync(
+            host,
+            "Decisions settings",
+            "Done — write these choices and leave the menu"
+        );
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         // The summary wraps at the terminal width; flatten the wrapped lines so the pinned
@@ -366,6 +370,7 @@ public sealed class SetupWizardStepPins
         }
 
         // The menu returned with the routing row showing the change; Up twice reaches Done.
+        await host.WaitForFrameAsync("routing (decisions.routing) — shadow");
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         await host.WaitForFrameAsync("> Done");

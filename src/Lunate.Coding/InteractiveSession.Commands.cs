@@ -907,17 +907,15 @@ internal sealed partial class InteractiveSession
         SetPicker(new SelectListModel(PickerTitle(selected, labels.Count), labels, selected));
     }
 
-    /// <summary>Whether the open picker filters as text is typed: the model picker always (its
-    /// listing can be long), the wizard pickers only when the list exceeds
-    /// <see cref="PickerFilterThreshold"/> rows — a short list keeps bare <c>b</c> and <c>f</c> free
-    /// for the wizard's back and forward verbs (spec: The walk is navigable).</summary>
+    /// <summary>Whether the open picker filters as text is typed: the model pickers always (their
+    /// listing can be long and the search is their documented affordance), the other wizard pickers
+    /// only when the list exceeds <see cref="PickerFilterThreshold"/> rows — a short list keeps bare
+    /// <c>b</c> and <c>f</c> free for the wizard's back and forward verbs (spec: The walk is
+    /// navigable).</summary>
     private bool PickerFiltersOn() =>
-        _pickerKind is PickerKind.Model
+        _pickerKind is PickerKind.Model or PickerKind.WizardModel
         || (
-            _pickerKind
-                is PickerKind.WizardModel
-                    or PickerKind.WizardProvider
-                    or PickerKind.WizardChoice
+            _pickerKind is PickerKind.WizardProvider or PickerKind.WizardChoice
             && _pickerLabels.Count > PickerFilterThreshold
         );
 

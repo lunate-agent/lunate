@@ -309,9 +309,7 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
-        await host.WaitForFrameAsync(
-            "> approval gate (decisions.approvals) — off (default)"
-        );
+        await host.WaitForFrameAsync("> approval gate (decisions.approvals) — off (default)");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);

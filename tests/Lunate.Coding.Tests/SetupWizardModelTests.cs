@@ -150,7 +150,11 @@ public sealed class SetupWizardModelTests
         var model = new SetupWizardModel();
         model.Enter(SetupStep.ConnectionTest);
         Assert.Equal(1, model.StagePosition);
-        Assert.Contains("Provider › Model › Profile › Review", model.HeaderLine, StringComparison.Ordinal);
+        Assert.Contains(
+            "Provider › Model › Profile › Review",
+            model.HeaderLine,
+            StringComparison.Ordinal
+        );
         Assert.Contains("1/4", model.HeaderLine, StringComparison.Ordinal);
 
         model.Enter(SetupStep.Model);

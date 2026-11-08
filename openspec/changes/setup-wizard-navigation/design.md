@@ -84,10 +84,10 @@ refused with the existing warning (routing needs at least two) and the menu stay
 
 ## 6. Filtering
 
-`PickerFiltersOn()` returns true only when the unfiltered list has more than 15 rows, for the model,
-provider and wizard-choice kinds. Shorter lists do not filter, which is what frees bare `b` and `f`
-for the verbs. The model picker keeps its typed search whenever the listing is longer than 15 rows;
-the discovery fixtures in the tests use short listings and drive the list with arrow keys.
+`PickerFiltersOn()` is true for the model pickers (their typed search is the documented affordance
+and stays as it is) and for the provider and wizard-choice pickers only when the unfiltered list has
+more than 15 rows. A short list does not filter, which is what frees bare `b` and `f` for the verbs;
+`Left` and `Right` work as the verbs at every picker, filtering or not.
 
 ## 7. Tests
 

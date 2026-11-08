@@ -25,9 +25,10 @@ A menu — an action list whose rows change settings rather than answer the step
 itself after an action with the changed value visible on the row, and SHALL leave only through its
 **Done** row. The decisions-settings menu SHALL be this shape.
 
-A list whose unfiltered rows exceed 15 SHALL filter as text is typed and name the escape hatch when
-nothing matches; a shorter list SHALL NOT filter, so that bare `b` and `f` remain the back and
-forward verbs.
+A model list SHALL filter as text is typed — that search is its documented affordance. Any other
+wizard list SHALL filter as text is typed only when its unfiltered rows exceed 15, so that bare `b`
+and `f` remain the back and forward verbs on a short list; `Left` and `Right` are the verbs at every
+picker.
 
 #### Scenario: The path states the stage and the position
 

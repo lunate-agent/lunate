@@ -137,6 +137,7 @@ public sealed class SecretMaskingAuditTests
 
         // The two descriptions are read by the recording prompt; Done leaves the menu and the
         // summary confirms.
+        await host.WaitForFrameAsync("routing (decisions.routing) — shadow");
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         await host.WaitForFrameAsync("> Done");

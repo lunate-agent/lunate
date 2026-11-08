@@ -200,10 +200,7 @@ public sealed class SelectListQuestionTests
         IReadOnlyList<string> lines = SelectListRenderer.QuestionLines(question, width: 40);
 
         Assert.Contains(lines, line => line.Contains("2 selected", StringComparison.Ordinal));
-        Assert.Equal(
-            2,
-            lines.Count(line => line.Contains("[x]", StringComparison.Ordinal))
-        );
+        Assert.Equal(2, lines.Count(line => line.Contains("[x]", StringComparison.Ordinal)));
         Assert.DoesNotContain(
             "2 selected",
             SelectListRenderer.QuestionLines(question.Handle(Key(KeyKind.Enter)), width: 40)

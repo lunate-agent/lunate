@@ -232,9 +232,8 @@ internal sealed class SetupWizardModel
     internal static SetupStage StageOf(SetupStep step) =>
         step switch
         {
-            SetupStep.Provider
-            or SetupStep.Credential
-            or SetupStep.ConnectionTest => SetupStage.Provider,
+            SetupStep.Provider or SetupStep.Credential or SetupStep.ConnectionTest =>
+                SetupStage.Provider,
             SetupStep.Model or SetupStep.ModelCheck => SetupStage.Model,
             SetupStep.ChatProfile
             or SetupStep.FastProfile
