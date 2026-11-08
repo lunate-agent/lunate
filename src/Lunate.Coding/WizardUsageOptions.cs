@@ -31,7 +31,16 @@ internal static class WizardUsageOptions
         var seen = new HashSet<string>(StringComparer.Ordinal);
         if (wizard.Provider is { } provider)
         {
-            AddStaged(options, seen, provider, wizard.Credential, wizard.Model, listing, catalog, decision);
+            AddStaged(
+                options,
+                seen,
+                provider,
+                wizard.Credential,
+                wizard.Model,
+                listing,
+                catalog,
+                decision
+            );
         }
 
         foreach (WizardInlineProvider inline in wizard.InlineProviders)
@@ -268,8 +277,9 @@ internal static class WizardUsageOptions
             );
         }
 
-        ProviderApiFamily family =
-            entry.BaseUrls is { Count: > 0 } table ? table.Keys.First() : entry.DefaultFamily;
+        ProviderApiFamily family = entry.BaseUrls is { Count: > 0 } table
+            ? table.Keys.First()
+            : entry.DefaultFamily;
         return new WizardProviderChoice(
             entry.Name,
             Custom: true,

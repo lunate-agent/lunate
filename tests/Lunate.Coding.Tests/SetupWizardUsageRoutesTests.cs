@@ -47,8 +47,7 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
         Assert.Contains(fast, label => label.StartsWith("openai/", StringComparison.Ordinal));
         Assert.Contains(
             decision,
-            label =>
-                label.Contains("anthropic/claude-sonnet-5-5", StringComparison.Ordinal)
+            label => label.Contains("anthropic/claude-sonnet-5-5", StringComparison.Ordinal)
         );
         // A fast usage never offers the decision-only family.
         Assert.DoesNotContain(fast, label => label.Contains("systemone", StringComparison.Ordinal));
@@ -78,10 +77,12 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
 
         Assert.Contains(
             decision,
-            label =>
-                label.Contains("opencode-go/jev-1.13 (native Jev", StringComparison.Ordinal)
+            label => label.Contains("opencode-go/jev-1.13 (native Jev", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(fast, label => label.Contains("native Jev", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            fast,
+            label => label.Contains("native Jev", StringComparison.Ordinal)
+        );
     }
 
     /// <summary>Route 1: the fast usage picks the chat model, so the chat profile also serves fast —
@@ -204,13 +205,7 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
         );
         Assert.Contains(
             WizardUsageOptions
-                .Build(
-                    wizard,
-                    [],
-                    [],
-                    ModelCatalog.Load(null),
-                    decision: true
-                )
+                .Build(wizard, [], [], ModelCatalog.Load(null), decision: true)
                 .Select(option => option.Label),
             label => label.Contains("opencode-go/jev-1.13 (native Jev", StringComparison.Ordinal)
         );
@@ -254,9 +249,7 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
         Assert.Equal("inline-go-key", saved.TryGet("opencode-go"));
         ProviderEntry[] entries =
         [
-            .. ProviderStore
-                .Load(_temp.File("providers.json"), saved, [])
-                .Entries,
+            .. ProviderStore.Load(_temp.File("providers.json"), saved, []).Entries,
         ];
         Assert.Contains(entries, entry => entry.Name == "opencode-go");
     }

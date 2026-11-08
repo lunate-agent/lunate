@@ -328,7 +328,8 @@ internal static class SetupWizardSummary
                         WizardProgress.Passed => "fast check: passed",
                         WizardProgress.Skipped =>
                             "fast check: skipped — the fast profile stays unverified",
-                        WizardProgress.Failed => $"fast check: failed ({wizard.FastCheck?.Detail}) — the fast profile stays unverified",
+                        WizardProgress.Failed =>
+                            $"fast check: failed ({wizard.FastCheck?.Detail}) — the fast profile stays unverified",
                         _ => "fast check: not run — the fast profile stays unverified",
                     }
                 );

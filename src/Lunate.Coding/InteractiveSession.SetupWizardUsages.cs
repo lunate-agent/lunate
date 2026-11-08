@@ -173,10 +173,7 @@ internal sealed partial class InteractiveSession
         );
         string? after = await PickAsync(
                 "After the failed fast check",
-                [
-                    "Keep it (the fast profile stays unverified)",
-                    "Choose the fast usage again",
-                ],
+                ["Keep it (the fast profile stays unverified)", "Choose the fast usage again"],
                 ["keep", "again"],
                 PickerKind.WizardChoice,
                 ct,
@@ -203,10 +200,7 @@ internal sealed partial class InteractiveSession
     /// or an adapter model from any configured provider; the binding (<c>decisions.profile</c>)
     /// enables no consumer.
     /// </summary>
-    private async Task<WizardMove> DecisionStepAsync(
-        SetupWizardModel wizard,
-        CancellationToken ct
-    )
+    private async Task<WizardMove> DecisionStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         if (wizard.Provider is null || wizard.Model is null)
         {
@@ -218,10 +212,7 @@ internal sealed partial class InteractiveSession
 
         while (true)
         {
-            IReadOnlyList<WizardUsageOptions.Option> options = UsageOptions(
-                wizard,
-                decision: true
-            );
+            IReadOnlyList<WizardUsageOptions.Option> options = UsageOptions(wizard, decision: true);
             if (options.Count == 0)
             {
                 wizard.RecordDecisionProfile(null);

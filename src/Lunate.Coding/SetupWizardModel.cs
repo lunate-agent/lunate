@@ -439,12 +439,7 @@ internal sealed partial class SetupWizardModel
     /// <summary>The flag path's fast answer: the chat profile also serves <c>fast</c>.</summary>
     public void RecordFastProfile(bool include)
     {
-        if (
-            include
-            && ChatProfile is { } chat
-            && Provider is { } provider
-            && Model is { } model
-        )
+        if (include && ChatProfile is { } chat && Provider is { } provider && Model is { } model)
         {
             RecordFastUsage(
                 new WizardUsageChoice(

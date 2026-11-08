@@ -89,7 +89,10 @@ internal static class WizardModelCheck
         if (!model.Native)
         {
             return ModelFor(
-                model with { Model = new WizardModelChoice(model.Model.ModelId, AdapterFamily(model)) },
+                model with
+                {
+                    Model = new WizardModelChoice(model.Model.ModelId, AdapterFamily(model)),
+                },
                 catalog
             );
         }
@@ -129,7 +132,10 @@ internal static class WizardModelCheck
     ) => DecisionModelFor(DecisionRef(wizard, decision), catalog);
 
     /// <summary>The decision answer as a check ref over the walk's own provider and entry.</summary>
-    internal static WizardModelRef DecisionRef(SetupWizardModel wizard, WizardUsageChoice decision) =>
+    internal static WizardModelRef DecisionRef(
+        SetupWizardModel wizard,
+        WizardUsageChoice decision
+    ) =>
         new(
             wizard.Provider!,
             wizard.Credential,
@@ -217,7 +223,10 @@ internal static class WizardModelCheck
         }
         catch (Exception exception)
         {
-            return new WizardCheckResult(WizardProgress.Failed, Redact(exception.Message, credentialOverride));
+            return new WizardCheckResult(
+                WizardProgress.Failed,
+                Redact(exception.Message, credentialOverride)
+            );
         }
     }
 
@@ -355,7 +364,10 @@ internal static class WizardModelCheck
         }
         catch (Exception exception)
         {
-            return new WizardCheckResult(WizardProgress.Failed, Redact(exception.Message, credentialOverride));
+            return new WizardCheckResult(
+                WizardProgress.Failed,
+                Redact(exception.Message, credentialOverride)
+            );
         }
     }
 
