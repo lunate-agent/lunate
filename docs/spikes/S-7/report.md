@@ -16,7 +16,7 @@
 - Outcome: **the file tools stay on the host; only the process-spawning tools move, and the
   abstraction #626 introduces must carry a working-directory mapping, an environment pass-through
   and a cancel hook — because the host-side process-tree kill provably does not stop the container's
-  processes.** Per-call cost is **+97 ms** on macOS, the container is cheap to create (137 ms) and
+  processes.** Per-call cost is **~126 ms** on macOS (one earlier run measured 97 ms; treat it as 100–130 ms), the container is cheap to create (146 ms) and
   expensive to stop/start (10.3 s).
 
 ## Findings
@@ -96,18 +96,19 @@ regression.
 
 | Row | min | median | p95 | max |
 | --- | --- | --- | --- | --- |
-| `bash` tool, local shell (includes the post-call change scan) | 113.2 ms | 175.9 ms | 243.3 ms | 246.3 ms |
-| `bash` tool, container through the shim (same code path) | 168.0 ms | 273.0 ms | 350.6 ms | 373.1 ms |
-| `podman exec` client + `/bin/bash -c true` | 92.5 ms | 129.0 ms | 136.6 ms | 138.6 ms |
-| `podman exec` client + `true` (no shell) | 124.2 ms | 129.3 ms | 136.3 ms | 136.9 ms |
-| cold container: `run -d` create + start + remove | 124.8 ms | 137.3 ms | — | 141.3 ms |
-| `stop` + `start` of an existing container (n=3) | 10.27 s | 10.27 s | — | 10.28 s |
+| `bash` tool, local shell (includes the post-call change scan) | 93.4 ms | 163.5 ms | 211.7 ms | 218.3 ms |
+| `bash` tool, container through the shim (same code path) | 191.3 ms | 289.8 ms | 378.5 ms | 739.4 ms |
+| `podman exec` client + `/bin/bash -c true` | 105.2 ms | 134.8 ms | 146.7 ms | 150.5 ms |
+| `podman exec` client + `true` (no shell) | 128.9 ms | 138.0 ms | 152.5 ms | 155.1 ms |
+| cold container: `run -d` create + start + remove | 136.3 ms | 146.2 ms | — | 164.1 ms |
+| `stop` + `start` of an existing container (n=3) | 10.26 s | 10.28 s | — | 10.34 s |
 
-- **A bash call costs ~97 ms more** in the container (median 175.9 → 273.0, 1.6×); the `exec`
-  client alone is ~129 ms, so the overhead is the CLI round trip, not the command.
-- **Create is cheap, restart is not.** Create+start is 137 ms, but stopping and starting an existing
+- **A bash call costs ~126 ms more** in the container (median 163.5 → 289.8, 1.8×; the earlier run
+  measured +97 ms and 1.6×, so the honest budget is 100–130 ms). The `exec` client alone is
+  ~135 ms, so the overhead is the CLI round trip, not the command.
+- **Create is cheap, restart is not.** Create+start is 146 ms, but stopping and starting an existing
   container is **10.3 s** — so the container's lifetime is the session's, never the tool call's.
-- File tools are unaffected: `write` 33 ms, `read` 3 ms, host-side.
+- File tools are unaffected: `write` 31 ms, `read` 5 ms, host-side.
 - Not measured: image pull (the image was local), `podman machine` cold start, the Docker engine,
   a Linux host, and Windows. All four are named as gaps in the cards rather than assumed.
 
@@ -150,7 +151,7 @@ The acceptance criteria stay; the spike makes four of them concrete and adds one
   wrapper prints it as the first line, or the runner records it) because the host-side `podman exec`
   client's death stops nothing: measured, the survivor list after the tree kill was
   `33 sleep 4271`, and `kill -TERM -- -33` inside the container then cleaned it up.
-- **One container per session**, created before the first tool call (137 ms) and kept — the 10.3 s
+- **One container per session**, created before the first tool call (~146 ms) and kept — the 10.3 s
   stop/start is the reason the criterion is "long-lived", and it is also what lets the header name
   the environment before the first tool call.
 - **The session marker is forwarded** (`-e LUNATE_SESSION=1`); the guard keeps wrapping the host half
@@ -184,7 +185,7 @@ step, not recorded speculatively here.
 - One machine (macOS arm64 + Podman 6.1.0 + Apple VM), one engine. Not Docker, not Linux, not
   Windows, not a CI runner.
 - The bash-tool rows include the tool's own post-call change scan, which is why the local median is
-  176 ms and not ~5 ms; both sides pay it, so the delta is the honest number.
+  164 ms and not ~5 ms; both sides pay it, so the delta is the honest number.
 - 15 samples per row (3 for stop/start, 5 for cold create) — enough to show the order of magnitude,
   not enough for a budget. If #627 wants a startup budget, it should measure on CI, where the
   numbers will be different and CI is where they matter.

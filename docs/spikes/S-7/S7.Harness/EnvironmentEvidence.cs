@@ -86,12 +86,34 @@ internal static class EnvironmentEvidence
                 ? new FileInfo(absolute).Length.ToString(CultureInfo.InvariantCulture)
                 : "missing"
         );
+        // Ownership is the other half of "the mount works": a container writing as uid 0 must not
+        // leave root-owned files the host user cannot edit afterwards.
+        writer.Line(
+            $"host:      uid={Proc.Run("id", "-u").StdoutTrimmed} {Proc.Run("ls", "-ln", absolute).StdoutTrimmed}"
+        );
         writer.Line(
             engine.ExecText(
                 options.Container,
-                $"stat -c 'container: size=%s uid=%u gid=%g mode=%a' {Engine.Quote(relative)}"
+                $"stat -c 'container: size=%s uid=%u gid=%g mode=%a' {Engine.Quote(relative)}; "
+                    + "echo \"container uid_map: $(cat /proc/self/uid_map | tr -s ' ')\""
             )
         );
+        writer.Key("host file editable", File.Exists(absolute) ? EditProbe(absolute) : "missing");
         return writer.Finish();
+    }
+
+    /// <summary>Whether the host user can still modify a file the container wrote as uid 0.</summary>
+    private static string EditProbe(string path)
+    {
+        DateTime before = File.GetLastWriteTimeUtc(path);
+        try
+        {
+            File.AppendAllText(path, string.Empty);
+            return File.GetLastWriteTimeUtc(path) == before ? "yes (unchanged)" : "yes";
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return $"no ({exception.GetType().Name})";
+        }
     }
 }
