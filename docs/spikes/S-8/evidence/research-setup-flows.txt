@@ -59,7 +59,8 @@ Observed output (verbatim, ANSI colour stripped):
 
 The probe created .opencode/commands/opsx-*.md, openspec/config.yaml and
 openspec/specs/.gitkeep. This is the "created/refreshed + counts + next
-command" summary shape cited in the report.
+command" summary shape cited in the report. The raw output and file list are
+also kept in `openspec-init-probe.txt`.
 
 OpenCode
 --------
