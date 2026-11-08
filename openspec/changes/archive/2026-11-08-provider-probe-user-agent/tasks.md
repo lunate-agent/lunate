@@ -17,4 +17,4 @@
 ## 4. Close the change
 
 - [x] 4.1 Update docs only if behaviour-visible wording changes (none expected; `docs/configuration.md` already states the agent string).
-- [ ] 4.2 `openspec archive provider-probe-user-agent --yes` as the final commit on the branch.
+- [x] 4.2 `openspec archive provider-probe-user-agent --yes` as the final commit on the branch.
