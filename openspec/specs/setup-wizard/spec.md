@@ -48,18 +48,18 @@ An interactive run of `lunate` SHALL determine at session start whether the wiza
 
 ### Requirement: The full walk
 
-The wizard SHALL present ten steps in order — provider, credential, connection test, model, model check, chat profile, optional fast and decision profiles, decisions settings, summary, write — and SHALL implement every step with the existing list picker, masked prompt, visible prompt and question components (no new interaction primitives): only the credential value is read through the masked prompt; every other typed value — provider id, endpoint URL, API family, credential placement, region, models URL, model id, profile name, routing description — is read through the visible prompt, which echoes what is typed, including spaces. The masked prompt hides the credential behind one asterisk per character and keeps pasted text to its non-whitespace characters; the visible prompt shows the characters as typed and keeps pasted spaces, stripping only line breaks. Each step:
+The wizard SHALL present ten steps in order — provider, credential, connection test, model, model check, chat profile, optional fast and decision profiles, decisions settings, summary, write — and SHALL implement every step with the existing list picker, masked prompt and question components (no new interaction primitives). The first provider walks steps 1–7; after its fast-profile step the walk returns to the provider step's list of collected providers, where **Add another provider…** walks steps 1–7 again and **Done** continues to the decision-profile step. The decisions settings and summary are shared by the whole run. Each step:
 
-1. **Provider** lists the presets in `providers.json` order followed by `Custom OpenAI-compatible endpoint…`, and shows each provider's region (from the preset; asked for a custom provider). The custom path asks the endpoint, its API family (default `openai-chat`), its credential placement (default bearer; `x-api-key` for an Anthropic endpoint), its region and an optional models URL, and refuses an unknown family by name.
-2. **Credential** offers "use `<VAR>` from the environment" first when the provider's standard variable is already set (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, …), storing an `env:<VARIABLE>` reference; otherwise it reads a key through the masked prompt, and offers a `lunate auth`-stored key when one exists. The credential value SHALL never be written to `providers.json` or `settings.json`.
+1. **Provider** lists the presets in `providers.json` order followed by `Custom OpenAI-compatible endpoint…`, and shows each provider's region (from the preset; asked for a custom provider). After one provider is collected, the step lists every collected provider and offers **Add another provider…** and **Done** (the default). The custom path asks the endpoint, its API family (default `openai-chat`), its credential placement (default bearer; `x-api-key` for an Anthropic endpoint), its region and an optional models URL, and refuses an unknown family by name.
+2. **Credential** offers "use `<VAR>` from the environment" first when the provider's standard variable is already set (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, …), storing an `env:<VARIABLE>` reference; otherwise it reads a key through the masked prompt, and offers a `lunate auth`-stored key when one exists. A later provider may reuse a stored `env:`/`auth:` reference or type its own key. The credential value SHALL never be written to `providers.json` or `settings.json`.
 3. **Connection test** makes one real discovery request through the entry's models URL (the provider's, or the configured one), refusing to leave the entry's host; the failure text names what failed — network, authentication, or an undecipherable response — and offers going back to the credential step rather than aborting the wizard. There is no automatic retry; the go-back loop is the retry.
 4. **Model** lists the models the discovery returned (search filters as text is typed); when discovery is unavailable or skipped, the step accepts a manually typed model id. The chosen model's API family is shown beside it.
 5. **Model check** makes one minimal real request through the model's resolved API family: one short completion for a chat profile, one tiny noul for a decision profile. The cost SHALL be stated before it runs and the check SHALL be skippable (`--no-model-check` on the flag path). A failure SHALL name the model, the family and the HTTP status or response shape, and offer going back to the model step; a skip or failure SHALL be marked unverified in the summary. A discovery success alone SHALL NOT count as a verified model.
 6. **Chat profile** asks the profile name and its thinking level, offering only the levels the chosen model supports; the question is skipped entirely for a model without a reasoning style.
 7. **Fast and decision profiles** are optional and default to skip. Both steps offer a model from any configured provider (see Fast and decision usages from any provider). When the chosen provider exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the preset's pinned version; otherwise the decision profile is offered as an **adapter**, labelled as such in the picker and summary. When the chosen provider is `opencode-go`, the native Jev line is labelled "native Jev — billed to your OpenCode pay-as-you-go balance, not the Go plan; no box questions" and no box question is asked for it; other presets keep the existing native/adapter labels. When routing is enabled, the step asks for each routing profile's description and warns once if one is left blank.
 8. **Decisions settings** presents every switch with its `off`/unset default and one explanatory line each, plus a **Done — leave the decisions settings** entry. After each switch is answered the step SHALL present the list again with the earlier answers kept, so several switches are collected in one pass; only the Done entry leaves the step. Accepting the defaults — Done with no switch changed — writes nothing for the layer.
-9. **Summary** shows every collected value — provider, region, credential source, endpoint, API family, credential placement, models URL, tested model, model-check result, profiles with their models and thinking levels, usage profiles with their provider and model, decision profile kind (native or adapter), every provider added inline with its credential and check, routing descriptions, decisions settings, and what was skipped — and writes nothing until it is confirmed with Enter.
-10. **Write** stores the provider entry and credential through the auth and provider stores and the profiles and usages through `SettingsStore`, in one pass.
+9. **Summary** shows every collected value — provider, region, credential source, endpoint, API family, credential placement, models URL, tested model, model-check result, profiles with their models and thinking levels, usage profiles with their provider and model, decision profile kind (native or adapter), every provider added inline with its credential and check, routing descriptions, decisions settings, and what was skipped — and writes nothing until it is confirmed with Enter. Each provider and its credential SHALL appear under the store file the commit will write for them.
+10. **Write** stores every collected provider entry and credential through the auth and provider stores and every profile and usage through `SettingsStore`, in one pass.
 
 Every step accepts skip; a skipped step leaves the value it would have configured untouched. A step failed in the connection test or the model check is the card's go-back case: the wizard returns to the earlier step without losing the later answers.
 
@@ -321,3 +321,38 @@ The `lunate setup` flag path SHALL keep its current answers: `--fast` binds the 
 - **GIVEN** a usage whose check the user skips
 - **WHEN** the summary renders
 - **THEN** the usage is named unverified and confirming writes it anyway, because the skip was explicit
+
+### Requirement: Several providers in one run
+
+The provider step SHALL collect more than one provider in a single wizard run. After a provider's
+fast-profile step the walk SHALL return to a list that names every provider collected so far and
+offers **Add another provider…** and **Done**; **Done** is the default. Choosing **Add another
+provider…** SHALL ask the provider step again and preserve the earlier providers' answers. A
+provider name already collected SHALL be refused, and the step SHALL ask for another name for the
+new entry instead of overwriting the first. The summary SHALL list every provider collected, and the
+confirmed commit SHALL write every provider entry, credential, profile and usage before any store
+file is replaced.
+
+#### Scenario: Two providers in one walk
+
+- **GIVEN** a fresh machine and discovery responses for two presets
+- **WHEN** the walk collects a provider, chooses **Add another provider…**, collects a second provider and chooses **Done**
+- **THEN** both providers appear in the summary, and the written home carries both provider entries and both credentials
+
+#### Scenario: A duplicate provider name is refused
+
+- **GIVEN** a walk that already collected a provider named `openai`
+- **WHEN** the provider step selects the same name again
+- **THEN** the step refuses the duplicate and asks for another entry name before it continues
+
+#### Scenario: A later provider reuses a credential reference
+
+- **GIVEN** a walk that already stored a provider with an `env:OPENAI_API_KEY` credential
+- **WHEN** the second provider's credential step reuses that reference
+- **THEN** both provider entries carry the same reference, no second key is stored, and the summary names the reused reference against the second provider
+
+#### Scenario: Abort after several providers writes nothing
+
+- **GIVEN** a walk that collected two providers and their credentials
+- **WHEN** the summary is aborted with Esc
+- **THEN** `providers.json`, `settings.json` and `auth.json` are byte-identical to their pre-run state
