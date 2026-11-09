@@ -8,7 +8,7 @@ NestedInstallerFiles:
     PortableCommandAlias: lunate
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/wdaniel1993/lunate/releases/download/v0.3.0/lunate-win-x64.zip
+    InstallerUrl: https://github.com/lunate-agent/lunate/releases/download/v0.3.0/lunate-win-x64.zip
     InstallerSha256: 3B9E79E1EC5BB435481E2A7D8CF7B90E1BFB73E32F8CBF447E8C6E96653D5CD0
 ManifestType: installer
 ManifestVersion: 1.10.0

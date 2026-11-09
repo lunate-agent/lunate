@@ -36,7 +36,7 @@ does.
 
 ## Documentation
 
-[Testing an extension](https://github.com/wdaniel1993/lunate/blob/main/docs/extensions/testing.md) —
+[Testing an extension](https://github.com/lunate-agent/lunate/blob/main/docs/extensions/testing.md) —
 the kit, fixtures, and the missing-primitive rule; the
-[template](https://github.com/wdaniel1993/lunate/tree/main/templates/extension) shows the test
+[template](https://github.com/lunate-agent/lunate/tree/main/templates/extension) shows the test
 project this kit assumes.

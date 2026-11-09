@@ -40,10 +40,10 @@ internal sealed record UpdateInfo(string Version, string ChangelogUrl);
 internal static class UpdateCheck
 {
     internal const string DefaultEndpoint =
-        "https://api.github.com/repos/wdaniel1993/lunate/releases/latest";
+        "https://api.github.com/repos/lunate-agent/lunate/releases/latest";
 
     internal const string FallbackChangelogUrl =
-        "https://github.com/wdaniel1993/lunate/blob/main/CHANGELOG.md";
+        "https://github.com/lunate-agent/lunate/blob/main/CHANGELOG.md";
 
     internal static readonly TimeSpan Lifetime = TimeSpan.FromDays(1);
 

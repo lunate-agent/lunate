@@ -31,4 +31,4 @@ package installer already refuses ranges, and a floating reference here carries 
 ## Documentation
 
 `docs/guide.md` and the ADRs at `adr/` describe the loop and the boundaries. The
-[repository](https://github.com/wdaniel1993/lunate) is the source of truth for behaviour.
+[repository](https://github.com/lunate-agent/lunate) is the source of truth for behaviour.

@@ -130,7 +130,7 @@ public sealed class DiscoverCommandTests
         // chat, and the request names the client that made it.
         Assert.StartsWith("lunate/", request.Headers.UserAgent.ToString());
         Assert.Equal(
-            "https://github.com/wdaniel1993/lunate",
+            "https://github.com/lunate-agent/lunate",
             request.Headers.GetValues("HTTP-Referer").Single()
         );
         Assert.Equal("Lunate", request.Headers.GetValues("X-Title").Single());

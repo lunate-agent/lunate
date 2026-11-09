@@ -21,8 +21,8 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>lunate-logo-dark.png</PackageIcon>
-        <PackageProjectUrl>https://github.com/wdaniel1993/lunate</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/wdaniel1993/lunate</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/lunate-agent/lunate</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/lunate-agent/lunate</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <TargetsForTfmSpecificContentInPackage>
             $(TargetsForTfmSpecificContentInPackage);PackOwnAssemblies

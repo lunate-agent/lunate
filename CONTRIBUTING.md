@@ -19,7 +19,7 @@ repository actually runs on, and this page is the path from a fresh clone to a m
 ## Quick start
 
 ```bash
-git clone https://github.com/wdaniel1993/lunate
+git clone https://github.com/lunate-agent/lunate
 cd lunate
 dotnet tool restore                       # CSharpier, pinned as a local tool
 dotnet build lunate.slnx -c Release
@@ -114,7 +114,7 @@ guideline. Key entry points:
 - [Architecture](docs/architecture.md) — the component map and the runtime flows
 - [Specs](openspec/specs/) — the behaviour source of truth
 - [ADRs](adr/) — decisions with their context
-- [Releases](https://github.com/wdaniel1993/lunate/releases)
+- [Releases](https://github.com/lunate-agent/lunate/releases)
 
 One home per fact: link to the document that owns a fact instead of copying it, and update the
 documents a change invalidates.

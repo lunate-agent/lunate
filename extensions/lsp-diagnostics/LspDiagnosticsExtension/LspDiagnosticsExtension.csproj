@@ -14,8 +14,8 @@
         <Description>The lsp-diagnostics extension for Lunate: language-server diagnostics attached to write and edit tool results after the call. Officially supported.</Description>
         <PackageTags>lunate;extension;lsp-diagnostics</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/wdaniel1993/lunate</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/wdaniel1993/lunate</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/lunate-agent/lunate</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/lunate-agent/lunate</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>

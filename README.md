@@ -11,8 +11,8 @@ Lunate is a native coding agent for the terminal that .NET developers can make t
 extended in C# from a single file to a NuGet package, with the deepest C# understanding of any
 agent and at home in polyglot repositories.
 
-[![CI](https://github.com/wdaniel1993/lunate/actions/workflows/ci.yml/badge.svg)](https://github.com/wdaniel1993/lunate/actions/workflows/ci.yml)
-[![Release](https://github.com/wdaniel1993/lunate/actions/workflows/release.yml/badge.svg)](https://github.com/wdaniel1993/lunate/actions/workflows/release.yml)
+[![CI](https://github.com/lunate-agent/lunate/actions/workflows/ci.yml/badge.svg)](https://github.com/lunate-agent/lunate/actions/workflows/ci.yml)
+[![Release](https://github.com/lunate-agent/lunate/actions/workflows/release.yml/badge.svg)](https://github.com/lunate-agent/lunate/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ![A Lunate session: a prompt, an approved edit with its diff, and the answer](docs/media/demo.gif)
@@ -43,21 +43,21 @@ agent and at home in polyglot repositories.
 **1. Install.**
 
 <!-- docs-sync: version -->
-The current stable release is [**0.3.0**](https://github.com/wdaniel1993/lunate/releases/tag/v0.3.0).
+The current stable release is [**0.3.0**](https://github.com/lunate-agent/lunate/releases/tag/v0.3.0).
 <!-- /docs-sync: version -->
 
 ```bash
 # macOS (arm64) and Linux (x64)
-curl -fsSL https://raw.githubusercontent.com/wdaniel1993/lunate/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/lunate-agent/lunate/main/install.sh | sh
 ```
 
 ```powershell
 # Windows (x64)
-irm https://raw.githubusercontent.com/wdaniel1993/lunate/main/install.ps1 -OutFile install.ps1
+irm https://raw.githubusercontent.com/lunate-agent/lunate/main/install.ps1 -OutFile install.ps1
 ./install.ps1
 ```
 
-Or through Homebrew (`brew tap wdaniel1993/tap`, `brew install lunate`), Scoop, or as a .NET tool
+Or through Homebrew (`brew tap lunate-agent/tap`, `brew install lunate`), Scoop, or as a .NET tool
 (`dotnet tool install --global lunate`). Winget follows once its manifest is accepted.
 
 **2. Run `lunate` in a repository.** On a fresh install the first prompt opens the setup wizard: it

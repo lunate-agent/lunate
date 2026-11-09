@@ -4,11 +4,11 @@
 #   ./install.ps1 [-Version <tag>] [-Prefix <dir>]
 #
 # One-liner (parameters come from the environment):
-#   irm https://raw.githubusercontent.com/wdaniel1993/lunate/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/lunate-agent/lunate/main/install.ps1 | iex
 #
 # Environment overrides:
 #   LUNATE_INSTALL_BASE_URL  releases base URL
-#                            (default: https://github.com/wdaniel1993/lunate/releases);
+#                            (default: https://github.com/lunate-agent/lunate/releases);
 #                            the script downloads from <base>/latest/download
 #                            or <base>/download/<tag>
 #   LUNATE_INSTALL_VERSION   release tag to install, for example v0.1.0
@@ -55,7 +55,7 @@ if (-not $Prefix) {
 
 $baseUrl = $env:LUNATE_INSTALL_BASE_URL
 if (-not $baseUrl) {
-    $baseUrl = 'https://github.com/wdaniel1993/lunate/releases'
+    $baseUrl = 'https://github.com/lunate-agent/lunate/releases'
 }
 if ($Version) {
     $tag = $Version

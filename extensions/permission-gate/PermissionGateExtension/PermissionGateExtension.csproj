@@ -14,8 +14,8 @@
         <Description>The permission-gate extension for Lunate: a settings-driven policy that blocks or approves destructive tool calls before the approval prompt. Officially supported.</Description>
         <PackageTags>lunate;extension;permission-gate</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/wdaniel1993/lunate</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/wdaniel1993/lunate</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/lunate-agent/lunate</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/lunate-agent/lunate</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>

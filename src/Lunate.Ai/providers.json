@@ -16,7 +16,7 @@
     // headers pipeline lands (slice 2); this slice declares them without sending.
     // baseUrls.systemone is the decision-only System One wire (https://openrouter.ai/docs);
     // a profile on it resolves the native decision transport, never a chat client.
-    { "id": "openrouter", "name": "OpenRouter", "adapter": "openai-compatible", "baseUrl": "https://openrouter.ai/api/v1", "baseUrls": { "systemone": "https://openrouter.ai/api/v1/systemone" }, "keyVariable": "OPENROUTER_API_KEY", "headers": { "HTTP-Referer": "https://github.com/wdaniel1993/lunate", "X-Title": "Lunate" } },
+    { "id": "openrouter", "name": "OpenRouter", "adapter": "openai-compatible", "baseUrl": "https://openrouter.ai/api/v1", "baseUrls": { "systemone": "https://openrouter.ai/api/v1/systemone" }, "keyVariable": "OPENROUTER_API_KEY", "headers": { "HTTP-Referer": "https://github.com/lunate-agent/lunate", "X-Title": "Lunate" } },
     // deepseek: OpenAI-compatible Chat Completions (https://api-docs.deepseek.com); the apex
     // domain serves the documented paths directly.
     { "id": "deepseek", "name": "DeepSeek", "adapter": "openai-compatible", "baseUrl": "https://api.deepseek.com", "keyVariable": "DEEPSEEK_API_KEY" },

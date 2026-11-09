@@ -15,8 +15,8 @@
         <Description>The subagents extension for Lunate: one tool that runs a child agent through the harness's subagent seam. Officially supported.</Description>
         <PackageTags>lunate;extension;subagents</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageProjectUrl>https://github.com/wdaniel1993/lunate</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/wdaniel1993/lunate</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/lunate-agent/lunate</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/lunate-agent/lunate</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <IncludeBuildOutput>false</IncludeBuildOutput>
         <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>

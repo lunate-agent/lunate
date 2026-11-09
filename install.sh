@@ -2,14 +2,14 @@
 # Lunate installer for macOS (arm64) and Linux (x64).
 #
 # One-liner:
-#   curl -fsSL https://raw.githubusercontent.com/wdaniel1993/lunate/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/lunate-agent/lunate/main/install.sh | sh
 #
 # Usage as a file:
 #   sh install.sh [--version <tag>] [--prefix <dir>]
 #
 # Environment overrides:
 #   LUNATE_INSTALL_BASE_URL  releases base URL
-#                            (default: https://github.com/wdaniel1993/lunate/releases)
+#                            (default: https://github.com/lunate-agent/lunate/releases)
 #   LUNATE_INSTALL_VERSION   release tag to install, for example v0.1.0
 #   LUNATE_INSTALL_PREFIX    install directory (default: $HOME/.local/bin)
 
@@ -96,7 +96,7 @@ fi
 
 command -v curl >/dev/null 2>&1 || fail "curl is required but was not found on PATH; install curl and re-run"
 
-base="${LUNATE_INSTALL_BASE_URL:-https://github.com/wdaniel1993/lunate/releases}"
+base="${LUNATE_INSTALL_BASE_URL:-https://github.com/lunate-agent/lunate/releases}"
 if [ -n "$version" ]; then
   case "$version" in
     v*) tag="$version" ;;

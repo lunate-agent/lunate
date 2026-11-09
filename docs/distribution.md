@@ -17,7 +17,7 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `Lunate.Extensibility.Testing.<product version>.nupkg` | the test kit, preview, versioned the same way |
 | `SHA256SUMS` | `<hash>  <filename>` lines covering every other asset |
 
-- Installers: [`install.sh`](../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/wdaniel1993/lunate/main/...`), not from the release assets.
+- Installers: [`install.sh`](../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/lunate-agent/lunate/main/...`), not from the release assets.
 - Channel artifacts live in [`packaging/`](../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 3).
 - Every package version is derived from the tag in one place, [`scripts/release-versions.sh`](../scripts/release-versions.sh): an RC tag publishes `-rc.<n>` for every package (the contracts too), and only a final tag publishes the stable API version and the `-preview.<n>` previews. [`scripts/pack-dry-run.sh`](../scripts/pack-dry-run.sh) proves that derivation on every pull request, and the release workflow computes the same values from the tag before it packs or pushes anything.
 - The extension package is the distribution channel for extensions: the same tag that publishes the tool pushes it to nuget.org, so `lunate install <package-id>` installs the version the tag names. It is attached to the release as well, so a machine without feed access can point a `nuget.config` at the downloaded folder.
@@ -101,37 +101,37 @@ git push
 
 ### 4. Homebrew tap
 
-The tap repo `wdaniel1993/homebrew-tap` hosts a copy of the formula (recreate it if it does not exist yet).
+The tap repo `lunate-agent/homebrew-tap` hosts a copy of the formula (recreate it if it does not exist yet).
 
 ```sh
-gh repo create wdaniel1993/homebrew-tap --public --description "Homebrew tap for Lunate"
-gh repo clone wdaniel1993/homebrew-tap /tmp/homebrew-tap
+gh repo create lunate-agent/homebrew-tap --public --description "Homebrew tap for Lunate"
+gh repo clone lunate-agent/homebrew-tap /tmp/homebrew-tap
 mkdir -p /tmp/homebrew-tap/Formula
 cp packaging/homebrew/lunate.rb /tmp/homebrew-tap/Formula/lunate.rb
 cd /tmp/homebrew-tap
 git add Formula/lunate.rb
 git commit -m "lunate 0.1.0"
 git push
-brew tap wdaniel1993/tap
-brew audit --formula wdaniel1993/tap/lunate
-brew install wdaniel1993/tap/lunate
+brew tap lunate-agent/tap
+brew audit --formula lunate-agent/tap/lunate
+brew install lunate-agent/tap/lunate
 lunate --version
 ```
 
 ### 5. Scoop bucket
 
-The bucket repo `wdaniel1993/scoop-bucket` hosts a copy of the manifest; `checkver`/`autoupdate` then track future releases automatically.
+The bucket repo `lunate-agent/scoop-bucket` hosts a copy of the manifest; `checkver`/`autoupdate` then track future releases automatically.
 
 ```sh
-gh repo create wdaniel1993/scoop-bucket --public --description "Scoop bucket for Lunate"
-gh repo clone wdaniel1993/scoop-bucket /tmp/scoop-bucket
+gh repo create lunate-agent/scoop-bucket --public --description "Scoop bucket for Lunate"
+gh repo clone lunate-agent/scoop-bucket /tmp/scoop-bucket
 mkdir -p /tmp/scoop-bucket/bucket
 cp packaging/scoop/lunate.json /tmp/scoop-bucket/bucket/lunate.json
 cd /tmp/scoop-bucket
 git add bucket/lunate.json
 git commit -m "Add lunate 0.1.0"
 git push
-scoop bucket add lunate https://github.com/wdaniel1993/scoop-bucket
+scoop bucket add lunate https://github.com/lunate-agent/scoop-bucket
 scoop install lunate
 ```
 
@@ -142,7 +142,7 @@ Check the identifier is free (pre-release name check; also look under `manifests
 ```powershell
 winget search wdaniel1993.lunate
 winget install Microsoft.WingetCreate
-wingetcreate new https://github.com/wdaniel1993/lunate/releases/download/v0.1.0/lunate-win-x64.zip
+wingetcreate new https://github.com/lunate-agent/lunate/releases/download/v0.1.0/lunate-win-x64.zip
 wingetcreate submit --token <github-token>
 ```
 
@@ -151,7 +151,7 @@ The `packaging/winget/` manifests are the reference for the answers (`Identifier
 ### 7. NuGet
 
 Publishing is passwordless. A Trusted Publishing policy on nuget.org names
-`wdaniel1993/lunate`, the `release.yml` workflow and the `production` environment; the
+`lunate-agent/lunate`, the `release.yml` workflow and the `production` environment; the
 `pack` job asks GitHub for an OIDC token, trades it for a key valid for minutes, and pushes
 both packages — the `lunate` tool and `Lunate.Extensions.Subagents`. There is no API key in the
 repository and nothing to rotate. Both packages carry a licence, the readme at their root and a

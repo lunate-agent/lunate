@@ -6,6 +6,6 @@ Publisher: wdaniel1993
 PackageName: Lunate
 License: MIT
 ShortDescription: A native C# coding agent for the terminal.
-PackageUrl: https://github.com/wdaniel1993/lunate
+PackageUrl: https://github.com/lunate-agent/lunate
 ManifestType: defaultLocale
 ManifestVersion: 1.10.0

@@ -297,7 +297,7 @@ def version_region_lines(root):
     version = stable_release(root)
     return [
         f"The current stable release is [**{version}**]"
-        f"(https://github.com/wdaniel1993/lunate/releases/tag/v{version})."
+        f"(https://github.com/lunate-agent/lunate/releases/tag/v{version})."
     ]
 
 

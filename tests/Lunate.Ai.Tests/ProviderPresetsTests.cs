@@ -40,7 +40,7 @@ public sealed class ProviderPresetsTests
                 },
                 Headers: new Dictionary<string, string>
                 {
-                    ["HTTP-Referer"] = "https://github.com/wdaniel1993/lunate",
+                    ["HTTP-Referer"] = "https://github.com/lunate-agent/lunate",
                     ["X-Title"] = "Lunate",
                 }
             ),

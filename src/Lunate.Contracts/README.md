@@ -34,11 +34,11 @@ release schedule).
 The host loads this assembly once and every extension binds to that copy. A copy an extension's
 directory or a locked package carries is never loaded — its `ITool` and `AgentEvent` types would be
 a second identity, so the loader ignores it and warns once. Keep your references compile-only, the
-way [the template](https://github.com/wdaniel1993/lunate/tree/main/templates/extension) does:
+way [the template](https://github.com/lunate-agent/lunate/tree/main/templates/extension) does:
 `PrivateAssets="all"` and `ExcludeAssets="runtime"`.
 
 ## Documentation
 
-`docs/extensions/` — the [package reference](https://github.com/wdaniel1993/lunate/blob/main/docs/extensions/packages.md),
-the [manifest](https://github.com/wdaniel1993/lunate/blob/main/docs/extensions/manifest.md) and the
-[contract catalogue](https://github.com/wdaniel1993/lunate/blob/main/docs/spec/extensibility.md).
+`docs/extensions/` — the [package reference](https://github.com/lunate-agent/lunate/blob/main/docs/extensions/packages.md),
+the [manifest](https://github.com/lunate-agent/lunate/blob/main/docs/extensions/manifest.md) and the
+[contract catalogue](https://github.com/lunate-agent/lunate/blob/main/docs/spec/extensibility.md).
