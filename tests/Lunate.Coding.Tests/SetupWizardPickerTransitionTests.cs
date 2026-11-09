@@ -67,23 +67,20 @@ public sealed class SetupWizardPickerTransitionTests
             }
 
             paused.TrySetResult();
-            release.Wait(TimeSpan.FromSeconds(10));
+            release.Wait(WaitBudgets.InProcess);
         };
 
         host.Console.SendEnter(); // confirm the placement pick; the walk now opens "Credential for local"
-        await paused.Task.WaitAsync(TimeSpan.FromSeconds(10)); // the walk is mid-open
+        await paused.Task.WaitAsync(WaitBudgets.InProcess); // the walk is mid-open
         dismissal.TrySetResult(); // the pump's dismissal now runs against its old picker
         await Task.Delay(200); // let it reach the clear (pre-fix) before the walk continues
         release.Set();
 
-        await host.WaitForFrameAsync("Credential for local", TimeSpan.FromSeconds(5));
+        await host.WaitForFrameAsync("Credential for local");
         host.Console.SendEnter();
         // The scripted prompt answers the masked key read without painting a frame, so the walk's
         // next painted step is the connection test picker.
-        await host.WaitForFrameAsync(
-            "Connection test (one discovery request",
-            TimeSpan.FromSeconds(5)
-        );
+        await host.WaitForFrameAsync("Connection test (one discovery request");
 
         host.Console.SendEscape();
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
