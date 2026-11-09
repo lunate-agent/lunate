@@ -8,6 +8,81 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-09
+
+The 0.3.0 quality release: a fresh install gets one guided setup path, a configured install gets a re-runnable entry menu, each model can route to its own native API family, and the decision layer's native System One transport lands behind the existing seam. The release also carries every rc.1 review fix, the rc.2 proof pass, the rc.3 proof pass, and the docs/spec agreement work the milestone asked for. The rc sections below record every change; highlights of the line:
+
+### Added
+
+- **The setup wizard.** A fresh interactive install opens one nine-step walk — provider, credential,
+  connection test, model, a minimal model check, chat profile and thinking, optional fast and
+  decision profiles, the decisions layer, and a summary. Nothing is written before the summary
+  confirms, `Esc` writes nothing, an environment key is offered before typing one, and a skipped
+  model check never counts as verified. `lunate setup` runs the same walk non-interactively from
+  explicit flags and exits 2 naming the answer that only interaction can supply; `/setup` opens the
+  full walk on a first run and an entry menu (add a provider, add a profile, change the chat profile,
+  edit decisions, walk everything) on a configured install (#524).
+- **Provider API families.** A provider entry carries one base URL per family — `openai-chat`,
+  `openai-responses`, `anthropic-messages` and `google` — and a model's family comes from the
+  profile, discovery or the catalog. Custom providers can carry literal or templated headers
+  (`{session.id}`, `{run.id}`, `{lunate.version}`) and choose where the credential goes (`bearer`,
+  `x-api-key`, a named header or a query parameter); the value is never part of a header template.
+  The OpenAI Responses and Anthropic Messages paths are wired, and an Anthropic-compatible custom
+  provider is accepted (#474, #484, #490, #495, #498).
+- **Google Gemini directly.** The Google family ships with its native SDK adapter, per-family base
+  URL and query-string credential placement, so a Gemini model can run without an OpenAI-compatible
+  proxy (#474, #500).
+- **OpenCode Go routes each model to its native API.** Discovery reads
+  `https://opencode.ai/inference/go/v1/models`, and a request goes to the model's declared API
+  family — Chat Completions, Responses, Anthropic Messages or Google — with the session header
+  captured on the request (#473).
+- **Native System One decisions.** `systemone` is the fifth provider family, served by a native
+  decision transport rather than an `IChatClient`. It adds the four question kinds (noul, choice,
+  score, box), confidence computed from the distribution, confidence-gated routing, atomic approval
+  questions, provider-reported decision cost, exact-version profile pinning, request limits and
+  `429`/`529` backoff. Jev-1.14 is preset on OpenRouter, Jev-1.13 on OpenCode, and provider quirks
+  (criteria shape, image-only headers) stay preset data (#487).
+- **Thinking per profile.** A profile's `reasoningLevel` seeds every session that uses it;
+  `/thinking` changes the current session only, while `/settings thinking` and the wizard persist
+  the profile. An unsupported model refuses the level by name instead of silently accepting it
+  (#476).
+
+### Changed
+
+- **Tool processes no longer inherit provider API keys.** Every preset `KeyVariable` and its alias,
+  plus each configured custom provider's `env:` reference, is stripped from a tool child's environment
+  on all platforms, including Windows, where the spawn built its own environment; the user's own
+  variables are untouched. An explicit pass-through list for named variables is #642 (0.4.0).
+- **MCP stdio child environment is allow-listed.** A stdio server no longer inherits the session
+  environment minus Lunate's known credential values (the 0.2 behaviour of #449/#455); it receives
+  exactly the base set the shared `EnvironmentScrubber` builds — `PATH`, `HOME`/`USERPROFILE`,
+  `SystemRoot`, `TEMP`/`TMP`/`TMPDIR`, `LANG` — plus its own declared `env` map and nothing else,
+  configured or not (#472). The shared scrubber is annotated with the reason for each base entry,
+  and a source-scan test keeps it the only child-environment code path.
+- **Question suggestions stay interactive.** The suggestion consumer is wired only where a person
+  answers; print mode and ACP have no surface to attach one to (#446).
+- **CI: one platform job, and PowerShell only when it can break.** The platform-independent checks
+  run once on Linux; the Windows PowerShell leg is path-filtered by a deny-by-default change
+  detector and skips when the platform job already proved the same checks (#435).
+- **The inert `McpServerOptions.WithheldCredentialValues` option is removed** from
+  `Lunate.Protocols`; the allow-list scrub is the only child-environment path (#483).
+
+- **`decisions.approvalsThreshold` is a confidence.** The key now carries what the spec always said it
+  did: the confidence a risk signal's chosen answer must reach to escalate. The default `0` is the
+  `2t − 1` form of the shipped `0.5` probability gate, so behaviour is unchanged unless the key is
+  set; an explicit `0.5` now means a `0.75` probability of the risk (#573).
+
+### Fixed
+
+- **Setup and settings.** The wizard now persists the chosen region, honours `--api-family` for presets, runs the decision-profile model check, refuses a thinking level that conflicts with an existing `reasoningBudget`, and merges a re-run profile instead of replacing it (#568, #569, #570, #579, #580).
+- **Runtime and providers.** `--no-session` with a `{session.id}` header resolves an ephemeral id; Anthropic prompt caching and turn merge follow the resolved family; a model/profile switch re-seeds thinking; a discovered endpoint survives profile resolution; the Windows MCP child environment includes `PATHEXT`, `ComSpec`, `APPDATA` and `LOCALAPPDATA` (#565, #571, #598, #599, #600).
+- **Decisions.** Failed adapter attempts still record their usage; question-suggestion and extension decisions record usage and cost; the provider cost is persisted and survives `--resume`; typed transport errors reach the operator; approval state carries the untrusted arguments once; `approvalsThreshold` is confidence; a shadow capability failure records the failure and leaves the call unchanged; discovery refuses a scheme or port redirect (#559–#562, #572, #573, #558, #563).
+- **Docs and specs.** `systemone` is the fifth API family everywhere; the architecture map and `AGENTS.md` record the 0.3 project graph; the guide no longer documents a `timeout_s` argument, `/shell` command or `shell` setting, and names `output.toolResultLimit` correctly (#574, #575, #577).
+
+### CI
+
+- The macOS `perf` leg runs on release events only; pull-request verify shards keep the startup budget, and gate self-tests retry once with a flake ledger.
+
 ## [0.3.0-rc.3] - 2026-11-08
 
 Proof-pass fixes on top of rc.2, found by a real phone session over SSH as well as by CI.
@@ -47,77 +122,6 @@ Proof-pass fixes on top of rc.2, found by a real phone session over SSH as well 
 - **OpenCode Go / Jev.** The systemone family joins the opencode-go preset with `jev-1.13` pinned, and
   the wizard prints one line when it offers it: billed to the pay-as-you-go balance, not the Go plan
   (#618).
-
-## [0.3.0] - 2026-11-06
-
-The 0.3.0 quality release: a fresh install gets one guided setup path, a configured install gets a re-runnable entry menu, each model can route to its own native API family, and the decision layer's native System One transport lands behind the existing seam. The release also carries every rc.1 review fix, the rc.2 proof pass, and the docs/spec agreement work the milestone asked for.
-
-### Added
-
-- **The setup wizard.** A fresh interactive install opens one nine-step walk — provider, credential,
-  connection test, model, a minimal model check, chat profile and thinking, optional fast and
-  decision profiles, the decisions layer, and a summary. Nothing is written before the summary
-  confirms, `Esc` writes nothing, an environment key is offered before typing one, and a skipped
-  model check never counts as verified. `lunate setup` runs the same walk non-interactively from
-  explicit flags and exits 2 naming the answer that only interaction can supply; `/setup` opens the
-  full walk on a first run and an entry menu (add a provider, add a profile, change the chat profile,
-  edit decisions, walk everything) on a configured install (#524).
-- **Provider API families.** A provider entry carries one base URL per family — `openai-chat`,
-  `openai-responses`, `anthropic-messages` and `google` — and a model's family comes from the
-  profile, discovery or the catalog. Custom providers can carry literal or templated headers
-  (`{session.id}`, `{run.id}`, `{lunate.version}`) and choose where the credential goes (`bearer`,
-  `x-api-key`, a named header or a query parameter); the value is never part of a header template.
-  The OpenAI Responses and Anthropic Messages paths are wired, and an Anthropic-compatible custom
-  provider is accepted (#474, #484, #490, #495, #498).
-- **Google Gemini directly.** The Google family ships with its native SDK adapter, per-family base
-  URL and query-string credential placement, so a Gemini model can run without an OpenAI-compatible
-  proxy (#474, #500).
-- **OpenCode Go routes each model to its native API.** Discovery reads
-  `https://opencode.ai/inference/go/v1/models`, and a request goes to the model's declared API
-  family — Chat Completions, Responses, Anthropic Messages or Google — with the session header
-  captured on the request (#473).
-- **Native System One decisions.** `systemone` is the fifth provider family, served by a native
-  decision transport rather than an `IChatClient`. It adds the four question kinds (noul, choice,
-  score, box), confidence computed from the distribution, confidence-gated routing, atomic approval
-  questions, provider-reported decision cost, exact-version profile pinning, request limits and
-  `429`/`529` backoff. Jev-1.14 is preset on OpenRouter, Jev-1.13 on OpenCode, and provider quirks
-  (criteria shape, image-only headers) stay preset data (#487).
-- **Thinking per profile.** A profile's `reasoningLevel` seeds every session that uses it;
-  `/thinking` changes the current session only, while `/settings thinking` and the wizard persist
-  the profile. An unsupported model refuses the level by name instead of silently accepting it
-  (#476).
-
-### Changed
-
-- **MCP stdio child environment is allow-listed.** A stdio server no longer inherits the session
-  environment minus Lunate's known credential values (the 0.2 behaviour of #449/#455); it receives
-  exactly the base set the shared `EnvironmentScrubber` builds — `PATH`, `HOME`/`USERPROFILE`,
-  `SystemRoot`, `TEMP`/`TMP`/`TMPDIR`, `LANG` — plus its own declared `env` map and nothing else,
-  configured or not (#472). The shared scrubber is annotated with the reason for each base entry,
-  and a source-scan test keeps it the only child-environment code path.
-- **Question suggestions stay interactive.** The suggestion consumer is wired only where a person
-  answers; print mode and ACP have no surface to attach one to (#446).
-- **CI: one platform job, and PowerShell only when it can break.** The platform-independent checks
-  run once on Linux; the Windows PowerShell leg is path-filtered by a deny-by-default change
-  detector and skips when the platform job already proved the same checks (#435).
-- **The inert `McpServerOptions.WithheldCredentialValues` option is removed** from
-  `Lunate.Protocols`; the allow-list scrub is the only child-environment path (#483).
-
-- **`decisions.approvalsThreshold` is a confidence.** The key now carries what the spec always said it
-  did: the confidence a risk signal's chosen answer must reach to escalate. The default `0` is the
-  `2t − 1` form of the shipped `0.5` probability gate, so behaviour is unchanged unless the key is
-  set; an explicit `0.5` now means a `0.75` probability of the risk (#573).
-
-### Fixed
-
-- **Setup and settings.** The wizard now persists the chosen region, honours `--api-family` for presets, runs the decision-profile model check, refuses a thinking level that conflicts with an existing `reasoningBudget`, and merges a re-run profile instead of replacing it (#568, #569, #570, #579, #580).
-- **Runtime and providers.** `--no-session` with a `{session.id}` header resolves an ephemeral id; Anthropic prompt caching and turn merge follow the resolved family; a model/profile switch re-seeds thinking; a discovered endpoint survives profile resolution; the Windows MCP child environment includes `PATHEXT`, `ComSpec`, `APPDATA` and `LOCALAPPDATA` (#565, #571, #598, #599, #600).
-- **Decisions.** Failed adapter attempts still record their usage; question-suggestion and extension decisions record usage and cost; the provider cost is persisted and survives `--resume`; typed transport errors reach the operator; approval state carries the untrusted arguments once; `approvalsThreshold` is confidence; a shadow capability failure records the failure and leaves the call unchanged; discovery refuses a scheme or port redirect (#559–#562, #572, #573, #558, #563).
-- **Docs and specs.** `systemone` is the fifth API family everywhere; the architecture map and `AGENTS.md` record the 0.3 project graph; the guide no longer documents a `timeout_s` argument, `/shell` command or `shell` setting, and names `output.toolResultLimit` correctly (#574, #575, #577).
-
-### CI
-
-- The macOS `perf` leg runs on release events only; pull-request verify shards keep the startup budget, and gate self-tests retry once with a flake ledger.
 
 ## [0.2.1] - 2026-11-02
 
