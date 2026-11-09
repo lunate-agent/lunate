@@ -42,7 +42,7 @@ An extension belongs here only when it meets the whole bar (recorded in ADR-0023
 ## What is not here, and why
 
 From the samples, deliberately unpromoted (the maintainer's reasons are recorded on issue
-[#242](https://github.com/wdaniel1993/lunate/issues/242)):
+[#242](https://github.com/lunate-agent/lunate/issues/242)):
 
 - `model-router` — its provider and virtual-model configuration needs a configuration surface that
   does not exist yet.

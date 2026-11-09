@@ -23,7 +23,7 @@ from pathlib import Path
 STABLE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 DOWNLOAD = re.compile(r"/download/(v[^/]+)/([^/]+)$")
-SUMS_URL = "https://github.com/wdaniel1993/lunate/releases/download/{tag}/SHA256SUMS"
+SUMS_URL = "https://github.com/lunate-agent/lunate/releases/download/{tag}/SHA256SUMS"
 
 
 def _read(path: Path) -> str:
@@ -209,12 +209,12 @@ def _manifest(version: str, digest: str) -> dict[str, str]:
     return {
         "packaging/homebrew/lunate.rb": f"""class Lunate < Formula
   on_macos do
-    url "https://github.com/wdaniel1993/lunate/releases/download/v{version}/lunate-osx-arm64.tar.gz"
+    url "https://github.com/lunate-agent/lunate/releases/download/v{version}/lunate-osx-arm64.tar.gz"
     sha256 "{digest}"
   end
 
   on_linux do
-    url "https://github.com/wdaniel1993/lunate/releases/download/v{version}/lunate-linux-x64.tar.gz"
+    url "https://github.com/lunate-agent/lunate/releases/download/v{version}/lunate-linux-x64.tar.gz"
     sha256 "{digest}"
   end
 end
@@ -224,7 +224,7 @@ end
                 "version": version,
                 "architecture": {
                     "64bit": {
-                        "url": f"https://github.com/wdaniel1993/lunate/releases/download/v{version}/lunate-win-x64.zip",
+                        "url": f"https://github.com/lunate-agent/lunate/releases/download/v{version}/lunate-win-x64.zip",
                         "hash": win,
                     }
                 },
@@ -234,7 +234,7 @@ end
 PackageVersion: {version}
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/wdaniel1993/lunate/releases/download/v{version}/lunate-win-x64.zip
+    InstallerUrl: https://github.com/lunate-agent/lunate/releases/download/v{version}/lunate-win-x64.zip
     InstallerSha256: {win.upper()}
 ManifestType: installer
 """,

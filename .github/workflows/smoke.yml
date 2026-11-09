@@ -86,8 +86,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           set -euo pipefail
-          brew tap wdaniel1993/tap
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install wdaniel1993/tap/lunate
+          brew tap lunate-agent/tap
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install lunate-agent/tap/lunate
           "$(brew --prefix)/bin/lunate" --version | tee brew-version.txt
           # The tap is a stable channel: a release candidate must not become what `brew install`
           # serves, so the formula tracks the last stable release and this step proves the channel
@@ -111,7 +111,7 @@ jobs:
         run: |
           Set-ExecutionPolicy Bypass -Scope Process -Force
           Invoke-RestMethod https://get.scoop.sh | Invoke-Expression
-          scoop bucket add wdaniel1993 https://github.com/wdaniel1993/scoop-bucket
+          scoop bucket add wdaniel1993 https://github.com/lunate-agent/scoop-bucket
           scoop install lunate
           $version = lunate --version
           $version

@@ -14,7 +14,7 @@ public sealed class UpdateCheckSessionTests
 {
     private const string Newer = "9.9.9";
     private const string ChangelogUrl =
-        "https://github.com/wdaniel1993/lunate/blob/main/CHANGELOG.md";
+        "https://github.com/lunate-agent/lunate/blob/main/CHANGELOG.md";
     private const string Line = Newer + " available · changelog";
 
     private static readonly DateTimeOffset Now = new(2026, 10, 28, 12, 0, 0, TimeSpan.Zero);

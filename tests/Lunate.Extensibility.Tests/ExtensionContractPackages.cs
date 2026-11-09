@@ -75,7 +75,7 @@ public sealed class ExtensionContractPackages
             Assert.Equal("README.md", Metadata(id, "PackageReadmeFile"));
             Assert.Equal("lunate-logo-dark.png", Metadata(id, "PackageIcon"));
             Assert.Equal(
-                "https://github.com/wdaniel1993/lunate",
+                "https://github.com/lunate-agent/lunate",
                 Metadata(id, "PackageProjectUrl")
             );
             Assert.True(File.Exists(ReadmePath(id)), $"{id} packs a README.md that is missing.");

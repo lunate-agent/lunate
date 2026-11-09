@@ -4,7 +4,7 @@ Lunate hosts an extension whose manifest declares a `runtime` as a child process
 in-process assembly load, speaking newline-delimited JSON-RPC 2.0 over stdio. The full JSON
 Schema of every payload and result is checked in at
 [`schemas/extensions-remote.schema.json`](../schemas/extensions-remote.schema.json) — the canonical raw URL is
-`https://raw.githubusercontent.com/wdaniel1993/lunate/main/schemas/extensions-remote.schema.json`, and the schema's
+`https://raw.githubusercontent.com/lunate-agent/lunate/main/schemas/extensions-remote.schema.json`, and the schema's
 `$id` (`https://lunate.dev/schemas/remote-extension-wire.json`) stays the logical identifier authors should copy — and is generated from the same
 DTOs the host uses (the generator ships in `Lunate.Extensibility.Testing`, together with
 `RemoteJsonSchema.Build()` and the conformance runner below). Background on the decision: [ADR-0017](../adr/0017-extensibility-architecture.md) and its

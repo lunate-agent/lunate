@@ -36,11 +36,11 @@ tool's version.
 The host loads this assembly once and every extension binds to that copy; a copy an extension ships
 is ignored at load with one warning. Keep the reference compile-only (`PrivateAssets="all"`,
 `ExcludeAssets="runtime"`), the way the
-[template](https://github.com/wdaniel1993/lunate/tree/main/templates/extension) does.
+[template](https://github.com/lunate-agent/lunate/tree/main/templates/extension) does.
 
 ## Documentation
 
-`docs/extensions/` — the [extension reference](https://github.com/wdaniel1993/lunate/blob/main/docs/extensions/README.md),
-the [hook catalogue](https://github.com/wdaniel1993/lunate/blob/main/docs/spec/extensibility.md) and
-the [sample](https://github.com/wdaniel1993/lunate/tree/hello-extensions) extensions under
+`docs/extensions/` — the [extension reference](https://github.com/lunate-agent/lunate/blob/main/docs/extensions/README.md),
+the [hook catalogue](https://github.com/lunate-agent/lunate/blob/main/docs/spec/extensibility.md) and
+the [sample](https://github.com/lunate-agent/lunate/tree/hello-extensions) extensions under
 `samples/extensions/`.

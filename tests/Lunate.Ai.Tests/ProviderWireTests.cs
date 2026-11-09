@@ -60,7 +60,7 @@ public sealed class ProviderWireTests
         Assert.StartsWith("lunate/", wire.Last.Headers.UserAgent.ToString());
         // The attribution headers a non-OpenCode provider documents ride the same pipeline:
         // one headers handler serves every provider, so the UA test is not an OpenCode-only fact.
-        Assert.Equal(["https://github.com/wdaniel1993/lunate"], wire.HeaderValues("HTTP-Referer"));
+        Assert.Equal(["https://github.com/lunate-agent/lunate"], wire.HeaderValues("HTTP-Referer"));
         Assert.Equal(["Lunate"], wire.HeaderValues("X-Title"));
         Assert.Equal(
             "Bearer wire-probe-openrouter-key",

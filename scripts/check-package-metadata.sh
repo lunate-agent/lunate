@@ -197,7 +197,7 @@ self_test() {
     <license type="expression">MIT</license>
     <readme>README.md</readme>
     <icon>lunate-logo-dark.png</icon>
-    <repository type="git" url="https://github.com/wdaniel1993/lunate" commit="0123456" />
+    <repository type="git" url="https://github.com/lunate-agent/lunate" commit="0123456" />
   </metadata>
 </package>
 XML
@@ -209,7 +209,7 @@ XML
     <version>0.1.0</version>
     <license type="expression">MIT</license>
     <readme>README.md</readme>
-    <repository type="git" url="https://github.com/wdaniel1993/lunate" />
+    <repository type="git" url="https://github.com/lunate-agent/lunate" />
   </metadata>
 </package>
 XML
@@ -222,7 +222,7 @@ XML
     <license type="expression">MIT</license>
     <readme>README.md</readme>
     <icon>lunate-logo-dark.png</icon>
-    <repository type="git" url="https://github.com/wdaniel1993/lunate" />
+    <repository type="git" url="https://github.com/lunate-agent/lunate" />
   </metadata>
 </package>
 XML
@@ -234,7 +234,7 @@ XML
     <license type="file">LICENSE.txt</license>
     <readme>README.md</readme>
     <icon>lunate-logo-dark.png</icon>
-    <repository type="git" url="https://github.com/wdaniel1993/lunate" />
+    <repository type="git" url="https://github.com/lunate-agent/lunate" />
   </metadata>
 </package>
 XML
@@ -244,7 +244,7 @@ XML
   <metadata>
     <id>lunate</id>
     <readme>README.md</readme>
-    <repository type="git" url="https://github.com/wdaniel1993/lunate" />
+    <repository type="git" url="https://github.com/lunate-agent/lunate" />
   </metadata>
 </package>
 XML
@@ -254,7 +254,7 @@ XML
   <metadata>
     <id>lunate</id>
     <license type="expression">MIT</license>
-    <repository type="git" url="https://github.com/wdaniel1993/lunate" />
+    <repository type="git" url="https://github.com/lunate-agent/lunate" />
   </metadata>
 </package>
 XML
@@ -276,7 +276,7 @@ XML
     <id>lunate</id>
     <license type="expression">MIT</license>
     <readme>docs/README.md</readme>
-    <repository type="git" url="https://github.com/wdaniel1993/lunate" />
+    <repository type="git" url="https://github.com/lunate-agent/lunate" />
   </metadata>
 </package>
 XML
