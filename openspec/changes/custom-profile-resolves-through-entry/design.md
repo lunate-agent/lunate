@@ -67,22 +67,27 @@ the entry's URL with the preset's (`ProviderEndpoint.IsOwn`) — rejected, becau
 reuses the vendor's URL would not be custom; persisting a `custom: true` key in the entry — rejected
 as a file-format change (the store refuses unknown keys) for a fact the name already fixes.
 
-**2. Resolution builds the model from the entry.** With no scoped catalogue entry, the resolved
-`ModelInfo` is the entry's own: id `<entry name>/<model>`, `Provider = entry.Kind`, wire id the
-profile's model id (or the matching catalogue entry's wire id when one matched), and the model facts
-copied from that matching entry. Endpoint, family, headers and credential placement are then
-resolved exactly as today's code does — the entry is still the routing authority. This keeps the
-`ChatClientFactory` path identical: a custom entry's model looks exactly like the one
-`CustomProvider.ToModelInfo` already injects, so the adapter, the placeholder-credential rule and
-the headers behave the same either way.
+**2. Resolution builds the model from the entry — only when the catalogue entry belongs elsewhere.**
+If the scoped lookup answered a catalogue entry that belongs to the entry's own kind, it is used
+unchanged: that is what a preset instance serves, and what the settings section's custom provider
+already contributes as `<provider id>/<model>` — resolving it to `gpt-4o` rather than
+`local/gpt-4o` keeps the id every consumer already reads, and keeps a System One model of an
+`openrouter`-kind entry working. For a model the catalogue holds under another provider (or not at
+all), the resolved `ModelInfo` is the entry's own: id `<entry name>/<wire id>` (or `<entry
+name>/<model>` with no match), `Provider = entry.Kind`, and the model facts copied from the single
+matching entry. Endpoint, family, headers and credential placement are then resolved exactly as
+today's code does — the entry is still the routing authority. This keeps the `ChatClientFactory`
+path identical: a custom entry's model looks exactly like the one `CustomProvider.ToModelInfo`
+already injects, so the adapter, the placeholder-credential rule and the headers behave the same
+either way.
 
-**3. The family check replaces the kind check for custom entries only.** The catalogue entry's
-family — its declared `apiFamily`, otherwise its provider preset's `DefaultFamily` — must be one of
-the entry's `ChatFamilies`. A preset entry keeps the kind check, because there the kind *is* the
-vendor and a preset profile naming another vendor's catalogue model is still a mistake.
-*Alternative:* comparing families for every entry — rejected: it would accept a `moonshotai` entry
-naming `gpt-4o` because both speak `openai-chat`, which is a wrong configuration, not an
-OpenAI-compatible one.
+**3. The family check replaces the kind check where the catalogue entry belongs elsewhere.** The
+catalogue entry's family — its declared `apiFamily`, otherwise its provider preset's
+`DefaultFamily` — must be one of the entry's `ChatFamilies`. A preset entry keeps the kind check
+for a foreign model, because there the kind *is* the vendor and a preset profile naming another
+vendor's catalogue model is still a mistake. *Alternative:* comparing families for every entry —
+rejected: it would accept a `moonshotai` entry naming `gpt-4o` because both speak `openai-chat`,
+which is a wrong configuration, not an OpenAI-compatible one.
 
 **4. Metadata, not pricing.** Facts carried over are the ones a request and its validation need and
 that belong to the model rather than to a seller: context window, tool and vision support, reasoning

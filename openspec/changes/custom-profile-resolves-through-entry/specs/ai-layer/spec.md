@@ -2,13 +2,19 @@
 
 ### Requirement: A custom entry's profile model is checked by family
 
-Profile resolution SHALL treat a provider entry whose name is not a provider preset id as a custom entry, because such an entry's kind names only the adapter that speaks its API family's wire. The model such a profile resolves SHALL be the entry's own model: catalogue id `<provider id>/<model>`, the entry's kind as provider, and the profile's model id — or, when a catalogue entry matched, that entry's wire id — as the wire id.
-
-The check that the model belongs to the entry SHALL compare API families, not adapter kinds: the matched catalogue entry's declared `apiFamily`, or its provider preset's default family when it declares none, SHALL be one of the families the entry serves. A mismatch SHALL be refused, naming the entry, the families it serves and the family the model speaks.
+Profile resolution SHALL treat a provider entry whose name is not a provider preset id as a custom entry, because such an entry's kind names only the adapter that speaks its API family's wire. When a profile on a custom entry names a model the catalogue holds under another provider, the model it resolves SHALL be the entry's own model: catalogue id `<provider id>/<wire id>`, the entry's kind as provider, and the wire id as the id the endpoint is sent. A model the catalogue already holds under the entry's own kind SHALL keep its catalogue entry unchanged, so a preset instance and a custom endpoint's own catalogue entry resolve exactly as before.
 
 A matched catalogue entry under a different provider SHALL contribute model facts only — context window, tool and vision support, reasoning style, maximum output, capabilities, declared family and wire id. It SHALL NOT contribute pricing: the rates of the provider that bills are not the rates of this endpoint. When several catalogue entries hold a bare id in the entry's family and none of them is the entry's own id, resolution SHALL take facts from none of them, because none of them is the model this endpoint serves.
 
-A preset entry SHALL keep the existing kind check and ambiguity refusal unchanged.
+The check that the model belongs to the entry SHALL compare API families, not adapter kinds: the matched catalogue entry's declared `apiFamily`, or its provider preset's default family when it declares none, SHALL be one of the families the entry serves. A mismatch SHALL be refused, naming the entry, the families it serves and the family the model speaks. A profile that declares the family itself is the user's explicit routing intent, and the entry's family URL is what must exist for it.
+
+A preset entry, and a model the catalogue holds under the entry's own kind, SHALL keep the existing kind check and ambiguity refusal unchanged.
+
+#### Scenario: A custom endpoint naming the vendor's own model keeps the catalogue entry
+
+- **GIVEN** a custom entry `local` of kind `openai` and a profile naming it with model `gpt-4o`, whose catalogue entry belongs to `openai`
+- **WHEN** the profile resolves
+- **THEN** it resolves the catalogue entry `gpt-4o`, its provider is `openai`, and the entry's endpoint applies
 
 #### Scenario: The reported case resolves through the entry
 

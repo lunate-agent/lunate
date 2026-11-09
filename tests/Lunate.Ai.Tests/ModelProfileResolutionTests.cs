@@ -336,11 +336,77 @@ public sealed class ModelProfileResolutionTests
     }
 
     [Fact]
-    public void A_bare_id_no_provider_entry_owns_still_names_its_candidates()
+    public void A_custom_endpoints_profile_resolves_a_bare_id_the_catalog_holds_under_another_provider()
+    {
+        // The reported case (#708): `kimi-k2` is one catalogue entry's wire id (`opencode/kimi-k2`),
+        // and a custom OpenAI-family endpoint offering it writes exactly that bare id in its profile.
+        // The entry serves the family, so nothing refuses the profile.
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "local", "kimi-k2");
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            profile,
+            [Provider("local", "http://localhost:11434/v1")],
+            catalog
+        );
+
+        Assert.Equal("local/kimi-k2", resolved.Model.Id);
+        Assert.Equal("kimi-k2", resolved.Model.WireId);
+        Assert.Equal("openai", resolved.Model.Provider);
+        Assert.Equal("openai-chat", resolved.Model.ApiFamily);
+        Assert.Equal("http://localhost:11434/v1", resolved.Model.Endpoint?.ToString());
+    }
+
+    [Fact]
+    public void A_custom_endpoint_profile_takes_the_matching_entrys_facts_but_not_its_pricing()
     {
         using var temp = new TempDirectory();
         ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "local", "kimi-k2");
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            profile,
+            [Provider("local", "https://local.example.test/v1")],
+            catalog
+        );
+
+        ModelInfo reference = catalog.Models.Single(model => model.Id == "opencode/kimi-k2");
+        Assert.Equal(reference.ContextWindow, resolved.ContextWindow);
+        Assert.Equal(reference.MaxOutput, resolved.Model.MaxOutput);
+        Assert.True(resolved.Model.SupportsTools);
+        // Another provider's rates are not this endpoint's rates: the profile stays unpriced.
+        Assert.NotNull(reference.Pricing);
+        Assert.Null(resolved.Model.Pricing);
+    }
+
+    [Fact]
+    public void A_custom_endpoint_profile_takes_no_facts_from_several_matching_entries()
+    {
+        // `kimi-k2.7-code` is three providers' wire id. None of them is the model this endpoint
+        // serves, so the profile resolves through the entry with unknown limits instead of refusing.
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
         var profile = new ModelProfile("chat-main", "local", "kimi-k2.7-code");
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            profile,
+            [Provider("local", "https://local.example.test/v1")],
+            catalog
+        );
+
+        Assert.Equal("local/kimi-k2.7-code", resolved.Model.Id);
+        Assert.Equal("kimi-k2.7-code", resolved.Model.WireId);
+        Assert.Equal(0, resolved.ContextWindow);
+        Assert.Null(resolved.Model.Pricing);
+    }
+
+    [Fact]
+    public void A_custom_endpoints_profile_refuses_a_model_of_a_different_family()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "local", "claude-sonnet-4-5");
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
             ModelProfileResolver.Resolve(
@@ -350,9 +416,52 @@ public sealed class ModelProfileResolutionTests
             )
         );
 
+        Assert.Contains("local", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("openai-chat", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("anthropic-messages", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_bare_id_no_provider_entry_owns_still_names_its_candidates()
+    {
+        // A preset entry keeps the kind-scoped contract: several catalogue entries hold the id and
+        // none of them is the preset's, so the catalogue's refusal names every candidate rather than
+        // guessing which vendor's model the profile meant (#708 keeps this case).
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "groq", "kimi-k2.7-code");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ModelProfileResolver.Resolve(
+                profile,
+                [Provider("groq", "https://api.groq.example.test/v1", "groq")],
+                catalog
+            )
+        );
+
         Assert.Contains("model", exception.Message, StringComparison.Ordinal);
         Assert.Contains("moonshotai/kimi-k2.7-code", exception.Message, StringComparison.Ordinal);
         Assert.Contains("opencode/kimi-k2.7-code", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_preset_profile_still_refuses_a_model_of_another_provider()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "moonshotai", "gpt-4o");
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ModelProfileResolver.Resolve(
+                profile,
+                [Provider("moonshotai", "https://api.moonshot.example.test/v1", "moonshotai")],
+                catalog
+            )
+        );
+
+        Assert.Contains("provider", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("moonshotai", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("openai", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

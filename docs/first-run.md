@@ -174,7 +174,10 @@ fields. Unsupported settings are refused by field and profile name before a requ
 changes only the chat profile; `provider/model` selects through a named provider, and a bare model
 id must be unique. A profile's own `model` is read in its `provider`'s scope first, so a profile on
 a custom endpoint may carry that endpoint's bare model id even when the catalogue holds the same id
-under other providers. Subagents and compaction default to chat when unassigned; compaction uses
+under other providers. A custom endpoint is checked by the API family it serves rather than by the
+adapter its kind names: a model the catalogue only knows under another provider resolves through
+the endpoint, and that catalogue entry contributes the model's facts (context window, capabilities)
+but never its pricing. Subagents and compaction default to chat when unassigned; compaction uses
 `fast` only when explicitly selected.
 
 ## Decisions

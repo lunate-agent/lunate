@@ -159,6 +159,64 @@ public sealed class SetupWizardAmbiguousModelTests
         Assert.Equal("https://local.example.test/v1", resolved.Provider.BaseUrl.ToString());
     }
 
+    [Fact]
+    public void A_custom_endpoints_profile_resolves_on_the_next_start_when_the_entry_owns_no_catalogue_entry()
+    {
+        // The reported case (#708): the endpoint's entry lives in the provider store, so the
+        // settings-section catalog carries no `local/kimi-k2`; the profile names the bare id the
+        // endpoint serves and the catalog knows that id only under `opencode`.
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            AuthStore.SettingsFilePath(temp.File("auth.json")),
+            """
+            {
+              "schemaVersion": 2,
+              "profiles": {
+                "chat-main": { "provider": "local", "model": "kimi-k2" }
+              },
+              "usages": { "chat": "chat-main" }
+            }
+            """
+        );
+        ProviderStore.Save(
+            AuthStore.ProviderStoreFilePath(temp.File("auth.json")),
+            [LocalProvider()]
+        );
+
+        AgentSettings written = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
+        AuthStore auth = AuthStore.Load(temp.File("auth.json"));
+        ProviderStore providers = ProviderStore.Load(
+            AuthStore.ProviderStoreFilePath(temp.File("auth.json")),
+            auth,
+            written.Providers
+        );
+        ResolvedModelProfile resolved = ChatModelResolver.ResolveChatProfile(
+            written,
+            providers.Entries,
+            HarnessFactory.LoadCatalog(written, temp.File("models.json"))
+        )!;
+
+        Assert.Equal("local/kimi-k2", resolved.Model.Id);
+        Assert.Equal("kimi-k2", resolved.Model.WireId);
+        Assert.Equal("https://local.example.test/v1", resolved.Provider.BaseUrl.ToString());
+    }
+
+    private static ProviderEntry LocalProvider()
+    {
+        bool valid = ProviderEntry.TryCreate(
+            "local",
+            "openai",
+            new Uri("https://local.example.test/v1"),
+            "auth:local",
+            headers: null,
+            region: null,
+            out ProviderEntry? entry,
+            out string? error
+        );
+        Assert.True(valid, error);
+        return Assert.IsType<ProviderEntry>(entry);
+    }
+
     private static string SettingsPath(InteractiveSessionHost host) =>
         AuthStore.SettingsFilePath(host.Temp.File("auth.json"));
 
