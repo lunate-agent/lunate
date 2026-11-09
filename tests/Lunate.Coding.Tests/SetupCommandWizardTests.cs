@@ -182,7 +182,10 @@ public sealed class SetupCommandWizardTests
         Assert.Contains("chat usage: chat-main", summary, StringComparison.Ordinal);
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("model: gpt-4.1");
+        // The walk's last line is the plain commit notice, so the frame carries it: the model switch
+        // it announces is posted first and the slot paints one notice per frame. This entry's job is
+        // the repaired binding below, not the switch line.
+        await host.WaitForFrameAsync("setup written");
 
         host.Console.Complete();
         Assert.Equal(0, await run);

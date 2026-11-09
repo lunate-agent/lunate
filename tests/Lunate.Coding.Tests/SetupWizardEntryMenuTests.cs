@@ -16,6 +16,25 @@ public sealed class SetupWizardEntryMenuTests
 {
     private const string Credential = "entry-menu-test-key-please-never-echo";
 
+    /// <summary>The walk's one commit notice: what is written now, what is read at startup, what
+    /// waits for the next session.</summary>
+    private const string SetupWrittenNotice =
+        "setup written: the files this walk changed are saved now and read at startup; "
+        + "this session keeps its current composition, so the new settings apply from "
+        + "the next session.";
+
+    private const string SetupWrittenPrefix = "setup written:";
+
+    /// <summary>Every notice the walk posted that begins with the commit notice's prefix.</summary>
+    private static List<NoticeSlotEntry> SetupWritten(NoticeSlotLog notices) =>
+        [
+            .. notices
+                .Changes(NoticeSlotChange.Posted)
+                .Where(entry =>
+                    entry.Text.StartsWith(SetupWrittenPrefix, StringComparison.Ordinal)
+                ),
+        ];
+
     private const string ConfiguredSettings = """
         {
           "schemaVersion": 2,
@@ -244,6 +263,13 @@ public sealed class SetupWizardEntryMenuTests
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
+        // The confirmed walk posts one `setup written` notice, with the plain words: what is
+        // saved now, what is read at startup, and that the composition waits for the next
+        // session. This entry rebinds the chat usage, so it is the walk that used to keep the
+        // short commit notice instead (the model line reports the one switch this session takes).
+        // The notice slot's journal is read rather than the frames: a notice is posted whether or
+        // not a later frame repaints it, and the wording is what this pins.
+        await host.WaitForNoticeAsync(SetupWrittenNotice);
 
         host.Console.Complete();
         await run;
@@ -251,6 +277,13 @@ public sealed class SetupWizardEntryMenuTests
             File.ReadAllText(SettingsPath(host))
                 .Contains("\"chat\": \"chat-alt\"", StringComparison.Ordinal)
         );
+
+        // The rebind switched the model and said so; the plain sentence is then the last line of the
+        // walk, and it is the only `setup written` line posted.
+        await host.WaitForNoticeAsync("model: gpt-4.1");
+        NoticeSlotEntry written = Assert.Single(SetupWritten(host.Notices));
+        Assert.Equal(SetupWrittenNotice, written.Text);
+        Assert.Equal(SetupWrittenNotice, host.Notices.Changes(NoticeSlotChange.Posted)[^1].Text);
 
         string settings = File.ReadAllText(SettingsPath(host));
         Assert.Contains("\"chat\": \"chat-alt\"", settings, StringComparison.Ordinal);
@@ -406,8 +439,10 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
 
         // The list must come back after the first answer; before the fix the walk went straight
-        // to the summary and this frame never appeared.
+        // to the summary and this frame never appeared. It must also show the value the switch
+        // now holds, not the value it had when the step was entered.
         await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        await host.WaitForFrameAsync("approval gate shadow — screen staged actions");
         await PickRowAsync(
             host,
             "Decisions settings",
@@ -421,6 +456,9 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
 
         await host.WaitForFrameAsync("> Done — leave the decisions settings");
+        await host.WaitForFrameAsync(
+            "decide tool on — offer the decide tool when a decision profile resolves"
+        );
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);

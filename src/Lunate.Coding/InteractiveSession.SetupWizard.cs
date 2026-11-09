@@ -192,6 +192,10 @@ internal sealed partial class InteractiveSession
 
         CommitWizard(wizard);
         await ReconcileAsync(wizard, ct).ConfigureAwait(false);
+        // The walk's one commit notice, posted last: the reconciliation may warn that a staged
+        // chat profile did not resolve, and the notice slot holds one line, so the confirmation of
+        // what was written is the last thing the walk says and nothing replaces it.
+        NotifySetupWritten();
     }
 
     /// <summary>A go-back inside an entry's scope: the walk keeps re-running earlier steps of the
@@ -1211,7 +1215,6 @@ internal sealed partial class InteractiveSession
         wizard.RecordDecisionCheck(check);
         if (check.Outcome == WizardProgress.Passed)
         {
-            Notify($"decision check passed: {decision.ModelId} ({kind})");
             return WizardMove.Advance;
         }
 
@@ -1299,14 +1302,16 @@ internal sealed partial class InteractiveSession
 
         while (true)
         {
+            // The rows show the value each switch holds now: the pass starts at the defaults and
+            // every answer updates its row before the list is presented again.
             string? answered = await PickAsync(
                     "Decisions settings",
                     [
                         "Done — leave the decisions settings",
-                        "approval gate off — screen staged actions",
-                        "routing unset — choose a profile per request",
-                        "questions off — probability marker on top option; user still chooses",
-                        "decide tool off — offer the decide tool when a decision profile resolves",
+                        $"approval gate {approvals ?? "off"} — screen staged actions",
+                        $"routing {routing ?? "unset"} — choose a profile per request",
+                        $"questions {questions ?? "off"} — probability marker on top option; user still chooses",
+                        $"decide tool {tool ?? "off"} — offer the decide tool when a decision profile resolves",
                     ],
                     ["done", "approvals", "routing", "questions", "tool"],
                     PickerKind.WizardChoice,
