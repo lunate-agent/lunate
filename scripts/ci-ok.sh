@@ -46,7 +46,6 @@ decide() {
     local event="${EVENT_NAME:-}" draft="${DRAFT:-}" plan="${PLAN:-}"
     local profile="${PROFILE:-}" verify="${VERIFY:-}" powershell="${POWERSHELL:-}"
     local ps_required="${PS_REQUIRED:-}" docs="${DOCS:-}" perf="${PERF:-}" platform="${PLATFORM:-}"
-    local ref_type="${REF_TYPE:-branch}"
 
     echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform"
 
@@ -75,14 +74,6 @@ decide() {
                     # must not fail the gate. A merge group that required it was ejected from the
                     # queue by a timing measurement on a loaded runner.
                     [ "$perf" = "skipped" ] && perf_gate="success"
-                    ;;
-                push)
-                    # A release tag is the one push the startup budget may fail, and the nightly keeps
-                    # reporting it. A push to main must never be reddened by a measurement taken on a
-                    # shared runner, so on a branch push its result does not feed this check at all.
-                    if [ "${ref_type:-branch}" != "tag" ]; then
-                        perf_gate="success"
-                    fi
                     ;;
             esac
             if [ "$verify" != "success" ] || [ "$perf_gate" != "success" ] || [ "$platform" != "success" ]; then
@@ -138,7 +129,6 @@ PY
 _run_from_env() {
     env EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
         VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
-        REF_TYPE="${11:-branch}" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
 }
 
@@ -327,16 +317,8 @@ self_test() {
         pull_request false success full skipped success skipped success success true
     _self_case "a skipped perf leg on a pull request" 0 "the full gate succeeded" \
         pull_request false success full success success skipped skipped success true
-    _self_case "a skipped perf leg on a tag push" 1 "did not succeed" \
-        push "" success full success success skipped skipped success true tag
-    _self_case "a skipped perf leg on a branch push is not required" 0 "the full gate succeeded" \
-        push "" success full success success skipped skipped success true branch
-    _self_case "a failed perf leg on a branch push never feeds this check" 0 "the full gate succeeded" \
-        push "" success full success success skipped failure success true branch
-    _self_case "a failed perf leg on a tag push fails the release" 1 "did not succeed" \
-        push "" success full success success skipped failure success true tag
-    _self_case "a failed perf leg on the nightly is the nightly verdict" 1 "did not succeed" \
-        schedule "" success full success success skipped failure success true branch
+    _self_case "a skipped perf leg on a push" 1 "did not succeed" \
+        push "" success full success success skipped skipped success true
     _self_case "a skipped perf leg on a merge group" 0 "the full gate succeeded" \
         merge_group "" success full success success skipped skipped success true
     _self_case "a failed perf leg on a merge group is still a failure" 1 "did not succeed" \
@@ -399,8 +381,8 @@ self_test() {
         perf 'scripts/perf\.sh' 1
     _self_workflow "the perf leg must run on the full profile only" \
         perf "^    if: needs\.plan\.outputs\.profile == 'full'" 1
-    _self_workflow "the perf leg must run only on a release tag or the nightly" \
-        perf "github\.ref_type == 'tag'" 1
+    _self_workflow "the perf leg must not gate a merge queue batch" \
+        perf "github\.event_name != 'merge_group'" 1
     _self_workflow "the PowerShell leg must be gated on the changed paths" \
         verify-powershell "needs\.changes\.outputs\.powershell == 'true'" 1
     _self_workflow "the changes job must decide through scripts/ci-powershell-paths.sh" \

@@ -558,12 +558,13 @@ jobs:
   perf:
     name: perf (${{ matrix.os }})
     needs: plan
-    # The startup budget is a release verdict and a nightly trend, nothing else. A release tag may
-    # fail on it; the nightly reports it and the number is tracked over time. A push to main or a
-    # merge queue batch must never go red on it: a shared runner varies by a few percent, and a 4%
-    # overrun (311 ms against a 300 ms budget) ejected a whole batch from the merge queue. The
-    # per-PR verify shards still enforce the budget through STARTUP_BUDGET_ENFORCE.
-    if: needs.plan.outputs.profile == 'full' && (github.event_name == 'schedule' || github.ref_type == 'tag')
+    # The dedicated macOS perf leg is a release gate, not a PR gate: its runner queue was
+    # starving every PR matrix. The startup budget is still enforced in the per-PR verify
+    # shards through STARTUP_BUDGET_ENFORCE, so skipping this job does not weaken the PR gate.
+    # A merge group is a merge gate, not a release: a batch must not be ejected by a startup
+    # measurement taken on a shared runner (311 ms against a 300 ms budget ejected #725's first
+    # batch). The per-PR verify shards still enforce the budget through STARTUP_BUDGET_ENFORCE.
+    if: needs.plan.outputs.profile == 'full' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -649,7 +650,6 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          REF_TYPE: ${{ github.ref_type }}
           DRAFT: ${{ github.event.pull_request.draft }}
           PLAN: ${{ needs.plan.result }}
           PROFILE: ${{ needs.plan.outputs.profile }}
