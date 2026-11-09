@@ -402,6 +402,26 @@ public sealed class ModelProfileResolutionTests
     }
 
     [Fact]
+    public void A_custom_endpoint_naming_the_vendors_own_model_keeps_the_catalogue_entry()
+    {
+        // A model the catalogue already holds under the entry's own kind is the vendor's model:
+        // it keeps its catalogue identity, exactly as a preset entry's model does.
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = ModelCatalog.Load(temp.File("no-user-catalog.json"));
+        var profile = new ModelProfile("chat-main", "local", "gpt-4o");
+
+        ResolvedModelProfile resolved = ModelProfileResolver.Resolve(
+            profile,
+            [Provider("local", "https://local.example.test/v1")],
+            catalog
+        );
+
+        Assert.Equal("gpt-4o", resolved.Model.Id);
+        Assert.Equal("openai", resolved.Model.Provider);
+        Assert.Equal("https://local.example.test/v1", resolved.Model.Endpoint?.ToString());
+    }
+
+    [Fact]
     public void A_custom_endpoints_profile_refuses_a_model_of_a_different_family()
     {
         using var temp = new TempDirectory();
