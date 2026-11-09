@@ -263,6 +263,101 @@ public sealed class InteractiveSessionUsageProfileTests
         await run;
     }
 
+    [Fact]
+    public async Task A_refused_chat_binding_refuses_the_first_message_with_the_binding_message()
+    {
+        var factory = new FakeChatClientFactory(new ScriptedChatClient());
+        using var host = new InteractiveSessionHost(
+            factory: factory,
+            environment: _ => null,
+            interactiveConsole: true
+        );
+        // The notice caps at four lines; a wide terminal keeps the whole binding message on screen.
+        host.Console.Size = new Lunate.Tui.ConsoleSize(400, 24);
+        File.WriteAllText(
+            host.Temp.File("settings.json"),
+            """
+            {
+              "schemaVersion": 2,
+              "profiles": {
+                "decisions": {
+                  "provider": "opencode-go",
+                  "model": "opencode-go/jev-1.13",
+                  "apiFamily": "systemone"
+                }
+              },
+              "usages": { "chat": "decisions" },
+              "decisions": { "profile": "decisions" }
+            }
+            """
+        );
+        ProviderStore.Save(
+            AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json")),
+            [Provider("opencode-go", "opencode-go")]
+        );
+        Task run = host.RunAsync();
+
+        host.Console.SendText("hello");
+        host.Console.SendEnter();
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.LastFrame.Contains("run failed", StringComparison.Ordinal);
+        });
+
+        string notice = host.LastFrame;
+        Assert.Contains("Profile 'decisions'", notice, StringComparison.Ordinal);
+        Assert.Contains("opencode-go/jev-1.13", notice, StringComparison.Ordinal);
+        Assert.Contains("decision-only", notice, StringComparison.Ordinal);
+        Assert.Contains("systemone", notice, StringComparison.Ordinal);
+        Assert.Contains("/setup", notice, StringComparison.Ordinal);
+        Assert.Contains("lunate setup", notice, StringComparison.Ordinal);
+        Assert.DoesNotContain("no chat model is configured", notice, StringComparison.Ordinal);
+        Assert.Null(factory.CreatedModel);
+
+        host.Console.SendText("/quit");
+        host.Console.SendEnter();
+        await run;
+    }
+
+    [Fact]
+    public async Task A_session_with_no_chat_answer_refuses_the_first_message_with_the_setup_text()
+    {
+        var factory = new FakeChatClientFactory(new ScriptedChatClient());
+        using var host = new InteractiveSessionHost(
+            factory: factory,
+            environment: _ => null,
+            interactiveConsole: true,
+            freshInstall: true,
+            // A fresh machine builds the placeholder; the picker seam keeps the setup walk from
+            // opening, so a first message reaches the placeholder with no chat answer.
+            startWithPicker: true
+        );
+        // The notice caps at four lines; a wide terminal keeps the whole refusal on screen.
+        host.Console.Size = new Lunate.Tui.ConsoleSize(400, 24);
+        Task run = host.RunAsync();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "Select session");
+        host.Console.SendEscape();
+        await InteractiveSessionCommandTests.WaitForFrameGoneAsync(host, "Select session");
+
+        host.Console.SendText("hello");
+        host.Console.SendEnter();
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.LastFrame.Contains("run failed", StringComparison.Ordinal);
+        });
+
+        string notice = host.LastFrame;
+        Assert.Contains("no chat model is configured", notice, StringComparison.Ordinal);
+        Assert.Contains("lunate setup", notice, StringComparison.Ordinal);
+        Assert.Null(factory.CreatedModel);
+
+        host.Console.SendText("/quit");
+        host.Console.SendEnter();
+        await run;
+    }
+
     private static ProviderEntry Provider(string name, string kind)
     {
         bool valid = ProviderEntry.TryCreate(

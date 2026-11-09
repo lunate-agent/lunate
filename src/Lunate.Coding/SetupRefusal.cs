@@ -29,12 +29,25 @@ internal static class SetupRefusal
     /// and ACP resolve the <c>model</c> default and report a later failure on their own.
     /// </summary>
     internal static bool Applies(AgentSettings settings) => !SetupState.HasChatAnswer(settings);
+
+    /// <summary>
+    /// The refusal for a session's placeholder client: the configured chat binding's own message
+    /// when startup refused it (it already names the profile, model, family and both repair
+    /// commands), and the configure-it text otherwise. The caller still throws it from the deferred
+    /// factory, so no client is created and no request is sent either way.
+    /// </summary>
+    internal static SetupRequiredException ForPlaceholder(string? invalidChatBinding) =>
+        invalidChatBinding is { } binding
+            ? new SetupRequiredException(binding)
+            : new SetupRequiredException();
 }
 
 /// <summary>
-/// A chat model was resolved on a machine with no chat answer: every caller reports
-/// <see cref="SetupRefusal.Text"/> and exits <see cref="SetupRefusal.ExitCode"/> instead of the
-/// pre-0.3 "set 'model'" guidance. It derives from <see cref="InvalidOperationException"/> so the
-/// paths that already treat a resolution failure as a configuration error keep doing so.
+/// A chat model could not be resolved: every caller reports the supplied refusal and exits
+/// <see cref="SetupRefusal.ExitCode"/> instead of the pre-0.3 "set 'model'" guidance. The
+/// argument-less shape keeps <see cref="SetupRefusal.Text"/>; the placeholder passes the refused
+/// binding's own message. It derives from <see cref="InvalidOperationException"/> so the paths that
+/// already treat a resolution failure as a configuration error keep doing so.
 /// </summary>
-internal sealed class SetupRequiredException() : InvalidOperationException(SetupRefusal.Text);
+internal sealed class SetupRequiredException(string? refusal = null)
+    : InvalidOperationException(refusal ?? SetupRefusal.Text);
