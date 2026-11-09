@@ -50,34 +50,42 @@ internal static class ModelProfileResolver
             throw Invalid(profile, "provider", "does not name a configured provider");
         }
 
-        ModelInfo? model;
+        // The profile names its provider, so the model id is read in that scope first: the entry's
+        // own catalogue id, then the exact id, then the single entry whose wire id it is. A bare id
+        // the provider owns therefore resolves instead of failing as ambiguous (#675).
+        bool customEntry = CustomModelProfile.IsCustom(provider);
+        ModelInfo? known;
+        IReadOnlyList<ModelInfo> candidates;
         try
         {
-            // The profile names its provider, so the model id is read in that scope first: the
-            // entry's own catalogue id, then the exact id, then the unqualified lookup. A bare id
-            // the provider owns therefore resolves instead of failing as ambiguous (#675).
-            model = catalog.FindFor(provider.Name, profile.Model) is { Match: { } scoped }
-                ? scoped
-                : catalog.Find(profile.Model);
+            ScopedModelLookup scoped = catalog.FindFor(provider.Name, profile.Model);
+            known = scoped.Match;
+            candidates = scoped.Candidates;
+            if (known is null && !customEntry)
+            {
+                // A preset entry keeps the unscoped lookup: a bare id several entries hold is an
+                // ambiguity the person resolves, never a guess.
+                known = catalog.Find(profile.Model);
+            }
         }
         catch (InvalidOperationException exception)
         {
             throw Invalid(profile, "model", exception.Message);
         }
 
-        if (model is null)
-        {
-            throw Invalid(profile, "model", $"'{profile.Model}' is not in the model catalog");
-        }
-
-        if (!string.Equals(model.Provider, provider.Kind, StringComparison.Ordinal))
-        {
-            throw Invalid(
-                profile,
-                "provider",
-                $"'{provider.Name}' has kind '{provider.Kind}', but model '{model.Id}' belongs to '{model.Provider}'"
-            );
-        }
+        // The model the profile names, from the entry's scope. A catalogue entry that belongs to the
+        // entry's own kind keeps its identity — that is what a preset entry serves, and what the
+        // settings section's custom provider already contributes under `<provider id>/<model>`. A
+        // custom entry naming a model the catalogue holds under another provider resolves through
+        // the entry, checked by the family it serves (#708).
+        ModelInfo model =
+            !customEntry
+            || (
+                known is not null
+                && string.Equals(known.Provider, provider.Kind, StringComparison.Ordinal)
+            )
+                ? EntryKindModel(profile, provider, known)
+                : CustomModel(profile, provider, known, candidates);
 
         ProviderApiFamily family;
         Uri? endpoint;
@@ -145,6 +153,54 @@ internal static class ModelProfileResolver
             contextWindow,
             capabilities
         );
+    }
+
+    /// <summary>
+    /// The model a custom entry's profile names: built on the entry, checked by the family the
+    /// entry serves, with the facts of a matching catalogue entry and never its pricing (#708).
+    /// </summary>
+    private static ModelInfo CustomModel(
+        ModelProfile profile,
+        ProviderEntry provider,
+        ModelInfo? known,
+        IReadOnlyList<ModelInfo> candidates
+    )
+    {
+        try
+        {
+            return CustomModelProfile.Resolve(profile, provider, known, candidates);
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw Invalid(profile, "provider", exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// The catalogue entry the entry's own kind serves, with the check that no other vendor's
+    /// model is sent through it.
+    /// </summary>
+    private static ModelInfo EntryKindModel(
+        ModelProfile profile,
+        ProviderEntry provider,
+        ModelInfo? model
+    )
+    {
+        if (model is null)
+        {
+            throw Invalid(profile, "model", $"'{profile.Model}' is not in the model catalog");
+        }
+
+        if (!string.Equals(model.Provider, provider.Kind, StringComparison.Ordinal))
+        {
+            throw Invalid(
+                profile,
+                "provider",
+                $"'{provider.Name}' has kind '{provider.Kind}', but model '{model.Id}' belongs to '{model.Provider}'"
+            );
+        }
+
+        return model;
     }
 
     private static void ValidateReasoning(ModelProfile profile, ModelInfo model)
