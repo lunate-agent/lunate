@@ -249,6 +249,15 @@ internal sealed partial class InteractiveSession : IDisposable
     private DateTimeOffset _approvalArmAt;
     private int _trustAsked;
     private int _trustTotal;
+
+    /// <summary>
+    /// Guards the picker transition: the key pump dismisses the picker it confirmed while the
+    /// wizard walk's continuation opens the next step's picker on another thread. Every
+    /// <c>_picker*</c> write and the matching live-area post happen inside it, so a dismissal
+    /// can never clear or replace a picker another thread is installing (#730).
+    /// </summary>
+    private readonly Lock _pickerGate = new();
+
     private SelectListModel? _picker;
     private PickerKind _pickerKind;
     private List<string> _pickerLabels = [];

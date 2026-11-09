@@ -27,6 +27,13 @@ internal sealed partial class InteractiveSession
     /// </summary>
     internal Func<Task>? PickerDismissalSeam { get; set; }
 
+    /// <summary>
+    /// Test seam: invoked inside the picker's open transition after the next picker's state is
+    /// written and before it is installed, so a test can hold the walk there while a dismissal
+    /// runs. Production leaves this null.
+    /// </summary>
+    internal Action? PickerOpenSeam { get; set; }
+
     /// <summary>The discovery listing the connection test collected; empty when it skipped or failed.</summary>
     private IReadOnlyList<WizardModelListing> _listing = [];
 

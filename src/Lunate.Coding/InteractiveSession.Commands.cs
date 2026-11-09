@@ -868,12 +868,16 @@ internal sealed partial class InteractiveSession
         int selected
     )
     {
-        _pickerKind = kind;
-        _pickerTitlePrefix = titlePrefix;
-        _pickerLabels = labels;
-        _pickerValues = values;
-        _pickerFilter = string.Empty;
-        ShowPicker(keepValue: null, fallback: selected);
+        lock (_pickerGate)
+        {
+            _pickerKind = kind;
+            _pickerTitlePrefix = titlePrefix;
+            _pickerLabels = labels;
+            _pickerValues = values;
+            _pickerFilter = string.Empty;
+            PickerOpenSeam?.Invoke();
+            ShowPicker(keepValue: null, fallback: selected);
+        }
     }
 
     /// <summary>
@@ -883,28 +887,31 @@ internal sealed partial class InteractiveSession
     /// </summary>
     private void ShowPicker(string? keepValue, int fallback)
     {
-        List<string> labels = [];
-        List<string> values = [];
-        for (var index = 0; index < _pickerLabels.Count; index++)
+        lock (_pickerGate)
         {
-            if (!PickerMatches(_pickerLabels[index]))
+            List<string> labels = [];
+            List<string> values = [];
+            for (var index = 0; index < _pickerLabels.Count; index++)
             {
-                continue;
+                if (!PickerMatches(_pickerLabels[index]))
+                {
+                    continue;
+                }
+
+                labels.Add(PickerLabel(index));
+                values.Add(_pickerValues[index]);
             }
 
-            labels.Add(PickerLabel(index));
-            values.Add(_pickerValues[index]);
-        }
+            _pickerVisibleValues = values;
+            int selected = keepValue is null ? fallback : values.IndexOf(keepValue);
+            if (selected < 0)
+            {
+                selected = fallback;
+            }
 
-        _pickerVisibleValues = values;
-        int selected = keepValue is null ? fallback : values.IndexOf(keepValue);
-        if (selected < 0)
-        {
-            selected = fallback;
+            selected = Math.Clamp(selected, 0, Math.Max(labels.Count - 1, 0));
+            SetPicker(new SelectListModel(PickerTitle(selected, labels.Count), labels, selected));
         }
-
-        selected = Math.Clamp(selected, 0, Math.Max(labels.Count - 1, 0));
-        SetPicker(new SelectListModel(PickerTitle(selected, labels.Count), labels, selected));
     }
 
     /// <summary>Whether the open picker filters as text is typed (the model and wizard pickers).</summary>
@@ -1048,8 +1055,11 @@ internal sealed partial class InteractiveSession
 
     private void SetPicker(SelectListModel picker)
     {
-        _picker = picker;
-        _live.SetPicker(picker);
+        lock (_pickerGate)
+        {
+            _picker = picker;
+            _live.SetPicker(picker);
+        }
     }
 
     /// <summary>
@@ -1060,18 +1070,21 @@ internal sealed partial class InteractiveSession
     /// </summary>
     private void DismissPicker(SelectListModel picker)
     {
-        if (!ReferenceEquals(_picker, picker))
+        lock (_pickerGate)
         {
-            return;
-        }
+            if (!ReferenceEquals(_picker, picker))
+            {
+                return;
+            }
 
-        _picker = null;
-        _pickerTitlePrefix = string.Empty;
-        _pickerLabels = [];
-        _pickerValues = [];
-        _pickerVisibleValues = [];
-        _pickerFilter = string.Empty;
-        _live.SetPicker(null);
+            _picker = null;
+            _pickerTitlePrefix = string.Empty;
+            _pickerLabels = [];
+            _pickerValues = [];
+            _pickerVisibleValues = [];
+            _pickerFilter = string.Empty;
+            _live.SetPicker(null);
+        }
     }
 
     private async ValueTask ConfirmPicker(CancellationToken ct)
