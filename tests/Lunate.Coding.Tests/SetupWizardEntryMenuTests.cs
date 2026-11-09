@@ -23,12 +23,16 @@ public sealed class SetupWizardEntryMenuTests
         + "this session keeps its current composition, so the new settings apply from "
         + "the next session.";
 
+    private const string SetupWrittenPrefix = "setup written:";
+
     /// <summary>Every notice the walk posted that begins with the commit notice's prefix.</summary>
     private static List<NoticeSlotEntry> SetupWritten(NoticeSlotLog notices) =>
         [
             .. notices
                 .Changes(NoticeSlotChange.Posted)
-                .Where(entry => entry.Text.StartsWith("setup written:", StringComparison.Ordinal)),
+                .Where(entry =>
+                    entry.Text.StartsWith(SetupWrittenPrefix, StringComparison.Ordinal)
+                ),
         ];
 
     private const string ConfiguredSettings = """
@@ -238,8 +242,6 @@ public sealed class SetupWizardEntryMenuTests
         using var host = ConfiguredHost();
         byte[] providers = File.ReadAllBytes(ProviderPath(host));
         byte[]? auth = AuthSnapshot(host);
-        var notices = new NoticeSlotLog();
-        host.Session.ObserveNotices(notices.Record);
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
@@ -267,7 +269,7 @@ public sealed class SetupWizardEntryMenuTests
         // short commit notice instead (the model line reports the one switch this session takes).
         // The notice slot's journal is read rather than the frames: a notice is posted whether or
         // not a later frame repaints it, and the wording is what this pins.
-        await host.WaitUntilAsync(() => SetupWritten(notices).Count > 0);
+        await host.WaitForNoticeAsync(SetupWrittenNotice);
 
         host.Console.Complete();
         await run;
@@ -276,8 +278,12 @@ public sealed class SetupWizardEntryMenuTests
                 .Contains("\"chat\": \"chat-alt\"", StringComparison.Ordinal)
         );
 
-        NoticeSlotEntry written = Assert.Single(SetupWritten(notices));
+        // The rebind switched the model and said so; the plain sentence is then the last line of the
+        // walk, and it is the only `setup written` line posted.
+        await host.WaitForNoticeAsync("model: gpt-4.1");
+        NoticeSlotEntry written = Assert.Single(SetupWritten(host.Notices));
         Assert.Equal(SetupWrittenNotice, written.Text);
+        Assert.Equal(SetupWrittenNotice, host.Notices.Changes(NoticeSlotChange.Posted)[^1].Text);
 
         string settings = File.ReadAllText(SettingsPath(host));
         Assert.Contains("\"chat\": \"chat-alt\"", settings, StringComparison.Ordinal);

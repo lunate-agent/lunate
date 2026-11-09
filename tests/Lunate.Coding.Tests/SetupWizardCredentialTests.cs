@@ -94,7 +94,9 @@ public sealed class SetupWizardCredentialTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("model: gpt-3.5-turbo");
+        // The switch line is read from the notice journal: the walk posts its commit notice after
+        // it, and the slot paints one line per frame.
+        await host.WaitForNoticeAsync("model: gpt-3.5-turbo");
         host.Console.Complete();
         await run;
 

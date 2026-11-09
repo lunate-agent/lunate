@@ -648,9 +648,17 @@ internal sealed class InteractiveSessionHost : IDisposable
             DiscoveryTransport = discoveryTransport,
         };
         Session = new InteractiveSession(Options);
+        Session.ObserveNotices(Notices.Record);
     }
 
     public TempDirectory Temp { get; } = new();
+
+    /// <summary>
+    /// The live area's one notice slot, journalled: every post, clear and paint in arrival order.
+    /// A notice is posted whether or not a later frame repaints it, so a test that pins what the
+    /// session <em>said</em> reads this instead of waiting for a frame to show the line.
+    /// </summary>
+    public NoticeSlotLog Notices { get; } = new();
 
     /// <summary>
     /// The options the host composed, for a test that drives a production entry (<c>Cli.Run</c>)
@@ -750,6 +758,18 @@ internal sealed class InteractiveSessionHost : IDisposable
     public string LastFrame => Console.Writes.Count == 0 ? string.Empty : Console.Writes[^1];
 
     public string Frames => string.Concat(Console.Writes);
+
+    /// <summary>
+    /// Waits until the session posted a notice with exactly this text. The slot holds one line and
+    /// paints it on the next frame, so a notice can be posted and replaced before any frame shows
+    /// it; this reads the journal and asks what the session said, not what a frame caught.
+    /// </summary>
+    public Task WaitForNoticeAsync(string text) =>
+        WaitUntilAsync(() =>
+            Notices.Entries.Any(entry =>
+                entry.Change == NoticeSlotChange.Posted && entry.Text == text
+            )
+        );
 
     /// <summary>
     /// Everything a timed-out wait needs to be readable after the fact. The message used to print

@@ -98,7 +98,10 @@ public sealed class SetupWizardSessionTests
         await host.WaitForScrollbackAsync("confirm these values");
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("model: gpt-3.5-turbo");
+        // The walk switched the chat model and then posts its commit notice; the slot holds one
+        // notice, so the switch line is read from the journal rather than a frame (which the commit
+        // notice, posted after it, can replace before it is painted).
+        await host.WaitForNoticeAsync("model: gpt-3.5-turbo");
 
         host.Console.Complete();
         await run;

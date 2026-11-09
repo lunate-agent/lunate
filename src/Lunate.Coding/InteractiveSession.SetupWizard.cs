@@ -192,6 +192,10 @@ internal sealed partial class InteractiveSession
 
         CommitWizard(wizard);
         await ReconcileAsync(wizard, ct).ConfigureAwait(false);
+        // The walk's one commit notice, posted last: the reconciliation may warn that a staged
+        // chat profile did not resolve, and the notice slot holds one line, so the confirmation of
+        // what was written is the last thing the walk says and nothing replaces it.
+        NotifySetupWritten();
     }
 
     /// <summary>A go-back inside an entry's scope: the walk keeps re-running earlier steps of the
