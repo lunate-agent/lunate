@@ -1132,7 +1132,7 @@ internal sealed partial class InteractiveSession : IDisposable
     /// </summary>
     private IChatClient CreateSessionClient(ModelInfo model) =>
         string.Equals(model.Id, NotConfiguredModelId, StringComparison.Ordinal)
-            ? new DeferredChatClient(() => throw new SetupRequiredException())
+            ? new DeferredChatClient(() => throw SetupRefusal.ForPlaceholder(_invalidChatBinding))
         : HasMissingCredential(model)
             ? new DeferredChatClient(() => _factory.Create(model, SessionRequestContext()))
         : _factory.Create(model, SessionRequestContext());
