@@ -53,7 +53,15 @@ internal sealed partial class InteractiveSession
             () => _auth,
             () => _providerEntries
         );
-        Notify("setup written: the provider, credential and profile stores are updated");
+        // The walk's one commit notice: the stores are written now, they are read at startup, and
+        // the running session is not re-composed from them, so the change lands on the next start.
+        // Every flow that commits prints this one line — an entry that resolves a chat profile
+        // also switches the model, and that switch announces itself with its own `model:` line.
+        Notify(
+            "setup written: the files this walk changed are saved now and read at startup; "
+                + "this session keeps its current composition, so the new settings apply from "
+                + "the next session."
+        );
     }
 
     /// <summary>
@@ -116,12 +124,6 @@ internal sealed partial class InteractiveSession
                 );
             }
         }
-
-        Notify(
-            "setup written: the files this walk changed are saved now and read at startup; "
-                + "this session keeps its current composition, so the new settings apply from "
-                + "the next session."
-        );
     }
 
     // --- the primitives ---

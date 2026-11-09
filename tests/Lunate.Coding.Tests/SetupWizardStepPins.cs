@@ -280,8 +280,8 @@ public sealed class SetupWizardStepPins
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("setup written");
-        // The commit notice is painted first and the reconciliation notice replaces it; wait for
-        // the wording itself rather than the shared prefix, or the read can race the repaint.
+        // The walk posts one commit notice and nothing repaints it with a second wording: wait for
+        // the sentence itself, the line a user reads, not just the shared prefix.
         await host.WaitUntilAsync(() =>
             PlainFrames(host.Frames)
                 .Contains(

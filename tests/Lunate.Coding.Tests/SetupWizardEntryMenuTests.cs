@@ -16,6 +16,21 @@ public sealed class SetupWizardEntryMenuTests
 {
     private const string Credential = "entry-menu-test-key-please-never-echo";
 
+    /// <summary>The walk's one commit notice: what is written now, what is read at startup, what
+    /// waits for the next session.</summary>
+    private const string SetupWrittenNotice =
+        "setup written: the files this walk changed are saved now and read at startup; "
+        + "this session keeps its current composition, so the new settings apply from "
+        + "the next session.";
+
+    /// <summary>Every notice the walk posted that begins with the commit notice's prefix.</summary>
+    private static List<NoticeSlotEntry> SetupWritten(NoticeSlotLog notices) =>
+        [
+            .. notices
+                .Changes(NoticeSlotChange.Posted)
+                .Where(entry => entry.Text.StartsWith("setup written:", StringComparison.Ordinal)),
+        ];
+
     private const string ConfiguredSettings = """
         {
           "schemaVersion": 2,
@@ -223,6 +238,8 @@ public sealed class SetupWizardEntryMenuTests
         using var host = ConfiguredHost();
         byte[] providers = File.ReadAllBytes(ProviderPath(host));
         byte[]? auth = AuthSnapshot(host);
+        var notices = new NoticeSlotLog();
+        host.Session.ObserveNotices(notices.Record);
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
@@ -244,6 +261,13 @@ public sealed class SetupWizardEntryMenuTests
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
+        // The confirmed walk posts one `setup written` notice, with the plain words: what is
+        // saved now, what is read at startup, and that the composition waits for the next
+        // session. This entry rebinds the chat usage, so it is the walk that used to keep the
+        // short commit notice instead (the model line reports the one switch this session takes).
+        // The notice slot's journal is read rather than the frames: a notice is posted whether or
+        // not a later frame repaints it, and the wording is what this pins.
+        await host.WaitUntilAsync(() => SetupWritten(notices).Count > 0);
 
         host.Console.Complete();
         await run;
@@ -251,6 +275,9 @@ public sealed class SetupWizardEntryMenuTests
             File.ReadAllText(SettingsPath(host))
                 .Contains("\"chat\": \"chat-alt\"", StringComparison.Ordinal)
         );
+
+        NoticeSlotEntry written = Assert.Single(SetupWritten(notices));
+        Assert.Equal(SetupWrittenNotice, written.Text);
 
         string settings = File.ReadAllText(SettingsPath(host));
         Assert.Contains("\"chat\": \"chat-alt\"", settings, StringComparison.Ordinal);
