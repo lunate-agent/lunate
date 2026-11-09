@@ -43,7 +43,7 @@ agent and at home in polyglot repositories.
 **1. Install.**
 
 <!-- docs-sync: version -->
-The current stable release is [**0.2.1**](https://github.com/wdaniel1993/lunate/releases/tag/v0.2.1).
+The current stable release is [**0.3.0**](https://github.com/wdaniel1993/lunate/releases/tag/v0.3.0).
 <!-- /docs-sync: version -->
 
 ```bash
