@@ -68,9 +68,14 @@ decide() {
             # The dedicated macOS perf leg is a release-only job as of the PR-gate relief:
             # a pull request sees it skipped, while main/tags/nightly still require it.
             local perf_gate="$perf"
-            if [ "$event" = "pull_request" ] && [ "$perf" = "skipped" ]; then
-                perf_gate="success"
-            fi
+            case "$event" in
+                pull_request | merge_group)
+                    # Neither is a release: the dedicated perf leg is release-only, so its absence
+                    # must not fail the gate. A merge group that required it was ejected from the
+                    # queue by a timing measurement on a loaded runner.
+                    [ "$perf" = "skipped" ] && perf_gate="success"
+                    ;;
+            esac
             if [ "$verify" != "success" ] || [ "$perf_gate" != "success" ] || [ "$platform" != "success" ]; then
                 fail "a required job did not succeed (verify=$verify, perf=$perf, platform=$platform)"
             fi
@@ -314,6 +319,10 @@ self_test() {
         pull_request false success full success success skipped skipped success true
     _self_case "a skipped perf leg on a push" 1 "did not succeed" \
         push "" success full success success skipped skipped success true
+    _self_case "a skipped perf leg on a merge group" 0 "the full gate succeeded" \
+        merge_group "" success full success success skipped skipped success true
+    _self_case "a failed perf leg on a merge group is still a failure" 1 "did not succeed" \
+        merge_group "" success full success success skipped failure success true
     _self_case "a skipped platform leg on the full profile" 1 "did not succeed" \
         pull_request false success full success success skipped success skipped true
 
@@ -372,6 +381,8 @@ self_test() {
         perf 'scripts/perf\.sh' 1
     _self_workflow "the perf leg must run on the full profile only" \
         perf "^    if: needs\.plan\.outputs\.profile == 'full'" 1
+    _self_workflow "the perf leg must not gate a merge queue batch" \
+        perf "github\.event_name != 'merge_group'" 1
     _self_workflow "the PowerShell leg must be gated on the changed paths" \
         verify-powershell "needs\.changes\.outputs\.powershell == 'true'" 1
     _self_workflow "the changes job must decide through scripts/ci-powershell-paths.sh" \
