@@ -17,6 +17,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 
 STABLE_TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
@@ -43,10 +44,35 @@ def latest_stable_tag(root: Path) -> str:
         )
     except (OSError, subprocess.CalledProcessError) as error:
         raise ValueError(f"cannot list tags in {root}: {error}") from error
-    for tag in result.stdout.splitlines():
-        if STABLE_TAG.fullmatch(tag):
+    return stable_tags(result.stdout.splitlines())[0]
+
+
+def stable_tags(lines: list[str]) -> list[str]:
+    """The stable tags, newest first, as returned by `git tag --sort=-v:refname`."""
+    tags = [line.strip() for line in lines if STABLE_TAG.fullmatch(line.strip())]
+    if not tags:
+        raise ValueError("no stable release tag (v<major>.<minor>.<patch>)")
+    return tags
+
+
+def newest_published_tag(tags: list[str], fetch: Callable[[str], dict[str, str]]) -> str:
+    """The newest stable tag whose release assets exist.
+
+    A tag is made *before* the release workflow attaches its assets, so for the few minutes between
+    the two, the newest stable tag has no SHA256SUMS. A release run must not measure the manifests
+    against a release it is in the middle of creating: the manifests deliberately lag one release
+    behind until the channel pull request moves them, which is what this check proves. Skipping tags
+    whose assets do not resolve keeps that meaning — once the channel pull request updates them, the
+    new release *does* have assets and the check holds the manifests to it.
+    """
+    last: ValueError | None = None
+    for tag in tags:
+        try:
+            fetch(tag)
             return tag
-    raise ValueError(f"no stable release tag (v<major>.<minor>.<patch>) in {root}")
+        except ValueError as error:
+            last = error
+    raise ValueError(f"no published stable release among {', '.join(tags)}: {last}")
 
 
 def parse_sums(text: str) -> dict[str, str]:
@@ -246,6 +272,25 @@ def self_test() -> None:
         _write_sums(root, "0.3.0", "b" * 64)
         assert not check(root, "v0.3.0", parse_sums((root / "SHA256SUMS").read_text()))
 
+        # A tag exists but its release is not published yet: the guard steps past it to the previous
+        # published release, which is what the manifests still name during a release run.
+        def fetch_only_v021(tag: str) -> dict[str, str]:
+            if tag != "v0.2.1":
+                raise ValueError("404")
+            return {"lunate-osx-arm64.tar.gz": "a" * 64}
+
+        assert newest_published_tag(["v0.3.0", "v0.2.1"], fetch_only_v021) == "v0.2.1"
+
+        # And when the new release does exist, it is the one the manifests are held to.
+        assert newest_published_tag(["v0.3.0", "v0.2.1"], lambda tag: {"x": "y"}) == "v0.3.0"
+
+        # Nothing published at all is a failure, not a silent pass.
+        try:
+            newest_published_tag(["v0.3.0"], fetch_only_v021)
+            raise AssertionError("an unpublished tag was accepted")
+        except ValueError:
+            pass
+
         # Wrong hash: the same channel PR must be rejected.
         _write_sums(root, "0.3.0", "c" * 64)
         errors = check(root, "v0.3.0", parse_sums((root / "SHA256SUMS").read_text()))
@@ -266,7 +311,10 @@ def main() -> int:
         return 0
 
     try:
-        tag = args.tag or latest_stable_tag(args.root)
+        tag = args.tag or newest_published_tag(stable_tags(
+            subprocess.run(["git", "-C", str(args.root), "tag", "--list", "v*", "--sort=-v:refname"],
+                           check=True, capture_output=True, text=True).stdout.splitlines()),
+            fetch_sums)
         if not STABLE_TAG.fullmatch(tag):
             raise ValueError(f"{tag!r} is not a stable release tag")
         sums = parse_sums(args.sums.read_text()) if args.sums else fetch_sums(tag)
