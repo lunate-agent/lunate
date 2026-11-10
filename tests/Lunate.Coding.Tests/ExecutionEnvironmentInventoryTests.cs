@@ -18,12 +18,12 @@ public sealed class ExecutionEnvironmentInventoryTests
     /// </summary>
     private static readonly string[] HostSupportStarts =
     [
-        "src/Lunate.Coding/ChildProcess.Windows.cs",
         "src/Lunate.Coding/ClipboardWriter.cs",
         "src/Lunate.Coding/DraftEditor.cs",
         "src/Lunate.Coding/GuardProbe.cs",
         "src/Lunate.Coding/LocalExecutionEnvironment.Session.cs",
         "src/Lunate.Coding/ProcessRunner.cs",
+        "src/Lunate.Coding/WindowsChildProcess.cs",
     ];
 
     [Fact]
