@@ -1,0 +1,278 @@
+{
+  "navigation": [
+    {
+      "title": "Get started",
+      "items": [
+        {
+          "title": "First run",
+          "path": "first-run.md"
+        }
+      ]
+    },
+    {
+      "title": "Use it",
+      "items": [
+        {
+          "title": "Use the terminal",
+          "path": "usage.md"
+        },
+        {
+          "title": "Configuration",
+          "path": "configuration.md"
+        },
+        {
+          "title": "Execution environments",
+          "path": "execution-environments.md"
+        }
+      ]
+    },
+    {
+      "title": "Build on it",
+      "items": [
+        {
+          "title": "Extension authoring",
+          "path": "extensions/README.md"
+        },
+        {
+          "title": "Contributions",
+          "items": [
+            {
+              "title": "Contribution surfaces",
+              "path": "extensions/contributions/README.md"
+            },
+            {
+              "title": "Background services",
+              "path": "extensions/contributions/background-services.md"
+            },
+            {
+              "title": "File changes",
+              "path": "extensions/contributions/file-changes.md"
+            },
+            {
+              "title": "Hooks",
+              "path": "extensions/contributions/hooks.md"
+            },
+            {
+              "title": "MCP servers",
+              "path": "extensions/contributions/mcp-servers.md"
+            },
+            {
+              "title": "Model middleware",
+              "path": "extensions/contributions/model-middleware.md"
+            },
+            {
+              "title": "Model providers",
+              "path": "extensions/contributions/model-providers.md"
+            },
+            {
+              "title": "Services",
+              "path": "extensions/contributions/services.md"
+            },
+            {
+              "title": "Settings and secrets",
+              "path": "extensions/contributions/settings-and-secrets.md"
+            },
+            {
+              "title": "Skill sources",
+              "path": "extensions/contributions/skill-sources.md"
+            },
+            {
+              "title": "Status widgets",
+              "path": "extensions/contributions/status-widgets.md"
+            },
+            {
+              "title": "Tool result renderers",
+              "path": "extensions/contributions/tool-result-renderers.md"
+            },
+            {
+              "title": "Tools",
+              "path": "extensions/contributions/tools.md"
+            },
+            {
+              "title": "Virtual models",
+              "path": "extensions/contributions/virtual-models.md"
+            }
+          ]
+        },
+        {
+          "title": "Manifest reference",
+          "path": "extensions/manifest.md"
+        },
+        {
+          "title": "Single-file extensions",
+          "path": "extensions/single-file.md"
+        },
+        {
+          "title": "Installing packages",
+          "path": "extensions/packages.md"
+        },
+        {
+          "title": "Lifecycle and trust",
+          "path": "extensions/lifecycle-and-trust.md"
+        },
+        {
+          "title": "Testing extensions",
+          "path": "extensions/testing.md"
+        },
+        {
+          "title": "Extension troubleshooting",
+          "path": "extensions/troubleshooting.md"
+        },
+        {
+          "title": "Remote extensions",
+          "path": "extensions-remote.md"
+        },
+        {
+          "title": "Roslyn MCP server",
+          "path": "mcp-roslyn.md"
+        }
+      ]
+    },
+    {
+      "title": "Reference",
+      "items": [
+        {
+          "title": "Third-party licences",
+          "path": "third-party-licences.md"
+        }
+      ]
+    },
+    {
+      "title": "Work safely",
+      "items": [
+        {
+          "title": "Run Lunate safely",
+          "path": "security.md"
+        }
+      ]
+    },
+    {
+      "title": "Troubleshooting",
+      "items": [
+        {
+          "title": "Troubleshooting",
+          "path": "troubleshooting.md"
+        }
+      ]
+    }
+  ],
+  "redirects": [],
+  "proseOnly": [
+    {
+      "path": "configuration.md",
+      "reason": "Prose-only today; its generated settings table and config example move to the reference page in S2."
+    },
+    {
+      "path": "execution-environments.md",
+      "reason": "Prose-only; the container command example is marked for --run when the page is split in S5."
+    },
+    {
+      "path": "extensions-remote.md",
+      "reason": "Wire reference with no unattended command today; its runnable example lands with S7."
+    },
+    {
+      "path": "extensions/contributions/README.md",
+      "reason": "Index page; each contribution page owns its own example."
+    },
+    {
+      "path": "extensions/contributions/background-services.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/file-changes.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/hooks.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/mcp-servers.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/model-middleware.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/model-providers.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/services.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/settings-and-secrets.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/skill-sources.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/status-widgets.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/tool-result-renderers.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/tools.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/contributions/virtual-models.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/lifecycle-and-trust.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/manifest.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/packages.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/single-file.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/testing.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "extensions/troubleshooting.md",
+      "reason": "Prose-only; its runnable example lands with the page's slice."
+    },
+    {
+      "path": "first-run.md",
+      "reason": "Prose-only until its provider and profile examples move to their task pages in S5."
+    },
+    {
+      "path": "mcp-roslyn.md",
+      "reason": "Host configuration example; no runnable command until its rewrite in S7."
+    },
+    {
+      "path": "third-party-licences.md",
+      "reason": "Legal notices; no runnable example applies."
+    },
+    {
+      "path": "usage.md",
+      "reason": "Prose-only; its runnable commands land with the usage split in S5."
+    },
+    {
+      "path": "security.md",
+      "reason": "Posture page; the approval prompts it quotes are not commands the checker can run unattended."
+    },
+    {
+      "path": "troubleshooting.md",
+      "reason": "Symptom-and-fix page; each command depends on the failure being fixed, so none runs unattended."
+    }
+  ]
+}

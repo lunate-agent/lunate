@@ -225,4 +225,6 @@ Project skills need a trust decision like any other repository code.
   what stays on the host
 - [Export contract](spec/export.md) — what `/copy` and `/export` guarantee
 - [The Roslyn MCP server](mcp-roslyn.md) — the C# tools from another MCP host
-- [Security policy](../SECURITY.md) — the full trust model and how to report
+- [Security and safety](security.md) — the trust model behind the prompt, and what each layer does
+- [Security policy](../SECURITY.md) — how to report a vulnerability
+- [Troubleshooting](troubleshooting.md) — what to do when a run or a command refuses

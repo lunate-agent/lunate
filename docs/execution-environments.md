@@ -7,8 +7,8 @@ workspace is mounted at the same absolute path on both sides, so `read`, `write`
 `glob` and `grep` keep reading and writing the same files without knowing a container exists.
 
 The container limits what a command can reach. It does not replace the approval panel or the bash
-guard; [SECURITY.md](../SECURITY.md) compares the layers and [S-7](#evidence-and-limits) records what
-was measured.
+guard; [Run Lunate safely](security.md) compares the layers and [S-7](#evidence-and-limits) records
+what was measured.
 
 > **Status.** Container execution is the execution-environment work tracked by
 > [#626](https://github.com/lunate-agent/lunate/issues/626) and
@@ -157,10 +157,8 @@ them on the platform it guards.
 ## When the engine or machine is not running
 
 A missing engine or a stopped Podman machine is a visible failure, not a silent switch to the host.
-The tool result names the engine, the image and the next step, and `/context` reports
-`failed: <reason>`. For a stopped Podman machine, the engine's own message begins
-`Cannot connect to Podman` and the next step is `podman machine start`; on Linux the engine's daemon
-or socket is the thing to start. The command does not run on the host in either case.
+[Troubleshooting](troubleshooting.md#the-container-engine-is-not-running) names the message and the
+next step; the command does not run on the host in either case.
 
 ## Cancel
 
@@ -204,7 +202,7 @@ behaviour.
 
 ## Related
 
-- [Security policy](../SECURITY.md) — how approval, the bash guard, verified edits, the file-change
+- [Run Lunate safely](security.md) — how approval, the bash guard, verified edits, the file-change
   bus and the container boundary compose.
 - [Configuration reference](configuration.md) — every settings key, generated from the schema.
 - [Usage](usage.md) — approvals, tool blocks and the modes.
