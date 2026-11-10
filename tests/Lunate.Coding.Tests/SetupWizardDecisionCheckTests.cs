@@ -373,6 +373,8 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         host.Console.SendEnter();
         await PickRowAsync(host, "fast usage", "Skip");
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
+        // The flat list's row order follows the configured providers, so the native Jev row is
+        // found by its own text instead of an assumed offset from Skip.
         host.Console.SendText("jev-1.13");
         await host.WaitForFrameAsync("> opencode-go/jev-1.13 (native Jev");
         host.Console.SendEnter();

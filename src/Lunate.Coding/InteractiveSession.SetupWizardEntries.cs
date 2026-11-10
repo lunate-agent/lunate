@@ -219,115 +219,65 @@ internal sealed partial class InteractiveSession
                 )),
         ];
 
-    /// <summary>
-    /// "Change the chat profile"'s answer: one list of the configured profiles with the current
-    /// binding highlighted, and every configured provider's model as <c>provider/model</c> (spec:
-    /// Fast and decision usages from any provider; the S-8 interaction model). Choosing an existing
-    /// profile repoints the usage; choosing a model moves the current profile to that provider and
-    /// model and binds it; the inline row adds a provider without leaving the step.
-    /// </summary>
+    /// <summary>"Change the chat profile"'s answer: the configured profiles, the current binding
+    /// highlighted. Choosing the current one changes nothing and ends the run.</summary>
     private async Task<WizardMove> ChatUsageStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
-        while (true)
+        List<string> names = [.. _settings.Profiles.Keys];
+        if (names.Count == 0)
         {
-            List<string> names = [.. _settings.Profiles.Keys];
-            string? current = _settings.Usages.GetValueOrDefault(SetupState.ChatUsage);
-            List<string> labels = [];
-            List<string> values = [];
-            foreach (string name in names)
-            {
-                labels.Add(name == current ? $"{name} (current)" : name);
-                values.Add(name);
-            }
-
-            IReadOnlyList<WizardUsageOptions.Option> options = UsageOptions(
-                wizard,
-                decision: false
+            Notify(
+                "no profile is configured yet; the entry menu offers adding a profile",
+                NoticeLevel.Warning
             );
-            (List<string> modelLabels, List<string> modelValues) = WizardUsageOptions.Rows(options);
-            labels.AddRange(modelLabels);
-            values.AddRange(modelValues);
-            labels.Add("Set up another provider inline…");
-            values.Add(WizardInlineValue);
-
-            if (labels.Count == 0)
-            {
-                Notify(
-                    "no profile or provider is configured yet; the entry menu offers adding a "
-                        + "profile or a provider",
-                    NoticeLevel.Warning
-                );
-                return WizardMove.Abort;
-            }
-
-            string initial =
-                current is not null && values.Contains(current, StringComparer.Ordinal)
-                    ? current
-                    : values[0];
-            string? chosen = await PickAsync(
-                    "Chat usage (profile or provider/model)",
-                    labels,
-                    values,
-                    PickerKind.WizardModel,
-                    ct,
-                    initial
-                )
-                .ConfigureAwait(false);
-            if (chosen is null)
-            {
-                return WizardMove.Abort;
-            }
-
-            if (chosen == WizardInlineValue)
-            {
-                InlineOutcome outcome = await SetupInlineProviderAsync(wizard, ct)
-                    .ConfigureAwait(false);
-                if (outcome == InlineOutcome.Aborted)
-                {
-                    return WizardMove.Abort;
-                }
-
-                continue;
-            }
-
-            if (names.Contains(chosen, StringComparer.Ordinal))
-            {
-                if (chosen == current)
-                {
-                    // The entry's change is the binding itself; keeping the current profile writes
-                    // nothing and the walk's abort notice says so.
-                    return WizardMove.Abort;
-                }
-
-                try
-                {
-                    ResolvedModelProfile resolved = ModelSelectionResolver.ResolveChatModel(
-                        chosen,
-                        _settings,
-                        _providerEntries,
-                        _catalog
-                    );
-                    UsageProfileValidation.RequireChatFamily(resolved, SetupState.ChatUsage);
-                }
-                catch (InvalidDataException exception)
-                    when (UsageProfileValidation.IsRefusal(exception))
-                {
-                    Notify(exception.Message, NoticeLevel.Warning);
-                    continue;
-                }
-
-                wizard.RecordChatUsageBinding(chosen);
-                return WizardMove.Advance;
-            }
-
-            WizardModelRef model = options[OptionIndex(options, chosen)].Model;
-            WizardMove move = await MoveChatProfileAsync(wizard, model, ct).ConfigureAwait(false);
-            if (move == WizardMove.Stay)
-            {
-                continue;
-            }
-
-            return move;
+            return WizardMove.Abort;
         }
+
+        string current = _settings.Usages.GetValueOrDefault(SetupState.ChatUsage) ?? names[0];
+        List<string> labels = [];
+        foreach (string name in names)
+        {
+            labels.Add(name == current ? $"{name} (current)" : name);
+        }
+
+        string? chosen = await PickAsync(
+                "Profile to use for chat",
+                labels,
+                names,
+                PickerKind.WizardChoice,
+                ct,
+                current
+            )
+            .ConfigureAwait(false);
+        if (chosen is null)
+        {
+            return WizardMove.Abort;
+        }
+
+        if (chosen == current)
+        {
+            // The entry's change is the binding itself; keeping the current profile writes
+            // nothing and the walk's abort notice says so.
+            return WizardMove.Abort;
+        }
+
+        try
+        {
+            ResolvedModelProfile resolved = ModelSelectionResolver.ResolveChatModel(
+                chosen,
+                _settings,
+                _providerEntries,
+                _catalog
+            );
+            UsageProfileValidation.RequireChatFamily(resolved, SetupState.ChatUsage);
+        }
+        catch (InvalidDataException exception) when (UsageProfileValidation.IsRefusal(exception))
+        {
+            Notify(exception.Message, NoticeLevel.Warning);
+            return WizardMove.Stay;
+        }
+
+        wizard.RecordChatUsageBinding(chosen);
+        return WizardMove.Advance;
     }
 }

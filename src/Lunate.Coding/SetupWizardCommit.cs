@@ -401,17 +401,12 @@ internal static class SetupWizardCommit
         WizardDecisionsChoice? decisions = model.Decisions;
         if (model.ChatProfile is { } chat && !model.IsCarried(SetupStep.ChatProfile))
         {
-            // A profile moved to another configured provider names that provider; the full walk's
-            // profile names the one it walked. The family follows the same choice: the model's own
-            // when the picker moved the profile, the walked family otherwise (#569, #694).
-            string providerId = chat.ProviderId ?? model.Provider!.Id;
-            string? family = chat.ApiFamily ?? ChatFamily(model) ?? model.Model?.ApiFamily;
             // The same shared rule the wizard step and the next startup apply: no writer may
             // persist a chat usage on a decision-only family.
             UsageProfileValidation.RequireChatFamily(
                 chat.Name,
                 chat.ModelId,
-                family,
+                ChatFamily(model) ?? model.Model?.ApiFamily,
                 SetupState.ChatUsage
             );
             // The chat profile's routing description is part of the same profile entry, so one
@@ -425,10 +420,7 @@ internal static class SetupWizardCommit
                     chat.ModelId,
                     chat.ReasoningLevel,
                     Description(decisions, chat.Name),
-                    providerId: providerId,
-                    apiFamily: chat.ProviderId is null
-                        ? ChatFamily(model)
-                        : ProfileFamily(providerId, family ?? string.Empty)
+                    apiFamily: ChatFamily(model)
                 ),
                 paths.SettingsPath
             );
@@ -514,12 +506,11 @@ internal static class SetupWizardCommit
         string modelId,
         string? reasoningLevel = null,
         string? description = null,
-        string? providerId = null,
         string? apiFamily = null
     ) =>
         new(
             name,
-            providerId ?? model.Provider!.Id,
+            model.Provider!.Id,
             modelId,
             ReasoningLevel: reasoningLevel,
             ApiFamily: apiFamily,
