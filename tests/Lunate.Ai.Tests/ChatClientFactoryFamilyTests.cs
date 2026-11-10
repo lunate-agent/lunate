@@ -14,6 +14,24 @@ public sealed class ChatClientFactoryFamilyTests
     private const string OpenAiApiKeyVariable = "OPENAI_API_KEY";
     private const string OpenCodeApiKeyVariable = "OPENCODE_API_KEY";
 
+    [Fact]
+    public void A_decision_only_family_reaching_the_factory_is_refused_naming_the_family_and_the_wired_set()
+    {
+        var factory = new ChatClientFactory(new MarkingLoggerFactory(static () => { }));
+        var model = new ModelInfo("m", "openrouter", Endpoint: null, ContextWindow: 8192, true)
+        {
+            ApiFamily = "systemone",
+        };
+
+        NotSupportedException exception = Assert.Throws<NotSupportedException>(() =>
+            factory.Create(model, "fixture-only-key")
+        );
+
+        Assert.Contains("'systemone'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("only 'openai-chat'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'google' have clients", exception.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("openai-chat", "OpenAIChatClient")]
     [InlineData("openai-responses", "OpenAIResponsesChatClient")]
