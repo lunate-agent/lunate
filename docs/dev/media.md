@@ -24,20 +24,20 @@ provider and model ids without a network call.
 
 | Path | Shown by | Tape |
 | --- | --- | --- |
-| `demo.gif` | the README hero | [`tapes/demo.tape`](tapes/demo.tape) |
-| `features/input.gif` | [`usage.md`](../usage.md) — input box and autocomplete | [`tapes/features-input.tape`](tapes/features-input.tape) |
-| `features/turns.gif` | [`usage.md`](../usage.md) — two turns, user echo, tool block | [`tapes/features-turns.tape`](tapes/features-turns.tape) |
-| `features/narrow.gif` | [`usage.md`](../usage.md) — 40-column frame | [`tapes/features-narrow.tape`](tapes/features-narrow.tape) |
-| `features/approval.gif` | [`usage.md`](../usage.md) — the approval panel | [`tapes/features-approval.tape`](tapes/features-approval.tape) |
-| `features/tools.gif` | [`usage.md`](../usage.md) — tool blocks and `Ctrl+O` | [`tapes/features-tools.tape`](tapes/features-tools.tape) |
-| `features/diagnostics.gif` | [`usage.md`](../usage.md) — `cs_diagnostics` after an edit | [`tapes/features-diagnostics.tape`](tapes/features-diagnostics.tape) |
-| `features/trust.gif` | [`usage.md`](../usage.md) — the extension trust prompt | [`tapes/features-trust.tape`](tapes/features-trust.tape) |
-| `features/extensions.gif` | [`usage.md`](../usage.md) — `/extensions` in a session | [`tapes/features-extensions.tape`](tapes/features-extensions.tape) |
-| `features/thinking.gif` | [`usage.md`](../usage.md) — reasoning streaming | [`tapes/features-thinking.tape`](tapes/features-thinking.tape) |
-| `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](tapes/features-bash.tape) |
-| `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](tapes/features-follow-up.tape) |
-| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) |
-| `first-run.gif` | not on disk yet — see [`first-run.md`](first-run.md) | recorded by hand with a real key |
+| `demo.gif` | the README hero | [`tapes/demo.tape`](../media/tapes/demo.tape) |
+| `features/input.gif` | [`usage.md`](../usage.md) — input box and autocomplete | [`tapes/features-input.tape`](../media/tapes/features-input.tape) |
+| `features/turns.gif` | [`usage.md`](../usage.md) — two turns, user echo, tool block | [`tapes/features-turns.tape`](../media/tapes/features-turns.tape) |
+| `features/narrow.gif` | [`usage.md`](../usage.md) — 40-column frame | [`tapes/features-narrow.tape`](../media/tapes/features-narrow.tape) |
+| `features/approval.gif` | [`usage.md`](../usage.md) — the approval panel | [`tapes/features-approval.tape`](../media/tapes/features-approval.tape) |
+| `features/tools.gif` | [`usage.md`](../usage.md) — tool blocks and `Ctrl+O` | [`tapes/features-tools.tape`](../media/tapes/features-tools.tape) |
+| `features/diagnostics.gif` | [`usage.md`](../usage.md) — `cs_diagnostics` after an edit | [`tapes/features-diagnostics.tape`](../media/tapes/features-diagnostics.tape) |
+| `features/trust.gif` | [`usage.md`](../usage.md) — the extension trust prompt | [`tapes/features-trust.tape`](../media/tapes/features-trust.tape) |
+| `features/extensions.gif` | [`usage.md`](../usage.md) — `/extensions` in a session | [`tapes/features-extensions.tape`](../media/tapes/features-extensions.tape) |
+| `features/thinking.gif` | [`usage.md`](../usage.md) — reasoning streaming | [`tapes/features-thinking.tape`](../media/tapes/features-thinking.tape) |
+| `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](../media/tapes/features-bash.tape) |
+| `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](../media/tapes/features-follow-up.tape) |
+| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`tapes/setup-wizard.tape`](../media/tapes/setup-wizard.tape) |
+| `first-run.gif` | not on disk yet — see [`first-run.md`](../media/first-run.md) | recorded by hand with a real key |
 
 A note on the logo and social preview: the brand files do not live in this media set — the
 build packs them as package icons out of [`assets/brand/`](../../assets/brand/), a build-owned
@@ -60,7 +60,7 @@ matches, so both show the app's own `run failed: fixture mismatch` notice — th
 choreography the previous capture had, not a new defect.
 
 The setup wizard is keyless and isolated, so its tape starts a helper instead of a replay
-fixture: [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) types
+fixture: [`tapes/setup-wizard.tape`](../media/tapes/setup-wizard.tape) types
 `scripts/render-setup-wizard.sh`, which starts the local OpenAI-compatible stub
 (`stubs/setup-wizard-provider.py`) and runs `lunate setup` with `LUNATE_HOME` in a
 throw-away directory outside the workspace. The tape takes the custom-endpoint route, types

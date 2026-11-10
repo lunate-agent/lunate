@@ -3,7 +3,7 @@
 `/debug [path]` writes one text file a reporter can attach to an issue without explaining their
 setup. This page owns what the bundle contains, where it goes and what it deliberately leaves out.
 The behaviour itself belongs to the interactive command surface in
-[`openspec/specs/tui/spec.md`](../../openspec/specs/tui/spec.md); `docs/guide.md` owns the workflow.
+[`openspec/specs/tui/spec.md`](../../openspec/specs/tui/spec.md); `docs/dev/guide.md` owns the workflow.
 
 ## Destination
 

@@ -243,7 +243,7 @@ stays byte-stable. Recording wins when both are set.
 - Provider entries, credentials, the user's own model catalog and the first-run path:
   [first-run.md](first-run.md).
 - Environment-variable overrides, `/settings`, and the key remaps the `tui.keys` entries
-  persist: [guide.md](guide.md).
+  persist: [dev/guide.md](dev/guide.md).
 - Project instructions: [agents-md.md](agents-md.md). Skills: [skills.md](skills.md). MCP server
   files: [mcp-servers.md](mcp-servers.md). The theme and the key remaps: [themes-and-keys.md](themes-and-keys.md).
 - Why the parser is deny-by-default and every problem fails the load as one error:

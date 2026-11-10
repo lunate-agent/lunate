@@ -6,7 +6,7 @@ Three mechanisms, all driven by markers in a Markdown file:
   <!-- keys:start --> ... <!-- keys:end -->
       replaced with the key table built from src/Lunate.Tui/keys.json -- the same file the router
       and the in-app help read, so the guide's legend cannot describe a binding the product does
-      not have. docs/guide.md must carry this pair; a missing marker is a failure, not a page
+      not have. docs/dev/guide.md must carry this pair; a missing marker is a failure, not a page
       without a generated region.
 
   <!-- docs-sync: settings --> ... <!-- /docs-sync: settings -->
@@ -49,7 +49,7 @@ from contextlib import redirect_stderr, redirect_stdout
 
 import published_release
 
-KEYS_PAGE = "docs/guide.md"
+KEYS_PAGE = "docs/dev/guide.md"
 KEYS_SOURCE = "src/Lunate.Tui/keys.json"
 KEYS_START = "<!-- keys:start -->"
 KEYS_END = "<!-- keys:end -->"

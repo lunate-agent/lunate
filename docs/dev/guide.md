@@ -1,0 +1,1051 @@
+# Lunate — A Native C# Coding Agent for the Terminal
+
+Implementation guide · v3 · Oct 4, 2026 · @Daniel
+
+## Purpose, goals and non-goals
+
+Lunate is a lightweight terminal coding agent for C# developers — a daily driver you can customise in the language it is written in: a reliable core loop, four core tools, a Spectre-based TUI, zero-setup C# tooling through Roslyn, and runtime extensions for tools, slash commands and event handlers. It is a personal, MIT-licensed project, and it is built change by change with OpenCode and OpenSpec from this guide.
+
+## Why Lunate
+
+> The coding agent .NET developers can make their own: extend it in C#, from a single file to a
+> full NuGet package. It ships with the deepest C# understanding of any agent and is fully at
+> home in polyglot repos (ASP.NET + TypeScript frontends).
+
+Three consequences follow, and they decide priorities:
+
+- **The core stays language-agnostic.** Nothing in the loop, the tools or the session model may
+  assume C# semantics; TypeScript, Python and Go repositories are first-class citizens.
+- **.NET depth lives in `Lunate.Roslyn`**, the semantic C# layer behind the five `cs_*` tools.
+  The flagship C# feature is built only on the public extension API: the host supplies the
+  `Lunate.Roslyn.BuiltIn` adapter, whose manifest declares the tools, workspace service, aliases and
+  activation rule. `Lunate.Coding` references that adapter only to supply the built-in factory list;
+  the adapter and backend stay within the extension-abstractions dependency boundary (ADR-0026).
+  Issue #237 may publish `Lunate.Extensibility.Abstractions` as stable only after this positioning
+  sentence is restored. The [surface audit](../eval/roslyn-surface-audit.md) records the pre-migration
+  state as of 2026-10-28.
+- **Any configured model can serve a decision.** The user chooses the model; Lunate checks the
+  response contract, retries one malformed response, and ensures decisions can only tighten the
+  approval result.
+
+**Why it should exist next to Pi and OpenCode**
+
+- **Agent-shaped C# tools with zero setup:** name-based lookup (find symbol, find references), compile checks after edits, and refactors returned as per-file plans — verified changes still go through the ordinary edit/write approval policy. No plugin or language server to install, and clear messages for restore, SDK and partial-load problems. The head-to-head suite shows outcome parity between lightweight agents on small tasks — what differs is cost and how each one extends: Lunate ran the suite at roughly a fifth of the tokens, and its harness is C# you can read and change.
+- **One file, no runtime to install:** self-contained single file, fast start, no Node or Python runtime, and extensions loaded at runtime like Pi's.
+- **Editor and local-model friendly:** runs inside Zed or JetBrains via ACP and works with any OpenAI-compatible endpoint, including the home lab.
+
+These claims age quickly, so the Phase 5 gate tests them head to head: the same C# task suite with Lunate, Claude Code with its C# LSP plugin, and OpenCode with its C# tooling. The suite tied (6/6 for Lunate, Claude Code, OpenCode, pi and tau — T-35, extended with pi and tau in T-35b), so the positioning moves to .NET-native extensibility and the daily-driver experience, with the C# tooling as a zero-setup feature rather than the central claim — it stays a personal tool and a learning project, which is fine.
+
+**Goals**
+
+- A working agent `lunate` with interactive TUI, print mode and ACP mode, for OpenAI-compatible, Anthropic and local models.
+- Reliability first: the `edit` tool tolerates harmless formatting differences but never applies an ambiguous change, and every failure is a message the model can act on.
+- Self-contained single-file releases (ReadyToRun) for osx-arm64, win-x64 and linux-x64 (more targets on demand), held to startup and memory budgets in CI.
+- Semantic C# tools through Roslyn, loaded only when first needed, and runtime extensions for tools, slash commands and event handlers.
+- Plain, readable C# in small files; no hard line-count target.
+- Buildable by OpenCode from OpenSpec changes, with rules enforced by analyzers, verification scripts and CI.
+
+**Non-goals**
+
+- Sub-agents, plan mode and long-term memory stay out of the core — the core is **subagent-ready** (nested runs, ids, usage roll-up, approval and cancellation propagation) and they ship as reference extensions (fitness suite; ADR-0017).
+- Own IDE plugins (ACP instead) and any web frontend.
+- Hosting as an embeddable agent server: no AG-UI endpoint, no A2A. Using the MAF Harness internally is a separate question, decided by spike S-1. `Lunate.Agent` stays a clean library, without product promises.
+- Supporting every provider: OpenAI-compatible, Anthropic and local via OpenAI-compatible endpoints are enough.
+- Generic LSP support for other languages: a possible later extension (see the note in the Roslyn section), not v1 scope.
+
+## Design principles
+
+Every feature request and every OpenCode plan is checked against these seven rules; when in doubt, leave it out or make it an extension.
+
+1. **Primitives, not features.** The core ships four tools: `read`, `write`, `edit`, `bash`. Roslyn is a built-in offered only when its manifest activation rule matches the workspace; configured MCP servers and optional `grep`/`find`/`ls` tools remain separate from the core set.
+2. **Robust, never silently wrong.** Tools tolerate harmless differences (line endings, indentation) but refuse anything ambiguous. Every fallback is visible: the result says which match tier was used and the TUI shows the diff.
+3. **Performance budgets are a gate.** Startup time and idle memory are measured in CI on every commit. Heavy components (Roslyn, MCP servers, extensions) load on first use, never at startup.
+4. **Small system prompt.** Under 1,000 tokens, asserted in a test — the base prompt; the session skills index is a separate section indexed in full, each description carried whole to the Agent Skills limit of 1,024 characters (a longer description is truncated in the index with one warning; the skill still loads), with a soft notice at 2% and a hard ceiling at 5% of the model's context window (`skills.indexBudget` overrides both; `AGENTS.md`-named skills never drop). Project rules come from `AGENTS.md`, not from the harness.
+5. **The core knows nothing about UIs or protocols.** `Lunate.Agent` emits events; the TUI, print mode and ACP mode are consumers.
+6. **Everything is replayable.** Sessions are append-only JSONL. A session file plus a recorded model stream reproduces a run exactly, so tests never need API keys.
+7. **Spec before code.** Public types, file formats and protocol mappings are written in this guide or an ADR before OpenCode implements them. Code that disagrees with the spec is a bug in one of them, and the spec is fixed first.
+
+## Architecture
+
+Three core projects with strict downward dependencies, like Tau's `tau_coding → tau_agent → tau_ai`, built on Microsoft.Extensions.AI. Around them: a TUI library, a protocols project on the MCP and ACP SDKs, and Roslyn for the C# tools.
+
+The architecture overview lives in [`architecture.md`](architecture.md) — the component map, the model pipeline, one run and the event path as diagrams.
+
+Arrows point from a project to what it depends on or calls; dashed edges are runtime-only connections — separate processes. `Lunate.Protocols` references `Lunate.Agent` (MCP tools become `ITool`s, ACP drives the loop); `Lunate.Tui` references no other Lunate project. `Lunate.Coding` supplies the Roslyn built-in descriptor to the extension host; the host evaluates the manifest rule for each composition, and `Lunate.Roslyn.BuiltIn` adapts the contract to the Roslyn backend. Roslyn and MSBuild assemblies remain unloaded until the first active C# tool call. See [`architecture.md`](architecture.md) and [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md).
+
+**Solution layout**
+
+```text
+lunate/
+  AGENTS.md                    # rules for any coding agent (source of truth)
+  opencode.json                # model pin, plugins, permissions
+  .opencode/agent/             # senior-dev, senior-qa, adversarial-author/reviewer (OpenCode subagents)
+  .agents/skills/              # OpenSpec lifecycle skills + companion skills (single source, harness-neutral)
+  openspec/config.yaml         # schema: intent-driven, rules, project context
+  openspec/schemas/            # intent-driven schema (local copy)
+  openspec/specs/              # current truth, one folder per capability
+  openspec/changes/            # proposals, deltas, tasks (archive/ for done)
+  adr/                         # durable architectural decisions (0001-...)
+  docs/dev/guide.md                # this guide
+  docs/spikes/                 # spike code and reports (S-1 to S-4)
+  docs/eval/                   # eval write-ups (T-35)
+  scripts/verify.sh            # + verify.ps1: build, tests, publish, budgets, API and format checks
+  scripts/perf.sh              # startup and memory budgets
+  src/Lunate.Ai/               # IChatClient setup, model catalog, record and replay clients
+  src/Lunate.Agent/            # loop on IChatClient, events, ITool, sessions, compaction, extension contract
+  src/Lunate.Tui/              # Spectre output, own input line and live area
+  src/Lunate.Protocols/        # MCP client and ACP server on the SDKs
+  src/Lunate.Roslyn/           # semantic C# backend, behind the extension contract
+  src/Lunate.Roslyn.BuiltIn/   # host-supplied roslyn manifest and typed extension factory
+  src/Lunate.Coding/           # exe: lunate (self-contained single file): TUI, print and ACP modes, composition root
+  tests/Lunate.*.Tests/        # one test project per src project
+  tests/Lunate.TestSupport/    # shared test helpers (TestMcpServer resolution); no tests of its own
+  tests/fixtures/streams/      # recorded provider streams (JSONL)
+  tests/fixtures/sessions/     # golden session files
+  tests/fixtures/edit-corpus/  # edit tool cases
+  tests/fixtures/solutions/    # small C# solutions for Roslyn tests
+  tests/tools/TestMcpServer/   # tiny MCP server for protocol tests
+  eval/tasks/                  # fixture repos + check scripts
+  eval/results.csv
+```
+
+Layering is enforced, not just documented: an architecture test fails on any upward `ProjectReference`, and `PublicApiAnalyzers` turns every public API change into a visible diff in `PublicAPI.Unshipped.txt`.
+
+## Tech stack
+
+Stick to .NET 10, Microsoft.Extensions.AI and a few well-known packages. No Native AOT: models and networks dominate latency, and JIT keeps runtime extensions, in-process Roslyn and every SDK available. Startup and memory are held by budgets instead.
+
+| Concern | Choice | Project | Why |
+| --- | --- | --- | --- |
+| Runtime | .NET 10, C# 14, SDK pinned in `global.json` (C# 15 and unions evaluated at .NET 11 GA — spike S-6) | all | Current LTS |
+| Release build | Self-contained single file, ReadyToRun, no single-file compression (ADR-0008); release archives are compressed, three targets | Lunate.Coding | One file, no runtime install, fast start |
+| Model access | `IChatClient`, `ChatMessage`, `ChatResponseUpdate` everywhere; no `FunctionInvokingChatClient` (the loop runs tools) | Lunate.Ai, Lunate.Agent | The .NET standard, maintained by Microsoft |
+| Providers | OpenAI-compatible via the Microsoft.Extensions.AI OpenAI adapter; Anthropic via the official `Anthropic` package and its first-party Microsoft.Extensions.AI adapter (`AsIChatClient`) | Lunate.Ai | One abstraction for every model |
+| Telemetry | OpenTelemetry via `IChatClient` middleware + own `ActivitySource`, opt-in | Lunate.Ai, Lunate.Agent | Traces of model and tool calls |
+| JSON | `System.Text.Json`; `AIJsonUtilities` options for Microsoft.Extensions.AI types; source generation where it is cheap | all | Fast, consistent |
+| CLI parsing | `System.CommandLine` | Lunate.Coding | Standard |
+| Output rendering | `Spectre.Console` | Lunate.Tui | Robust markup, tables, panels, colours |
+| Input line and live area | Own code on `System.Console` + VT sequences | Lunate.Tui | Typing while the agent streams |
+| Markdown | Own subset renderer to Spectre renderables | Lunate.Tui | Spectre has no Markdown widget |
+| Diffs | Own Myers line diff (about 150 lines) | Lunate.Tui | No extra dependency |
+| MCP client | Official MCP C# SDK | Lunate.Protocols | MCP tools arrive as Microsoft.Extensions.AI functions |
+| ACP server | Community SDK (`AcpSdk`, `AgentClientProtocol` or `LibAcp`) behind `IAcpServer`; choice recorded in an ADR in T-27 | Lunate.Protocols | No hand-written protocol |
+| Roslyn | `Microsoft.CodeAnalysis.CSharp.Workspaces`, `MSBuildWorkspace`, `Microsoft.Build.Locator`, in process, loaded on first use | Lunate.Roslyn | No sidecar needed without AOT |
+| Extensions | `Lunate.Extensibility.Abstractions` contract + `AssemblyLoadContext` per extension (ADR 0017) | Lunate.Coding | Runtime loading like Pi |
+| Process execution | `System.Diagnostics.Process` behind `IShell` | Lunate.Coding | Easy to fake |
+| API tracking | `Microsoft.CodeAnalysis.PublicApiAnalyzers` | libraries | Public API changes become visible diffs |
+| Tests | xUnit v3, `Verify`, `Spectre.Console.Testing` | tests/ | Snapshots of events, sessions, screens |
+| Agent framework | Microsoft Agent Framework Harness, only if spike S-1 says so | Lunate.Agent | See below |
+
+**Spikes (task T-03)**
+
+Each spike is throwaway code in `docs/spikes/S-x/` with a short report and an ADR.
+
+| Spike | Question | Result |
+| --- | --- | --- |
+| S-1 MAF Harness | Can Lunate's loop be the Microsoft Agent Framework Harness instead of our own? | ADR: own loop, harness, or borrow parts |
+| S-2 Git Bash input | Does raw key reading work for a .NET app inside mintty? | Supported directly via the MSYS2 pseudo console (Git for Windows 2.52.0); fail-soft diagnostic otherwise — ADR-0004 |
+| S-3 Startup baseline | Single-file ReadyToRun hello-world on all OSes: startup and memory | Calibrated budgets for `scripts/perf.sh` |
+| S-4 MSBuildWorkspace reality check | Does in-process Roslyn load real solutions reliably and fast enough, also from the published single-file build? | ADR: go, move Roslyn out of process, or narrow the C# claim; calibrated Roslyn budgets |
+
+**S-1 in detail.** Build a minimal harness agent with our four tools and every optional harness feature (todos, modes, web search, file memory, file access) switched off. Check six things:
+
+1. Startup and idle memory against our own loop.
+2. System prompt size with everything off: under 1,000 tokens?
+3. A complete event stream for the TUI and ACP, including steering and `Esc` cancel.
+4. Approval hooks: per tool, per arguments, "always for this session".
+5. Sessions stored and replayed from recorded streams, deterministically.
+6. API churn: breaking changes in the harness over the last releases.
+
+Default is our own loop on `IChatClient`. Switch to the harness only if it passes 2 to 5; if it fails some, borrow its parts (compaction strategy, approval middleware) instead.
+
+**S-4 in detail.** The C# differentiator rests on in-process Roslyn beating the plugin paths, and loading workspaces is historically the painful part. Use the fixture solution plus one large real solution, and check:
+
+1. `MSBuildLocator` finds the right SDK on all three OSes, including a machine with several SDKs and a `global.json` pin.
+2. Cold load time and memory for both solutions.
+3. Edit to diagnostics latency after a change made through the `edit` tool.
+4. Behaviour on design-time build problems: missing restore, unsupported project types, broken references.
+5. All of the above again from the published single-file build. As far as I know, recent `MSBuildWorkspace` versions run design-time builds in a separate build-host process, so check that it ships and starts correctly from a single-file app.
+
+If loading is unreliable, decide before Phase 5: fix it, move Roslyn out of process, or narrow the C# claim.
+
+**Performance budgets (starting points, calibrated by S-3)**
+
+| Measure | Budget |
+| --- | --- |
+| `lunate --version` | under 150 ms |
+| First TUI frame | under 300 ms |
+| Idle memory in the TUI (no Roslyn) | target 100 MB, gate 150 MB peak RSS — report until T-18 provides the subject (ADR-0009) |
+| Working set: replay a session (~30 tool calls) | gate 250 MB placeholder until calibrated (T-09/T-22; ADR-0009) |
+| Roslyn: peak RSS, load + 10 edit cycles | gate 750 MB per loaded workspace for the reference workspace (S-4; ADR-0009); the per-workspace cap (`roslyn.maxLoadedWorkspaces`, default 2) makes 2× the worst case (ADR-0021) |
+| First C# tool call (Roslyn load, small solution; calibrated by S-4) | under 5 s |
+
+Memory budgets and the sampler live in ADR-0009 and `scripts/memory.sh`; the decomposition (runtime ~36 MB, R2R images ~+37 MB, Spectre ~+10 MB, GC heap ~25 KB) is in the S-3 report addendum.
+
+Adding a package is a design decision: add a row here (and an ADR) before OpenCode touches a `.csproj`.
+
+## Layer 1: Lunate.Ai (providers)
+
+`Lunate.Ai` builds `IChatClient` pipelines and keeps the model catalog; it defines no message types of its own. The whole core works with Microsoft.Extensions.AI types directly: `ChatMessage`, `AIContent` (text, `FunctionCallContent`, `FunctionResultContent`, reasoning), `ChatOptions` and `ChatResponseUpdate`.
+
+**Why `IChatClient` all the way**
+
+It is the .NET standard abstraction, maintained by Microsoft. MCP SDK tools arrive as Microsoft.Extensions.AI functions, telemetry and logging come as middleware, and there is no mapping layer to maintain. The two risks are covered below: the session format (golden tests) and streaming details (one accumulator, tested on recorded streams).
+
+**What Lunate.Ai contains**
+
+```csharp
+public sealed record ModelInfo(string Id, string Provider, Uri? Endpoint, int ContextWindow, bool SupportsTools);
+
+public interface IChatClientFactory
+{
+    // outermost first: OpenTelemetry (opt-in) -> logging -> accumulator -> recorder (LUNATE_RECORD=1) -> provider
+    IChatClient Create(ModelInfo model);
+}
+
+public sealed class RecordingChatClient(IChatClient inner, string fixturePath) : DelegatingChatClient(inner) { }
+public sealed class ReplayChatClient(string fixturePath) : IChatClient { }
+```
+
+- `ModelCatalog`: the embedded `models.json` (schema 2: id, provider, qualified wire id, context and max-output windows, tool and vision support, extensible API/modality/feature capability sets, reasoning style and per-million-token pricing), merged in order with the managed cache `~/.lunate/models.catalog.json` and the user file `~/.lunate/models.json`; the user file wins by id. A schema-1 override keeps the embedded entry's pricing, maximum output, vision support and wire id, because schema 1 cannot express them; a schema-2 override replaces the entry completely. Adding a model never needs a code change.
+- `RecordingChatClient` and `ReplayChatClient`: record and replay `ChatResponseUpdate` streams as JSONL, serialized with `AIJsonUtilities` options.
+- `StreamAccumulator` (internal): one `DelegatingChatClient` between logging and the recorder that assembles streamed function-call argument fragments per call id, so consumers only ever see complete calls; recordings stay raw and replay still passes through the accumulator.
+- `ProviderErrors`: classifies exceptions as retryable or not.
+
+**Prompt caching (Anthropic)**
+
+The Anthropic pipeline adds `AnthropicPromptCache`, an internal `DelegatingChatClient` below `AnthropicTurnMerge` and above the recorder/provider. It marks three breakpoints per request: the last system block, the last tool declaration, and the last content block of the latest message (the rolling breakpoint). Markers are request-local, so history and the registered tools are never mutated and the system/tool prefix stays byte-identical across turns; the client counts every marker on the outgoing request, including pre-existing ones, and rejects a request over the API's four-breakpoint limit. OpenAI caching is automatic, so that path carries no markers. See the ADR-0010 addendum.
+
+Cache usage is read from `UsageDetails`, not re-counted: reads from `CachedInputTokenCount`, writes from `AdditionalCounts["CacheCreationInputTokens"]`. `InputTokenCount` already includes both, so the token budget and the footer are unchanged. `/context` appends a `cache: read <n>, write <m>` segment for the positive counts the provider reported (a reported zero counts as unknown and is omitted), and `lunate -p --json` adds `cacheReadTokens`/`cacheWriteTokens` to `usage_updated` under the same rule.
+
+**How the references handle model catalogs (checked 2026-10)**
+
+- Pi: bundled catalog with an overlay refreshed from pi.dev (cached offline, `pi update --models`); `models.json` for compatible endpoints (static id list; `$ENV`/`!command` interpolation); real discovery is a provider-extension concern; llama.cpp gets a curated router integration.
+- Tau: `catalog.toml` generated from Pi's provider metadata, plus a `~/.tau/catalog.toml` overlay with the same schema; background catalog refresh with a cache; scoped live discovery for the Codex account inventory and dynamic local backends.
+- Neither sweeps `/v1/models` into the catalog: endpoint lists give ids, metadata stays curated — the same split as here. Both merge a user file over the built-in, like `~/.lunate/models.json`.
+- Lunate refreshes explicitly: `lunate --update-catalog` fetches <https://models.dev/api.json>, maps it through the one `ModelsDevCatalog` mapper and atomically writes the managed cache; `--output <path>` writes elsewhere and `--source <path-or-url>` reads a local snapshot. Nothing refreshes at startup or in the background, and an offline or malformed fetch leaves the old cache untouched. `scripts/update-models.sh` (version 1.0.0) is the repo wrapper that regenerates the embedded snapshot and supports `--check`. On-demand discovery (list an endpoint's models, draft user-catalog entries) remains `lunate --discover`.
+
+**Rules for this layer**
+
+- Never use `FunctionInvokingChatClient`: the loop runs tools itself, so approvals, cancellation and events stay under our control. See ADR-0003.
+- The loop acts only on complete function calls. If an adapter streams arguments in pieces, one `StreamAccumulator` assembles them, tested on recorded streams from every provider.
+- Finish reasons come from `ChatFinishReason`; an unknown value counts as stop and raises a warning event.
+- No retries here. Retries live in the loop, so they show up as events.
+
+**Reuse list — MEAI building blocks we do not write ourselves**
+
+- `UseOpenTelemetry()`: spans and metrics for every model call (model, tokens, duration), following the OpenTelemetry GenAI conventions. Off by default; on when configured (settings or `OTEL_*` environment variables). Prompt and tool content is not recorded unless explicitly enabled.
+- `UseLogging()`: model-call logging through `ILogger`.
+- `AIJsonUtilities`: serialization options for MEAI types (sessions, fixtures).
+- Approval content types: `ToolApprovalRequestContent` / `ToolApprovalResponseContent` (confirmed present and not `[Experimental]` in Microsoft.Extensions.AI.Abstractions 10.10.x) shape our approval events and policy without new message types.
+- Pipeline order in `IChatClientFactory`, outermost first: **OpenTelemetry -> logging -> accumulator -> recorder (`LUNATE_RECORD=1`) -> provider**. Replay replaces recorder + provider, so tests still run through the telemetry, logging and accumulator layers.
+
+**Recorded streams (tests never need API keys)**
+
+Contract tests run against real endpoints only when `LUNATE_LIVE=1`. With `LUNATE_RECORD=1` the factory adds the recorder, which saves every update to `tests/fixtures/streams/<scenario>.jsonl` with a header line (model id, request hash). `ReplayChatClient` plays them back. You record fixtures once; OpenCode only replays them.
+
+## Layer 2: Lunate.Agent (the reusable brain)
+
+`Lunate.Agent` owns the loop, tools, events, sessions, compaction and the extension contract. It references only `Microsoft.Extensions.AI.Abstractions`, `Lunate.Ai` and the BCL.
+
+**Tools**
+
+Tools stay our own type, because they carry things Microsoft.Extensions.AI does not model: a risk level for approvals, a context with events, and UI-only details such as diffs. The model sees them through a declaration-only adapter; Microsoft.Extensions.AI never invokes them.
+
+```csharp
+public enum ToolRisk { ReadOnly, Write, Execute }
+
+public interface ITool
+{
+    string Name { get; }
+    string Description { get; }
+    JsonElement ParametersSchema { get; }   // hand-written JSON schema, no reflection
+    ToolRisk Risk { get; }                  // drives the approval policy
+    Task<ToolResult> ExecuteAsync(JsonElement args, ToolContext ctx, CancellationToken ct);
+}
+
+public sealed record ToolResult(string Output, bool IsError, object? Details = null);
+public sealed record ToolContext(string WorkingDirectory, IAgentEvents Events);
+
+// Declares an ITool to the model; invoking it through Microsoft.Extensions.AI throws.
+internal sealed class ToolDeclaration(ITool tool) : AIFunction { /* Name, Description, JsonSchema */ }
+```
+
+`Details` is for the UI (for example a diff) and is never sent to the model. A result over `output.spillThresholdTokens` (default 2,000 estimated tokens; `LUNATE_TOOL_SPILL_THRESHOLD` overrides it) or the character limit is spilled in a session to `<sessions-dir>/<session-id>/tool-output/<run>-<seq>.txt`; the bounded preview and pointer give the absolute path. `read` returns spill content as an exact-text page bounded by the same token estimate, with `[read continuation: offset N]` in the result when more remains; pass that 0-based UTF-16 offset to the next `read` call until no continuation is returned. Known spill files are readable during the run and after resume, and their pages are not spilled again. Ordinary workspace-file reads keep their numbered-line `offset` and `limit` behavior. Without a session, output uses the existing character limit and never points to a missing file; when truncation is needed, the marker gives the omitted count. A failed spill also falls back and reports a notice.
+
+`bash` sends a concise answer—stderr, the exit footer and the last 20 stdout lines within 2,000 characters—and keeps the composed stdout and stderr as the full transcript. In a session, a large transcript is spilled and the answer carries its pointer; without a session, the bounded transcript follows the answer so no output is silently lost.
+
+After a file changes, a later edit or write based on an earlier read is refused until the model reads the current version. Superseded read text stays byte-for-byte stable in the request between projection batch points; a compaction or every `projection.batchTurns` model turns (default 4) replaces it with a one-line stale notice. The session retains the original transcript.
+
+At the same batch points, a successful tool result older than `projection.maskTurns` model turns (default 8; `LUNATE_PROJECTION_MASK_TURNS` overrides it) becomes a one-line stub that carries its spill pointer where one exists; error results are kept longer — older than `projection.maskErrorTurns` (default 32; `LUNATE_PROJECTION_MASK_ERROR_TURNS` overrides it, never below the success window) — because a failure the model learned from is context, not noise. Masking is request-time like the read stubs; the session entry keeps the original text. `/context` reports the tokens kept out of the window by spills, masking and read stubs as three separate numbers.
+
+Known credential values in tool-result text are replaced with `[redacted:<name>]` before the text reaches the model, event stream, session or spill file. Masking is exact-value only; the existing redaction at rest remains defense in depth.
+
+MCP tools arrive from the SDK as functions and are wrapped as `ITool`s, so they go through the same approval policy. Do not use `AIFunctionFactory`: it builds tools by reflection and hides the schema.
+
+**Events (the only output of the core)**
+
+Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP and a possible web frontend later are thin mappings. Lunate-specific events are marked as extensions; in AG-UI they would travel as custom events. Check the AG-UI and ACP names against the pinned spec versions when writing the mappers.
+
+**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. When .NET 11 reaches GA (Nov 2026), spike S-6 evaluates: SDK bump, `LangVersion` 15, unions for `AgentEvent`, analyzer/tooling compatibility and unchanged budgets — adopt on evidence.
+
+| Lunate event | AG-UI | ACP | TUI |
+| --- | --- | --- | --- |
+| `RunStarted`, `RunFinished(stopReason)`, `RunError` | Run started, finished, error | Prompt response with stop reason | Spinner, footer |
+| `TextMessageStart`, `TextMessageContent`, `TextMessageEnd` | Text message start, content, end | Agent message chunks | Streaming text |
+| `ReasoningStart`, `ReasoningMessageContent`, `ReasoningEnd` | Thinking start, content, end | Agent thought chunks | Live thinking, collapsed commit |
+| `ToolCallStart`, `ToolCallArgs`, `ToolCallEnd` | Tool call start, args, end | Tool call | Tool block: one-line `✓`/`✗` header with summary and meta (running stays in the live area) |
+| `ToolCallResult` (with `Details`) | Tool call result | Tool call update | Tool block: output excerpt, diff |
+| Extension: `ApprovalRequested` | Custom | Permission request | Approval prompt |
+| Extension: `UsageUpdated`, `Retrying`, `CompactionApplied`, `StepLimitReached` | Custom | Not sent, logged | Footer, notices |
+
+The harness exposes them as `IAsyncEnumerable<AgentEvent>` from `AgentHarness.RunAsync(userInput, ct)`.
+
+**The loop, one turn**
+
+1. Append the user `ChatMessage` to the session; emit `RunStarted`.
+2. Build the request: system prompt + session messages after compaction, and `ChatOptions` with the declarations of all enabled tools.
+3. Call `GetStreamingResponseAsync`; emit text and reasoning events as updates arrive — reasoning
+   fragments stream in their own `ReasoningStart`/`ReasoningEnd` bracket, closed before text or
+   repaired when the stream ends mid-reasoning; collect complete function calls through the
+   `StreamAccumulator`.
+4. No function calls: append the assistant message, emit `RunFinished`.
+5. For each call: check the approval policy, execute the `ITool`, append a tool-role `ChatMessage` with `FunctionResultContent`, emit the tool events. Unknown tools and bad JSON become error results, never exceptions — and any exception thrown by a tool (bugs, MCP wrappers) is caught and turned into an error result that tells the model what to do next (ADR-0003).
+6. Back to step 2. After `MaxSteps` (default 50) emit `StepLimitReached`, then `RunFinished`.
+
+**Cross-cutting rules**
+
+- Cancellation: `Esc` in the UI cancels the `CancellationToken`; the loop records a cancelled tool result so the history stays valid.
+- Retries: transient provider errors retry 3 times with backoff, each attempt raising `Retrying`.
+- Compaction: our strategy implements `IChatReducer` and runs when estimated tokens pass 80% of the selected model's context window. It uses the chat profile by default; fast is an explicit opt-in. The summarizer keeps the last N turns verbatim.
+- Steering: the harness accepts steering messages through its queue and injects them before the next model call; the interactive prompt has no steering key. `Enter` while a turn runs queues a follow-up for after the turn instead, and the two paths are separate.
+
+**Telemetry in the loop**
+
+`FunctionInvokingChatClient` and the MAF harness would have created this; we do it:
+
+- One `ActivitySource`, `"Lunate.Agent"`.
+- One span per run (operation `invoke_agent`) and one child span per tool call (operation `execute_tool`) carrying the tool name and call id. Span names follow the OpenTelemetry GenAI agent conventions (`invoke_agent {gen_ai.agent.name}`, `execute_tool {gen_ai.tool.name}`; attributes `gen_ai.operation.name`, `gen_ai.tool.name`, `gen_ai.tool.call.id`; the conventions are in Development status — verify the exact names again when implementing).
+- Lunate attributes on tool spans: `lunate.tool.is_error`, `lunate.edit.match_tier`, `lunate.approval.decision`.
+- Model-call spans from `UseOpenTelemetry()` nest under the run span.
+
+**Session entries**
+
+Append-only JSONL, one entry per line, each with `id`, `parentId`, `type` and a UTC timestamp. Message entries embed the `ChatMessage` exactly as `AIJsonUtilities` serializes it; the example below matches the frozen format — the golden files under `tests/fixtures/sessions/` are the byte-level truth (ADR-0015).
+
+```json
+{"type":"header","schema":1,"id":"s_20261003-090000-ab12","cwd":"/repo","created":"2026-10-03T09:00:00.0000000+00:00","meai":"10.10.1"}
+{"type":"message","id":"e_01","parentId":null,"timestamp":"2026-10-03T09:00:01.0000000+00:00","message":{"role":"user","contents":[{"$type":"text","text":"add tests for Calculator"}]}}
+{"type":"message","id":"e_02","parentId":"e_01","timestamp":"2026-10-03T09:00:02.0000000+00:00","message":{"role":"assistant","contents":[{"$type":"functionCall","name":"read","arguments":{"path":"src/Calculator.cs"},"informationalOnly":false,"callId":"c_1"}]},"model":"claude-sonnet-5-5","usage":{"input":1834,"output":41}}
+{"type":"message","id":"e_03","parentId":"e_02","timestamp":"2026-10-03T09:00:03.0000000+00:00","message":{"role":"tool","contents":[{"$type":"functionResult","result":"1  public class Calculator ...","callId":"c_1"}]}}
+{"type":"compaction","id":"e_40","parentId":"e_39","timestamp":"2026-10-03T09:10:00.0000000+00:00","summary":"...","replaces":["e_01","e_30"]}
+{"type":"modelChange","id":"e_41","parentId":"e_40","timestamp":"2026-10-03T09:11:00.0000000+00:00","model":"gpt-4o"}
+```
+
+**Format guard:** `tests/fixtures/sessions/` holds golden session files. A test deserializes and re-serializes each one and compares byte for byte. If a Microsoft.Extensions.AI update changes the output, the test fails: bump `schema`, add a migration, and record it in an ADR.
+
+**The session is a tree.** Every content entry carries its `parentId`, so the file is a tree; schema 3 makes that explicit and the readers act on it (ADR-0018 addendum, `branching-sessions`).
+
+- **The leaf rule, one sentence:** the active leaf is the most recently appended entry, unless a later `activeLeaf` entry points elsewhere. `SessionTree.ActiveLeaf` is the only implementation; a file with no `activeLeaf` resolves exactly as it did before the tree kinds existed.
+- **A move is a marker, not content.** Switching or rewinding appends one `{"type":"activeLeaf","id":"e_05","parentId":"e_04","timestamp":"…","leafId":"e_02"}` line — its `parentId` is the tip being left — and the file is never rewritten. Appends hang off the leaf, not off the file's last line.
+- **The model sees the path.** The request is the active leaf's `parentId` chain, root to leaf; entries on branches nothing points at stay in the file and stay out of the request. A compaction applies only when its own entry is on that chain, so per-branch compaction needs no extra machinery — and a single-path session still produces the request (and digest) it always did.
+- **A branch summary is ordinary context.** Leaving branch A for B with the option on makes one model call on the session's active model and writes `branchSummary` (`fromLeafId`, `summary`) with `parentId` = the leaf moved to: the first entry on B's path, invisible from A, with no `replaces` list. The confirmation shows the estimated input tokens and says one model call will be made.
+- **Provenance.** `/fork` and `/clone` write a new file whose header carries `origin` (`{sessionId, entryId}`) and `branched: true`. A fork holds the picked entry's own chain, root to that entry — any branch's, so an abandoned one can be branched from — and a clone holds every entry of the source.
+
+**Compaction**
+
+- **Shape:** our strategy implements `IChatReducer` (not `[Experimental]` in the pinned Microsoft.Extensions.AI 10.10.x) and the loop calls it before each model request, so it can emit `CompactionApplied` and write the compaction entry. Do not use `ReducingChatClient` — the loop decides when to compact. MEAI also ships `SummarizingChatReducer` and `MessageCountingChatReducer` (both `[Experimental]` in 10.10.x); evaluate them as the base before writing custom reduction logic. A base reducer is only acceptable if it meets our compaction rules: never split a tool call from its result, always keep the system prompt, AGENTS.md and the last turns verbatim, and record a compaction entry. If it does not, wrap it; do not weaken the rules.
+- **Trigger:** estimated context tokens pass 80% of the model's window. Estimate is characters / 4, corrected by the last `UsageReported`. Also on `/compact <instructions>`; the optional trailing text is focus for that one summarization only — appended after the fixed sections, capped at 1,000 characters (refused, not truncated), and never stored in the session or reused by a later compaction.
+- **What stays verbatim:** system prompt, `AGENTS.md`, the last N turns (default 4, configurable), and any turn whose tool call or result would otherwise be split.
+- **What is summarized:** everything older, by the same model with a fixed summarization prompt (goal, decisions, files touched, open problems), stored as a `compaction` entry. The session file keeps the full history; only the request sent to the model is shortened.
+- **Never:** split a tool call from its result, or summarize the current turn.
+- **Test:** a recorded long session compacts once, the next request is under 60% of the window, and replay still matches.
+
+## Layer 3: Lunate.Coding (the app)
+
+`Lunate.Coding` turns the brain into a coding agent: the four tools, project instructions, config, sessions on disk and two frontends.
+
+**The four tools**
+
+Tool results are written for the model: short, factual, and every error says what to do next.
+
+| Tool | Input | Success output | Errors the model sees |
+| --- | --- | --- | --- |
+| `read` | `path`, `offset` (1-based line, default 1), `limit` (default 2,000) | Numbered lines; footer `[lines 1–2000 of 5400, use offset to continue]` | Not found; binary file (size given); directory (use `bash ls`); outside workspace |
+| `write` | `path`, `content` | `wrote 42 lines to src/X.cs (created)`; diff in `Details` | Outside workspace; path is a directory |
+| `edit` | `path`, `old_text`, `new_text`, optional `start_line` | `edited src/X.cs lines 40–48 (match: indent)`; diff in `Details` | Not found + closest region; ambiguous + line numbers of all matches; tier refused for whitespace-significant file; `old_text` equals `new_text` |
+| `bash` | `command` (the timeout is a session setting, not a tool argument; 120 s) | Exit code + combined stdout/stderr, cut in the middle when too long | Timeout (process tree killed); shell could not start. A non-zero exit code is reported, not treated as a tool error |
+
+After approval, `write` and `edit` pass staged content to a matching registered verifier through
+`IWriteVerifier` in `Lunate.Extensibility.Abstractions`. The host alone applies the staged content.
+The top-level `verify` setting in `~/.lunate/settings.json` selects the outcome: `block` (default)
+prevents the write on verifier refusal, `warn` writes and reports `unverified` with diagnostics, and
+`off` skips verifier selection and execution. A verifier that exceeds the 10-second ceiling degrades
+to `unverified` and the staged content is written. Pressing Esc during verification cancels the run
+and does not write that content.
+
+`read` also accepts PNG, JPEG, GIF and WebP images. When image input is known to be unsupported, the active model is named and the user is told to switch profile or remove the image before a request is sent. Unknown image support is attempted; a provider rejection becomes the same clear notice. Images are capped at 5 MB and 4,096 pixels per side, and downscaling is not available yet.
+
+**Optional search tools**
+
+`grep`, `find` and `ls` are off by default. Enable them with `tools.extra` in `~/.lunate/settings.json` (`{"tools": {"extra": ["grep", "find", "ls"]}}`), with `LUNATE_EXTRA_TOOLS=grep,find,ls`, or with `--extra-tools grep,find,ls` for one run. The launch flag wins over the environment, which wins over the file; the default is empty. An unknown name or a core-tool name is rejected with the accepted `grep`/`find`/`ls` values.
+
+| Tool | Input | Success output |
+| --- | --- | --- |
+| `grep` | `pattern` (.NET regex), optional `path`, `glob`, `case_sensitive` (default `true`), `max_results` (100 default, 500 max) | `path:line: text`, sorted by path then line; `[N more matches]` at the cap. Uses ripgrep when installed, else the built-in walker |
+| `find` | `pattern` (glob), optional `path`, `type` (`file` default, or `dir`), `max_results` (100/500) | One workspace-relative path per line, directories ending with `/`; `[N more files]` at the cap |
+| `ls` | optional `path`, `depth` (1 default, 3 max), `max_entries` (500 default, 2,000 max) | Directories first then files, files with their byte size; `[N more entries]` at the cap |
+
+All three are read-only and need no approval. They refuse a path outside the workspace exactly as `read` does, follow no directory symlink, honour `.gitignore`, skip binary content, and route their output through the normal tool-result truncation.
+
+**The forgiving `edit` tool**
+
+Matching runs in tiers and stops at the first tier with exactly one match. A tier that finds several matches uses `start_line` to pick the one starting within 3 lines of it; still ambiguous means an error, never a guess.
+
+1. **Exact:** `old_text` verbatim.
+2. **Normalized:** CRLF and LF treated alike, trailing whitespace per line ignored.
+3. **Indentation-agnostic:** leading whitespace per line ignored. `new_text` is re-indented by the offset between the first line of `old_text` and the matched first line.
+
+Guardrails:
+
+- Tier 3 is disabled for whitespace-significant files (`.py`, `.yaml`, `.yml`, `Makefile`, `.mk`); those get an error asking to re-read the file.
+- The file keeps its line endings, encoding, BOM and trailing-newline state.
+- No similarity or Levenshtein matching in v1. On "not found", the tool shows the most similar region (by line overlap) as a hint only; it never applies it.
+- The result names the tier, and the TUI shows the diff. The eval records how often tiers 2 and 3 are used.
+
+**Edit corpus (`tests/fixtures/edit-corpus/`)**
+
+One folder per case: `input` file, `request.json`, and `expected` file or `expected-error.txt`. The tool is done when every case passes. Minimum cases:
+
+| Case | Expected |
+| --- | --- |
+| Unique exact match | Applied, tier exact |
+| Two exact matches, no `start_line` | Error listing both line numbers |
+| Two exact matches, `start_line` near the second | Second one applied |
+| CRLF file, LF `old_text` | Applied, file stays CRLF |
+| UTF-8 BOM file | Applied, BOM kept |
+| Trailing spaces differ | Applied, tier normalized |
+| C# block indented 4 more spaces than `old_text` | Applied, `new_text` re-indented, tier indent |
+| Tabs in file, spaces in `old_text` | Applied, tabs kept in untouched lines |
+| Python block with indentation difference | Error, tier 3 refused |
+| YAML block with indentation difference | Error, tier 3 refused |
+| `old_text` empty | Error |
+| `old_text` equals `new_text` | Error |
+| Match at first line and at last line without trailing newline | Applied, no newline added |
+| `old_text` not present, similar block exists | Error with closest region shown, file unchanged |
+| Normalization makes two blocks identical | Error (ambiguous), file unchanged |
+| 5 MB file | Applied in under 200 ms |
+
+**System prompt and instructions**
+
+- One embedded `system-prompt.md`, under 1,000 tokens: who the agent is, the four tools, "read before you edit", "run the build or tests after changes".
+- Appended at runtime: OS, shell, working directory, date, and the content of `AGENTS.md` files found from the repo root down to the working directory.
+
+First draft of `system-prompt.md` (T-16 refines it and asserts the token budget):
+
+```markdown
+You are Lunate, a coding agent working in the user's repository at {cwd} on {os}, shell {shell}.
+Tools: read, write, edit, bash{extra_tools}.
+- Read a file before you edit it; after a stale-read refusal, read the changed file before retrying. Prefer edit over write for existing files.
+- Keep old_text in edit short but unique; include start_line if the text repeats.
+- After changing code, build or run the relevant tests and report the result.
+- Never touch files outside the repository. Ask before destructive commands.
+- Be brief. Show what you changed and why, not every step.
+{agents_md}
+```
+
+**Config**
+
+`~/.lunate/settings.json` holds profiles, usage assignments, approval policy, output limits and
+write-verification mode, plus `maxCost` (the cumulative session cost ceiling in US dollars) and
+`maxTime` (the per-run wall-clock ceiling in seconds), both off when unset. A cost limit over a
+model the catalog cannot price refuses to start unless `--allow-unpriced` is passed, and print mode
+adds `--max-cost`/`--max-time` per run. Also `projection.batchTurns` (default 4;
+`LUNATE_PROJECTION_BATCH_TURNS` overrides it) and the observation-mask windows
+`projection.maskTurns` (default 8) and `projection.maskErrorTurns` (default 32);
+`~/.lunate/providers.json` holds named provider instances; and `~/.lunate/auth.json` holds stored
+keys. Provider instances select one of the twelve built-in kinds as a template and may declare one
+base URL per API family. The five families are `openai-chat`, `openai-responses`,
+`anthropic-messages`, `google` and `systemone`; a model's family comes from a profile override, discovery, the
+catalog, or the provider's only family. Credentials are references (`auth:` or `env:`), never literal
+secrets; header values may be literals or references. Header templates are limited to `{session.id}`,
+`{run.id}` and `{lunate.version}`; credential placement is declared separately. Legacy stored keys
+migrate idempotently, without copying secrets; environment credentials retain precedence. Project
+settings may reference existing user providers/profiles and lower limits, but cannot define endpoints
+or credential references. Provider `region` is metadata, not a routing or residency policy. See
+[first run](../first-run.md) for setup and examples. For a custom wire API, `lunate auth login --custom`
+accepts `--api-family`, `--credential-placement` and `--models-url`; omitted family keeps the existing
+`openai-chat` default. The generated [configuration reference](../configuration.md) lists every settings
+key with its type, default, scope and allowed values, and is the page `--check` keeps from going stale.
+
+Profiles bind a name to a provider and catalog model with validated reasoning, output, temperature,
+context-window, decision-threshold and capability-override settings. Capability sets are open strings
+for APIs, input/output modalities and features, layered catalog → provider discovery → profile;
+unknown facts remain allowed. The host checks only existing-usage requirements: chat needs text and
+tools, decision needs structured output, and an attached image is rejected before sending only when
+image input is known to be unsupported. Unknown image support is attempted; a provider rejection
+becomes a model-named switch-profile-or-remove-image notice. `/model` lists profiles and catalog
+models and switches chat only; qualified
+`provider/model` selection uses that provider's defaults, and bare ids must be unique. No new model
+usages are introduced here.
+
+Decision use is opt-in through user settings and off by default. Any configured model can serve it;
+there are no per-model calibration states or inferred “cannot decide” verdicts, and logprobs are not
+a policy. Responses must contain a defined option and well-formed probabilities; malformed output is
+retried once, then reported as a failed decision naming the model. `apiType` records `native` versus
+`adapter` provenance but does not assess suitability. Decisions never override deny or approve beyond
+the user's allow envelope.
+
+A **System One** decision profile names the native transport with `apiFamily: systemone` and pins an
+exact catalog version, for example `{"provider": "openrouter", "model":
+"openrouter/typesafe/jev-1.14", "apiFamily": "systemone"}` as `decisions.profile`. Chat usage refuses
+that profile by name; `openrouter` serves Jev 1.14 (box questions with an image) and `opencode` and
+`opencode-go` serve Jev 1.13 only (no box); a Go key on the System One surface bills to the
+pay-as-you-go balance, not the Go plan. Jev Router is an
+ordinary chat model: a chat profile points at it like any other OpenRouter model and does not set
+`apiFamily`, so it never takes the decision transport. See
+[`configuration.md`](../configuration.md#system-one-decision-profiles) for the presets, alias refusal,
+cost reporting and the 32k per-question budget.
+
+The top-level `verify` setting selects how staged writes are verified: `block` (default) prevents a
+write on verifier refusal, `warn` writes and reports `unverified` with diagnostics, and `off` skips
+verifier selection and execution. It has no environment-variable override.
+
+`toolDetails` chooses how much of a tool call the scrollback commits: `"collapsed"` (the default)
+writes the header line only, `"expanded"` adds the bounded output excerpt and the diff panel;
+`LUNATE_TOOL_DETAILS` overrides it. The optional `tui` section carries the interactive presentation:
+`tui.theme` (the colour-depth policy) and `tui.keys` (persisted key remaps), both editable in
+`/settings`.
+
+**Sessions on disk**
+
+One JSONL file per session under `~/.lunate/sessions/<project-hash>/`. Session and per-run flags: `--continue`/`-c` (the newest session recorded for the working directory), `--resume`/`-r` (pick from the list; interactive only, print refuses it), `--session <id|path>` (load one session), `--no-session` (run without a file), `--model <id>`, `--thinking <off|low|medium|high>` (the run's thinking level, which wins over the chat profile's reasoning setting and the file's `thinking` key), `--tools <comma-separated names>` (an exact model-facing tool selection; an optional `grep`/`find`/`ls` name here is refused with a pointer at `--extra-tools`), `--extra-tools <comma-separated names>` (the optional search tools to enable beside the core set), `--no-tools`, `--system-prompt <text>` and `--append-system-prompt <text>`. A value may also be written inline as `--flag=value`, which is how a value beginning with `-` is passed. The selection flags are mutually exclusive with each other and with `--no-session`; in ACP the editor owns session creation, so they are usage errors there. A launch that cannot start (unknown flags, an unknown `--model`, an unknown tool name, or a print-mode session selection that does not resolve) exits 2.
+
+System-prompt directives are recorded as prompt sections on a new session and replayed on resume; an explicit CLI directive wins over the recorded one. Warning: `--system-prompt` replaces the composed prompt wholesale, including the tool-call conventions, so the caller owns them and a model may call tools incorrectly. Prefer `--append-system-prompt` when the conventions should stay.
+
+`/name <title>` stores a title in `<sessionId>.title` beside the session file (the picker labels the row `<title> — <id>`; bare `/name` reports it), and `/session` prints the session path, id, message count and input/output tokens reconstructed from the recorded usages — never a model call. `/cost` is also read-only: it groups priced session usage by usage and provider, lists contributing model ids, and marks unknown positive token lanes unpriced instead of showing zero. Shared profiles do not double-count calls because each call is attributed once to its semantic usage. Schema-4 sessions store usage/profile/provider/model attribution and decision method/probability, never capabilities or provider configuration; schemas 1–3 retain their old meaning.
+
+`/copy` (also `Ctrl+X`) writes the last completed answer to the clipboard. Over ssh (`SSH_CONNECTION` or `SSH_TTY`) it sends the OSC 52 sequence and starts no local tool; locally it runs the platform tool first (`pbcopy`, `wl-copy`/`xclip`/`xsel`, `clip.exe`/`Set-Clipboard` under WSL, the Win32 clipboard API on Windows — never `clip.exe`) and falls back to the sequence. The notice distinguishes evidence from intent — `copied 1,842 characters via pbcopy` versus `sent 1,842 characters to the terminal clipboard (OSC 52)` — names tmux's `set-clipboard on` when `TMUX` is set, and says the terminal may truncate a copy above 100 KB; the text is never cut by Lunate. A cancelled or failed turn is not an answer, so the previous completed one is copied, and with no completed turn the command says so and writes nothing.
+
+`/export html|jsonl [path] [--force]` writes the session. JSONL is the session file byte for byte with only the credential redaction applied; HTML is one self-contained document (inline CSS, no JavaScript, a `default-src 'none'` CSP, thinking in a collapsed `<details>`, every value escaped into text). Without a path the file is `~/.lunate/exports/<yyyy-MM-dd>-<session name or id>.<ext>` — never the current directory, where an export would be committed — and a path argument overrides it. An existing file is refused without `--force`, and every credential Lunate knows (auth store keys, provider environment variables, extension secrets, MCP environment values) is replaced with `[redacted:<name>]` by exact value only. The command prints the absolute path, the entry count and one line saying the file may contain file contents and command output and should be reviewed before sharing. Neither command exists in print or ACP mode. [`spec/export.md`](../spec/export.md) owns the full contract.
+
+The session is a tree, and four commands expose it: `/tree` opens the session's whole tree in the transcript viewer — every branch in file order, indented by depth, the active path marked `*` and the rest `-`, `j`/`k` and `/` filter over it — and `Enter` puts the picked user message back in the editor without sending it; `/fork <entry>` writes a new session file holding the picked entry's chain up to that entry (any branch's, not only the active one), its header naming the source (`origin`, `branched`); `/clone` writes a new file holding every entry; `/rewind <entry> [summary] [confirm]` moves the active leaf in place by appending one `activeLeaf` entry, and with `summary` first reports the estimated input tokens and that one model call will be made, then writes the branch summary on the destination path once confirmed. Fork, clone and rewind refuse while a turn is running — a run's pending tool calls belong to a path — while `/tree` only reads and stays available.
+
+**Frontends**
+
+- **Interactive mode** (`lunate`): the Lunate.Tui frontend (see Terminal UI) with streaming view, multi-line editor, `Esc` to cancel, slash commands from the session's one command registry (`/model`, `/new`, `/resume`, `/name`, `/session`, `/settings`, `/compact [instructions]`, `/copy`, `/editor`, `/fullscreen`, `/export`, `/thinking`, `/tree`, `/fork`, `/clone`, `/rewind`, `/help`, `/quit`). `/settings` shows every resolved setting aligned with its settings-file key — model, approval, thinking, thinkingFull, toolDetails, output.toolResultLimit (shown as `toolResultLimit`), tui.theme, tui.keys, startupHeader, updateCheck, favorites, tools.extra, providers, roslyn, subagents; `/settings <key> <value>` applies `approval`, `thinkingFull`, `toolDetails` or `toolResultLimit` to the running session only (the file stays as it is, so the next session starts as before), applies and persists `tui.theme` (`default` keeps the terminal's detected colour system, `ansi16` pins the high-contrast sixteen-colour system, `mono` drops every attribute; `NO_COLOR` still wins because a theme can only lower the depth) and `tui.keys <binding id> <key>` (the binding's declared keys become that one key, in place, mid-session and persisted in the `tui` section so both survive a restart; an unknown id is refused with the closest ids named and a key an earlier row already answers is refused with that row named — `keys.json` never gains a second declaration), refuses keys that have their own command (`/model`, `/favorite`), persists `/settings thinking <level>` into the chat profile's `reasoningLevel` (`off` removes the key; a chat selection that is not a configured profile is refused with `/thinking` as the per-session lever), and refuses launch-time keys with where they change. The session's thinking level itself resolves from the most specific source available — `--thinking`, the chat profile's `reasoningLevel`, the file's `thinking`, else `off` (`/thinking` changes the running session only, and a model without reasoning support refuses a level by name) — as [`configuration.md`](../configuration.md#where-thinking-resolves-from) states.
+- **Print mode** (`lunate -p "prompt"`): writes the final answer to stdout and exits; `--json` writes every event as JSON lines for scripts and CI.
+- **ACP mode** (`lunate --acp`): speaks the Agent Client Protocol over stdio, so editors like Zed or JetBrains start Lunate as their agent. Editor file reads, writes and permission prompts map onto Lunate's tools and approval policy. Nothing may write to stdout except the protocol.
+
+**Extensions**
+
+An extension is an assembly implementing the `Lunate.Extensibility.Abstractions` contract — hooks, tools, services, commands — and it compiles only against that assembly, never against `Lunate.Agent` internals (ADR-0017; the full model is in `docs/spec/extensibility.md`). The contract carries the core tool types (`ToolContext`, `ToolResult`), so a tool handler is written against the same tool model the core uses. Lunate loads extensions at runtime, like Pi:
+
+- From `~/.lunate/extensions/` (global) and `.lunate/extensions/` (per project), each in its own collectible `AssemblyLoadContext`; the contract assemblies, Microsoft.Extensions.AI abstractions and System.Text.Json are shared.
+- Each extension has an `extension.json` (id, version, apiVersion range, entry assembly, declared tools/commands/hooks/services, settings schema). Manifests are read at startup; assemblies load on first use, so startup budgets hold.
+- An extension registers tools through `IExtensionContext.RegisterTool`; the model-facing name is `<extension-id>__<name>`, the manifest `tools` list must declare every registered tool, and unloading the extension removes its tools and cancels in-flight calls.
+- An extension registers commands through `IExtensionContext.RegisterCommandSource`; the manifest `commands` list must declare every provided command. A declared command with no provider reads `declared, not provided` in `/extensions` and is never offered or dispatched, and a command name that collides with a built-in refuses the load. Commands from every source — built-ins, skills and extensions — compose into the session's one registry with the built-in commands first; `/help` lists them all (built-in groups first, then a `skills`, `extensions` and `templates` section when non-empty) and every diagnostic names a command by its source-qualified id (`builtin:help`, `skill:review`, `ext:<id>:<name>`), never in the typed text. Unloading an extension with a command still running cancels it, says so in a notice naming the command's id, waits up to five seconds for the handler to return and then unloads, so a stuck handler is logged instead of hanging teardown.
+- Project-local extensions run code from the repository: one-time trust per repository, re-prompted when the extension files change.
+- The host-supplied Roslyn built-in uses the same manifest, extension factory, tool adapters and workspace-service registry as other built-ins. It is not installed, trust-gated or unloadable. `/extensions` reports it with scope `builtin`, and shows its tools active or inactive with the manifest rule and reason. `--no-extensions` composes nothing at all — the built-in included — so a run with the flag has no extension tools, built-in or third-party.
+- External tools can also come through MCP (`~/.lunate/mcp.json`, see Protocols).
+- The architecture is proven by a fitness suite of reference extensions (permission gates, memory, LSP, MCP, subagents, code mode, model routing, UI, worktree tasks) running in CI — a sample that needs a workaround means the core is missing a primitive.
+
+One `.cs` file is an extension on the same terms, without the project. A header at the top of the file is the whole declaration — `#:extension acme-tools@1.0.0`, one `#:tool`/`#:command`/`#:hook`/`#:service`/`#:capability`/`#:provider` line per contribution, and `#:package id@version` per package — and it is parsed by the host's own scanner before anything runs, because the header sits inside the bytes the trust decision covers. There is no sidecar manifest and no `.csproj`: an in-process restore through the NuGet client libraries resolves the declared packages into NuGet's global packages folder, the host compiles the file with the Roslyn it already ships against the reference assemblies it restored once, and the result is cached by content, so a rebuild is a cache hit and an untouched file costs nothing at startup.
+
+The loop is what the format is for: the model writes the file, `/extensions reload <id>` asks the user to trust it (the model never can), and the tool it declares is callable in the same session; a changed file ends at the same question with the build that was already answering still live. `lunate extensions build <id|path> [--json]` is the same service without a session. The measured cost, on the machine this was built on (macOS 26.3.1, osx-arm64, .NET 10.0.13): a one-package extension's cache entry is 13,525 bytes (2,560 B assembly, 10,342 B lock), the four contract assemblies embedded in the published binary cost 1,407,648 bytes (1.34 MiB), `Microsoft.NETCore.App.Ref` is 51,000,217 bytes (about 49 MiB) restored once per machine and shared with the SDK, and startup — which reads headers and nothing else — stayed at a 60 ms median against the 150 ms budget. The authoring reference is [`docs/extensions/single-file.md`](../extensions/single-file.md).
+
+A package is the same contract with distribution around it: `lunate install <id>[@<version>]` downloads a NuGet package that carries an extension, skills, or both, resolves its declared dependencies through the walk the single-file header already uses, and writes a record of every path it created. User scope installs into `<root>/extensions/` and `<root>/skills/`; `--project` installs into `.lunate/extensions/` and `.agents/skills/` so the repository commits the content — a vendored install, dependencies included — while the record stays in the state root, because it is machine state. Installing is not trusting: an installed extension is pending in either scope until the existing question is answered, and that question names the package it came from. `lunate uninstall` deletes exactly what the record lists, and an install started from inside a session refuses without `--yes`, whose command the approval prompt shows in full. [`docs/extensions/packages.md`](../extensions/packages.md) is the reference.
+
+The authoring guide — quickstart, manifest reference, one page per contribution surface, lifecycle and trust, testing and troubleshooting — is [`docs/extensions/`](../extensions/README.md).
+
+## Terminal UI (Lunate.Tui)
+
+Finished output is rendered with Spectre.Console; the input line and a small live area at the bottom are our own code. Spectre's live display does not combine well with typing, so this split keeps typing responsive while the agent streams without writing a full renderer.
+
+**Threading contract (ADR-0007, S-5)**
+
+- The live area is a merged observable pipeline on System.Reactive (ADR-0007); the scheduler is injected (`IScheduler`) — production uses a real scheduler, tests use `TestScheduler`.
+- One writer paints the live area from a state snapshot; observers read state only after the pipeline has drained — an explicit contract, not an implicit assumption (S-5 readability finding).
+- No `Thread.Sleep`-based TUI tests; the 30 fps cap, spinner and `Ctrl+C` window run on virtual time.
+- Technical readouts (footer, token counts) are culture-invariant.
+
+**Screen model**
+
+- **Scrollback:** finished blocks (user message, assistant message, tool block) are written once through `IAnsiConsole.Write` and never redrawn. Native scrollback, copy and search keep working.
+- **Live area:** the bottom of the screen: the streaming tail of the current assistant text, the running tool with a spinner, notices and prompts, the input box and the status footer. Notices wrap to the width and are capped at four lines with an ellipsis when longer, so the part that says what to do stays visible. The input box always draws a full-width rule above the input and a second rule below it at every width, grows with the draft to eight lines and scrolls beyond that; the footer stays below it. `LiveArea` redraws the area with cursor-up and clear-line VT sequences.
+- **Streaming:** when the streaming text outgrows the live area, completed paragraphs are rendered as Markdown and committed to scrollback; the unfinished tail stays live.
+- **Transcript viewer:** `Ctrl+O` paints the session transcript on the alternate screen (entered and left through `IConsoleIO`, restored on every exit path) — a rendering mode of the same seam and key pump, not a second architecture. While it is open, no input reaches the model. `/fullscreen` opens the same viewer: the command is the way in when a terminal does not deliver the chord, like `/editor` for `Ctrl+G`.
+
+**Turns**
+
+Every submitted prompt commits to the scrollback as the first block of its turn: the `>` prompt in the theme's user colour, wrapped continuation lines indented two spaces, and one blank line after. While the turn runs, the live area carries one activity line — `⠹ thinking… 3s · ↑1.2k ↓180 · esc to interrupt` while reasoning streams, the spinner with the tool name and its argument summary while a tool runs, and `working…` when neither is known. The run's token deltas and `esc to interrupt` appear only while the turn is cancellable; below 60 columns the line keeps the spinner, the label and the elapsed seconds only.
+
+**Follow-up queue**
+
+While a turn runs, `Enter` queues the current line — text and any attached images — instead of interrupting the turn. The line clears and the status footer shows `N queued` beside the model and context hint, so a waiting message is never invisible. `Enter` never steers: the interactive prompt has no steering key, and the harness steering API remains available to code that drives the agent directly. `Alt+Enter`, `Shift+Enter` (where the terminal reports extended keys) and `Ctrl+J` insert a newline in every state, so a multi-line follow-up can be composed mid-turn. The queue holds at most five entries; a sixth is refused with a notice that names the limit and leaves the first five in place. Slash commands are refused by the queue because they are frontend control, not model input.
+
+Queued messages run after the current turn finishes, in submission order, one at a time through the normal submission path, so the user echo, approvals and image handling are identical to a typed turn. A failed turn keeps the rest of the queue, and an interrupted turn hands over to it: `Esc` stops the run and the queued messages follow in the same order. `Up` takes the whole queue back: every entry lands in the editor in order, newline-separated, ahead of whatever was already typed, and the queue empties — the entries read as one block the user meant to edit together. With an empty queue `Up` navigates history as before. With nothing running, `Esc` leaves the queue alone. The queue is in-memory only: it is never written to the session, never replayed on resume, and print mode has no queue.
+
+**Approvals**
+
+A pending approval renders as a panel in the live area. The warning headline names the tool and the concrete action — the command for `bash`, the path with its `+N −M` change counts for `edit` and `write` — and the muted detail block below it shows the command's lines, the edit's diff, or the tool's key arguments, clipped rather than wrapped and bounded to six lines with a `… +N lines` marker. The question is `Allow <tool>?  [y]es  > [n]o  [a]lways this session` with the key letters accented and a `>` gutter marking the selection; a subagent's ask is prefixed with its depth. Below 60 columns the detail drops to its first line, the headline clips its action, and the choices move to their own line — every choice stays fully visible. At 40 columns the three choices and the marker still fit one 36-cell row; narrower, they stack one per row with the gutter kept, and a label clips only after its key letter. `Up` and `Down` move the selection and wrap at both ends, `Space` activates it, and every repaint — a resize, a redraw, a notice — shows the same choice because the selection is prompt state. A new prompt starts on `[n]o`, so `Space` on an untouched prompt denies exactly like Enter; approving takes a deliberate `y` or a move to Yes. Bare `y`, `n` and `a` decide wherever the selection sits, Enter and `Esc` deny, `?` shows the panel's key legend without deciding anything, and `a` covers that tool for the whole run tree for the rest of the session. The prompt arms like the trust question: keys already buffered, and keys arriving within 300 ms of it appearing, decide nothing. The frame cap trims the detail first, then the headline, never a choice.
+
+**Input box and autocomplete**
+
+The input renders as a box: a full-width `─` rule above it at every width and a second rule below it at every width (ASCII `-` without Unicode). The `>` prompt marker and, while the input is empty, the placeholder `Ask anything, / for commands` render in the theme's user colour, so the input never reads as output. The prompt is followed by a space on the first line and continuation lines keep a two-space indent, with the status footer below the lower rule. The box grows with the draft to eight lines and scrolls beyond that, keeping the cursor's line visible.
+
+**Bash mode**
+
+Typing `!` at the start of an empty input switches the box into bash mode: the prompt becomes an accent-toned `!` followed by a space. Enter runs the remaining line in the session's working directory through the `bash` tool's executor — same shell resolution, environment, timeout, output bounds, process-tree rules and approval policy as a model-issued call — and commits one tool block whose header carries the exit code and the duration. Esc leaves the mode without running and restores the line with its prefix; Enter on a bare `!` leaves without running. A `!` anywhere but the start of the input stays literal.
+
+`!!` is the silent form: the command runs and the same block commits to the scrollback, but neither the command nor its output enters the conversation, so the next request does not carry it. A normal `!` adds the command and its result to the conversation as context for the next turn. The approval policy decides before anything runs: an `ask` policy prompts, and a denial leaves the workspace untouched. A `!` submission while a turn runs is refused with a notice naming the turn; it is not queued. Bash lines have their own in-memory history: Up recalls commands only in bash mode, prompt history stays in `~/.lunate/history`, and neither stream pollutes the other. Print mode has no input line and therefore no bash mode.
+
+Typing `/` at the start of the first line opens the autocomplete list from the session's one command registry, composed from ordered sources: the built-in commands, the discovered skills as `/skill:<name>`, and the loaded extensions' provided commands (prompt templates keep a reserved slot and no template source ships yet). `/help` reads the same registry: the built-in groups first and unchanged, then one section per non-built-in kind present, with the skills section capped at 20 rows and pointing at `/skills`. The first source in that order owns a duplicate name. The registry is fixed-size and filtered fuzzily — a case-insensitive subsequence, with prefix and word-start matches ranked ahead of later positions. Typing `@` at the end of a token lists workspace files from the lazy file index through its case-insensitive completion query, while the index stays ordinally sorted; the index is never fuzzed client-side and never built at startup. The list shows at most eight rows directly above the box, and custom entries — skills and extension commands — sort ahead of the built-ins so a bare `/` shows them before the cap. When entries do not fit, the last row says `… +N more — keep typing to filter` rather than hiding them silently. Names carry descriptions until the width drops below 60 columns; file rows mute the directory part. No matches closes the list, and the list never wraps.
+
+↑/↓ move the selection while the list is open and navigate history while it is closed. Tab and Enter accept the selected item — the token is replaced, file rows keep the `@`, command rows get a trailing space — and Esc closes the list. Enter submits instead when the typed token already equals the selected item, so a fully typed command never costs a second Enter. Newline keys insert and then re-run the trigger rules; Ctrl+C, Ctrl+L, Ctrl+O and Alt+P keep their bindings and win over the list.
+
+**Images**
+
+`@<path>` attaches an image to the prompt after the input hooks run: `explain @screens/diagram.png`, `@"screens/login page.png"` for a path with spaces, or a path dropped or pasted as the whole submission. `@clipboard` reads one image from the clipboard instead of a file. A relative path resolves against the working directory; an absolute path is allowed. `~` is not expanded, so `@~/shot.png` looks for a literal `~/shot.png`; and unlike `read`, `@path` has no workspace boundary — `@../outside.png` attaches a file outside the workspace. Only existing PNG, JPEG, GIF or WebP files attach — magic bytes decide the format, not the extension — and the token becomes the placeholder `[image <width>x<height>]` in the user block and the transcript. Any other `@file` stays text for the model to `read`.
+
+Limits are shared with the `read` tool: 5 MB per image, 4,096 pixels per side, four images per message. Every refusal names the actual value, the limit and the next step; oversize images say `downscaling is not available yet`. If the active model's known input modalities exclude `image`, the submission is refused before sending with the model named and a prompt to switch profile or remove the image. Unknown image support is allowed to reach the provider; a provider rejection is translated to that same notice. Repeated references to one file attach it once.
+
+The clipboard chain is `pngpaste` on macOS, `wl-paste --type image/png` on Wayland and PowerShell `Get-Clipboard -Format Image` on Windows. A missing helper shows one notice per interactive session and is an error in print mode; an empty clipboard shows a notice and starts no run. Print mode resolves the same syntax and exits 2 on a refusal, with the error on stderr.
+
+**Narrow terminals**
+
+The layout has three width bands, evaluated at render time from the terminal's columns:
+
+| Band | Width | Rules |
+| --- | --- | --- |
+| Full | ≥100 | today's layout: every footer segment, full tool summaries, both box rules, autocomplete descriptions |
+| Standard | 60–99 | the same structure; the footer drops segments while the line is too wide, in priority order: widgets, branch, directory, thinking, favourites, then turn cost; both box rules stay |
+| Compact | <60 | short tool headers (the argument summary drops: `✓ read · 13 lines`), the footer shrinks to `model · <pct>%`, both box rules stay, autocomplete names without descriptions |
+
+The status footer orders the core segments as model, tokens and percent, `fav:<position>/<count>` while the active model is a favourite, the current turn's cost, thinking, directory and branch. The cost appears only when every usage record of the turn tree resolves to a catalog model whose rate covers each positive token lane; it is display-only and never changes token totals, budgets or approvals. Its invariant format is `$` plus four decimals below `$1`, two decimals at or above `$1`, and `<$0.0001` for a positive cost that would round to zero; an unpriced turn omits the segment rather than showing zero.
+
+Both box rules are drawn at every width; autocomplete descriptions keep their 60-column boundary. When a construct gains a compact form it follows the same band: diffs will drop the line-number gutter below 60 and markdown tables will render as lists below 60 (and as tables at 60 and wider). Neither construct is in the current renderers; the rules bind when they land.
+
+**Components**
+
+- `MarkdownRenderer`: a subset (headings, bold, italic, inline code, lists, quotes, fenced code with a language label) mapped to Spectre renderables. Keyword highlighting for C#, JSON and shell only in v1.
+- `ToolBlock`: one compact header line — `✓ read  src/X.cs (1-13)`, `✗ bash  dotnet build · exit 1 · 12s`, `✓ edit  src/X.cs · +3 −0`. With the default `toolDetails: "collapsed"` that header is the whole block; when the result had output or a diff to show, it ends with a muted `· ctrl+o` affordance for the transcript viewer. `toolDetails: "expanded"` restores the per-tool output excerpt (`bash` keeps the output's last lines, `read` none — except a successful image read, which shows its muted `[image WxH]` placeholder, the rest first and last), the red/green diff panel for `edit` and `write` with the match tier, and the excerpt's `… +N lines · ctrl+o` marker. Durations run on the injected scheduler.
+- `TranscriptViewer`: the `Ctrl+O` full-screen transcript — user, assistant, thinking and tool blocks with full outputs and diffs, newest at the bottom; Up/Down, PageUp/PageDown, Home/End and `g`/`G` scroll, the footer shows the keys and the position, and `q`/`Esc` closes. Paths are mid-shortened so the basename survives.
+- `ApprovalPrompt`: the panel described above — warning headline, bounded detail, and the yes/no/always choices — shown in the live area.
+- `StatusFooter`: model, tokens, context used in percent, favourites position, current turn cost, working directory, git branch.
+- `InputLine`: multi-line editing, prompt history in `~/.lunate/history`, a separate in-memory bash-mode history, bracketed paste, cursor movement and the input box's chrome and placeholder.
+- `Autocomplete`: the filtered rows above the box with the selected row marked, descriptions below the width breakpoint and muted file directories; the registry and keys are described above.
+- `SelectList`: model and session pickers inside the live area.
+
+**Key bindings (one meaning each)**
+
+<!-- keys:start -->
+| Key | Action |
+| --- | --- |
+| `Enter` | Send; with the autocomplete list open, accept the selected item first (an exact token sends instead); in bash mode, run the line through the `bash` tool; while a turn runs, queue the line as a follow-up (the footer shows `N queued`). Never steers or interrupts a turn |
+| `Alt+Enter` / `Shift+Enter` / `Ctrl+J` / `Ctrl+Enter` | New line in every state (the alternatives are for terminals that report extended keys or send the control byte); the autocomplete triggers re-run afterwards. Never submits or queues |
+| `Esc` | Close the autocomplete list first; in bash mode, leave without running and restore the line with its prefix; otherwise interrupt the running turn, whose queued follow-ups then run next; with nothing running, leave the queue alone |
+| `Ctrl+C` | Interrupt the running turn (a queued follow-up then runs next); with the prompt idle it clears the input, and on an empty idle prompt a second press within 2 s quits |
+| `Ctrl+D` | Quit on a second press within 800 ms, only from an empty idle prompt — never mid-turn |
+| `Ctrl+L` | Force a full redraw of the prompt area, keeping the input and the conversation |
+| `Ctrl+P` | Unbound: nothing happens. It is deliberately left free (the model picker is `Alt+P`), and the guide lists it so a reader does not have to guess |
+| `Alt+P` | Model picker and search; typing filters the catalog, Backspace edits the filter, Esc clears it before closing |
+| `Ctrl+R` | History search: typing narrows, `Ctrl+R`/`Down` moves to the next match, `Enter` places it in the input, `Esc` cancels |
+| `Ctrl+S` | Stash the draft, or restore it when the prompt is empty |
+| `Ctrl+G` | Open the draft in your editor: `$VISUAL`, else `$EDITOR`, else `vi` on POSIX and `notepad` on Windows — arguments are split on whitespace, with no shell and no quoting. A zero exit replaces the draft with the file's text and puts the cursor at its end; the program must wait for the file (`code --wait`), or the draft is read before the edit lands. Some terminals and tmux configurations swallow `Ctrl+G` (it is `BEL`, `0x07`); there `/editor` runs the same round-trip, on the draft the command leaves — an empty one |
+| `Ctrl+_` | Undo the last input edit |
+| `?` | On an empty idle prompt, open the key-help overlay: the bindings that apply here, grouped by state; `j`/`k` move, `/` filters, `Tab` shows every binding, `Esc` or `?` closes without touching the draft. In an approval prompt it shows that panel's key legend — `y` approves, `n` denies, `a` approves for the session, `Space` activates the selection, Enter and Esc deny — and decides nothing. With text in the prompt it is a literal character |
+| `y` / `n` / `a` | Answer a pending approval: approve, deny, or approve for the whole session. The panel owns these letters, so nothing else sees them while a question is open |
+| `Ctrl+O` | Transcript viewer: the session transcript with full tool output and diffs; `q`, `Esc` or `Ctrl+O` closes. Refused while an approval or picker is open |
+| `Ctrl+X` | Copy the last answer to the clipboard; the notice says whether a platform tool confirmed the write or the OSC 52 sequence was sent, and names tmux's `set-clipboard on` when it applies |
+| `Tab` | Accept the selected autocomplete item; otherwise nothing |
+| `Up` / `Down` | Move the autocomplete selection; with the list closed, history (bash mode recalls its own command stream). With queued follow-ups, `Up` takes the whole queue back into the editor instead |
+| `Ctrl+A` / `Ctrl+E` | Move to the start / end of the line |
+| `Ctrl+K` / `Ctrl+U` | Kill from the cursor to the end / to the start of the line |
+| `Ctrl+W` / `Alt+D` / `Ctrl+Delete` | Kill the word before / after the cursor (`Ctrl+Delete` is the Alt-free form of `Alt+D`) |
+| `Ctrl+Y` | Yank the most recent kill |
+| `Alt+B` / `Alt+F` / `Ctrl+Left` / `Ctrl+Right` | Move back / forward by word (`Ctrl+Left`/`Ctrl+Right` are the Alt-free forms) |
+<!-- keys:end -->
+
+**Themes and remaps**
+
+- `/settings tui.theme` chooses the colour-depth policy applied to the transcript and the status line, and `/settings tui.keys <binding id> <key>` rebinds one catalogue row; both persist in the settings file's `tui` section. [Themes and keys](../themes-and-keys.md) owns the values and the refusal rules.
+
+**Platform rules**
+
+- `Ctrl+G` writes the draft to a temporary file in the system temp directory (UTF-8, no BOM, owner-only on POSIX), hands the terminal to the child in cooked mode and deletes the file on every exit path, so no draft text is left behind. A missing program, a non-zero exit or a read that fails leaves the draft, the cursor and the stash untouched and posts one notice naming what failed — and a `$VISUAL` that cannot be launched is reported, never silently swapped for `$EDITOR`. `/editor` is the same round-trip through the command registry, for a terminal that never delivers the key: it acts on the prompt as the command finds it, which is empty because submitting the command cleared the line, so a bare `/editor` opens an empty buffer and what you save becomes the draft.
+- Enable VT processing on Windows at startup; test in Windows Terminal and classic conhost.
+- If stdout is not a terminal or `TERM=dumb`, interactive mode exits with a hint to use `-p`.
+- All terminal access goes through `IConsoleIO` (read keys, write, size, resize event), so tests run without a real terminal.
+
+**Testing**
+
+Spectre renderables are snapshot-tested with `TestConsole`. The input line and live area run against a `FakeConsoleIO` that replays scripted key presses and records the frames, snapshot-tested with `Verify`.
+
+## Platforms, shells and terminals
+
+Lunate should run wherever Pi runs: macOS, Linux and Windows, in the terminals people actually use. Support is defined per environment, tested in CI where possible, and every capability has a fallback.
+
+**Release targets**
+
+Self-contained single-file builds with ReadyToRun — no single-file compression, since it crashed some variants and cost ~80 ms startup; release archives are compressed instead (ADR-0008) — for `osx-arm64`, `win-x64` and `linux-x64` (more targets on demand). Users install no .NET runtime. CI publishes each target and runs `scripts/perf.sh` on the three OS runners.
+
+**Terminal support**
+
+| Environment | Tier | Notes |
+| --- | --- | --- |
+| Windows Terminal | 1 | Full colour, VT, bracketed paste |
+| Classic console (conhost, Windows 10 1809+) | 1 | VT enabled at startup; verify paste and resize |
+| VS Code integrated terminal (all OSes) | 1 | Common daily environment |
+| Git Bash (mintty) | 1 | Works directly under the MSYS2 pseudo console (verified Git for Windows 2.52.0, ADR-0004); without it, a fail-soft diagnostic instead of a crash |
+| macOS Terminal.app | 1 | No 24-bit colour, so 256 colours; Option is not Meta by default |
+| iTerm2, Ghostty, WezTerm, Kitty, Alacritty | 1 | Full features |
+| Linux terminals (GNOME Terminal, Konsole, others) | 1 | Full features |
+| tmux, screen, SSH sessions | 1 | Colour from `TERM`/`COLORTERM`; check bracketed paste passthrough |
+| JetBrains terminal | 2 | Usually fine; ACP is the better integration there |
+| Pipes, CI, `TERM=dumb` | Print mode only | Interactive mode exits with a hint to use `-p` |
+
+**Capability fallbacks**
+
+- Colour depth from Spectre's detection and `COLORTERM`; `NO_COLOR` disables colour everywhere.
+- No Unicode support detected: ASCII spinner and box characters.
+- Character widths (emoji, CJK) via a `wcwidth` table, so the input line never misplaces the cursor.
+- Newline: `Alt+Enter`, `Shift+Enter` (where the terminal reports extended keys) and `Ctrl+J`, because `Alt` needs "Option as Meta" on macOS Terminal.
+
+**Shell resolution for the `bash` tool**
+
+| Platform | Order | Invocation |
+| --- | --- | --- |
+| macOS, Linux | `bash`, then `/bin/sh` | `bash -c` (no login shell: Lunate already inherits the user's environment, and login profiles are slow or print banners) |
+| Windows | Git Bash, then `pwsh` 7, then Windows PowerShell 5.1, then `cmd` | Git Bash via its install path; PowerShell with `-NoProfile -NonInteractive` |
+
+- Models write bash best, so bash wins whenever it exists.
+- Never pick `C:\Windows\System32\bash.exe`: that is WSL, which runs the command inside Linux with different paths.
+- The shell is detected at startup; there is no `shell` setting and no `/shell` command. The system prompt and the `bash` tool description name the shell, so the model writes the right dialect.
+- Child processes run with UTF-8 output; the process tree is killed with `Process.Kill(entireProcessTree: true)` on timeout or cancel.
+- Workspace boundary checks are case-insensitive on Windows and on default macOS file systems.
+
+**Installation (as easy as Pi's one-liner)**
+
+- GitHub Releases with one archive per target, plus `install.sh` (`curl … | sh`) and `install.ps1` (`irm … | iex`).
+- Homebrew tap for macOS and Linux; Scoop bucket and winget manifest for Windows.
+- Optionally a `dotnet tool` package; .NET 10 a framework-dependent package for people who already have the .NET SDK.
+
+**CI matrix**
+
+Build and test on `ubuntu`, `macos` and `windows` runners for every commit; publish all three targets on release tags. Manual checks before each release: Windows Terminal, conhost, Git Bash, macOS Terminal, one Linux terminal, tmux over SSH.
+
+## Protocols (Lunate.Protocols)
+
+MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there is no reason to write our own JSON-RPC.
+
+**MCP client (official MCP C# SDK)**
+
+- Servers are configured in `~/.lunate/mcp.json` (command, args, env) and start on first use.
+- A stdio child does not inherit the session environment. It receives exactly the allow-list the
+  shared child-environment builder's `Scrubbed` policy builds: `PATH` and `PATHEXT` (command resolution); `HOME`
+  (`USERPROFILE` on Windows); `SystemRoot` and `ComSpec` (Windows process and shell startup);
+  `TEMP`, `TMP` and `TMPDIR` (scratch directories); `APPDATA` and `LOCALAPPDATA` (Windows
+  application data); and `LANG` (the locale) — each from Lunate's own environment when Lunate has
+  it — plus the server's
+  declared `env` map, and nothing else. To give a server another variable, declare it in its
+  `env`: `"env": {"SERVER_TOKEN": "${SERVER_TOKEN}"}` resolves from Lunate's environment when the
+  file loads, so the value is passed explicitly and nothing reaches the child by omission.
+- A tool child (`bash`) is the user's shell, so its environment is the `Inherited` policy: the
+  user's whole environment — an unrelated toolchain's own variables and `PATH` arrive — minus the
+  variables Lunate resolves as provider credentials (each built-in provider's key variable and
+  alias, and each custom provider's `env:` reference). A model-chosen command cannot read the
+  user's provider key out of its environment, the same boundary the bash guard's `auth.json`
+  read-deny draws for files.
+- `toolEnvironment.passthrough` in `~/.lunate/settings.json` names the exact variables to admit into
+  tool children after that strip: `{"toolEnvironment": {"passthrough": ["MY_PROJECT_TOKEN"]}}`.
+  Matching is by exact name — no wildcard, prefix or pattern — and a listed name the parent does not
+  hold stays absent. The admitted names are listed at session start. An admitted variable is
+  reachable by the model through tool processes: the model can read it from a command it runs, so
+  list only a name a tool child may expose. A listed name that is also a Lunate credential name is
+  admitted with one startup warning; the `Scrubbed` extension-host policy never receives the
+  inherited set, so the list does not apply there. The setting is user-scope only: a project
+  `.lunate/settings.json` that carries `toolEnvironment` is refused by name, so a cloned repository
+  cannot widen a tool child's environment.
+- Their tools arrive from the SDK as Microsoft.Extensions.AI functions and are wrapped as `ITool`s with risk `Execute`, so the approval policy applies. Names are prefixed `server__tool` to avoid collisions.
+- Refresh on tool list changes; cancel calls when a turn is cancelled; time out hanging servers. A crashing server becomes a tool error, never a crash of Lunate.
+- v1 uses stdio servers; remote servers over HTTP follow when needed, using the SDK's transports.
+- Out of scope for v1: resources, prompts, sampling.
+
+**ACP server (community SDK behind an interface)**
+
+```csharp
+public interface IAcpServer
+{
+    Task RunAsync(Stream input, Stream output, Func<AcpSessionContext, AgentHarness> createHarness, CancellationToken ct);
+}
+```
+
+- The harness factory receives an `AcpSessionContext`: the session cwd, the client-backed approver, and the client's file access when the editor offers its file system.
+- T-27 compares `AcpSdk`, `AgentClientProtocol` and `LibAcp` (spec coverage, activity, license) and records the choice in an ADR. The interface keeps a later switch cheap.
+- `lunate --acp` speaks ACP over stdio; nothing else may write to stdout. Logs go to stderr or `~/.lunate/logs/`.
+- Handles initialize, new session, prompt (one run, streaming updates mapped from `AgentEvent`s), and cancel.
+- Approvals map to the client's permission request; file reads and writes use the editor's file system when it offers that capability, so unsaved buffers are respected.
+
+**Tests**
+
+`tests/tools/TestMcpServer` is a tiny MCP server with two normal tools, one slow tool and one crashing tool. ACP is tested with an in-process client over a pipe pair. Before closing Phase 5, run one real session in Zed.
+
+## Built-in Roslyn C# tools (the .NET edge)
+
+`Lunate.Roslyn` gives the model **agent-shaped C# tools**: name-based lookup, compile checks after edits, and refactors returned as plans. The host-supplied `Lunate.Roslyn.BuiltIn` adapter declares the five stable `cs_*` names through the public extension contract; the coding host and `lunate mcp roslyn` use the same manifest activation evaluator. C# language servers run Roslyn underneath too — the difference this project bets on is tool design, not the engine: no plugin or server to set up, diagnostics straight from the compilation, and load problems reported as clear messages. That edge depends on implementing ADR-0006's operational rules well (restore check, SDK mismatch, partial loads), not on Roslyn itself.
+
+**Loading model**
+
+The `roslyn` built-in manifest activates the five C# tools when a direct child of the workspace root matches `*.sln`, `*.slnx` or `*.csproj`. Chat, print, ACP, child runs and the MCP server all use the host's `ToolActivationEvaluator`; a non-matching root offers no C# tools. MCP uses client-declared roots, or its launch directory when no roots are declared. The decision is made at composition; a running session keeps its tool registry until restart or resume.
+
+The backend is created lazily on the first C# tool call. `MSBuildLocator` finds the installed .NET SDK, and `MSBuildWorkspace` opens the solution for that call's workspace root. Each call leases the `roslyn` workspace service for its root and releases the lease when the call ends. The host registry caps loaded workspaces at two; `roslyn.maxLoadedWorkspaces` may lower, but not raise, that manifest cap. File changes are routed to already-created services, so source changes stay current without an activation scan or service creation on the event path. The five model-facing names, results, session format and rollback compatibility are unchanged. A missing SDK is reported when a C# tool is called; it does not change manifest activation.
+
+The built-in changes composition only. Existing sessions resume without conversion; the current binary composes its own tools on restart or resume, and a rollback to the pre-migration host can read sessions written by the migrated host. No session-format or recorded tool-name change is involved.
+
+**Tools, in build order**
+
+| Tool | What it returns | Why the model needs it |
+| --- | --- | --- |
+| `cs_diagnostics` | Compiler errors and warnings for changed files or the whole solution | Fast compile check after an edit, without a full `dotnet build` |
+| `cs_find_symbol` | Definition location and signature for a type or member name | Navigates large solutions without grepping |
+| `cs_find_references` | All references to a symbol | Safe changes to public APIs |
+| `cs_outline` | Types and member signatures of a file, no bodies | Cheap context for big files |
+| `cs_rename` | Returns a solution-wide rename plan as per-file line edits; it does not write files | Refactoring that grep-and-replace gets wrong |
+
+Phase 5 ships `cs_diagnostics` and `cs_find_symbol`, because they carry the main claim (a compile check right after an edit). The other three follow in Phase 6. Tests use small solutions in `tests/fixtures/solutions/` (a console app, and a library with a test project) so a workspace loads in seconds.
+
+The Phase 5 gate is external (T-35): the same C# task suite with Lunate, with Claude Code plus its C# LSP plugin, and with OpenCode plus its C# tooling. Record setup steps needed, pass rate, steps, tokens, edit tiers used, wall time and failure categories per run (load/restore/SDK failures, symbol-position errors, wrong edits, other) — that is what tests whether agent-shaped tools are what makes the difference. Lunate has to win on reliability and steps, not only work.
+
+**Rules**
+
+- Outputs are compact text, not JSON dumps. Cap at the same limit as other tools.
+- If the solution fails to load, tools return a clear error and the agent falls back to the four core tools.
+- Measure it: run the same task set with and without `Lunate.Roslyn` and compare success rate and tokens (see Testing).
+
+**Later (no card yet).** A generic LSP client extension would give Lunate baseline diagnostics and navigation for TypeScript, Python and other languages, similar to OpenCode — reusing the same name-based tool shape where possible. Explicitly not v1 scope.
+
+## Roadmap
+
+Seven phases (0 to 6), each closed by a gate you check yourself. Phase 3 is the turning point: from then on Lunate can help build Lunate. The differentiators (Roslyn, ACP) come right after the TUI, so the main claim is tested early. Phase 0 also decides, through spike S-1, whether the loop is our own or the MAF Harness.
+
+&#91;embedded content: Roadmap · 7 phases, a gate after each\]
+
+**Task cards**
+
+One row per card. Each card becomes one OpenSpec change (see Building it with OpenCode) before implementation starts; the card ids stay as traceability labels in the change proposals. A card is ready when everything in "Depends on" is done.
+
+| ID | Phase | Card | Depends on | Done when |
+| --- | --- | --- | --- | --- |
+| T-01 | 0 | Repo skeleton: solution, `Directory.Build.props`, `global.json`, `.editorconfig`, analyzers, AGENTS.md, `opencode.json` | – | `scripts/verify.sh` green on empty projects |
+| T-02 | 0 | CI: build and test on 3 OSes, single-file publish for three targets, `scripts/perf.sh`; verify the Roslyn build-host publish target on Windows and Linux (S-4 addendum); a de-AT culture pass on Unix runners; uncompressed release flags (ADR-0008) | T-01 | Artifacts for all targets; CI turns red when a budget is exceeded |
+| T-03 | 0 | Spikes S-1 MAF Harness, S-2 Git Bash input, S-3 startup baseline, S-4 MSBuildWorkspace reality check | T-02 | One ADR per spike; budgets calibrated |
+| T-04 | 1 | `IChatClientFactory` and model catalog with user override; pipeline order + MEAI reuse list (spec Layer 1) | T-03 | Pipeline built per provider; catalog merge tests |
+| T-05 | 1 | `RecordingChatClient` and `ReplayChatClient` | T-04 | Recorded fixture replays identically |
+| T-06 | 1 | Providers (OpenAI-compatible, Anthropic) and `StreamAccumulator` | T-05 | Contract tests; fixtures from each provider committed |
+| T-07 | 1 | `AgentEvent` types, aligned with AG-UI | T-04 | Event sequence rules tested |
+| T-08 | 2 | `ITool`, `ToolDeclaration` adapter, registry, output truncation | T-04 | Schemas reach the model unchanged; truncation tests |
+| T-09 | 2 | Agent loop on `IChatClient`: run, tool execution, max steps, events; run and tool spans (spec Layer 2) | T-06, T-07, T-08 | Snapshot of 3 replayed sessions; a replayed session produces one run span with nested model and tool spans (in-memory exporter) |
+| T-10 | 2 | Error paths: bad JSON, unknown tool, tool exceptions, cancel, retries | T-09 | One replay test per path; history stays valid |
+| T-11 | 2 | Session JSONL store, resume, golden files | T-09 | Golden files round-trip byte for byte |
+| T-12 | 3 | Workspace paths, `read`, `write` | T-08 | Boundary tests incl. symlinks and case-insensitive file systems |
+| T-13 | 3 | `edit` tiers 1–2 + corpus | T-12 | Corpus cases for tiers 1–2 pass |
+| T-14 | 3 | `edit` tier 3, `start_line`, closest-region errors | T-13 | Full corpus passes |
+| T-15 | 3 | `bash`: shell resolution per platform, UTF-8, timeout, process-tree kill, truncation | T-08 | Tests pass on all three CI runners |
+| T-16 | 3 | System prompt, AGENTS.md loading, config; model discovery helper (`--discover` drafts user-catalog entries) | T-09 | Prompt under 1,000 tokens (asserted) |
+| T-17 | 3 | Print mode `-p`, `--json`; first eval run | T-11 to T-16 | Baseline row in `eval/results.csv` |
+| T-18 | 4 | `IConsoleIO`, live area on System.Reactive (ADR-0007: injected `IScheduler`, `ISession` seam, explicit threading contract), input line (VT, raw keys, paste) | T-03 | Frame snapshots; manual check in Windows Terminal; `TestScheduler` covers time-based behaviour |
+| T-19 | 4 | Markdown subset to Spectre renderables; culture-invariant formatting for technical output | T-01 | Snapshot per Markdown feature |
+| T-20 | 4 | `ToolBlock` and Myers diff rendering | T-19, T-13 | Snapshots incl. match tier |
+| T-21 | 4 | Approval prompt, status footer, key bindings | T-18 | Scripted key tests for every binding |
+| T-22 | 4 | Wire events, steering, `Esc` cancel, slash commands, pickers — **split**: part 1 `add-interactive-session` (events → scrollback/live, steering seam, `Esc`, approval adapter, history, E2E snapshot); part 2 (commands `/model` `/new` `/resume` `/compact` `/quit`, pickers, `/command` Tab completion) | T-09, T-18 to T-21 | End-to-end scripted session snapshot |
+| T-23 | 4 | Compaction as `IChatReducer` (loop-invoked; not `ReducingChatClient`) | T-11 | Replay: long session compacts; tool pairs never split |
+| T-25 | 5 | Roslyn C# tools: `ICSharpBackend` + in-process backend (ADR-0014), `MSBuildLocator`, workspace load, file sync, `cs_diagnostics` | T-36 | Detects an error introduced by `edit`; first-call budget met |
+| T-26 | 5 | `cs_find_symbol` | T-25 | Finds definitions in fixture solutions |
+| T-27 | 5 | ACP server: SDK choice (ADR), initialize, session, prompt, updates, cancel | T-09 | In-process client tests |
+| T-28 | 5 | ACP permissions and editor file system | T-27 | Approval round trip; one real Zed session |
+| T-29 | 6 | MCP client on the official SDK: lazy start, tool wrapping, cancel, list changes | T-08 | Tests against `TestMcpServer` |
+| T-30 | 6 | MCP config, prefixing, approvals, TUI integration | T-29 | One real MCP server works in the TUI |
+| T-31 | 6 | `cs_find_references`, `cs_outline`, `cs_rename` | T-25 | Fixture tests; eval comparison row |
+| T-32 | 4 | Distribution: release workflow, install scripts, Homebrew, Scoop, winget, `dotnet tool` | T-02, T-17 | Fresh install works on Windows, macOS and Linux with one command |
+| T-33 | 4 | Terminal capability detection and fallbacks; manual terminal matrix check | T-18, T-19 | Every tier-1 terminal checked and noted in the card |
+| T-35 | 5 | Head-to-head C# eval: Lunate vs Claude Code with the C# LSP plugin vs OpenCode with its C# tooling; same tasks and model where possible; pass rate, steps, tokens, edit tiers, time; failure categories per run (load/restore/SDK failures, symbol-position errors, wrong edits, other) | T-17, T-25, T-26 | One results row per tool in eval/results.csv, a short write-up in docs/eval/, and a conclusion — if Lunate is not clearly better on C# tasks, the guide moves the positioning to .NET-native extensibility and the daily-driver experience instead of C# intelligence; covers the cs_rename comparison scenario |
+| T-53 | 4 | `@path` completion: file index honoring `.gitignore` (built lazily, bounded memory), performance budget on large repositories; `Tab` completion for `@paths` in the input line | T-22 | Completing `@paths` in a large repo stays within the startup and latency budgets and respects ignores |
+
+**Extensibility series (replaces the former T-24 and T-34).** The core ships primitives and is subagent-ready; features ship as extensions, proven by the fitness suite (`docs/spec/extensibility.md`, ADR-0017).
+
+| Card | Phase | Scope | Depends on | Done when |
+| --- | --- | --- | --- | --- |
+| T-36 | 5 | `Lunate.Extensibility.Abstractions` (semver, PublicAPI) + ALC sharing, manifest, lifecycle, settings and secrets | T-09 to T-11 | Contract assembly loads; startup budget unchanged with 10 installed extensions |
+| T-37 | 5 | Hook runner: catalogue semantics, order, failure policy, per-handler timeouts | T-36 | Every hook has a test for its semantics class and its failure policy |
+| T-38 | 5 | Tool model: exposure, namespaces, annotations, OutputSchema/StructuredContent, ExecuteToolAsync, per-tool concurrency | T-37 | Exposure gate, nested call ids and depth limits tested |
+| T-39 | 5 | Services: background services, file change bus, mutation queue, model and service registries | T-37 | Fake LSP server lifecycle; file bus events after write/edit |
+| T-40 | 5 | UI abstraction across modes: `IUserInteraction`, renderers, clean degradation | T-18, T-19, T-39 | One interaction matrix test per mode |
+| T-41 | 5 | MCP from extensions: `RegisterMcpServer`, namespace, exposure | T-39 | `TestMcpServer` registered by an extension works end to end |
+| T-42 | 5 | `Lunate.Extensibility.Testing` + template project | T-37 | Template extension builds and loads in CI |
+| T-43 | 6 | Sample: permission-gate | T-37 | Blocks or confirms via ToolCalling + annotations |
+| T-44 | 6 | Sample: memory-provider | T-39 | Injection survives compaction by re-injection |
+| T-45 | 6 | Sample: lsp-diagnostics | T-39, T-40 | Fake LSP server; diagnostics attached via ToolResultReady |
+| T-46 | 6 | Sample: mcp-from-extension | T-41 | Namespaced MCP tools visible in the TUI |
+| T-47 | 6 | Sample: subagents | T-38, T-39 | Parent/child runs, approvals routed to the parent UI, cancel propagated, limits enforced |
+| T-48 | 6 | Sample: code-mode | T-38 | Programmatic tools via ExecuteToolAsync; child-process runtime |
+| T-49 | 6 | Sample: model-router | T-39 | Virtual model routes; usage rolls up to the owning run |
+| T-50 | 6 | Sample: ui-showcase | T-40 | Renderer + status widget; degrades cleanly in print/json/ACP |
+| T-51 | 6 | Sample: worktree-tasks | T-38, T-39, T-47 | Two subagents in separate worktrees edit and build independently (Roslyn per workspace, cap holds); results merge back via git; worktrees cleaned up |
+| T-52 | 7 | Out-of-process host (`Lunate.Extensibility.Remote`, JSON-RPC over stdio) + node reference sample | T-37 to T-42 | Conformance test: all hook DTOs round-trip through the wire; the node sample passes its fitness tests |
+| T-54 | 7 | Extension commands over the remote host: a `command/invoke` request on the existing JSON-RPC wire, reusing `CommandInvocation`/`CommandResult`, so remote manifest commands stop reading `declared, not provided` | T-52, `command-source-completion` | Conformance test: a node remote extension's declared command dispatches end to end, its failure is a teaching notice, and no wire type reaches `Lunate.Extensibility.Abstractions` |
+
+Independent tracks can run in parallel in separate git worktrees, for example T-18/T-19 (TUI) next to T-12 to T-15 (tools).
+
+## Building it with OpenCode
+
+OpenCode implements one OpenSpec change per session; you own the guide, the specs and the review. The repo is set up so the important rules are enforced by tools (analyzers, verification scripts, CI and the OpenSpec lifecycle), not only written down, because written rules get skipped and failing builds do not.
+
+**Division of work**
+
+- **You:** this guide and the OpenSpec specs it distills into, change proposals, ADRs, public types in the libraries, recording provider fixtures (needs API keys), manual checks on real terminals and in Zed, eval runs on real models, final review of every diff.
+- **OpenCode** (agent `build`; model pinned in `opencode.json`): implementations, tests, corpus cases, docs updates the change asks for. It may propose spec or API changes but stops and asks.
+- **From Phase 3 on:** also use Lunate itself for small changes. Every failure of Lunate on its own repo becomes a test or eval case.
+
+Changes can run interactively in the OpenCode TUI or headless: `opencode run --model opencode-go/deepseek-v4.1-flash --variant max` with the change name; the `openspec-apply-change` skill drives the work.
+
+**Bootstrapping (done)**
+
+The repo already carries the harness this guide describes: the OpenSpec CLI with the `intent-driven` schema, the OpenSpec lifecycle skills and the companion skills together under `.agents/skills/` (the single harness-neutral source), `AGENTS.md`, and this guide at `docs/dev/guide.md`. New work starts with a change: the `openspec-new-change` skill or a hand-written proposal. From here on, changes reference `openspec/specs/` instead of the whole guide, which keeps each session's context small.
+
+**Repo files for OpenCode**
+
+| File | Purpose |
+| --- | --- |
+| `AGENTS.md` | Rules for any coding agent (OpenCode, Lunate itself, others). Source of truth |
+| `opencode.json` | Model pin, plugins and permissions |
+| `.opencode/agent/*.md` | OpenCode subagents: `senior-dev` (test-first), `senior-qa` (acceptance tests), `adversarial-author`, `adversarial-reviewer` |
+| `.agents/skills/openspec-*` | OpenSpec lifecycle skills (new, propose, continue, apply, verify, sync, archive, …). Generated by `openspec update`; ownership pinned by `.agents/skills/.openspec-target` |
+| `.agents/skills/` | Every other skill, one source for all harnesses: `grill-me`, `architectural-decision-records`, `c4-diagrams`, `gherkin-authoring`, `glossary`, `openspec-git-discipline`, `spec-as-source` (opt-in), `test-driven-development`, `acceptance-test-authoring`, `adversarial-authoring` |
+| `openspec/` | `config.yaml` (schema, rules, project context), `schemas/intent-driven/`, `specs/` (current truth), `changes/` (proposals, deltas, tasks) |
+| `adr/` | Durable architectural decisions; immutable once accepted |
+| `docs/dev/guide.md`, `docs/spikes/`, `docs/eval/` | This guide, spike reports, eval write-ups |
+| `scripts/verify.sh` / `.ps1` | The one command that decides "done" |
+
+OpenCode reads `AGENTS.md` natively; there is no separate editor-specific memory file.
+
+**AGENTS.md**
+
+The rule set for coding agents is [`AGENTS.md`](../../AGENTS.md); it is not copied here, so a rule change has one home. The rest of this section describes how those rules are enforced.
+
+**Enforcement**
+
+- The rules above are enforced by tools, not trust: warnings-as-errors and analyzers (build), the architecture test (layering), `PublicAPI.Shipped.txt` diffs (API changes), `scripts/verify.sh` (build → tests → publish → budgets → format → API), `openspec validate --strict` (artifacts), and CI on every commit (T-02).
+- Formatting: CSharpier and the `dotnet format` style/analyzer split run inside `verify.sh`; a change is not done while verify is red.
+- Review: run the `adversarial-reviewer` subagent over the diff (read-only; scope, layering, startup, tests, error messages), then the maintainer reads the diff — especially `PublicAPI.Unshipped.txt` and anything under `openspec/specs/`.
+
+**Repository quality (ADR-0011)**
+
+Formatting is deterministic: CSharpier owns C# whitespace (`dotnet csharpier format .`; the gate runs `dotnet csharpier check .`), while `dotnet format style` and `dotnet format analyzers` keep the style and analyzer duties. Markdown is linted with markdownlint-cli2, CodeQL scans pushes and pull requests to `main` plus a weekly schedule, and every document kind has exactly one home in `docs/dev/README.md`. See ADR-0011.
+
+**Changes and cards**
+
+Every card in the roadmap (T-xx) becomes one OpenSpec change with the artifact flow `proposal → (specs, design) → adr → tasks`. The card's **Acceptance** list becomes `tasks.md`; the card's **Specs** references point at `openspec/specs/`; the card id stays as a traceability label in the proposal.
+
+Example: T-13 (edit tool, tiers 1–2) becomes the change `add-edit-tool-tiers`:
+
+- `proposal.md` — why edit reliability is the core promise; capability `edit-tool`.
+- `specs/edit-tool/spec.md` — Gherkin deltas for tiers 1–2 and file-state preservation.
+- `design.md` — tier algorithm, `start_line` handling, guardrails.
+- `adr.md` — review manifest (tier policy is already an in-force ADR candidate).
+- `tasks.md` — corpus cases, implementation via `senior-dev`, the 5 MB performance case.
+
+**Working loop per change**
+
+1. Draft the change — proposal first; `grill-me` stress-tests it. Spec quality is the critical path.
+2. Review: the proposal (and in early phases the full artifact set) is reviewed before apply.
+3. Apply: `openspec-apply-change`; tasks in small batches through `senior-dev` (TDD); commits per logical group.
+4. Verify: `openspec-verify-change` and `scripts/verify.sh` green; `adversarial-reviewer` over the diff; fix what it reports.
+5. Read the diff — especially `PublicAPI.Unshipped.txt` and anything under `openspec/specs/`.
+6. Sync and archive: `openspec-sync-specs`, `openspec-archive-change`; spec deltas merge into `openspec/specs/`; commit `T-xx: <summary>`.
+7. Anything that surprised you becomes one line in `AGENTS.md` or a new corpus or eval case.
+
+**Definition of done (every change)**
+
+- [ ] All acceptance items ticked in `tasks.md`
+- [ ] `scripts/verify.sh` green, including the performance budgets
+- [ ] `openspec validate <change> --type change --strict` green
+- [ ] Reviewer approved, or its remaining points are written into a follow-up change
+- [ ] No public API change unless the change allowed it
+- [ ] No new package without an ADR
+
+**Prompts that help**
+
+- "Explain how one turn flows through the files you changed, in five sentences." (readability check)
+- "What happens if the model sends malformed JSON for this tool?"
+- "Which corpus or eval case would have caught the bug you just fixed? Add it."
+- "Delete anything in this diff the change did not ask for."
+
+## Testing and evaluation
+
+Tests are how OpenCode knows it is done: every level below runs without API keys except the contract tests, and the task suite is the scoreboard for real quality.
+
+| Level | What | How | Runs |
+| --- | --- | --- | --- |
+| Unit | Path rules, JSON types, catalog, truncation, compaction trigger | xUnit, temp directories, fake `IShell` | Every commit |
+| Edit corpus | Every edit tool case in the spec | Data-driven test over `tests/fixtures/edit-corpus/` | Every commit |
+| Replay | Agent loop end to end | `ReplayChatClient` + `Verify` snapshots of events and session JSONL | Every commit |
+| TUI | Renderables, input line, live area, key bindings | `TestConsole` + `FakeConsoleIO` frame snapshots | Every commit |
+| Protocols | MCP client and ACP server | `TestMcpServer`; in-process ACP client over a pipe pair | Every commit |
+| Roslyn | Diagnostics and symbol lookup | Fixture solutions in `tests/fixtures/solutions/` | Every commit (Category=Slow) |
+| Performance budgets | Startup time and idle memory | `scripts/verify.sh` publish step and scripts/perf.sh on all three CI runners | Every commit |
+| Contract | Provider adapters against real endpoints | `LUNATE_LIVE=1`; local model on the home lab costs nothing | Manual / nightly |
+| Task suite | 15–20 small coding tasks (mostly C#, some Python and TypeScript) with a check script each | `lunate -p --json`; pass/fail, steps, tokens, time, edit tiers used | Per phase gate; Phase 5 also runs Claude Code and OpenCode on the C# tasks |
+
+Results go to `eval/results.csv` per phase and model. Use the suite to decide whether Roslyn tools, a prompt change or compaction actually help, not intuition.
+
+The test suite also runs once under a non-English culture (`de-AT`) on Unix (in `scripts/verify.sh` and CI), so tests never depend on the machine locale; technical output is formatted with `CultureInfo.InvariantCulture` — English first, other cultures supported.
+
+## Security and safety
+
+Lunate runs model-chosen shell commands with your user's rights, so the defaults must be safe and the risk must be visible.
+
+- **The approval panel is the boundary.** In the default mode every `bash` command, every MCP tool and every write outside tracked git files is shown in a panel and runs only when you answer yes. `ask` (the default) shows commands and edits; `auto-edit` lets edits run and still shows every command and MCP tool. A call that changes trust or writes the state root always reaches the panel, even after you answered "always" for that tool: `lunate trust`, `lunate install`, `lunate uninstall`, and any command or file write aimed at `~/.lunate` (`LUNATE_HOME`). A run with no panel (print mode) declines such a call instead of running it silently.
+- **`--yolo` removes that boundary.** It is a per-run flag, never a saved setting, and it prints a line at startup saying so. With no panel there is no approval between the model and your shell, so the trust boundary goes with it. When the opt-in decision gate is also enabled, everything is still auto-approved unless the decision model recommends `deny`; that call is denied because no user is present. Plain `--yolo` is unchanged.
+- **The bash guard refuses the state root.** A bash command runs wrapped in an OS-level deny: writes under the state root (`~/.lunate`, `LUNATE_HOME`) and the install prefix are refused and `auth.json` is read-denied — `sandbox-exec` on macOS, bubblewrap on Linux with `setpriv`'s Landlock rules as fallback. A refused command names the guard ([ADR-0024](../../adr/0024-bash-guard.md)). Windows has no cheap mechanism: the tool says so in its result, instead of silently running unconfined. When the mechanism cannot start — for example Ubuntu 23.10+'s AppArmor restriction of unprivileged user namespaces — that is detected and reported, the command still runs with a visible notice, and the guard claims only what it does: it does not stop a reachable Docker socket, a pre-existing hardlink or the workspace itself.
+- **The state root is not a security boundary.** `trust.json`, install records and session files live under `~/.lunate` (`LUNATE_HOME`). A bash command runs with your shell and can write there. The `LUNATE_SESSION` marker is a visibility guard, not a lock: it makes an install or a `trust --yes` started from inside a session say so, and `env -u LUNATE_SESSION …` removes it. `trust.json` is a record of your decisions, not a wall: `lunate trust --yes --digest <sha>` records one without a terminal, and the bash tool can run that command. Neither is a security boundary against the bash tool — in default mode the approval panel is what stands between the model and those commands, and under `--yolo` nothing does.
+- **Installing is not trusting.** `lunate install` writes no trust record: an installed extension stays pending, in both scopes, until you answer its question at first load.
+- **Workspace boundary:** file tools resolve real paths (including symlinks) and refuse anything outside the working directory.
+- **Edit safety:** ambiguous matches are refused, never guessed; every edit shows its diff and match tier.
+- **Secrets:** provider keys live in `auth.json` or environment variables; `providers.json` stores only credential references, and optional header values are references too. The credential values Lunate itself holds — provider keys, extension secrets and MCP server environment values — are replaced by exact value with `[redacted:<name>]` in session files, spill files and exports (never by guessing at a pattern), and session files, spill files, the trust store, install records, the input history and provider recordings are owner-only (`0600`; session directories `0700`) where the platform has file modes.
+- **Prompt injection:** file contents, command output and MCP results are data. The system prompt says so; approval is the real guard.
+- **MCP servers** are third-party code: only servers listed in `mcp.json` start, and their output is truncated like any tool output. Extensions are third-party code too: project-local ones need a one-time approval per repository, an installed package is pending until its first-load question is answered, and lunate --no-extensions starts without any.
+- **ACP mode** uses the editor's permission prompts; only a read-only call runs without one, so a request coming from an editor is never auto-approved.
+- **Unattended runs:** document a container setup for print mode in CI; recommend it for `yolo`.
+- **No telemetry** by default; OpenTelemetry export is opt-in and goes only where you point it.
+
+## Decisions and open questions
+
+These decisions are settled; the foundational ones are recorded as durable ADRs under `adr/` (see 0001 and 0002), and the rest become ADRs as changes touch them.
+
+To choose the next ADR number, list the primary ADR filenames in `adr/` and take the highest number plus one. Use filenames; do not grep ADR contents. Addenda use `NNNN-addendum-<slug>.md` and keep their parent ADR's number.
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Audience | Polished daily-driver CLI; readability stays a principle | The project's value is daily use and C# depth |
+| Language and culture | English-first output; technical formatting culture-invariant; identical behaviour under any machine culture (tests prove it) | Target group is programmers; other cultures are supported |
+| License and home | Personal open source, MIT | Free to use anywhere |
+| Hosting and embedding | No AG-UI endpoint, A2A or web UI | Smaller scope, focus on the terminal and editors |
+| TUI | Spectre for finished output; own input line and live area | Robust rendering and responsive input |
+| Edit tool | Three match tiers, uniqueness required at every tier | Fewer retries without silent wrong edits |
+| MCP and ACP | Official MCP C# SDK; community ACP SDK behind IAcpServer | No hand-maintained protocol |
+| Keys | `Esc` or `Ctrl+C` interrupts a turn; `Ctrl+C` on an empty idle prompt clears or quits | One meaning per key |
+| Diffs | Own Myers diff | No extra dependency |
+| Native AOT | No; self-contained single file with ReadyToRun, held to performance budgets | Models and network dominate latency; JIT keeps runtime extensions, in-process Roslyn and all SDKs |
+| Model types | IChatClient and Microsoft.Extensions.AI types everywhere; own types only for tools and events | Microsoft-maintained .NET standard; MCP SDK fits directly |
+| Agent events | Own AgentEvent, named and sequenced like AG-UI | Thin mappings to TUI, ACP and a possible web UI; no dependency on a moving protocol |
+| Roslyn | In-process backend behind the host-supplied built-in extension contract; manifest activation and workspace-service leases | No sidecar needed without AOT |
+| Extensions | Loaded at runtime from global and project folders | Pi-style extensibility |
+
+**Resolved after review**
+
+- [x] **Name.** Decided: Lunate as product and command name (renamed from Sigma on 2026-10-04, before first release). The name is the lunate sigma (Ϲ) — the ancient crescent-shaped sigma that reads like a Latin "C": it stays in the Greek-letter family of Pi and Tau, keeps the sigma idea, and points directly at C#. NuGet `lunate` is free, Homebrew core is free, the GitHub repo is `lunate-agent/lunate`; winget to check before release.
+- [x] **Own provider types or `IChatClient` all the way?** Revised: `IChatClient` all the way; own types only for tools and events (reasons in Layer 1).
+- [x] **Shells.** Decided: broad support like Pi. Detection per platform (bash on Unix; Git Bash, pwsh, Windows PowerShell, cmd on Windows) and a terminal matrix; see Platforms, shells and terminals.
+- [x] **Default model for dogfooding and the eval baseline.** Decided: a cloud model, with the exact model id pinned in every eval row (T-17).
+- [ ] **Own loop or MAF Harness.** Decided by spike S-1 in T-03; default is our own loop on `IChatClient`.

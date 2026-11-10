@@ -7,7 +7,7 @@ public sealed class AcpApproverTests
 {
     /// <summary>
     /// Only a read-only call runs without the editor's permission request. A write is a change to
-    /// the user's files, and an editor's request is never auto-approved (docs/guide.md, "Security
+    /// the user's files, and an editor's request is never auto-approved (docs/dev/guide.md, "Security
     /// and safety"), whatever the configured policy allows in print mode.
     /// </summary>
     [Theory]

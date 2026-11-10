@@ -182,7 +182,7 @@ Three targets, each built and verified in CI on every commit, plus a performance
 
 Terminals: Windows Terminal, conhost, VS Code's integrated terminal, Git Bash, macOS Terminal.app,
 iTerm2, Ghostty, WezTerm, Kitty, Alacritty, the common Linux terminals, and tmux/screen over SSH —
-the full matrix is in the [guide](docs/guide.md); pipes, CI and `TERM=dumb` are print mode.
+the full matrix is in the [guide](docs/dev/guide.md); pipes, CI and `TERM=dumb` are print mode.
 
 ## Acknowledgements
 

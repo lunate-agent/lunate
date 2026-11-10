@@ -1,9 +1,9 @@
 # Lunate — rules for coding agents
 
-Lunate is a native C# coding agent for the terminal. Background: `docs/guide.md`.
+Lunate is a native C# coding agent for the terminal. Background: `docs/dev/guide.md`.
 This repo is developed with OpenCode and OpenSpec (schema: `intent-driven`).
 
-- Documentation map and writing guideline: `docs/README.md`. Start there when adding, moving or looking for documentation.
+- Documentation map and writing guideline: `docs/dev/README.md`. Start there when adding, moving or looking for documentation.
 
 ## Workflow (OpenSpec)
 

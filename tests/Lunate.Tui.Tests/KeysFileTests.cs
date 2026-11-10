@@ -4,7 +4,7 @@ namespace Lunate.Tui.Tests;
 
 /// <summary>
 /// <c>keys.json</c> is loaded at run time, so its shape is the contract: it is the only place a
-/// key's meaning is written down, and <c>docs/guide.md</c>'s table is generated from its
+/// key's meaning is written down, and <c>docs/dev/guide.md</c>'s table is generated from its
 /// <c>guideRows</c> by <c>scripts/docs-sync</c>. These tests hold the file together on its own terms
 /// — every binding well formed and documented once, every guide row's key cell the rendering of the
 /// bindings it names, and every row that documents a key nothing routes stating why. The document's

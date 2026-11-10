@@ -14,7 +14,7 @@
 #   3. a File/Directory call on the same line as a docs path, root or no root.
 #
 # The allowances are the test files named in ALLOWED_DOCS_READERS below, each with the read it
-# owns: GuideKeyTableTests (issue #267) checks docs/guide.md's key cells against Lunate.Tui's
+# owns: GuideKeyTableTests (issue #267) checks docs/dev/guide.md's key cells against Lunate.Tui's
 # KeyBindingCatalog, and DocsConfigExamplesTests loads every fenced settings/providers/auth example
 # through the store that reads the real file, so a documented example cannot rot. Name the test
 # here and print the allowance -- never quietly bypass the shape checks above.
@@ -38,7 +38,7 @@ FILESYSTEM_CALL='(File|Directory)\.[A-Za-z]+\([^;]*"docs[/"\\]'
 
 # The tests allowed to read the docs tree, repository-relative. Issue #267's card asks the
 # guide's key table to be checked against the key binding catalog; that check reads
-# docs/guide.md and is the guide's page-level guard inside `dotnet test`, where the docs-sync
+# docs/dev/guide.md and is the guide's page-level guard inside `dotnet test`, where the docs-sync
 # region check does not run (it is a docs-profile step, not a full-matrix one).
 ALLOWED_DOCS_READERS=(
   tests/Lunate.Tui.Tests/GuideKeyTableTests.cs

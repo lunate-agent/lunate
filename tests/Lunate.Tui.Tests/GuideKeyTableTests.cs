@@ -5,7 +5,7 @@ namespace Lunate.Tui.Tests;
 /// <c>keys.json</c>'s <c>guideRows</c>, whose rows are pinned to the catalog by
 /// <see cref="KeysFileTests"/>. This file closes the side nothing else guards in a test run: the
 /// docs-sync region check runs only in the docs profile, so a keys.json change that forgets to
-/// regenerate <c>docs/guide.md</c> is noticed on CI only by a docs-only pull request. Here the
+/// regenerate <c>docs/dev/guide.md</c> is noticed on CI only by a docs-only pull request. Here the
 /// page's key cells are checked against <see cref="KeyBindingCatalog"/> itself, so a binding can
 /// neither lose its doc row nor be shadowed by a hand edit of the region.
 /// </summary>
@@ -48,7 +48,7 @@ public sealed class GuideKeyTableTests
             string spelled = KeyPatternFormatter.Describe(binding.Key);
             Assert.True(
                 PageKeys.Contains(spelled, StringComparer.Ordinal),
-                $"KeyBindingCatalog's '{spelled}' ({binding.Description}) has no docs/guide.md row; "
+                $"KeyBindingCatalog's '{spelled}' ({binding.Description}) has no docs/dev/guide.md row; "
                     + "add it to keys.json's guideRows and run scripts/docs-sync"
             );
         }
@@ -79,7 +79,7 @@ public sealed class GuideKeyTableTests
                 );
                 Assert.True(
                     ExemptUnboundKeys.Contains(key, StringComparer.Ordinal),
-                    $"docs/guide.md documents '{key}' and no catalog row has it "
+                    $"docs/dev/guide.md documents '{key}' and no catalog row has it "
                         + $"(row: '{row.KeyCell}' — {row.ActionCell}); if it is meant to route, add it "
                         + "to keys.json and run scripts/docs-sync, otherwise remove the row"
                 );
@@ -94,7 +94,7 @@ public sealed class GuideKeyTableTests
     /// </summary>
     private static GuideRow[] GuideKeyTableRows()
     {
-        string page = File.ReadAllText(Path.Combine(TestPaths.RepositoryRoot, "docs", "guide.md"));
+        string page = File.ReadAllText(Path.Combine(TestPaths.RepositoryRoot, "docs", "dev", "guide.md"));
         string[] lines = page.Split('\n');
         // The heading is part of the requirement, not decoration: a table moved under another heading is
         // no longer the guide's key table, and a check that never looks for it passes on a page that lost
@@ -109,7 +109,7 @@ public sealed class GuideKeyTableTests
         ];
         Assert.True(
             headings.Length == 1,
-            $"docs/guide.md must carry exactly one '{GuideHeading}' heading (found {headings.Length}); "
+            $"docs/dev/guide.md must carry exactly one '{GuideHeading}' heading (found {headings.Length}); "
                 + "it is what makes the table below it the key table and not a table"
         );
         int[] starts =
@@ -130,7 +130,7 @@ public sealed class GuideKeyTableTests
         ];
         Assert.True(
             starts.Length == 1 && ends.Length == 1 && starts[0] < ends[0],
-            $"docs/guide.md must carry exactly one '<!-- keys:start -->' above exactly one "
+            $"docs/dev/guide.md must carry exactly one '<!-- keys:start -->' above exactly one "
                 + $"'<!-- keys:end -->' (found {starts.Length} and {ends.Length}); the markers say "
                 + "where the generated key table goes"
         );
