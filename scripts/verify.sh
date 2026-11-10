@@ -268,6 +268,7 @@ docs_profile() {
   fi
 
   step "generated docs regions"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_published_release.py"
   python3 "${SCRIPT_DIR}/docs-sync" --check
 
   step "ADR numbering"
@@ -338,7 +339,9 @@ platform_checks() {
   # Channel manifests carry the release archives' SHA-256 values, which exist only after
   # the tag. They legitimately stay at the previous stable release on a release pull
   # request; the post-tag channel PR moves them to the new release. The guard below
-  # compares them with the newest stable tag and that release's SHA256SUMS.
+  # compares them with the newest *published* stable release and that release's
+  # SHA256SUMS -- a tag whose release never attached assets is skipped, the same
+  # definition docs-sync uses.
   for packaging_file in \
     packaging/homebrew/lunate.rb \
     packaging/scoop/lunate.json \
@@ -352,6 +355,7 @@ platform_checks() {
   done
 
   step "channel manifest guard self-test"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_published_release.py"
   python3 "${SCRIPT_DIR}/check-channel-manifests.py" --self-test
 
   step "channel manifests"
