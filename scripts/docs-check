@@ -46,7 +46,6 @@ MAINTAINER_FILES = {"README.md", "architecture.md", "distribution.md", "guide.md
 MAINTAINER_PREFIXES = ("spec/", "media/", "dev/")
 SETTINGS_SCHEMA = Path("src/Lunate.Coding/settings-schema.json")
 CONFIG_KINDS = ("settings", "mcp", "providers", "extension", "auth")
-RUN_KINDS = ("offline", "help", "no")
 
 FENCE_OPEN = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})([^\n]*)$")
 LINK = re.compile(
@@ -489,7 +488,6 @@ def check(root, manifest=None):
             problems.append(f"docs/docs.json: navigation path appears more than once: {path}")
         navigation_paths.append(path)
 
-    redirect_entries = []
     redirect_from = set()
     for index, entry in enumerate(redirects):
         label = f"docs/docs.json: redirects[{index}]"
@@ -504,7 +502,6 @@ def check(root, manifest=None):
         if source in redirect_from:
             problems.append(f"{label}: from appears more than once: {source}")
         redirect_from.add(source)
-        redirect_entries.append((source, target))
         target_file = root / "docs" / target
         if not target_file.is_file():
             problems.append(f"{label}: target does not exist: {target}")
@@ -806,6 +803,18 @@ def self_test():
         ),
         True,
         "not valid JSON",
+    )
+    expect(
+        "settings key the store refuses",
+        changed(
+            base(),
+            **{
+                "docs/start.md": "# Start\n\n<!-- config: settings -->\n```json\n"
+                '{"schemaVersion": 2, "notASetting": true}\n```\n'
+            },
+        ),
+        True,
+        "store refuses",
     )
     expect(
         "run marker without a reason",
