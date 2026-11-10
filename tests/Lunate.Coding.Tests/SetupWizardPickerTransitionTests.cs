@@ -16,10 +16,12 @@ public sealed class SetupWizardPickerTransitionTests
     private const string Credential = "picker-transition-test-key-please-never-echo";
 
     /// <summary>
-    /// The walk opens the next step's picker on another thread while the pump dismisses the
-    /// previous one. Before the fix the dismissal cleared the new picker's state mid-open (or
-    /// nulled the picker after it was installed and posted no picker last): the next frame never
-    /// appeared and the walk awaited a pick forever, which is issue #730.
+    /// The walk opens the next step's picker while the pump dismisses the previous one. Before the
+    /// fix the dismissal cleared the new picker's state mid-open (or nulled the picker after it was
+    /// installed and posted no picker last): the next frame never appeared and the walk awaited a
+    /// pick forever, which is issue #730. Open and dismiss are now ordered messages to one owner,
+    /// so the next picker can be installed only after the previous dismissal was applied — the
+    /// flow needs no held thread or sleep to be correct.
     /// </summary>
     [PosixFact]
     public async Task A_dismissal_in_flight_does_not_clear_the_picker_the_walk_is_opening()
@@ -52,31 +54,10 @@ public sealed class SetupWizardPickerTransitionTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Credential placement");
 
-        var dismissal = new TaskCompletionSource(
-            TaskCreationOptions.RunContinuationsAsynchronously
-        );
-        var paused = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var release = new ManualResetEventSlim(initialState: false);
-        host.Session.PickerDismissalSeam = () => dismissal.Task; // holds the pump after the pick
-        var entered = 0;
-        host.Session.PickerOpenSeam = () =>
-        {
-            if (Interlocked.Exchange(ref entered, 1) != 0)
-            {
-                return; // only the picker the walk opens next
-            }
-
-            paused.TrySetResult();
-            release.Wait(WaitBudgets.InProcess);
-        };
-
         host.Console.SendEnter(); // confirm the placement pick; the walk now opens "Credential for local"
-        await paused.Task.WaitAsync(WaitBudgets.InProcess); // the walk is mid-open
-        dismissal.TrySetResult(); // the pump's dismissal now runs against its old picker
-        await Task.Delay(200); // let it reach the clear (pre-fix) before the walk continues
-        release.Set();
-
         await host.WaitForFrameAsync("Credential for local");
+        Assert.Contains("Credential for local", host.LastFrame, StringComparison.Ordinal);
+
         host.Console.SendEnter();
         // The scripted prompt answers the masked key read without painting a frame, so the walk's
         // next painted step is the connection test picker.

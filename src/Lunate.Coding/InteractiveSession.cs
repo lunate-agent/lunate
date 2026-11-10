@@ -251,20 +251,11 @@ internal sealed partial class InteractiveSession : IDisposable
     private int _trustTotal;
 
     /// <summary>
-    /// Guards the picker transition: the key pump dismisses the picker it confirmed while the
-    /// wizard walk's continuation opens the next step's picker on another thread. Every
-    /// <c>_picker*</c> write and the matching live-area post happen inside it, so a dismissal
-    /// can never clear or replace a picker another thread is installing (#730).
+    /// The one owner of the picker lifecycle (#735): open, dismiss, complete and every navigation
+    /// are messages to this owner, which is the only writer of the picker state and the only
+    /// poster of <c>SetPicker(...)</c>. Transitions are ordered by its channel, not by a lock.
     /// </summary>
-    private readonly Lock _pickerGate = new();
-
-    private SelectListModel? _picker;
-    private PickerKind _pickerKind;
-    private List<string> _pickerLabels = [];
-    private List<string> _pickerValues = [];
-    private List<string> _pickerVisibleValues = [];
-    private string _pickerTitlePrefix = string.Empty;
-    private string _pickerFilter = string.Empty;
+    private readonly PickerOwner _pickerOwner;
     private FileIndex? _fileIndex;
     private string _tail = string.Empty;
     private string _thinking = string.Empty;
@@ -345,6 +336,7 @@ internal sealed partial class InteractiveSession : IDisposable
         _exitWindow = QuitWindow.ForExit(options.Scheduler);
         _interaction = new TuiUserInteraction(_live);
         _secretPrompt = options.SecretPrompt ?? new TuiSecretPrompt(_live);
+        _pickerOwner = new PickerOwner(() => _modelId, _live.SetPicker);
     }
 
     /// <summary>Runs the input loop until the terminal's key stream ends or the quit window quits.</summary>
@@ -398,7 +390,7 @@ internal sealed partial class InteractiveSession : IDisposable
                 // finished: the listing needs the session directory and the live area is ready.
                 if (_options.StartWithPicker || _options.Launch.Resume)
                 {
-                    OpenSessionPicker();
+                    await OpenSessionPicker().ConfigureAwait(false);
                 }
                 else if (_options.SetupOnStart)
                 {
@@ -418,7 +410,7 @@ internal sealed partial class InteractiveSession : IDisposable
                     // One offer per session start: composition is done and the live area accepts
                     // picker keys. Esc dismisses it and the ordinary path (a run reports the
                     // missing credential) takes over; nothing reopens it.
-                    OpenAuthPicker();
+                    await OpenAuthPicker().ConfigureAwait(false);
                 }
                 // Background remote extensions start only now, after the UI is ready; the startup
                 // path and its budget never touch them.
@@ -508,6 +500,7 @@ internal sealed partial class InteractiveSession : IDisposable
                 // The full-screen mode's screen goes back after the viewer's, so the pairing
                 // stays one enter for one leave on every terminal.
                 LeaveFullScreen();
+                await _pickerOwner.StopAsync().ConfigureAwait(false);
                 _live.Dispose();
             }
         }
@@ -523,6 +516,7 @@ internal sealed partial class InteractiveSession : IDisposable
         _disposed = true;
         _lifetime.Cancel();
         _lifetime.Dispose();
+        _ = _pickerOwner.StopAsync();
     }
 
     /// <summary>
@@ -1408,7 +1402,7 @@ internal sealed partial class InteractiveSession : IDisposable
             return;
         }
 
-        if (_picker is not null)
+        if (_pickerOwner.Snapshot.IsOpen)
         {
             await HandlePickerKey(key, ct);
             return;
@@ -1523,7 +1517,7 @@ internal sealed partial class InteractiveSession : IDisposable
                 NavigateNext();
                 break;
             case RoutedKey.ModelPicker:
-                OpenModelPicker();
+                await OpenModelPicker().ConfigureAwait(false);
                 break;
             case RoutedKey.TranscriptViewer:
                 OpenViewer();

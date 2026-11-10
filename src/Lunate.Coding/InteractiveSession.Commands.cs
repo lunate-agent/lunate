@@ -10,17 +10,6 @@ namespace Lunate.Coding;
 
 internal sealed partial class InteractiveSession
 {
-    private enum PickerKind
-    {
-        Model,
-        Session,
-        AuthProvider,
-        AuthVerify,
-        WizardProvider,
-        WizardChoice,
-        WizardModel,
-    }
-
     /// <summary>The cap on <c>/compact</c> focus instructions; a longer argument is refused.</summary>
     private const int CompactInstructionsLimit = 1000;
 
@@ -767,7 +756,7 @@ internal sealed partial class InteractiveSession
     /// is an extension-registered or virtual model — not in the catalog — the title's
     /// current-model line shows its last routed resolution (<c>auto → deep</c>).
     /// </summary>
-    private void OpenModelPicker()
+    private async ValueTask OpenModelPicker()
     {
         if (RefusedWhileBusy())
         {
@@ -833,13 +822,14 @@ internal sealed partial class InteractiveSession
             current = values.IndexOf(_modelId);
         }
 
-        OpenPicker(PickerKind.Model, title, labels, values, current < 0 ? 0 : current);
+        await OpenPicker(PickerKind.Model, title, labels, values, current < 0 ? 0 : current)
+            .ConfigureAwait(false);
     }
 
     private static string Label(ModelInfo model) => $"{model.Id} ({model.Provider})";
 
     /// <summary>Opens the session picker: the directory listing, newest first, the current one selected.</summary>
-    private void OpenSessionPicker()
+    private async ValueTask OpenSessionPicker()
     {
         List<string> labels = [];
         List<string> values = [];
@@ -857,99 +847,18 @@ internal sealed partial class InteractiveSession
             }
         }
 
-        OpenPicker(PickerKind.Session, "Select session", labels, values, current);
+        await OpenPicker(PickerKind.Session, "Select session", labels, values, current)
+            .ConfigureAwait(false);
     }
 
-    private void OpenPicker(
+    private ValueTask OpenPicker(
         PickerKind kind,
         string titlePrefix,
         List<string> labels,
         List<string> values,
-        int selected
-    )
-    {
-        lock (_pickerGate)
-        {
-            _pickerKind = kind;
-            _pickerTitlePrefix = titlePrefix;
-            _pickerLabels = labels;
-            _pickerValues = values;
-            _pickerFilter = string.Empty;
-            PickerOpenSeam?.Invoke();
-            ShowPicker(keepValue: null, fallback: selected);
-        }
-    }
-
-    /// <summary>
-    /// Rebuilds the visible rows from the full list and the filter, keeping
-    /// <paramref name="keepValue"/> selected when it still matches and falling back to
-    /// <paramref name="fallback"/> otherwise; the session picker never filters.
-    /// </summary>
-    private void ShowPicker(string? keepValue, int fallback)
-    {
-        lock (_pickerGate)
-        {
-            List<string> labels = [];
-            List<string> values = [];
-            for (var index = 0; index < _pickerLabels.Count; index++)
-            {
-                if (!PickerMatches(_pickerLabels[index]))
-                {
-                    continue;
-                }
-
-                labels.Add(PickerLabel(index));
-                values.Add(_pickerValues[index]);
-            }
-
-            _pickerVisibleValues = values;
-            int selected = keepValue is null ? fallback : values.IndexOf(keepValue);
-            if (selected < 0)
-            {
-                selected = fallback;
-            }
-
-            selected = Math.Clamp(selected, 0, Math.Max(labels.Count - 1, 0));
-            SetPicker(new SelectListModel(PickerTitle(selected, labels.Count), labels, selected));
-        }
-    }
-
-    /// <summary>Whether the open picker filters as text is typed (the model and wizard pickers).</summary>
-    private bool PickerFiltersOn() =>
-        _pickerKind
-            is PickerKind.Model
-                or PickerKind.WizardModel
-                or PickerKind.WizardProvider
-                or PickerKind.WizardChoice;
-
-    private bool PickerMatches(string label) =>
-        !PickerFiltersOn()
-        || _pickerFilter.Length == 0
-        || label.Contains(_pickerFilter, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>The row label; the active model keeps its <c>* </c> marker.</summary>
-    private string PickerLabel(int index) =>
-        _pickerKind is PickerKind.Model
-        && string.Equals(_pickerValues[index], _modelId, StringComparison.Ordinal)
-            ? "* " + _pickerLabels[index]
-            : _pickerLabels[index];
-
-    /// <summary>
-    /// The title. The session picker keeps its plain title; the model picker appends the
-    /// invariant position and visible count and, while filtering, the filter text.
-    /// </summary>
-    private string PickerTitle(int selected, int count)
-    {
-        if (_pickerKind is not PickerKind.Model)
-        {
-            return _pickerTitlePrefix;
-        }
-
-        string position =
-            count == 0 ? "0 of 0" : FormattableString.Invariant($"{selected + 1} of {count}");
-        string title = _pickerTitlePrefix + " — " + position;
-        return _pickerFilter.Length == 0 ? title : title + " — filter: " + _pickerFilter;
-    }
+        int selected,
+        TaskCompletionSource<string?>? pick = null
+    ) => _pickerOwner.OpenAsync(kind, titlePrefix, labels, values, selected, pick);
 
     /// <summary>
     /// Picker keys are intercepted first: Up/Down move clamped, Enter confirms a selected value,
@@ -959,184 +868,94 @@ internal sealed partial class InteractiveSession
     /// </summary>
     private async ValueTask HandlePickerKey(KeyEvent key, CancellationToken ct)
     {
+        PickerSnapshot snapshot = _pickerOwner.Snapshot;
+        if (snapshot.Picker is not { } picker)
+        {
+            return;
+        }
+
         bool plain = !key.Ctrl && !key.Alt;
         switch (key.Kind)
         {
             case KeyKind.Up when plain:
-                MovePicker(-1);
+                await _pickerOwner.MoveAsync(picker, -1).ConfigureAwait(false);
                 break;
             case KeyKind.Down when plain:
-                MovePicker(1);
+                await _pickerOwner.MoveAsync(picker, 1).ConfigureAwait(false);
                 break;
             case KeyKind.Enter when plain:
-                await ConfirmPicker(ct).ConfigureAwait(false);
+                await ConfirmPicker(picker, ct).ConfigureAwait(false);
                 break;
             case KeyKind.Escape:
-                if (PickerFiltersOn() && _pickerFilter.Length > 0)
+                if (snapshot.FiltersOn && snapshot.Filter.Length > 0)
                 {
-                    _pickerFilter = string.Empty;
-                    ShowPicker(SelectedPickerValue(), fallback: 0);
+                    await _pickerOwner.ClearFilterAsync(picker).ConfigureAwait(false);
                     break;
                 }
 
                 // A wizard picker dismissed with Esc is the walk leaving the wizard: nothing is
-                // written. Capture the pick first: a stale dismissal must cancel the pick it
-                // dismissed, not one a continuation opened for the next step.
-                SelectListModel dismissing = _picker!;
-                TaskCompletionSource<string?>? dismissed = _wizardPick;
-                if (PickerDismissalSeam is { } escapeSeam)
-                {
-                    await escapeSeam().ConfigureAwait(false);
-                }
-
-                DismissPicker(dismissing);
-                if (dismissed is { Task.IsCompleted: false } pick)
-                {
-                    pick.TrySetResult(null);
-                }
-
+                // written. The dismissal is a message aimed at this picker, so it can never
+                // cancel the pick a continuation opened for the next step.
+                await _pickerOwner.DismissAsync(picker).ConfigureAwait(false);
                 break;
             case KeyKind.Character when plain && key.Text is { Length: > 0 } text:
-                if (PickerFiltersOn())
+                if (snapshot.FiltersOn)
                 {
-                    AppendPickerFilter(text);
+                    await _pickerOwner.AppendFilterAsync(picker, text).ConfigureAwait(false);
                 }
                 else if (text == "j")
                 {
-                    MovePicker(1);
+                    await _pickerOwner.MoveAsync(picker, 1).ConfigureAwait(false);
                 }
                 else if (text == "k")
                 {
-                    MovePicker(-1);
+                    await _pickerOwner.MoveAsync(picker, -1).ConfigureAwait(false);
                 }
 
                 break;
             case KeyKind.Space when plain:
-                AppendPickerFilter(key.Text ?? " ");
+                await _pickerOwner.AppendFilterAsync(picker, key.Text ?? " ").ConfigureAwait(false);
                 break;
             case KeyKind.Backspace when plain:
-                BackspacePickerFilter();
+                await _pickerOwner.BackspaceFilterAsync(picker).ConfigureAwait(false);
                 break;
         }
     }
 
-    private void AppendPickerFilter(string text)
+    private async ValueTask ConfirmPicker(SelectListModel picker, CancellationToken ct)
     {
-        if (!PickerFiltersOn())
-        {
-            return;
-        }
-
-        _pickerFilter += text;
-        ShowPicker(SelectedPickerValue(), fallback: 0);
-    }
-
-    private void BackspacePickerFilter()
-    {
-        if (_pickerKind is not PickerKind.Model || _pickerFilter.Length == 0)
-        {
-            return;
-        }
-
-        _pickerFilter = _pickerFilter[..^1];
-        ShowPicker(SelectedPickerValue(), fallback: 0);
-    }
-
-    private void MovePicker(int delta)
-    {
-        SelectListModel moved = _picker!.Move(delta);
-        SetPicker(moved with { Title = PickerTitle(moved.Selected, moved.Items.Count) });
-    }
-
-    private string? SelectedPickerValue() =>
-        _picker is { Selected: >= 0 } picker && picker.Selected < _pickerVisibleValues.Count
-            ? _pickerVisibleValues[picker.Selected]
-            : null;
-
-    private void SetPicker(SelectListModel picker)
-    {
-        lock (_pickerGate)
-        {
-            _picker = picker;
-            _live.SetPicker(picker);
-        }
-    }
-
-    /// <summary>
-    /// Clears <paramref name="picker"/> when it is still the open one. It is not when a completed
-    /// wizard pick's continuation ran off-thread and opened the next step's picker; that newer
-    /// picker is the walk's, so this dismissal must leave it (and its pending pick) alone. The
-    /// caller completes the pick it dismissed, never whichever pick is current when this returns.
-    /// </summary>
-    private void DismissPicker(SelectListModel picker)
-    {
-        lock (_pickerGate)
-        {
-            if (!ReferenceEquals(_picker, picker))
-            {
-                return;
-            }
-
-            _picker = null;
-            _pickerTitlePrefix = string.Empty;
-            _pickerLabels = [];
-            _pickerValues = [];
-            _pickerVisibleValues = [];
-            _pickerFilter = string.Empty;
-            _live.SetPicker(null);
-        }
-    }
-
-    private async ValueTask ConfirmPicker(CancellationToken ct)
-    {
-        SelectListModel picker = _picker!;
-        PickerKind kind = _pickerKind;
-        string? value =
-            picker.Selected >= 0 && picker.Selected < _pickerVisibleValues.Count
-                ? _pickerVisibleValues[picker.Selected]
-                : null;
-        if (value is null)
+        // The owner completes the pick and dismisses the picker as one message, so the wizard's
+        // continuation can only open the next picker after this one is gone.
+        PickerConfirmation? confirmed = await _pickerOwner
+            .ConfirmAsync(picker)
+            .ConfigureAwait(false);
+        if (confirmed is not { } confirmation)
         {
             // An empty match has nothing to confirm: Enter is a no-op and the picker stays open.
             return;
         }
 
-        // The pick completes before the dismissal clears the picker, so the next key cannot be read
-        // between the two. Its continuation runs off-thread and may open the next step's picker
-        // before the dismissal runs; the identity check in the dismissal leaves that one alone.
-        TaskCompletionSource<string?>? pick = _wizardPick;
-        if (kind is PickerKind.WizardProvider or PickerKind.WizardChoice or PickerKind.WizardModel)
-        {
-            pick?.TrySetResult(value);
-        }
-
-        if (PickerDismissalSeam is { } seam)
-        {
-            await seam().ConfigureAwait(false);
-        }
-
-        DismissPicker(picker);
-        switch (kind)
+        switch (confirmation.Kind)
         {
             case PickerKind.Model:
-                await SwitchModel(value, ct).ConfigureAwait(false);
+                await SwitchModel(confirmation.Value, ct).ConfigureAwait(false);
                 break;
             case PickerKind.Session:
-                ResumeSession(value);
+                ResumeSession(confirmation.Value);
                 break;
             case PickerKind.AuthProvider:
-                if (value == AuthCustomValue)
+                if (confirmation.Value == AuthCustomValue)
                 {
                     BeginCustomLogin(ct);
                 }
-                else if (ProviderPresets.Find(value) is { } preset)
+                else if (ProviderPresets.Find(confirmation.Value) is { } preset)
                 {
                     await BeginPresetLogin(preset, ct).ConfigureAwait(false);
                 }
 
                 break;
             case PickerKind.AuthVerify:
-                if (value == "yes")
+                if (confirmation.Value == "yes")
                 {
                     StartVerification(ct);
                 }
