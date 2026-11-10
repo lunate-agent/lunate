@@ -22,7 +22,7 @@ the extension secrets and the `env` values the configured entries set are remove
 environment (the variables are gone, not emptied), unless the server's own `env` map names the
 variable explicitly; `${VAR}` in a declared value still resolves from Lunate's environment.
 
-## Serve Lunate's own tools instead
+## Serve Lunate's own tools
 
 Lunate can also be the server: `lunate mcp roslyn` serves the five read-only `cs_*` C# tools over
 stdio to another MCP host, with no approvals or write path behind them.

@@ -10,13 +10,11 @@ Every `AGENTS.md` from the repository root down to the directory you started Lun
 to the system prompt under its relative path — the nearest file adds to the chain rather than
 replacing it. There is no Lunate-specific instructions file.
 
-`AGENTS.md` is the rule file any coding agent can read, so the rules stay with the repository
-instead of with one harness.
-
 ## Know what the model receives
 
-The files' content is appended at runtime beside the OS, shell, working directory and date. Project
-rules come from `AGENTS.md`, not from the harness.
+Their content is appended at runtime beside the OS, shell, working directory and date. Project
+rules come from `AGENTS.md`, not from the harness, so the same file serves any coding agent that
+reads the repository.
 
 ## Related
 
