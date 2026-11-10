@@ -200,11 +200,21 @@ public sealed class InteractiveSessionEditorTests
         await run;
     }
 
-    [Fact]
-    public async Task The_editor_command_round_trips_through_the_same_path()
+    // The wait helper advances the host's fake clock, so this is the end-to-end guard that its
+    // outcome does not depend on how often the wall clock lets it poll (#710): the same round trip
+    // must pass at the 1 ms tick, at a 100 ms one, and at a 500 ms slow-runner simulation.
+    [Theory]
+    [InlineData(1)]
+    [InlineData(100)]
+    [InlineData(500)]
+    public async Task The_editor_command_round_trips_through_the_same_path(
+        int pollIntervalMilliseconds
+    )
     {
         using var editor = new ScriptedEditor();
-        using var host = editor.Host();
+        using var host = editor.Host(
+            pollInterval: TimeSpan.FromMilliseconds(pollIntervalMilliseconds)
+        );
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
@@ -300,7 +310,7 @@ public sealed class InteractiveSessionEditorTests
 
         public string DraftDirectory { get; }
 
-        public InteractiveSessionHost Host() =>
+        public InteractiveSessionHost Host(TimeSpan? pollInterval = null) =>
             new(
                 environment: name =>
                     string.Equals(name, "VISUAL", StringComparison.Ordinal) ? Visual
@@ -311,7 +321,8 @@ public sealed class InteractiveSessionEditorTests
                     // because it names /bin/sh by absolute path).
                     : name is "PATH" or "PATHEXT" ? System.Environment.GetEnvironmentVariable(name)
                     : PrintModeTestSupport.Environment()(name),
-                editorTempDirectory: DraftDirectory
+                editorTempDirectory: DraftDirectory,
+                pollInterval: pollInterval
             );
 
         public string RecordedDraftPath() =>
