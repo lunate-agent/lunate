@@ -173,7 +173,7 @@ public sealed class SetupCommandWizardTests
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         await host.WaitForFrameAsync("> Change the chat profile");
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("Profile to use for chat");
+        await host.WaitForFrameAsync("Chat usage (profile or provider/model)");
         host.Console.SendUp();
         await host.WaitForFrameAsync("> chat-main");
         host.Console.SendEnter();

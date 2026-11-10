@@ -252,7 +252,7 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         await host.WaitForFrameAsync("> Change the chat profile");
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("Profile to use for chat");
+        await host.WaitForFrameAsync("Chat usage (profile or provider/model)");
         Assert.Contains("> chat-main (current)", host.LastFrame, StringComparison.Ordinal);
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         host.Console.SendEnter(); // chat-alt
@@ -292,6 +292,61 @@ public sealed class SetupWizardEntryMenuTests
         Assert.Equal(auth, AuthSnapshot(host));
     }
 
+    /// <summary>#694: on a configured install with two providers, "change the chat profile" lists
+    /// the other provider's model as <c>provider/model</c> and one walk moves the profile and the
+    /// usage to it — no provider or credential entry is touched.</summary>
+    [PosixFact]
+    public async Task Change_the_chat_profile_moves_it_to_another_configured_provider()
+    {
+        using var host = ConfiguredHostWithTwoProviders();
+        byte[] settings = File.ReadAllBytes(SettingsPath(host));
+        byte[] providers = File.ReadAllBytes(ProviderPath(host));
+        byte[]? auth = AuthSnapshot(host);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        host.Console.SendText("/setup");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Setup — what do you want to configure?");
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
+        await host.WaitForFrameAsync("> Change the chat profile");
+        host.Console.SendEnter();
+
+        await host.WaitForFrameAsync("Chat usage (profile or provider/model)");
+        host.Console.SendText("claude-sonnet-5-5");
+        await host.WaitForFrameAsync("> anthropic/claude-sonnet-5-5");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Thinking level for claude-sonnet-5-5");
+        host.Console.SendEnter(); // low
+
+        string summary = await host.WaitForScrollbackAsync("confirm these values");
+        Assert.Contains("chat profile: chat-main", summary, StringComparison.Ordinal);
+        await host.WaitForFrameAsync("Write this configuration?");
+        host.Console.SendEnter();
+        await host.WaitForNoticeAsync(SetupWrittenNotice);
+
+        host.Console.Complete();
+        await run;
+        await host.WaitUntilAsync(() =>
+            File.ReadAllText(SettingsPath(host))
+                .Contains("claude-sonnet-5-5", StringComparison.Ordinal)
+        );
+
+        using JsonDocument store = JsonDocument.Parse(File.ReadAllText(SettingsPath(host)));
+        JsonElement profile = store.RootElement.GetProperty("profiles").GetProperty("chat-main");
+        Assert.Equal("anthropic", profile.GetProperty("provider").GetString());
+        Assert.Equal("claude-sonnet-5-5", profile.GetProperty("model").GetString());
+        Assert.Equal("low", profile.GetProperty("reasoningLevel").GetString());
+        Assert.Equal(
+            "chat-main",
+            store.RootElement.GetProperty("usages").GetProperty("chat").GetString()
+        );
+        Assert.NotEqual(settings, File.ReadAllBytes(SettingsPath(host)));
+        Assert.Equal(providers, File.ReadAllBytes(ProviderPath(host)));
+        Assert.Equal(auth, AuthSnapshot(host));
+    }
+
     [PosixFact]
     public async Task Change_the_chat_profile_refuses_a_systemone_profile_with_the_startup_words()
     {
@@ -309,7 +364,7 @@ public sealed class SetupWizardEntryMenuTests
             "Setup — what do you want to configure?",
             "Change the chat profile"
         );
-        await host.WaitForFrameAsync("Profile to use for chat");
+        await host.WaitForFrameAsync("Chat usage (profile or provider/model)");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         await host.WaitForFrameAsync("> decisions");
         host.Advance(500);
@@ -346,7 +401,7 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         await host.WaitForFrameAsync("> Change the chat profile");
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("Profile to use for chat");
+        await host.WaitForFrameAsync("Chat usage (profile or provider/model)");
         host.Console.SendEnter(); // the current profile: no change
         await host.WaitForFrameAsync("setup cancelled — nothing was changed");
 
@@ -594,6 +649,44 @@ public sealed class SetupWizardEntryMenuTests
             }
             """
         );
+        return host;
+    }
+
+    private static InteractiveSessionHost ConfiguredHostWithTwoProviders()
+    {
+        var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            freshInstall: true,
+            discoveryTransport: new RecordingHandler((_, _) => Task.FromResult(Response(401, "{}")))
+        );
+        Assert.True(
+            ProviderEntry.TryCreate(
+                "openai",
+                "openai",
+                new Uri("https://provider.example.test/v1"),
+                "auth:openai",
+                headers: null,
+                region: null,
+                out ProviderEntry? openai,
+                out string? openaiError
+            ),
+            openaiError
+        );
+        Assert.True(
+            ProviderEntry.TryCreate(
+                "anthropic",
+                "anthropic",
+                new Uri("https://anthropic.example.test/v1"),
+                "auth:anthropic",
+                headers: null,
+                region: null,
+                out ProviderEntry? anthropic,
+                out string? anthropicError
+            ),
+            anthropicError
+        );
+        ProviderStore.Save(ProviderPath(host), [openai!, anthropic!]);
+        File.WriteAllText(SettingsPath(host), SoleSettings);
         return host;
     }
 

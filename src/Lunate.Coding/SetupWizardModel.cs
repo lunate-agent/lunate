@@ -87,7 +87,13 @@ internal sealed record WizardModelChoice(
 /// restricted to the levels the chosen model declares (null where the model has none, or when the
 /// question was skipped).
 /// </summary>
-internal sealed record WizardProfileChoice(string Name, string ModelId, string? ReasoningLevel);
+internal sealed record WizardProfileChoice(
+    string Name,
+    string ModelId,
+    string? ReasoningLevel,
+    string? ProviderId = null,
+    string? ApiFamily = null
+);
 
 /// <summary>
 /// A model the fast and decision steps can offer: the provider answer that owns it, the entry the
@@ -431,9 +437,10 @@ internal sealed partial class SetupWizardModel
     public void RecordChatProfile(WizardProfileChoice choice)
     {
         ChatProfile = choice;
-        // The full walk (and the flag path) binds the chat usage; an "add a profile" entry adds
-        // the profile only — the chat usage switch is the entry menu's own answer.
-        BindChatUsage = Entry is WizardEntry.WalkEverything;
+        // The full walk (and the flag path) binds the chat usage, and "change the chat profile"
+        // binds the profile it moved; an "add a profile" entry adds the profile only — the chat
+        // usage switch is the entry menu's own answer.
+        BindChatUsage = Entry is WizardEntry.WalkEverything or WizardEntry.ChangeChatProfile;
     }
 
     /// <summary>The flag path's fast answer: the chat profile also serves <c>fast</c>.</summary>

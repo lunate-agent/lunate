@@ -53,6 +53,55 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
         Assert.DoesNotContain(fast, label => label.Contains("systemone", StringComparison.Ordinal));
     }
 
+    /// <summary>The chat usage follows the same flat list (#694): a model on another configured
+    /// provider is offered as <c>provider/model</c>, and never a decision-only family.</summary>
+    [Fact]
+    public void The_chat_list_spans_every_configured_provider()
+    {
+        SetupWizardModel wizard = OpenAiWalk();
+        var catalog = ModelCatalog.Load(null);
+
+        IReadOnlyList<string> chat = Labels(
+            wizard,
+            [Entry("openai", "auth:openai"), Entry("anthropic", "auth:anthropic")],
+            catalog,
+            decision: false
+        );
+
+        Assert.Contains(
+            chat,
+            label => label.Contains("anthropic/claude-sonnet-5-5", StringComparison.Ordinal)
+        );
+        Assert.Contains(chat, label => label.StartsWith("openai/", StringComparison.Ordinal));
+        Assert.DoesNotContain(chat, label => label.Contains("systemone", StringComparison.Ordinal));
+    }
+
+    /// <summary>#694: moving the chat usage to another configured provider's model rewrites only
+    /// that profile and the <c>chat</c> usage — the profile names the model's own provider.</summary>
+    [Fact]
+    public void Chat_moved_to_another_configured_provider_writes_its_profile_and_usage()
+    {
+        SetupWizardModel wizard = OpenAiWalk();
+        wizard.Begin(WizardEntry.ChangeChatProfile);
+        wizard.RecordChatProfile(
+            new WizardProfileChoice(
+                "main",
+                "claude-sonnet-5-5",
+                ReasoningLevel: "low",
+                ProviderId: "anthropic",
+                ApiFamily: "anthropic-messages"
+            )
+        );
+
+        Commit(wizard, out AgentSettings settings);
+
+        Assert.Equal("main", settings.Usages["chat"]);
+        Assert.True(settings.Profiles.TryGetValue("main", out ModelProfile? main));
+        Assert.Equal("anthropic", main.Provider);
+        Assert.Equal("claude-sonnet-5-5", main.Model);
+        Assert.Equal("low", main.ReasoningLevel);
+    }
+
     /// <summary>A configured provider that serves System One contributes its native Jev rows to
     /// the decision list only, labelled native.</summary>
     [Fact]
