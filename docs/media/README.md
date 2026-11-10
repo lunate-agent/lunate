@@ -12,12 +12,13 @@ welcome header in those GIFs names this build). The scripted reasoning tape and 
 replay committed fixtures through `LUNATE_REPLAY` with `LUNATE_DATE=2026-10-18` pinned — no
 provider is called during those renders.
 
-`setup-wizard.gif` was captured from the `v0.3.0-rc.3` build at **`2649040c`**
-(`0.3.0-rc.3+2649040c`) through the keyless local stub. The stub serves a recorded
-OpenCode Go discovery response (`fixtures/setup-wizard-models.json`) and repoints each
-model's declared API host at itself, so the custom-endpoint walk, the connection test
-and the model check show real provider and model ids without a network call. It is the
-only asset captured from an rc build rather than the older feature-set build.
+`setup-wizard.gif` was captured from the **published v0.3.0 release binary** —
+`lunate-osx-arm64.tar.gz` from the tag's assets, `0.3.0+9bb5edcb650f91c72bbc38e374925e34456e3c31`
+— so the welcome header in the asset names the build a user who installs today gets. It
+runs through the keyless local stub. The stub serves a recorded OpenCode Go discovery
+response (`fixtures/setup-wizard-models.json`) and repoints each model's declared API host
+at itself, so the custom-endpoint walk, the connection test and the model check show real
+provider and model ids without a network call.
 
 ## Assets
 
@@ -35,7 +36,7 @@ only asset captured from an rc build rather than the older feature-set build.
 | `features/thinking.gif` | [`usage.md`](../usage.md) — reasoning streaming | [`tapes/features-thinking.tape`](tapes/features-thinking.tape) |
 | `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](tapes/features-bash.tape) |
 | `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](tapes/features-follow-up.tape) |
-| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`setup-wizard.tape`](setup-wizard.tape) |
+| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) |
 | `first-run.gif` | not on disk yet — see [`first-run.md`](first-run.md) | recorded by hand with a real key |
 
 A note on the logo and social preview: the brand files do not live in this media set — the
@@ -58,16 +59,16 @@ Two tapes drive their moment deliberately: `features-input` filters by text (`/c
 matches, so both show the app's own `run failed: fixture mismatch` notice — the same broken
 choreography the previous capture had, not a new defect.
 
-The setup wizard is keyless and isolated, so it has its own harness instead of a replay
-The setup wizard is keyless and isolated, so it has its own harness instead of a replay
-fixture: `scripts/render-setup-wizard.sh` is the only renderer for `setup-wizard.gif`. It
-starts the local OpenAI-compatible stub (`stubs/setup-wizard-provider.py`), gives
-`LUNATE_HOME` a throw-away directory outside the workspace, and runs `setup-wizard.tape`
-against the stub's fixed port. The tape takes the custom-endpoint route, types the stub URL
-and the dummy key `sk-demo`, and ends on the summary; the script prints the stub's request
-log, which is the proof that no real provider was called. Override the binary with
-`LUNATE_BIN=/path/to/lunate`. Nothing in the recording reaches a real provider or reads a
-real key.
+The setup wizard is keyless and isolated, so its tape starts a helper instead of a replay
+fixture: [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) types
+`scripts/render-setup-wizard.sh`, which starts the local OpenAI-compatible stub
+(`stubs/setup-wizard-provider.py`) and runs `lunate setup` with `LUNATE_HOME` in a
+throw-away directory outside the workspace. The tape takes the custom-endpoint route, types
+the stub URL and the dummy key `sk-demo`, reaches the summary and confirms the write. The
+stub logs every request to `$TMPDIR/lunate-setup-wizard-demo/provider.log`, which is the
+proof that no real provider was called. Override the binary with
+`LUNATE_BIN=/path/to/lunate`; v0.3.0's asset was recorded from the published release
+binary. Nothing in the recording reaches a real provider or reads a real key.
 
 ## Narrow-width captures
 

@@ -1,37 +1,38 @@
 #!/usr/bin/env bash
-# Render docs/media/setup-wizard.gif from the committed VHS tape.
+# Launch `lunate setup` for docs/media/tapes/setup-wizard.tape.
 #
-# The recording is keyless: a local OpenAI-compatible stub answers model discovery and
-# the model check, and LUNATE_HOME points at a throw-away directory. Nothing is written
-# to the developer's real configuration. The session runs in an empty scratch project so
-# this repository's project skills (and their trust prompt) never enter the recording.
+# The tape types this script's path into the recorded terminal, so it is the one step between the
+# tape and the wizard. It starts a local OpenAI-compatible stub that serves the recorded OpenCode Go
+# discovery response (docs/media/fixtures/setup-wizard-models.json) and answers the model check, then
+# runs the wizard in a throw-away home outside the workspace. Render the GIF through
+# scripts/render-media.sh, never by hand: that script is the only renderer.
 #
-# Requirements: vhs, ffmpeg, python3, and a Release build of lunate. Override the binary
-# with LUNATE_BIN=/path/to/lunate when rendering from a published archive.
+# Requirements: vhs, python3, and a Release build of lunate. The recording itself is from the
+# published v0.3.0 binary; pass it with LUNATE_BIN=/path/to/lunate to reproduce that provenance.
+# Nothing in the recording reaches a real provider or reads a real key.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${LUNATE_BIN:-$REPO/src/Lunate.Coding/bin/Release/net10.0/lunate}"
-# The tape types this port into the custom endpoint field, so the stub and the recording must
-# agree on it. It is fixed rather than overridable on purpose: an override would only move the
-# stub and leave the tape pointing at the old port.
+# The tape types this port into the custom endpoint field, so the stub and the recording must agree
+# on it. It is fixed rather than overridable on purpose: an override would only move the stub and
+# leave the tape pointing at the old port.
 PORT=18081
 TMP_ROOT="${TMPDIR:-${HOME}/.cache}"
 WORK="${LUNATE_DEMO_WORK:-${TMP_ROOT%/}/lunate-setup-wizard-demo}"
 HOME_DIR="$WORK/home"
 PROJECT="$WORK/project"
 STUB="$REPO/docs/media/stubs/setup-wizard-provider.py"
-GIF="$REPO/docs/media/setup-wizard.gif"
-TAPE="$REPO/docs/media/setup-wizard.tape"
 
 [ -x "$BIN" ] || { echo "missing $BIN — build first or set LUNATE_BIN" >&2; exit 1; }
 [ -f "$STUB" ] || { echo "missing $STUB" >&2; exit 1; }
-[ -f "$TAPE" ] || { echo "missing $TAPE" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 missing" >&2; exit 1; }
-command -v vhs >/dev/null || { echo "vhs missing: brew install vhs" >&2; exit 1; }
 
 rm -rf "$WORK"
-mkdir -p "$HOME_DIR" "$PROJECT/docs/media"
+mkdir -p "$HOME_DIR" "$PROJECT"
+# A scratch repository root makes the workspace self-contained. Without it, a $TMPDIR that happens
+# to sit inside another repository would make the wizard refuse the home as "inside the workspace".
+git -C "$PROJECT" init -q
 
 python3 -u "$STUB" --port "$PORT" >"$WORK/provider.log" 2>&1 &
 SERVER_PID=$!
@@ -54,27 +55,8 @@ done
   exit 1
 }
 
-# The recording itself. `vhs` inherits this environment, so the tape's `lunate` is the Release
-# binary, its LUNATE_HOME is the throw-away directory and its provider is the stub — nothing on
-# this machine's real configuration is read. It runs in the empty scratch project, not the
-# repository: a session in the repository finds its project skills and asks to trust them before
-# the wizard, and the LUNATE_HOME must stay out of the workspace (the binary refuses a home inside
-# it). The tape's relative `Output` lands in the scratch project; the script moves it into place.
-before=$(stat -f %m "$GIF" 2>/dev/null || echo 0)
-(
-  cd "$PROJECT"
-  PATH="$(dirname "$BIN"):$PATH" LUNATE_HOME="$HOME_DIR" vhs "$TAPE"
-)
-RENDERED="$PROJECT/docs/media/setup-wizard.gif"
-[ -f "$RENDERED" ] || {
-  echo "vhs did not write $RENDERED" >&2
-  exit 1
-}
-mv "$RENDERED" "$GIF"
-after=$(stat -f %m "$GIF" 2>/dev/null || echo 0)
-if [ "$after" = "$before" ]; then
-  echo "vhs did not write $GIF" >&2
-  exit 1
-fi
-echo "wrote $GIF ($(stat -f %z "$GIF") bytes)"
-echo "stub log: $WORK/provider.log"
+# The wizard runs in the foreground: the tape drives it through this terminal, and the trap above
+# stops the stub when the session quits. The empty scratch project keeps this repository's project
+# skills (and their trust prompt) out of the recording.
+cd "$PROJECT"
+HOME="$HOME_DIR" LUNATE_HOME="$HOME_DIR" "$BIN" setup
