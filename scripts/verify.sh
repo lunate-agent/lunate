@@ -357,6 +357,9 @@ platform_checks() {
   step "channel manifests"
   python3 "${SCRIPT_DIR}/check-channel-manifests.py" --root "$PWD"
 
+  step "published channel version guard"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_channel_version.py"
+
   step "format"
   # CSharpier owns formatting; dotnet format keeps style and analyzer duties.
   dotnet csharpier check .

@@ -37,7 +37,11 @@ implemented (#450) — this step exists to name that class of drift before a tag
 
 ## Release smoke
 
-[`smoke.yml`](../.github/workflows/smoke.yml) verifies a *published* release rather than a branch, on ubuntu, macos and windows: both installers install the tag's archive, the binary prints that version and starts, and the extension package the same tag published is installed by id from nuget.org, listed by `lunate packages`, verified, discovered by `lunate extensions` (pending trust) and uninstalled with nothing left behind. Run it after the Release workflow finishes:
+[`smoke.yml`](../.github/workflows/smoke.yml) verifies a *published* release rather than a branch, on ubuntu, macos and windows: both installers install the tag's archive, the binary prints that version and starts, and the extension package the same tag published is installed by id from nuget.org, listed by `lunate packages`, verified, discovered by `lunate extensions` (pending trust) and uninstalled with nothing left behind.
+
+It also installs through every channel the docs name and checks what that channel serves against the tag: Homebrew on macOS, Scoop on Windows, and winget on Windows once `wdaniel1993.lunate` is live in `microsoft/winget-pkgs`. A stable tag must match exactly — a channel a release behind fails the smoke, naming the channel and the version it actually serves. A prerelease stays on the stable channel and is reported as such, not failed.
+
+Run it after the Release workflow finishes:
 
 ```sh
 gh workflow run smoke.yml -f tag=v0.1.0
