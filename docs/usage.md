@@ -179,28 +179,6 @@ has the full flow, the measurements and the platform limits.
 - **ACP** — `lunate --acp`: serves the Agent Client Protocol over stdio for an editor, with nothing
   but protocol on stdout ([`openspec/specs/protocols/spec.md`](../openspec/specs/protocols/spec.md)).
 
-## Run commands in a container
-
-`--env docker:<image>` or `--env podman:<image>` runs the `bash` tool's commands inside one
-long-lived container for the session. The `environment` settings key selects the same thing for
-every session; `--env` wins for one run. With neither, commands run on the host exactly as before.
-
-Only the canonical workspace is mounted, at the same absolute path inside the container
-(`-v <worktree>:<worktree> -w <worktree>`), so the file tools, verified edits and the bash change
-scan keep working without path translation. The Lunate state root, the install prefix and
-`auth.json` are never mounted. The container is created lazily on the first command and removed
-when the session ends; cancel ends the command's process group inside the container as well as the
-host `exec` client. The header and `/context` name the environment and its readiness.
-
-The bash guard still wraps the host half (the engine's `exec` client). It does not constrain the
-inner command; the container mount is what limits that command's reach. The approval panel, the
-state-root checks and the file tools are otherwise unchanged.
-
-Linux CI runs the real-container test with Docker; macOS with Podman is the spike-tested host.
-Windows is not supported: a Windows container cannot expose `C:\…` at the same absolute path, and
-the WSL2 route with a translated mount is a follow-up. ACP keeps the host path in this release and
-refuses a selected environment rather than silently ignoring it.
-
 ## Project instructions
 
 Every `AGENTS.md` from the repository root down to the directory you started Lunate in is appended
