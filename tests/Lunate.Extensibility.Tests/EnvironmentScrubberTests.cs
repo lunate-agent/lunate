@@ -163,6 +163,72 @@ public sealed class EnvironmentScrubberTests
     }
 
     [Fact]
+    public void The_inherited_policy_re_admits_an_exact_passed_through_name_after_the_strip()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            passthrough: ["ANTHROPIC_API_KEY"],
+            strip: ["ANTHROPIC_API_KEY", "GEMINI_API_KEY"],
+            inherited: Parent
+        );
+
+        // The explicit name wins over the deny for that exact variable only.
+        Assert.Equal("sk-secret", environment["ANTHROPIC_API_KEY"]);
+        Assert.DoesNotContain("GEMINI_API_KEY", environment.Keys);
+        Assert.Equal("/usr/bin", environment["PATH"]);
+    }
+
+    [Fact]
+    public void A_passed_through_name_the_parent_lacks_stays_absent()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            passthrough: ["MY_PROJECT_TOKEN"],
+            inherited: Parent
+        );
+
+        // Never set to an empty value: a missing variable must not look like an empty one.
+        Assert.DoesNotContain("MY_PROJECT_TOKEN", environment.Keys);
+    }
+
+    [Fact]
+    public void The_pass_through_is_an_exact_name_not_a_pattern()
+    {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["PATH"] = "/usr/bin",
+            ["ANTHROPIC_API_KEY"] = "sk-secret",
+            ["ANTHROPIC_API_KEY_BACKUP"] = "user-owned",
+        };
+
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            passthrough: ["ANTHROPIC_API_KEY_BACKUP", "ANTHROPIC_*"],
+            strip: ["ANTHROPIC_API_KEY"],
+            inherited: parent
+        );
+
+        // The look-alike the user listed arrives; the credential arrives only if named exactly.
+        Assert.Equal("user-owned", environment["ANTHROPIC_API_KEY_BACKUP"]);
+        Assert.DoesNotContain("ANTHROPIC_API_KEY", environment.Keys);
+    }
+
+    [Fact]
+    public void A_declared_value_cannot_put_a_passed_through_stripped_name_back()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            set: new Dictionary<string, string> { ["ANTHROPIC_API_KEY"] = "re-added" },
+            passthrough: ["ANTHROPIC_API_KEY"],
+            strip: ["ANTHROPIC_API_KEY"],
+            inherited: Parent
+        );
+
+        // The pass-through re-admits the inherited value only; the strip stays a deny for values.
+        Assert.Equal("sk-secret", environment["ANTHROPIC_API_KEY"]);
+    }
+
+    [Fact]
     public void The_scrubbed_policy_ignores_the_strip()
     {
         // A strip list is an inherited-policy instrument; the scrubbed policy already cannot carry

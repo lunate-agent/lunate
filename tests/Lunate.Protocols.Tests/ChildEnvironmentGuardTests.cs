@@ -41,6 +41,53 @@ public sealed class ChildEnvironmentGuardTests
     }
 
     [Fact]
+    public void The_tool_pass_through_list_is_read_where_the_policy_is_built()
+    {
+        // A pass-through list is a policy decision, like the strip list: it is read in the one
+        // method that names the tool child's policy, never at a spawn site. A spawn site that read
+        // it would decide a child's environment of its own.
+        (string Path, string Content)[] readers = CSharpSources()
+            .Where(source =>
+                source.Content.Contains(
+                    "ToolEnvironmentPassthrough.Names",
+                    StringComparison.Ordinal
+                )
+            )
+            .ToArray();
+
+        Assert.Equal(
+            new[] { "ChildProcess.cs" },
+            readers.Select(source => Path.GetFileName(source.Path)).Order().ToArray()
+        );
+        Assert.Contains(
+            "passthrough: ToolEnvironmentPassthrough.Names",
+            readers[0].Content,
+            StringComparison.Ordinal
+        );
+
+        string[] configurers =
+        [
+            .. CSharpSources()
+                .Where(source =>
+                    source.Content.Contains(
+                        "ToolEnvironmentPassthrough.Configure",
+                        StringComparison.Ordinal
+                    )
+                )
+                .Select(source => Path.GetFileName(source.Path)),
+        ];
+
+        // Configuring the process-wide list is the frontends' startup job; a spawn site must never
+        // own it.
+        Assert.DoesNotContain("BashTool.cs", configurers);
+        Assert.DoesNotContain("ProcessRunner.cs", configurers);
+        Assert.DoesNotContain("ChildProcess.cs", configurers);
+        Assert.DoesNotContain("ChildProcess.Unix.cs", configurers);
+        Assert.DoesNotContain("ChildProcess.Windows.cs", configurers);
+        Assert.Contains("InteractiveSession.ToolEnvironment.cs", configurers);
+    }
+
+    [Fact]
     public void No_spawn_site_builds_an_environment_itself()
     {
         // A file that hands a child an environment must name the policy it wants; whether it builds

@@ -83,6 +83,7 @@ internal sealed partial class InteractiveSession
         _providerEntries = userProviders.Entries;
         _settings = SettingsStore.Resolve(settingsPath, _options.Environment);
         _settings = SettingsStore.ApplyLaunch(_settings, _options.Launch);
+        ApplyToolEnvironment();
         _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
 
         // The chat profile a run staged: the full walk's profile (which also bound the usage),
