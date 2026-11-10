@@ -514,9 +514,8 @@ public sealed class RoslynFileBusSyncTests
             .ExecuteAsync(Args("""{"command":"echo warm"}"""), context, Ct);
         Assert.False(warm.IsError, warm.Output);
 
-        // A new source file inside a new untracked directory (the scan skips untracked
-        // directories) plus a project-file change in the same call: the project change is marked
-        // and the reload brings the new file in fresh.
+        // A new source file inside a new untracked directory plus a project-file change in the
+        // same call: both paths are marked, and the reload brings the new file in fresh.
         ToolResult made = await tools
             .Find("bash")!
             .ExecuteAsync(

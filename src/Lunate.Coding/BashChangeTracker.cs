@@ -226,9 +226,11 @@ internal sealed partial class BashChangeTracker(
         CancellationToken cancellationToken
     )
     {
+        // -uall, not -unormal: an untracked directory must not collapse into one status entry,
+        // or a file created inside an already-untracked directory stays invisible to the diff.
         (ProcessRunResult? status, string? spawnReason) = await RunGitAsync(
                 root,
-                ["status", "--porcelain", "-z", "--ignore-submodules=dirty", "-unormal", "--", "."],
+                ["status", "--porcelain", "-z", "--ignore-submodules=dirty", "-uall", "--", "."],
                 cancellationToken
             )
             .ConfigureAwait(false);
@@ -301,9 +303,9 @@ internal sealed partial class BashChangeTracker(
 
     /// <summary>
     /// Parses <c>git status --porcelain -z</c> output: NUL-separated entries; a rename or copy
-    /// entry carries its origin path in the following field (consumed either way); untracked
-    /// directories (a trailing slash) are skipped; a rename's origin is published (the file moved
-    /// away) while a copy's origin is not (it still exists).
+    /// entry carries its origin path in the following field (consumed either way); a directory
+    /// entry (a trailing slash) is skipped because no directory change kind exists; a rename's
+    /// origin is published (the file moved away) while a copy's origin is not (it still exists).
     /// </summary>
     internal static IReadOnlyList<(string Path, FileChangeKind Kind)> ParsePorcelain(string output)
     {
