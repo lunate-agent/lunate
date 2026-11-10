@@ -8,7 +8,7 @@ internal static class CliHelp
         output.WriteLine("Lunate - a coding agent for the terminal.");
         output.WriteLine();
         output.WriteLine("Usage:");
-        output.WriteLine("  lunate -p, --print [--json] [--yolo] <prompt>");
+        output.WriteLine("  lunate -p [--json] [--yolo] <prompt>");
         output.WriteLine(
             "                                 run one prompt and print the final answer to stdout;"
         );
@@ -43,7 +43,7 @@ internal static class CliHelp
         );
         output.WriteLine("                                 on stdout)");
         output.WriteLine("  lunate --version               print the version");
-        output.WriteLine("  lunate -h, --help               show this help");
+        output.WriteLine("  lunate -h, --help              show this help");
         output.WriteLine("  lunate --discover <name-or-url>");
         output.WriteLine(
             "                                 list an OpenAI-compatible endpoint's models and"
@@ -157,6 +157,9 @@ internal static class CliHelp
         );
         output.WriteLine();
         output.WriteLine("Session and per-run options (interactive and print):");
+        output.WriteLine(
+            "  -p, --print                    run one prompt and print the final answer to stdout"
+        );
         output.WriteLine(
             "  -c, --continue                 continue the newest session recorded for this"
         );

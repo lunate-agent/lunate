@@ -40,6 +40,8 @@ entry whose resolved family is `anthropic-messages` gets the same prompt-cache b
 merge as the native Anthropic preset; the resolved family selects the wire behavior, not the provider
 name or its kind.
 
+<!-- config: settings -->
+
 ```json settings
 {
   "schemaVersion": 2,
@@ -85,6 +87,8 @@ type, default and scope.
 
 The twelve built-in provider kinds are templates for adapters and defaults. A user may define
 multiple named provider entries of one kind in `~/.lunate/providers.json`:
+
+<!-- config: providers -->
 
 ```json providers
 {
