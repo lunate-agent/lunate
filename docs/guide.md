@@ -669,8 +669,7 @@ Both box rules are drawn at every width; autocomplete descriptions keep their 60
 
 **Themes and remaps**
 
-- `/settings tui.theme` chooses the colour-depth policy applied to the transcript and the status line: `default` keeps the terminal's detection, `ansi16` pins the high-contrast sixteen-colour system, and `mono` drops every attribute. A theme can only lower the depth, so `NO_COLOR` still wins, and the choice persists in the settings file's `tui` section.
-- `/settings tui.keys <binding id> <key>` remaps a binding: the catalogue row keeps its id, intent, context and description and gains the one key — `keys.json` stays the only place a key is declared. An unknown id is refused with the closest ids named, a key an earlier row already answers is refused with that row named, and any remap persists so it survives a restart.
+- `/settings tui.theme` chooses the colour-depth policy applied to the transcript and the status line, and `/settings tui.keys <binding id> <key>` rebinds one catalogue row; both persist in the settings file's `tui` section. [Themes and keys](themes-and-keys.md) owns the values and the refusal rules.
 
 **Platform rules**
 

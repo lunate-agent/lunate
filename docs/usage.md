@@ -2,9 +2,11 @@
 
 What the interactive session does turn by turn: typing and completing a prompt, what a turn commits
 to the scrollback, how tools and approvals appear, sessions and exports, thinking and decisions —
-and the three modes Lunate runs in. Configuration lives in the [configuration
-reference](configuration.md); export and debug contracts in [`spec/export.md`](spec/export.md) and
-[`spec/diagnostics.md`](spec/diagnostics.md).
+and the three modes Lunate runs in. Configuration lives in [configuration](configuration.md); the
+things a project or the user owns — project instructions, skills, MCP servers, the theme and the key
+remaps — have a page each in [AGENTS.md](agents-md.md), [skills](skills.md),
+[MCP servers](mcp-servers.md) and [themes and keys](themes-and-keys.md); export and debug contracts
+in [`spec/export.md`](spec/export.md) and [`spec/diagnostics.md`](spec/diagnostics.md).
 
 ## Type, complete, send
 
@@ -179,48 +181,14 @@ has the full flow, the measurements and the platform limits.
 - **ACP** — `lunate --acp`: serves the Agent Client Protocol over stdio for an editor, with nothing
   but protocol on stdout ([`openspec/specs/protocols/spec.md`](../openspec/specs/protocols/spec.md)).
 
-## Project instructions
-
-Every `AGENTS.md` from the repository root down to the directory you started Lunate in is appended
-to the system prompt under its relative path — the nearest file adds to the chain rather than
-replacing it. There is no Lunate-specific instructions file.
-
-## MCP servers
-
-`mcpServers` maps in the user files `~/.lunate/mcp.json` and `~/.agents/mcp.json`, and in the
-project files `.lunate/mcp.json`, `.agents/mcp.json` and `.mcp.json`. An entry carries `command`,
-`args`, `env`, optional `cwd` and optional `callTimeoutSeconds`; `${VAR}` and `${VAR:-default}`
-expand when the file loads. Within a scope `.lunate/` wins over `.agents/` wins over `.mcp.json`,
-and a project file wins over a user file. Servers start on first use, their tools arrive as
-`server__tool`, and a project file and each of its servers needs its own trust decision.
-
-A stdio server is a child process and inherits Lunate's environment, so existing MCP setups keep
-working — with one exception: the credentials Lunate itself knows are withheld from that child.
-The provider keys the model presets and the provider store reference, the keys in `auth.json`,
-the extension secrets and the `env` values the configured entries set are removed from the child's
-environment (the variables are gone, not emptied), unless the server's own `env` map names the
-variable explicitly; `${VAR}` in a declared value still resolves from Lunate's environment.
-
-Lunate can also be the server: `lunate mcp roslyn` serves the five read-only `cs_*` C# tools over
-stdio to another MCP host, with no approvals or write path behind them.
-[`mcp-roslyn.md`](mcp-roslyn.md) covers the configuration and what it leaves out by design.
-
-## Skills
-
-A skill is a directory with a `SKILL.md`. Project scope: `.lunate/skills`, `.agents/skills`,
-`.claude/skills`; user scope: `~/.lunate/skills`, `~/.agents/skills`. The nearest scope wins.
-`/skills` lists them, `/skill:<name>` loads one, and the model gets an index of the rest — one
-line per skill, its description carried whole to the Agent Skills limit of 1,024 characters
-(a longer description is truncated in the index with one warning, and the skill still loads),
-sized by the model's context
-window: a one-time notice above the 2% soft threshold, a cut-from-the-end overflow above the 5%
-hard ceiling. `skills.indexBudget` overrides both.
-Project skills need a trust decision like any other repository code.
-
 ## Related
 
 - [First run](first-run.md) — choosing a provider, `lunate auth`, the setup wizard
-- [Configuration reference](configuration.md) — every settings key, generated from the schema
+- [Configuration](configuration.md) — every settings key, generated from the schema
+- [AGENTS.md](agents-md.md) — project rules from the root down to the launch directory
+- [Skills](skills.md) — `SKILL.md` bundles a project or the user ships
+- [MCP servers](mcp-servers.md) — the servers a session starts from configuration
+- [Themes and keys](themes-and-keys.md) — the colour depth and the key remaps `/settings` persists
 - [Run tool calls in a container](execution-environments.md) — the container mode, its settings and
   what stays on the host
 - [Export contract](spec/export.md) — what `/copy` and `/export` guarantee

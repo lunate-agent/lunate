@@ -1,6 +1,12 @@
-# Configuration reference
+# Configuration
 
-Every key the settings parser accepts, and only those keys. The table below is generated from
+This page answers how to configure a Lunate session, and the short answer is `settings.json`: decision
+profiles and their consumers, custom provider entries, where thinking resolves, the welcome header and
+update check, and recording and replay. What a project or the user owns beyond the settings file has a
+page of its own — [AGENTS.md](agents-md.md), [skills](skills.md), [MCP servers](mcp-servers.md) and
+[themes and keys](themes-and-keys.md).
+
+The table below is every key the settings parser accepts, and only those keys. It is generated from
 [`src/Lunate.Coding/settings-schema.json`](../src/Lunate.Coding/settings-schema.json) — the same
 file the store's `SettingsSchema` table reads and tests pin to the parser's own literals — so it
 cannot list a key the store refuses. Edit the schema, then run `scripts/docs-sync` to regenerate;
@@ -232,12 +238,13 @@ the file), `LUNATE_REPLAY=<file>` runs a session from that recording instead of 
 and `LUNATE_DATE=yyyy-MM-dd` pins the date the system prompt is built with so a replayed request
 stays byte-stable. Recording wins when both are set.
 
-## Where the rest of configuration is written
+## Related
 
 - Provider entries, credentials, the user's own model catalog and the first-run path:
   [first-run.md](first-run.md).
 - Environment-variable overrides, `/settings`, and the key remaps the `tui.keys` entries
   persist: [guide.md](guide.md).
-- Skills, project instructions (`AGENTS.md`) and MCP server files: [usage.md](usage.md).
+- Project instructions: [agents-md.md](agents-md.md). Skills: [skills.md](skills.md). MCP server
+  files: [mcp-servers.md](mcp-servers.md). The theme and the key remaps: [themes-and-keys.md](themes-and-keys.md).
 - Why the parser is deny-by-default and every problem fails the load as one error:
   [`openspec/specs/agent-config/`](../openspec/specs/agent-config/spec.md) owns that behaviour.

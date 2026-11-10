@@ -109,11 +109,11 @@ Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
 - **Out-of-process extensions** — an extension can be its own process speaking JSON-RPC over stdio,
   with a checked-in wire schema ([reference](docs/extensions-remote.md)).
 - **MCP client** — the servers you already run; Lunate withholds its own credentials from their
-  child processes ([usage](docs/usage.md#mcp-servers)).
+  child processes ([MCP servers](docs/mcp-servers.md)).
 - **Agent Skills** — `SKILL.md` directories, project or user scope
-  ([usage](docs/usage.md#skills)).
+  ([skills](docs/skills.md)).
 - **`AGENTS.md`** — project rules from the root down to the launch directory, appended under their
-  relative path ([usage](docs/usage.md#project-instructions)).
+  relative path ([AGENTS.md](docs/agents-md.md)).
 - **Update check** — one GitHub Releases check a day, no telemetry, `updateCheck: false` to stop
   ([configuration](docs/configuration.md)).
 
