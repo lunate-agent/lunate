@@ -1,6 +1,6 @@
 # Documentation architecture for 0.4.0
 
-Status: proposed — awaiting maintainer sign-off. Refs #614.
+Status: signed off 2026-11-10 — the architecture stands and the implementation lands as #749–#757 (S1–S9), in that order. Refs #614.
 
 This page answers how Lunate's documentation is laid out in 0.4.0, and the short answer is: one user entry point, eight task groups, and one maintainer tree, with every page written as a pyramid and every runnable example checked.
 
@@ -203,15 +203,15 @@ After sign-off, each row becomes one sub-issue and one pull request. Every slice
 
 | Slice | Title | Scope | Exit |
 | --- | --- | --- | --- |
-| S1 | `docs(check): add the documentation checker and navigation manifest` | `scripts/docs-check` with self-tests, `docs/docs.json` for today's tree, docs/lint and verify wiring | Checker green on today's docs; no page moves |
-| S2 | `docs(reference): split the generated settings and keybinding pages` | `settings.md`, `keybindings.md`; move the `docs-sync` regions and update `GuideKeyTableTests` and the TUI comments | Settings and keys generated in their reference pages; guide no longer carries them |
-| S3 | `docs(dev): move the plan, architecture and release runbook` | `docs/dev/README.md`, `guide.md`, `architecture.md`, `distribution.md`, `media.md`; update instruction links; minimal `AGENTS.md` path edit | Maintainer pages resolve; the moved guide keeps its link to AGENTS.md |
-| S4 | `docs(dev): move the specs, spikes and eval evidence` | `docs/dev/spec/`, `docs/dev/spikes/`, `docs/dev/eval/`; update links from extension pages, README, CONTRIBUTING and the guide | No in-repo link to the old paths except records |
-| S5 | `docs(use): split the first run and the session extras` | `quickstart.md`, `models-and-providers.md`, `decisions.md`, `export-copy-debug.md`, `terminal-setup.md`; trim `usage.md`; stubs for `first-run.md` | Each new page answers one task; `usage.md` under about 300 lines |
-| S6 | `docs(customize): give each customization its own page` | `configuration.md` (tasks), `agents-md.md`, `skills.md`, `mcp-servers.md`, `themes-and-keys.md`; `settings.md` keeps the table | Configuration reads as tasks; generated reference stays in Reference |
-| S7 | `docs(automate): add the print, JSON, ACP and CI pages` | `print.md`, `json-events.md`, `acp.md`, `ci.md`, `cli.md`, `providers.md`, `environment-variables.md` | Automate and Reference groups complete; CLI options checked against `--help` |
-| S8 | `docs(security): add the safety and troubleshooting pages` | `security.md`, `troubleshooting.md`; link `SECURITY.md` as the reporting policy | A user can find the posture and a next step without reading the guide |
-| S9 | `docs(index): make docs/index.md the entry point` | `index.md`, `quickstart.md`, `how-lunate-works.md`; generated navigation region; README links; the moved-page stubs stay until the next release | `docs/index.md` leads with the governing thought and every group resolves |
+| S1 | `docs(check): add the documentation checker and navigation manifest` | `scripts/docs-check` with self-tests, `docs/docs.json` for today's tree, docs/lint and verify wiring | Checker green on today's docs; no page moves  — #749 |
+| S2 | `docs(reference): split the generated settings and keybinding pages` | `settings.md`, `keybindings.md`; move the `docs-sync` regions and update `GuideKeyTableTests` and the TUI comments | Settings and keys generated in their reference pages; guide no longer carries them  — #750 |
+| S3 | `docs(dev): move the plan, architecture and release runbook` | `docs/dev/README.md`, `guide.md`, `architecture.md`, `distribution.md`, `media.md`; update instruction links; minimal `AGENTS.md` path edit | Maintainer pages resolve; the moved guide keeps its link to AGENTS.md  — #751 |
+| S4 | `docs(dev): move the specs, spikes and eval evidence` | `docs/dev/spec/`, `docs/dev/spikes/`, `docs/dev/eval/`; update links from extension pages, README, CONTRIBUTING and the guide | No in-repo link to the old paths except records  — #752 |
+| S5 | `docs(use): split the first run and the session extras` | `quickstart.md`, `models-and-providers.md`, `decisions.md`, `export-copy-debug.md`, `terminal-setup.md`; trim `usage.md`; stubs for `first-run.md` | Each new page answers one task; `usage.md` under about 300 lines  — #753 |
+| S6 | `docs(customize): give each customization its own page` | `configuration.md` (tasks), `agents-md.md`, `skills.md`, `mcp-servers.md`, `themes-and-keys.md`; `settings.md` keeps the table | Configuration reads as tasks; generated reference stays in Reference  — #754 |
+| S7 | `docs(automate): add the print, JSON, ACP and CI pages` | `print.md`, `json-events.md`, `acp.md`, `ci.md`, `cli.md`, `providers.md`, `environment-variables.md` | Automate and Reference groups complete; CLI options checked against `--help`  — #755 |
+| S8 | `docs(security): add the safety and troubleshooting pages` | `security.md`, `troubleshooting.md`; link `SECURITY.md` as the reporting policy | A user can find the posture and a next step without reading the guide  — #756 |
+| S9 | `docs(index): make docs/index.md the entry point` | `index.md`, `quickstart.md`, `how-lunate-works.md`; generated navigation region; README links; the moved-page stubs stay until the next release | `docs/index.md` leads with the governing thought and every group resolves  — #757 |
 
 S1 must land first; S2 before S3 because the key table leaves the guide. S3 and S4 are independent of S5–S8. S9 is last because it links only to pages that already exist.
 
