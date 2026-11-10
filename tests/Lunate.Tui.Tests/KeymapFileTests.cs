@@ -207,6 +207,15 @@ public sealed class KeymapFileTests
         """{"bindings":[{"id":"ctrl-d.quit","keys":[{"kind":"Banana"}]}]}""",
         "not a KeyKind member"
     )]
+    [InlineData(
+        """{"bindings":[{"id":"ctrl-d.quit","keys":[{"kind":"Character","ctrl":"yes","text":"t"}]}]}""",
+        "a 'ctrl' that is not true or false"
+    )]
+    [InlineData(
+        """{"bindings":[{"id":"ctrl-d.quit","keys":[{"kind":"Character","ctrl":true,"text":5}]}]}""",
+        "a 'text' that is not a string"
+    )]
+    [InlineData("""{"bindings":[5]}""", "a binding entry that is not an object")]
     public void A_malformed_binding_fails_the_load_and_applies_nothing(string json, string fragment)
     {
         try
@@ -234,6 +243,14 @@ public sealed class KeymapFileTests
             Assert.Contains(
                 "is not readable JSON",
                 Apply("{ not json").Error!,
+                StringComparison.Ordinal
+            );
+            // Valid JSON whose root is not an object is still a keymap file that cannot apply,
+            // not an exception escaping the loader.
+            Assert.Contains("has no 'bindings' array", Apply("5").Error!, StringComparison.Ordinal);
+            Assert.Contains(
+                "has no 'bindings' array",
+                Apply("[]").Error!,
                 StringComparison.Ordinal
             );
             AssertCatalogueUnchanged();

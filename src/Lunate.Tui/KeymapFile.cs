@@ -72,7 +72,8 @@ internal static class KeymapFile
             using (document)
             {
                 if (
-                    !document.RootElement.TryGetProperty("bindings", out JsonElement bindings)
+                    document.RootElement.ValueKind != JsonValueKind.Object
+                    || !document.RootElement.TryGetProperty("bindings", out JsonElement bindings)
                     || bindings.ValueKind != JsonValueKind.Array
                 )
                 {
@@ -111,6 +112,14 @@ internal static class KeymapFile
 
     private static UserKeymapEntry Parse(string path, JsonElement binding)
     {
+        if (binding.ValueKind != JsonValueKind.Object)
+        {
+            throw new KeymapJsonException(
+                $"keymap: {path}: a binding entry that is not an object, so the load cannot tell "
+                    + "which binding it means"
+            );
+        }
+
         if (
             !binding.TryGetProperty("id", out JsonElement id)
             || id.ValueKind != JsonValueKind.String
@@ -168,19 +177,55 @@ internal static class KeymapFile
             return false;
         }
 
-        pattern = new KeyPattern(
-            parsed,
-            Modifier(key, "ctrl"),
-            Modifier(key, "alt"),
-            Modifier(key, "shift"),
-            key.TryGetProperty("text", out JsonElement text) ? text.GetString() : null
-        );
+        if (
+            !TryModifier(key, "ctrl", out bool? ctrl, out error)
+            || !TryModifier(key, "alt", out bool? alt, out error)
+            || !TryModifier(key, "shift", out bool? shift, out error)
+        )
+        {
+            return false;
+        }
+
+        string? text = null;
+        if (key.TryGetProperty("text", out JsonElement textElement))
+        {
+            if (textElement.ValueKind != JsonValueKind.String)
+            {
+                error = "a 'text' that is not a string";
+                return false;
+            }
+
+            text = textElement.GetString();
+        }
+
+        pattern = new KeyPattern(parsed, ctrl, alt, shift, text);
         error = null;
         return true;
     }
 
-    private static bool? Modifier(JsonElement key, string name) =>
-        key.TryGetProperty(name, out JsonElement value) ? value.GetBoolean() : null;
+    private static bool TryModifier(
+        JsonElement key,
+        string name,
+        out bool? value,
+        out string? error
+    )
+    {
+        value = null;
+        error = null;
+        if (!key.TryGetProperty(name, out JsonElement element))
+        {
+            return true;
+        }
+
+        if (element.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            error = $"a '{name}' that is not true or false";
+            return false;
+        }
+
+        value = element.GetBoolean();
+        return true;
+    }
 
     private static string? NonEmpty(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;
