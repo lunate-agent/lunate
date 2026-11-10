@@ -63,7 +63,7 @@ public sealed class SetupWizardAmbiguousModelTests
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // openai
         await host.WaitForFrameAsync("Credential for openai");
         host.Console.SendEnter();
@@ -239,7 +239,7 @@ public sealed class SetupWizardAmbiguousModelTests
     /// region, models URL, key and the connection test.</summary>
     private static async Task WalkCustomEndpointToModelAsync(InteractiveSessionHost host)
     {
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         for (var row = 0; row < ProviderPresets.All.Count; row++)
         {
             host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));

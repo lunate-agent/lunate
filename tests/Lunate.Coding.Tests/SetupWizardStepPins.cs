@@ -33,7 +33,7 @@ public sealed class SetupWizardStepPins
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // the first preset row (openai)
         await host.WaitForFrameAsync("Credential for openai");
         host.Console.SendEnter(); // the "enter a key" row
@@ -106,6 +106,7 @@ public sealed class SetupWizardStepPins
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
+        await host.ChooseDetailedModeAsync();
         await PickRowAsync(host, "Select provider", "openrouter — OpenRouter");
         await host.WaitForFrameAsync("Credential for openrouter");
         host.Console.SendEnter(); // the "enter a key" row
@@ -159,6 +160,7 @@ public sealed class SetupWizardStepPins
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
+        await host.ChooseDetailedModeAsync();
         await PickRowAsync(host, "Select provider", "opencode-go — OpenCode Go");
         await host.WaitForFrameAsync("Credential for opencode-go");
         host.Console.SendEnter(); // the "enter a key" row
@@ -219,7 +221,7 @@ public sealed class SetupWizardStepPins
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // the first preset row (openai)
         await host.WaitForFrameAsync("Credential for openai");
         host.Console.SendEnter(); // the "enter a key" row
@@ -260,6 +262,7 @@ public sealed class SetupWizardStepPins
         // connection test, model, model check, chat profile, fast and decision steps all leave
         // their value untouched, so the walk lands on the decisions step with every dependent
         // step named skipped in the summary.
+        await host.ChooseDetailedModeAsync();
         await PickRowAsync(host, "Select provider", "Skip provider setup");
         await PickRowAsync(host, "Decisions settings", "Done — leave the decisions settings");
 
@@ -319,7 +322,7 @@ public sealed class SetupWizardStepPins
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // the first preset row (openai)
         await host.WaitForFrameAsync("Credential for openai");
         host.Console.SendEnter(); // the "enter a key" row

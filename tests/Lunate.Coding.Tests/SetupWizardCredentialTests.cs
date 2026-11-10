@@ -67,7 +67,7 @@ public sealed class SetupWizardCredentialTests
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Credential for openai");
         Assert.Contains(

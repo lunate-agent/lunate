@@ -241,7 +241,7 @@ public sealed class SetupWizardSessionTests
 
     private static async Task WalkToSummary(InteractiveSessionHost host)
     {
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // the first preset row (openai)
 
         await host.WaitForFrameAsync("Credential for openai");

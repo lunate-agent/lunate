@@ -225,6 +225,15 @@ internal static class SetupWizardSummary
     internal static IReadOnlyList<string> Render(SetupWizardModel wizard)
     {
         List<string> lines = [];
+        if (wizard.Entry is WizardEntry.WalkEverything)
+        {
+            lines.Add(
+                wizard.IsQuick
+                    ? "setup mode: quick — provider, credential, model and chat profile"
+                    : "setup mode: detailed — every setting was asked"
+            );
+        }
+
         if (wizard.Provider is { } provider)
         {
             lines.Add(
@@ -401,6 +410,15 @@ internal static class SetupWizardSummary
                         )
                     )
             );
+        }
+
+        if (wizard.LeftAtDefault is { Count: > 0 } defaults)
+        {
+            lines.Add("Left at default:");
+            foreach (WizardDefault left in defaults)
+            {
+                lines.Add($"  {left.Setting}: {left.Value} — change later with {left.ChangeWith}");
+            }
         }
 
         return lines;
