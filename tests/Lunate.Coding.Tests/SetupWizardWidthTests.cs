@@ -75,7 +75,7 @@ public sealed class SetupWizardWidthTests
 
     private static async Task WalkToSummary(InteractiveSessionHost host)
     {
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // openai
 
         await host.WaitForFrameAsync("Credential for openai");

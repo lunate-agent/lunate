@@ -84,6 +84,9 @@ public static partial class SettingsStore
             project.Subagents,
             projectPath
         );
+        // ToolEnvironment is deliberately absent: the pass-through list is user-scope only, so a
+        // project can never overlay it (ADR-0035). ValidateProjectScope refuses the section by
+        // name before this merge is reached.
         return user with
         {
             Profiles = profiles,

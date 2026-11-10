@@ -39,15 +39,18 @@ internal abstract class ChildProcess : IExecutionProcess
     /// <summary>
     /// The tool child's environment: the builder's <see cref="ChildEnvironmentPolicy.Inherited"/>
     /// policy — the caller's replacement when one is given, otherwise the caller's own
-    /// environment — with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on top and
-    /// <see cref="CredentialVariables"/> stripped from everything inherited.
+    /// environment — with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on top,
+    /// <see cref="CredentialVariables"/> stripped from everything inherited, and the
+    /// <see cref="ToolEnvironmentPassthrough.Names">user's pass-through names</see> re-admitted
+    /// after that strip.
     /// </summary>
     /// <remarks>
     /// The bash tool is the user's shell, so the user's own environment is what it must see. What it
     /// must not see is a credential Lunate resolved: a model-chosen command reading the user's
     /// provider key out of the environment is the leak the bash guard's <c>auth.json</c> read-deny
     /// closes for files. The stripping itself is the builder's (one implementation); this method
-    /// only names the policy and the names. <c>ChildEnvironmentGuardTests</c> pins both.
+    /// only names the policy and the names. The pass-through list is read here, where the policy is
+    /// built — never at a spawn site. <c>ChildEnvironmentGuardTests</c> pins all of it.
     /// </remarks>
     internal static IReadOnlyDictionary<string, string> BuildEnvironment(ProcessRunRequest request)
     {
@@ -55,6 +58,7 @@ internal abstract class ChildProcess : IExecutionProcess
         return EnvironmentScrubber.Build(
             ChildEnvironmentPolicy.Inherited,
             set: request.ExtraEnvironment,
+            passthrough: ToolEnvironmentPassthrough.Names,
             strip: CredentialVariables.All,
             inherited: request.Environment
         );

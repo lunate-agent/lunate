@@ -64,6 +64,9 @@ internal sealed partial class InteractiveSession
     /// <summary>The explicit skip row shared by wizard steps that collect an optional answer.</summary>
     internal const string WizardSkipValue = "\0skip";
 
+    /// <summary>The provider step's mode row: toggles Quick/Detailed without clearing answers.</summary>
+    internal const string WizardModeValue = "\0mode";
+
     /// <summary>The custom row's label, exactly the auth picker's wording.</summary>
     internal const string WizardCustomLabel = "Custom OpenAI-compatible endpoint…";
 
@@ -184,7 +187,9 @@ internal sealed partial class InteractiveSession
                 continue;
             }
 
-            wizard.Enter(wizard.Step == wizard.LastWalked ? SetupStep.Summary : Next(wizard.Step));
+            wizard.Enter(
+                wizard.Step == wizard.LastWalked ? SetupStep.Summary : wizard.Next(wizard.Step)
+            );
         }
 
         RenderSummary(wizard);
@@ -227,12 +232,6 @@ internal sealed partial class InteractiveSession
         return -1;
     }
 
-    private static SetupStep Next(SetupStep step)
-    {
-        int index = IndexOf(step);
-        return SetupWizardModel.Order[(index + 1) % SetupWizardModel.Order.Count];
-    }
-
     private static SetupStep Previous(SetupStep step)
     {
         int index = IndexOf(step);
@@ -245,6 +244,16 @@ internal sealed partial class InteractiveSession
     {
         List<string> labels = [];
         List<string> values = [];
+        if (wizard.Entry is WizardEntry.WalkEverything)
+        {
+            labels.Add(
+                wizard.IsQuick
+                    ? "Setup mode: quick — provider, credential, model and chat profile (choose for detailed)"
+                    : "Setup mode: detailed — every setting (choose for quick)"
+            );
+            values.Add(WizardModeValue);
+        }
+
         foreach (ProviderPreset preset in ProviderPresets.All)
         {
             labels.Add($"{preset.Id} — {preset.Name} (region not specified)");
@@ -256,17 +265,37 @@ internal sealed partial class InteractiveSession
         labels.Add("Skip provider setup");
         values.Add(WizardSkipValue);
 
+        string? selected = wizard.Provider switch
+        {
+            { Custom: true } => WizardCustomValue,
+            { } provider => provider.Id,
+            _ => ProviderPresets.All[0].Id,
+        };
         string? picked = await PickAsync(
                 "Select provider",
                 labels,
                 values,
                 PickerKind.WizardProvider,
-                ct
+                ct,
+                selected
             )
             .ConfigureAwait(false);
         if (picked is null)
         {
             return WizardMove.Abort;
+        }
+
+        if (picked == WizardModeValue)
+        {
+            // The switch only changes which steps come next; every collected answer stays staged.
+            wizard.ToggleMode();
+            Notify(
+                wizard.IsQuick
+                    ? "setup mode: quick — provider, credential, model and chat profile; the review names what was left at its default"
+                    : "setup mode: detailed — every setting is asked",
+                NoticeLevel.Info
+            );
+            return WizardMove.Stay;
         }
 
         if (picked == WizardSkipValue)
@@ -386,6 +415,21 @@ internal sealed partial class InteractiveSession
                     NoticeLevel.Warning
                 );
                 continue;
+            }
+
+            if (wizard.IsQuick)
+            {
+                // Quick takes the two fields a request needs and leaves the rest at their defaults;
+                // the review names every one it left (spec: Quick and detailed modes).
+                return new WizardProviderChoice(
+                    id,
+                    Custom: true,
+                    Region: null,
+                    endpoint,
+                    ProviderApiFamilies.Name(ProviderApiFamily.OpenAiChat),
+                    CredentialPlacement.Bearer,
+                    null
+                );
             }
 
             string? family = await PickAsync(
@@ -1033,7 +1077,7 @@ internal sealed partial class InteractiveSession
         // when it served one; the catalog's entries carry the same declaration for known models.
         string? declared = choice.Reasoning ?? model.Reasoning;
         string? level = null;
-        if (declared is "effort" or "budget")
+        if (declared is "effort" or "budget" && !wizard.IsQuick)
         {
             string? selected = await PickAsync(
                     $"Thinking level for {choice.ModelId}",

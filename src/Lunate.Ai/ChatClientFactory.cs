@@ -189,22 +189,6 @@ public sealed class ChatClientFactory : IChatClientFactory
             model.Id
         );
 
-        // An unwired family is a slice error before it is an auth error: the check owns the
-        // message naming the family. All four families have clients since the provider-families
-        // change completed; the check is the load-time guard against a future fifth family.
-        if (
-            family
-            is not (
-                ProviderApiFamily.OpenAiChat
-                or ProviderApiFamily.OpenAiResponses
-                or ProviderApiFamily.AnthropicMessages
-                or ProviderApiFamily.Google
-            )
-        )
-        {
-            throw NotImplementedFamily(family, model, model.Provider);
-        }
-
         // Resolved exactly once: the SDK clients get only the sentinel; the credential handler
         // places the real value on the wire in the declared place.
         string credential = apiKey ?? ResolveApiKey(model, preset, _namedKeySource);
@@ -253,6 +237,9 @@ public sealed class ChatClientFactory : IChatClientFactory
                     wireId
                 );
             default:
+                // An unwired family is refused before it becomes an auth or transport error: only
+                // the four families with clients are dispatched above, and this arm names the
+                // family and the wired set for a future fifth family or a decision-only one.
                 throw NotImplementedFamily(family, model, model.Provider);
         }
     }

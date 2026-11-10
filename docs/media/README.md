@@ -12,11 +12,13 @@ welcome header in those GIFs names this build). The scripted reasoning tape and 
 replay committed fixtures through `LUNATE_REPLAY` with `LUNATE_DATE=2026-10-18` pinned — no
 provider is called during those renders.
 
-`setup-wizard.gif` was captured from the `v0.3.0-rc.2` release build
-(`0.3.0-rc.2+a8af348`) through the keyless local stub. The stub serves a recorded
-OpenCode Go discovery response (`fixtures/setup-wizard-models.json`), so the picker and
-model check show real provider and model ids without a network call. It is the only asset
-captured from an rc build rather than the older feature-set build.
+`setup-wizard.gif` was captured from the **published v0.3.0 release binary** —
+`lunate-osx-arm64.tar.gz` from the tag's assets, `0.3.0+9bb5edcb650f91c72bbc38e374925e34456e3c31`
+— so the welcome header in the asset names the build a user who installs today gets. It
+runs through the keyless local stub. The stub serves a recorded OpenCode Go discovery
+response (`fixtures/setup-wizard-models.json`) and repoints each model's declared API host
+at itself, so the custom-endpoint walk, the connection test and the model check show real
+provider and model ids without a network call.
 
 ## Assets
 
@@ -43,11 +45,12 @@ directory, so `docs/` stays prose that no build reads (#430).
 
 ## Re-rendering
 
-`scripts/render-media.sh` is the only way to produce the GIFs above: it regenerates every
-committed tape against a Release build, keyless and deterministic. Requirements and the
-re-record procedure (provider key) are documented in the script's header. The frame is always
-1400×700, font size 16, padding 12, Dracula (`features-narrow` at 450×620); change it nowhere
-else. Every GIF must stay under 5 MB — the README media guard rejects bigger files.
+`scripts/render-media.sh` is the only way to produce the demo and feature GIFs above: it
+regenerates every tape under `tapes/` against a Release build, keyless and deterministic.
+Requirements and the re-record procedure (provider key) are documented in the script's
+header. The frame is always 1400×700, font size 16, padding 12, Dracula
+(`features-narrow` at 450×620); change it nowhere else. Every GIF must stay under 5 MB —
+the README media guard rejects bigger files.
 
 Two tapes drive their moment deliberately: `features-input` filters by text (`/cop` then
 `Tab`) instead of counting rows, so it stays correct when the command table changes;
@@ -56,11 +59,16 @@ Two tapes drive their moment deliberately: `features-input` filters by text (`/c
 matches, so both show the app's own `run failed: fixture mismatch` notice — the same broken
 choreography the previous capture had, not a new defect.
 
-The setup wizard is keyless and isolated, so it has its own harness instead of a replay
-fixture: `scripts/render-setup-wizard.sh` starts a local OpenAI-compatible stub and gives
-`LUNATE_HOME` a throw-away directory. Render it from this directory with
-`LUNATE_BIN=/path/to/lunate vhs tapes/setup-wizard.tape`; the tape writes `setup-wizard.gif`
-here. Nothing in the recording reaches a real provider or reads a real key.
+The setup wizard is keyless and isolated, so its tape starts a helper instead of a replay
+fixture: [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) types
+`scripts/render-setup-wizard.sh`, which starts the local OpenAI-compatible stub
+(`stubs/setup-wizard-provider.py`) and runs `lunate setup` with `LUNATE_HOME` in a
+throw-away directory outside the workspace. The tape takes the custom-endpoint route, types
+the stub URL and the dummy key `sk-demo`, reaches the summary and confirms the write. The
+stub logs every request to `$TMPDIR/lunate-setup-wizard-demo/provider.log`, which is the
+proof that no real provider was called. Override the binary with
+`LUNATE_BIN=/path/to/lunate`; v0.3.0's asset was recorded from the published release
+binary. Nothing in the recording reaches a real provider or reads a real key.
 
 ## Narrow-width captures
 

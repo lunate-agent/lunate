@@ -263,6 +263,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
+        await host.ChooseDetailedModeAsync();
         await PickRowAsync(host, "Select provider", "openrouter — OpenRouter");
         await host.WaitForFrameAsync("Credential for openrouter");
         host.Console.SendEnter(); // the "enter a key" row
@@ -351,7 +352,7 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
 
         host.Advance(500);
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         await PickRowAsync(host, "Select provider", "opencode-go — OpenCode Go");
         await host.WaitForFrameAsync("Credential for opencode-go");
         host.Console.SendEnter(); // the "enter a key" row

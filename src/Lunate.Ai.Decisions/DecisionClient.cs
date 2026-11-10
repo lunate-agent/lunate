@@ -111,9 +111,3 @@ internal sealed class DecisionUsageAttemptsException(
 {
     public IReadOnlyList<DecisionUsageAttempt> Attempts { get; } = attempts;
 }
-
-internal static class DecisionClientServiceExtensions
-{
-    public static TService? GetService<TService>(this IDecisionClient client)
-        where TService : class => client.GetService(typeof(TService)) as TService;
-}

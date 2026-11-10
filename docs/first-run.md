@@ -1,9 +1,10 @@
 # First run
 
-Lunate's first run is the setup wizard. It walks provider, credential, connection test, model,
-model check, chat profile, optional fast/decision profiles, the decisions layer, and a summary;
-nothing is written until the summary is confirmed. Re-run it at any time with `/setup` in a session
-or `lunate setup` from a shell.
+Lunate's first run is the setup wizard. It has two depths on one walk: **Quick** (the default) asks
+provider, credential, connection test, model, model check and chat profile; **Detailed** asks every
+setting as well — a custom provider's fields, thinking level, fast/decision profiles and the
+decisions layer. Nothing is written until the summary is confirmed. Re-run it at any time with
+`/setup` in a session or `lunate setup` from a shell.
 
 ![The setup wizard walking provider, credential, connection test, model check and summary](media/setup-wizard.gif)
 
@@ -12,8 +13,11 @@ or `lunate setup` from a shell.
 Start `lunate` in a repository with no usable configuration. When stdin and stdout are terminals,
 the wizard opens instead of the prompt:
 
+- **Mode** — the first step defaults to Quick; choose the mode row to switch to Detailed. Switching
+  keeps every answer already collected. `/setup`'s scoped entries stay detailed.
 - **Provider** — the twelve presets in [`providers.json`](../src/Lunate.Ai/providers.json) order,
-  plus a custom OpenAI-compatible endpoint.
+  plus a custom OpenAI-compatible endpoint. Quick asks a custom provider's id and endpoint only;
+  Detailed also asks its API family, credential placement, region and models URL.
 - **Credential** — type a key (masked, stored only in `auth.json`), name an `env:`/`auth:`
   reference, or skip. A provider environment variable always wins over a stored key.
 - **Connection test** — one discovery request to the provider's models URL; skippable.
@@ -23,16 +27,19 @@ the wizard opens instead of the prompt:
   by qualified id.
 - **Model check** — one minimal completion that verifies the resolved family; it costs one short
   request, and `--no-model-check`, `--no-test` or the skip row avoids it.
-- **Chat profile and thinking** — the name the session uses and the reasoning level the model
-  declares.
-- **Fast and decision profiles** — optional; both default to skip.
-- **Decisions** — each switch is shown with the value it holds now and one explanatory line; the
-  list stays open after each change and refreshes every row, and **Done — leave the decisions
-  settings** leaves it.
-- **Summary** — every collected value, the connection/model-check results, and the skipped steps.
+- **Chat profile and thinking** — the name the session uses; Detailed also asks the reasoning level
+  the model declares.
+- **Fast and decision profiles** — Detailed only; both default to skip.
+- **Decisions** — Detailed only; each switch is shown with the value it holds now and one explanatory
+  line; the list stays open after each change and refreshes every row, and **Done — leave the
+  decisions settings** leaves it.
+- **Summary** — every collected value, the connection/model-check results, and the skipped steps. A
+  Quick summary adds a **Left at default** block naming every setting Quick did not ask, the default
+  it left, and the command that changes it later (`/setup` or `/settings`).
 
-`Esc` at any prompt ends the run with nothing written. The full walk is the only path that writes
-several stores; the entry menu below writes only the answers it collects.
+Quick never hides a default: a setting it skips appears in that block. `Esc` at any prompt ends the
+run with nothing written. The full walk is the only path that writes several stores; the entry menu
+below writes only the answers it collects.
 
 ## `lunate setup` — non-interactive and scripted
 

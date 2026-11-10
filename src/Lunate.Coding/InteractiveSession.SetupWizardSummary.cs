@@ -83,6 +83,7 @@ internal sealed partial class InteractiveSession
         _providerEntries = userProviders.Entries;
         _settings = SettingsStore.Resolve(settingsPath, _options.Environment);
         _settings = SettingsStore.ApplyLaunch(_settings, _options.Launch);
+        ApplyToolEnvironment();
         _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
 
         // The chat profile a run staged: the full walk's profile (which also bound the usage),
@@ -224,6 +225,15 @@ internal static class SetupWizardSummary
     internal static IReadOnlyList<string> Render(SetupWizardModel wizard)
     {
         List<string> lines = [];
+        if (wizard.Entry is WizardEntry.WalkEverything)
+        {
+            lines.Add(
+                wizard.IsQuick
+                    ? "setup mode: quick — provider, credential, model and chat profile"
+                    : "setup mode: detailed — every setting was asked"
+            );
+        }
+
         if (wizard.Provider is { } provider)
         {
             lines.Add(
@@ -400,6 +410,15 @@ internal static class SetupWizardSummary
                         )
                     )
             );
+        }
+
+        if (wizard.LeftAtDefault is { Count: > 0 } defaults)
+        {
+            lines.Add("Left at default:");
+            foreach (WizardDefault left in defaults)
+            {
+                lines.Add($"  {left.Setting}: {left.Value} — change later with {left.ChangeWith}");
+            }
         }
 
         return lines;

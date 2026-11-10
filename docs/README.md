@@ -6,12 +6,14 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | --- | --- | --- |
 | Project entry point | [`../README.md`](../README.md) | What Lunate is, why it exists, install, the three-step start and what it can do |
 | Usage | [`usage.md`](usage.md) | Sessions and the terminal: input, turns, tools, approvals, thinking and decisions, copy and export, forks and long sessions, trust, extensions/MCP/skills/`AGENTS.md`, and the modes |
+| Execution environments | [`execution-environments.md`](execution-environments.md) | Run tool calls in a container: where commands and file tools run, the Docker/Podman flag and settings, what is mounted, and the measured cost and platform limits |
 | Settings reference | [`configuration.md`](configuration.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
 | First run | [`first-run.md`](first-run.md) | Choosing a provider, `lunate auth`, the `/auth` picker, custom OpenAI-compatible endpoints, the user's own model catalog and where credentials live |
 | Contributor guide | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Prerequisites, build, the verify gate, the repository map, the OpenSpec workflow |
 | Security policy | [`../SECURITY.md`](../SECURITY.md) | How to report a vulnerability, the trust model, secrets |
 | Changelog | [`../CHANGELOG.md`](../CHANGELOG.md) | Notable changes, one section per release |
 | Plan and status | [`guide.md`](guide.md) | The implementation plan, phases and roadmap |
+| Documentation architecture (proposed) | [`dev/information-architecture.md`](dev/information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and slice plan, awaiting sign-off |
 | Architecture overview | [`architecture.md`](architecture.md) | Component map, model pipeline, one run and the event path, as diagrams |
 | Extensibility spec | [`spec/extensibility.md`](spec/extensibility.md) | Contract and hooks, tool model, services, UI by mode, fitness suite (under ADR-0017) |
 | Export contract | [`spec/export.md`](spec/export.md) | `/export` and `/copy`: destination, credential redaction, the HTML document's CSP and escaping guarantees |

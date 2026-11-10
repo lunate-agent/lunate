@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# Regenerate the README media (the demo GIF and the feature GIFs) from the committed
-# VHS tapes. Keyless and deterministic: every tape replays a committed fixture through
-# LUNATE_REPLAY with a pinned LUNATE_DATE, so no provider is called and no run varies.
-# The demo tapes replay docs/media/fixtures/demo-session.jsonl; the thinking tape (see its
-# fixture block below) replays tests/fixtures/streams/scripted-reasoning.jsonl. The scratch
-# home gets an inert auth.json entry so the first-run auth offer stays closed (see that
-# block below).
+# Regenerate the README media (the demo GIF, the feature GIFs and the setup-wizard GIF)
+# from the committed VHS tapes. Keyless and deterministic: every demo and feature tape
+# replays a committed fixture through LUNATE_REPLAY with a pinned LUNATE_DATE, so no
+# provider is called and no run varies. The demo tapes replay
+# docs/media/fixtures/demo-session.jsonl; the thinking tape (see its fixture block below)
+# replays tests/fixtures/streams/scripted-reasoning.jsonl. The scratch home gets an inert
+# auth.json entry so the first-run auth offer stays closed (see that block below).
+#
+# The setup-wizard tape is the exception: it types scripts/render-setup-wizard.sh, which
+# serves the recorded OpenCode Go discovery response from a keyless local stub and runs
+# `lunate setup` in a throw-away home. The committed asset was recorded from the published
+# v0.3.0 release binary; pass LUNATE_BIN=/path/to/lunate to reproduce that provenance.
 #
 # The fixture embeds the demo workspace path, the tool set and the model id in its request
 # digests — it is only valid for exactly this setup. When the demo workspace, the prompt, the
@@ -203,14 +208,6 @@ for tape in tapes/${FILTER}*.tape; do
   esac
   "$VHS" "$tape"
 done
-
-# VHS tears the app down after the tape's last sleep, which repaints the setup summary's
-# Cancel choice. Keep the confirmed-values summary as the final frame of the wizard GIF;
-# this is part of the render, not a manual edit.
-if [ -f setup-wizard.gif ]; then
-  ffmpeg -y -loglevel error -i setup-wizard.gif -t 17.8 -c copy setup-wizard.trim.gif
-  mv setup-wizard.trim.gif setup-wizard.gif
-fi
 
 # --- size guard: README GIFs stay under 5 MB ---
 status=0

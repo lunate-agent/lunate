@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <!--
+        Spike project (#625): not in lunate.slnx, not part of scripts/verify.sh, no package
+        references. It references the product assemblies read-only, so the evidence is produced by
+        the real WriteTool/ReadTool/BashTool, not by a parallel reimplementation of them.
+    -->
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>S7</RootNamespace>
+        <AssemblyName>S7.Harness</AssemblyName>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../../../src/Lunate.Coding/Lunate.Coding.csproj" />
+    </ItemGroup>
+</Project>

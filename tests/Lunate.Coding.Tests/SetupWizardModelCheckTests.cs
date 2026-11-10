@@ -122,7 +122,7 @@ public sealed class SetupWizardModelCheckTests
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         for (var row = 0; row < ProviderPresets.All.Count; row++)
         {
             host.Console.Send(

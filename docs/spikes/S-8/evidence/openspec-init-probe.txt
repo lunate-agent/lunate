@@ -1,0 +1,56 @@
+openspec init probe — raw output
+================================
+
+Date: 2026-11-08
+Version: openspec 1.14.0
+Command (run in a throw-away directory under $TMPDIR):
+
+  openspec init --tools opencode --no-animation
+
+Output (ANSI colour stripped; the first character of the structure line is
+the progress spinner stop marker):
+
+  - Creating OpenSpec structure...
+  ▌ OpenSpec structure created
+  - Setting up OpenCode...
+  ✔ Setup complete for OpenCode
+
+  OpenSpec Setup Complete
+
+  Created: OpenCode
+  11 skills and 11 commands in .opencode/
+  Config: openspec/config.yaml (schema: spec-driven)
+
+  Getting started:
+    Start your first change: /opsx-propose "your idea"
+
+  Note: 1 more workflow is available (update).
+  Add it with `openspec config profile`.
+
+  Learn more: https://github.com/Fission-AI/OpenSpec
+  Feedback:   https://github.com/Fission-AI/OpenSpec/issues
+
+Files created (relative to the probe directory):
+
+  .opencode/commands/opsx-apply.md
+  .opencode/commands/opsx-archive.md
+  .opencode/commands/opsx-bulk-archive.md
+  .opencode/commands/opsx-continue.md
+  .opencode/commands/opsx-explore.md
+  .opencode/commands/opsx-ff.md
+  .opencode/commands/opsx-new.md
+  .opencode/commands/opsx-onboard.md
+  .opencode/commands/opsx-propose.md
+  .opencode/commands/opsx-sync.md
+  .opencode/commands/opsx-verify.md
+  openspec/config.yaml
+  openspec/specs/.gitkeep
+
+What this supports in the report:
+
+- The post-write summary names what was created, the count, the directory, the
+  config path and the next command. This is the shape #685 adopts.
+- The command is fully non-interactive with --tools, the parity point in the
+  non-interactive row.
+- The probe did not exercise the animated welcome or the interactive
+  searchable multi-select; those were read in the installed source.

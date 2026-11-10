@@ -123,7 +123,7 @@ internal sealed record WizardDecisionsChoice(
 /// already owns; a step failed by a check goes back to the earlier step without losing later,
 /// independent answers, and skipping a step leaves the value it would have configured untouched.
 /// </summary>
-internal sealed class SetupWizardModel
+internal sealed partial class SetupWizardModel
 {
     /// <summary>The steps whose answers could change a store, in walk order.</summary>
     internal static readonly IReadOnlyList<SetupStep> Order =
@@ -238,16 +238,19 @@ internal sealed class SetupWizardModel
             _ => SetupStep.Provider,
         };
 
-    /// <summary>The entry's last walked step; the walk goes to the summary after it.</summary>
+    /// <summary>The entry's last walked step; the walk goes to the summary after it. Quick's full
+    /// walk ends at the chat profile because every later step is left at its default.</summary>
     internal SetupStep LastWalked =>
-        Entry switch
-        {
-            WizardEntry.AddProvider => SetupStep.ConnectionTest,
-            WizardEntry.AddProfile => SetupStep.DecisionProfile,
-            WizardEntry.ChangeChatProfile => SetupStep.ChatProfile,
-            WizardEntry.EditDecisions => SetupStep.Decisions,
-            _ => SetupStep.Decisions,
-        };
+        IsQuick
+            ? SetupStep.ChatProfile
+            : Entry switch
+            {
+                WizardEntry.AddProvider => SetupStep.ConnectionTest,
+                WizardEntry.AddProfile => SetupStep.DecisionProfile,
+                WizardEntry.ChangeChatProfile => SetupStep.ChatProfile,
+                WizardEntry.EditDecisions => SetupStep.Decisions,
+                _ => SetupStep.Decisions,
+            };
 
     /// <summary>
     /// Carries the current configuration's answers into the walk as an entry run's context. A
@@ -326,6 +329,13 @@ internal sealed class SetupWizardModel
     /// </summary>
     public void RecordProvider(WizardProviderChoice choice)
     {
+        if (Provider == choice)
+        {
+            // Re-selecting the same provider (the mode row sends the step around again) invents
+            // nothing and must not clear the answers the walk already collected.
+            return;
+        }
+
         Provider = choice;
         Credential = null;
         ConnectionTest = null;

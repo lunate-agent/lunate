@@ -758,6 +758,16 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
   alias, and each custom provider's `env:` reference). A model-chosen command cannot read the
   user's provider key out of its environment, the same boundary the bash guard's `auth.json`
   read-deny draws for files.
+- `toolEnvironment.passthrough` in `~/.lunate/settings.json` names the exact variables to admit into
+  tool children after that strip: `{"toolEnvironment": {"passthrough": ["MY_PROJECT_TOKEN"]}}`.
+  Matching is by exact name — no wildcard, prefix or pattern — and a listed name the parent does not
+  hold stays absent. The admitted names are listed at session start. An admitted variable is
+  reachable by the model through tool processes: the model can read it from a command it runs, so
+  list only a name a tool child may expose. A listed name that is also a Lunate credential name is
+  admitted with one startup warning; the `Scrubbed` extension-host policy never receives the
+  inherited set, so the list does not apply there. The setting is user-scope only: a project
+  `.lunate/settings.json` that carries `toolEnvironment` is refused by name, so a cloned repository
+  cannot widen a tool child's environment.
 - Their tools arrive from the SDK as Microsoft.Extensions.AI functions and are wrapped as `ITool`s with risk `Execute`, so the approval policy applies. Names are prefixed `server__tool` to avoid collisions.
 - Refresh on tool list changes; cancel calls when a turn is cancelled; time out hanging servers. A crashing server becomes a tool error, never a crash of Lunate.
 - v1 uses stdio servers; remote servers over HTTP follow when needed, using the SDK's transports.
@@ -922,41 +932,7 @@ OpenCode reads `AGENTS.md` natively; there is no separate editor-specific memory
 
 **AGENTS.md**
 
-```markdown
-# Lunate — rules for coding agents
-
-Lunate is a native C# coding agent for the terminal. Background: `docs/guide.md`.
-This repo is developed with OpenCode and OpenSpec (schema: `intent-driven`).
-
-## Workflow (OpenSpec)
-- Work happens through OpenSpec changes. Never hand-write files under `openspec/changes/` or `openspec/specs/`; use the `openspec` CLI and the lifecycle skills in `.agents/skills/`, in order: `openspec-new-change` → `openspec-propose` → `openspec-continue-change` → `openspec-apply-change` → `openspec-verify-change` → `openspec-sync-specs` → `openspec-archive-change`. They work the same in every coding harness.
-- For propose/apply/verify/archive workflows, use the local `openspec-git-discipline` skill: proposals land on `main` before apply, implementation lands on `main` before archive.
-- OpenSpec specs are the source of truth for behaviour. If spec and code disagree, stop and report — fix the spec first.
-- One change per session. Do only what the change's `tasks.md` asks; anything else becomes a follow-up change.
-- src work goes through the `senior-dev` subagent (test-first, `test-driven-development` skill); acceptance-test work through `senior-qa`.
-
-## Build
-- .NET 10 (pinned in `global.json`), C# 14, nullable, warnings as errors.
-- `scripts/verify.sh` (Windows: `scripts/verify.ps1`) must pass before a change is done: build, tests, single-file publish, performance budgets, public API and format checks.
-
-## Architecture
-- `Lunate.Ai` <- `Lunate.Agent` <- `Lunate.Protocols` / `Lunate.Coding`. Never reference upward.
-- `Lunate.Tui` references no other Lunate project.
-- `Lunate.Agent` references only `Microsoft.Extensions.AI.Abstractions`, `Lunate.Ai` and the BCL.
-- Model types are Microsoft.Extensions.AI types (`IChatClient`, `ChatMessage`, `AIContent`). Do not add parallel message types. Tools (`ITool`) and events (`AgentEvent`) are ours.
-- Never use `FunctionInvokingChatClient` or `AIFunctionFactory`. The loop in `Lunate.Agent` runs tools, because approvals, events, steering, cancel, error messages and compaction all happen between tool calls. See ADR-0003.
-- `Lunate.Roslyn`, MCP servers and extensions load on first use, never at startup.
-
-## Rules
-- No new NuGet packages. Ask first.
-- Public API changes appear in `PublicAPI.Unshipped.txt`. Change public types only if the change says so; otherwise propose the change and stop.
-- A failing golden session test means the session format changed. Stop and report; never update golden files to make a test pass.
-- In ACP mode nothing writes to stdout except the protocol.
-- Tool error messages are read by a model: say what failed and what to do next.
-- Every behaviour change has a test. Tests use fixtures in `tests/fixtures/`, never live APIs.
-- Keep files under about 300 lines. Prefer plain code over abstractions.
-- No secrets in git. Commit small, conventional-commit messages.
-```
+The rule set for coding agents is [`AGENTS.md`](../AGENTS.md); it is not copied here, so a rule change has one home. The rest of this section describes how those rules are enforced.
 
 **Enforcement**
 
