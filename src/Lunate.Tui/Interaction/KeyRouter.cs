@@ -1,6 +1,6 @@
 namespace Lunate.Tui;
 
-/// <summary>What a key means to the prompt: exactly one intent per key, per the guide's table.</summary>
+/// <summary>What a key means to the prompt: exactly one intent per key, per the keybindings table.</summary>
 public enum RoutedKey
 {
     Edit,

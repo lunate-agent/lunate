@@ -31,7 +31,7 @@ approval, never grant one.
 Decision consumption is configured by one `decisions` block, with the same shape for every consumer.
 It is part of `settings.json` (JSON only — nothing reads YAML), shown in the example above. Without
 `profile` the layer is unavailable and nothing is offered; enabling a consumer without a profile is
-not an error — the layer stays off. The generated [configuration reference](configuration.md)
+not an error — the layer stays off. The generated [settings reference](settings.md)
 lists every accepted settings key with its type, default, scope and allowed values.
 
 Every switch is shown with the value it holds now and one explanatory line in the setup wizard; the
@@ -45,7 +45,7 @@ settings** leaves it. The same keys can be edited in the file directly.
 `enforce` over two or more profiles), the information-only decide tool, and display-only suggestions
 beside a question's top option. A decision can only tighten an approval, never grant one; without a
 profile the layer stays off. The same gate runs in the TUI, print mode and ACP, and the
-[configuration reference](configuration.md) lists every key.
+[settings reference](settings.md) lists every key.
 
 `routing` records a suggested profile without changing the configured chat model in shadow, or uses
 the selected profile in enforce; routing picks the most probable profile and uses no threshold. An

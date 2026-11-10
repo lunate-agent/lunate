@@ -11,7 +11,9 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | MCP servers | [`mcp-servers.md`](mcp-servers.md) | The MCP client: where `mcpServers` is read, how a server starts, and what its child process inherits |
 | Themes and keys | [`themes-and-keys.md`](themes-and-keys.md) | The colour-depth policy, the key remaps `/settings` persists, and why `keys.json` stays the only declaration |
 | Execution environments | [`execution-environments.md`](execution-environments.md) | Run tool calls in a container: where commands and file tools run, the Docker/Podman flag and settings, what is mounted, and the measured cost and platform limits |
-| Settings reference | [`configuration.md`](configuration.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
+| Configuration | [`configuration.md`](configuration.md) | How to configure a session: decision profiles, custom provider entries, thinking, the welcome header and update check, and recording |
+| Settings reference | [`settings.md`](settings.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
+| Keybindings reference | [`keybindings.md`](keybindings.md) | Every prompt binding, generated from the keys file the router and the in-app help read so it cannot describe a key the product does not have |
 | Quickstart | [`quickstart.md`](quickstart.md) | Install, the first run and the setup wizard, the first task, and scripted setup |
 | Models and providers | [`models-and-providers.md`](models-and-providers.md) | Choosing a provider, `lunate auth`, the `/auth` picker, provider instances and credentials, profiles, custom OpenAI-compatible endpoints and the user's own model catalog |
 | Decisions | [`decisions.md`](decisions.md) | The optional decision layer: its profile, approvals, routing, the decide tool, question suggestions and the System One transport |
@@ -48,8 +50,8 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   tool-managed and excluded.
 - **One home per fact.** Link to the owning document instead of copying it; a fact that exists twice drifts.
 - **Generated regions are not hand-written.** `scripts/docs-sync` fills
-  `<!-- keys:start --> … <!-- keys:end -->` in `guide.md` from `src/Lunate.Tui/keys.json` (the file
-  the router and the in-app help read), `<!-- docs-sync: settings --> …` in `configuration.md`
+  `<!-- keys:start --> … <!-- keys:end -->` in `keybindings.md` from `src/Lunate.Tui/keys.json`
+  (the file the router and the in-app help read), `<!-- docs-sync: settings --> …` in `settings.md`
   from `src/Lunate.Coding/settings-schema.json` (the file `SettingsSchema` reads and tests pin to
   the parser's accepted keys), and `<!-- docs-sync: version --> …` in the README with the newest
   *published* stable release — the newest non-prerelease tag whose release attached its

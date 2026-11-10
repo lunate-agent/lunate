@@ -1,17 +1,17 @@
 namespace Lunate.Tui.Tests;
 
 /// <summary>
-/// The guide's key table is a generated region (<c>scripts/docs-sync</c>) driven by
+/// The keybindings reference's table is a generated region (<c>scripts/docs-sync</c>) driven by
 /// <c>keys.json</c>'s <c>guideRows</c>, whose rows are pinned to the catalog by
 /// <see cref="KeysFileTests"/>. This file closes the side nothing else guards in a test run: the
 /// docs-sync region check runs only in the docs profile, so a keys.json change that forgets to
-/// regenerate <c>docs/guide.md</c> is noticed on CI only by a docs-only pull request. Here the
-/// page's key cells are checked against <see cref="KeyBindingCatalog"/> itself, so a binding can
-/// neither lose its doc row nor be shadowed by a hand edit of the region.
+/// regenerate <c>docs/keybindings.md</c> is noticed on CI only by a docs-only pull request. Here
+/// the page's key cells are checked against <see cref="KeyBindingCatalog"/> itself, so a binding
+/// can neither lose its doc row nor be shadowed by a hand edit of the region.
 /// </summary>
 /// <remarks>
 /// This is the suite's one repository read of the docs tree, allowlisted in
-/// <c>scripts/no-docs-references.sh</c>. A guide-table row may document a key the router does not
+/// <c>scripts/no-docs-references.sh</c>. A table row may document a key the router does not
 /// carry, and every such row is exempted here, named with its reason rather than worked around
 /// (issue #267): the approval panel's letter keys (<c>y</c>, <c>n</c>, <c>a</c>), which the panel
 /// owns before the router sees them; <c>?</c>, gated on an empty idle prompt — a condition the
@@ -24,11 +24,11 @@ public sealed class GuideKeyTableTests
     private const string GuideHeading = "**Key bindings (one meaning each)**";
 
     /// <summary>
-    /// The keys a guide-table row may document without a catalog binding. A fourth kind — a row
-    /// for a key no binding has and nothing exempts — is what this file exists to refuse. The
-    /// letters are the approval prompt's; <c>?</c> fires on an empty idle prompt and in the
-    /// approval legend, neither of which the context flags can express; <c>Ctrl+P</c> is unbound
-    /// on purpose (the model picker is <c>Alt+P</c>).
+    /// The keys a table row may document without a catalog binding. A fourth kind — a row for a
+    /// key no binding has and nothing exempts — is what this file exists to refuse. The letters
+    /// are the approval prompt's; <c>?</c> fires on an empty idle prompt and in the approval
+    /// legend, neither of which the context flags can express; <c>Ctrl+P</c> is unbound on
+    /// purpose (the model picker is <c>Alt+P</c>).
     /// </summary>
     private static readonly string[] ExemptUnboundKeys = ["y", "n", "a", "?", "Ctrl+P"];
 
@@ -38,17 +38,17 @@ public sealed class GuideKeyTableTests
 
     /// <summary>
     /// Every binding the router will answer to must also be in the reader-facing table: a binding
-    /// added without a doc row is a key the guide does not admit having.
+    /// added without a doc row is a key the reference does not admit having.
     /// </summary>
     [Fact]
-    public void Every_catalog_binding_appears_in_the_guide_key_table()
+    public void Every_catalog_binding_appears_in_the_keybindings_table()
     {
         foreach (KeyBinding binding in KeyBindingCatalog.All)
         {
             string spelled = KeyPatternFormatter.Describe(binding.Key);
             Assert.True(
                 PageKeys.Contains(spelled, StringComparer.Ordinal),
-                $"KeyBindingCatalog's '{spelled}' ({binding.Description}) has no docs/guide.md row; "
+                $"KeyBindingCatalog's '{spelled}' ({binding.Description}) has no docs/keybindings.md row; "
                     + "add it to keys.json's guideRows and run scripts/docs-sync"
             );
         }
@@ -59,7 +59,7 @@ public sealed class GuideKeyTableTests
     /// generated region.
     /// </summary>
     [Fact]
-    public void The_guide_tables_unbound_keys_are_only_the_declared_exemptions()
+    public void The_keybindings_tables_unbound_keys_are_only_the_declared_exemptions()
     {
         string[] catalogKeys =
         [
@@ -79,7 +79,7 @@ public sealed class GuideKeyTableTests
                 );
                 Assert.True(
                     ExemptUnboundKeys.Contains(key, StringComparer.Ordinal),
-                    $"docs/guide.md documents '{key}' and no catalog row has it "
+                    $"docs/keybindings.md documents '{key}' and no catalog row has it "
                         + $"(row: '{row.KeyCell}' — {row.ActionCell}); if it is meant to route, add it "
                         + "to keys.json and run scripts/docs-sync, otherwise remove the row"
                 );
@@ -94,10 +94,12 @@ public sealed class GuideKeyTableTests
     /// </summary>
     private static GuideRow[] GuideKeyTableRows()
     {
-        string page = File.ReadAllText(Path.Combine(TestPaths.RepositoryRoot, "docs", "guide.md"));
+        string page = File.ReadAllText(
+            Path.Combine(TestPaths.RepositoryRoot, "docs", "keybindings.md")
+        );
         string[] lines = page.Split('\n');
         // The heading is part of the requirement, not decoration: a table moved under another heading is
-        // no longer the guide's key table, and a check that never looks for it passes on a page that lost
+        // no longer the keybindings table, and a check that never looks for it passes on a page that lost
         // the section entirely.
         int[] headings =
         [
@@ -109,7 +111,7 @@ public sealed class GuideKeyTableTests
         ];
         Assert.True(
             headings.Length == 1,
-            $"docs/guide.md must carry exactly one '{GuideHeading}' heading (found {headings.Length}); "
+            $"docs/keybindings.md must carry exactly one '{GuideHeading}' heading (found {headings.Length}); "
                 + "it is what makes the table below it the key table and not a table"
         );
         int[] starts =
@@ -130,7 +132,7 @@ public sealed class GuideKeyTableTests
         ];
         Assert.True(
             starts.Length == 1 && ends.Length == 1 && starts[0] < ends[0],
-            $"docs/guide.md must carry exactly one '<!-- keys:start -->' above exactly one "
+            $"docs/keybindings.md must carry exactly one '<!-- keys:start -->' above exactly one "
                 + $"'<!-- keys:end -->' (found {starts.Length} and {ends.Length}); the markers say "
                 + "where the generated key table goes"
         );
@@ -165,7 +167,7 @@ public sealed class GuideKeyTableTests
         GuideRow[] parsed = [.. rows[2..].Select(ParseRow)];
         Assert.True(
             parsed.Length > 0 && parsed.Any(row => row.Keys.Length > 0),
-            "the guide key table holds no key cell; the table is empty and no key is documented"
+            "the keybindings table holds no key cell; the table is empty and no key is documented"
         );
         return parsed;
     }
@@ -175,7 +177,7 @@ public sealed class GuideKeyTableTests
         string[] cells = row.Trim().Trim('|').Split(" | ");
         Assert.True(
             cells.Length == 2,
-            $"the guide row '{row}' is not a two-column table row; the key table is fixed-shaped"
+            $"the table row '{row}' is not a two-column table row; the key table is fixed-shaped"
         );
         string[] keys =
         [

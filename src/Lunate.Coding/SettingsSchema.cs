@@ -18,9 +18,10 @@ internal sealed record SettingEntry(
 
 /// <summary>
 /// The settings schema: one entry per key <see cref="SettingsStore"/> accepts, read from
-/// <c>settings-schema.json</c> — the file <c>scripts/docs-sync</c> renders docs/configuration.md's
-/// table from, the mirror of how the TUI's <c>keys.json</c> backs the router and the guide's key
-/// table. The file is the only place a settings key is documented; tests pin it to the parser's
+/// <c>settings-schema.json</c> — the file <c>scripts/docs-sync</c> renders docs/settings.md's
+/// table from, the mirror of how the TUI's <c>keys.json</c> backs the router and the keybindings
+/// reference's table. The file is the only place a settings key is documented; tests pin it to the
+/// parser's
 /// own literals (both directions) and to the project merge's scope rules, so a key cannot be
 /// accepted, documented or scoped alone. Loaded on first use, never at startup.
 /// </summary>

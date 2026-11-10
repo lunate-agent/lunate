@@ -385,7 +385,7 @@
       "type": "array of key specs",
       "default": "unset",
       "scope": "user",
-      "description": "A binding id (see the guide's key table) remapped to its declared keys, persisted so it survives a restart."
+      "description": "A binding id (see the keybindings reference) remapped to its declared keys, persisted so it survives a restart."
     },
     {
       "name": "tui.theme",

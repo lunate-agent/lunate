@@ -5,15 +5,15 @@ Three mechanisms, all driven by markers in a Markdown file:
 
   <!-- keys:start --> ... <!-- keys:end -->
       replaced with the key table built from src/Lunate.Tui/keys.json -- the same file the router
-      and the in-app help read, so the guide's legend cannot describe a binding the product does
-      not have. docs/guide.md must carry this pair; a missing marker is a failure, not a page
-      without a generated region.
+      and the in-app help read, so the keybindings reference cannot describe a binding the product
+      does not have. docs/keybindings.md must carry this pair; a missing marker is a failure, not a
+      page without a generated region.
 
   <!-- docs-sync: settings --> ... <!-- /docs-sync: settings -->
       replaced with the settings reference table built from
       src/Lunate.Coding/settings-schema.json -- the same file the SettingsSchema table reads and
-      the tests pin to the parser's accepted keys, so docs/configuration.md cannot list a key the
-      store refuses. The page must carry the pair, like the guide's.
+      the tests pin to the parser's accepted keys, so docs/settings.md cannot list a key the
+      store refuses. The page must carry the pair, like the keybindings reference's.
 
   <!-- docs-sync: version --> ... <!-- /docs-sync: version -->
       replaced with the current stable release, derived from the newest *published* stable release:
@@ -49,12 +49,12 @@ from contextlib import redirect_stderr, redirect_stdout
 
 import published_release
 
-KEYS_PAGE = "docs/guide.md"
+KEYS_PAGE = "docs/keybindings.md"
 KEYS_SOURCE = "src/Lunate.Tui/keys.json"
 KEYS_START = "<!-- keys:start -->"
 KEYS_END = "<!-- keys:end -->"
 
-SETTINGS_PAGE = "docs/configuration.md"
+SETTINGS_PAGE = "docs/settings.md"
 SETTINGS_SOURCE = "src/Lunate.Coding/settings-schema.json"
 SETTINGS_START = "<!-- docs-sync: settings -->"
 SETTINGS_END = "<!-- /docs-sync: settings -->"
@@ -126,10 +126,10 @@ def table_lines(root):
     for row in rows:
         keys = row.get("keys") or []
         if not keys:
-            raise DocsSyncError(f"{KEYS_SOURCE}: guide row '{row.get('id')}' lists no keys")
+            raise DocsSyncError(f"{KEYS_SOURCE}: keybindings row '{row.get('id')}' lists no keys")
         action = (row.get("action") or "").strip()
         if not action:
-            raise DocsSyncError(f"{KEYS_SOURCE}: guide row '{row.get('id')}' has no action text")
+            raise DocsSyncError(f"{KEYS_SOURCE}: keybindings row '{row.get('id')}' has no action text")
         cell = " / ".join(f"`{key}`" for key in keys)
         lines.append(f"| {cell} | {action} |")
     return lines
@@ -559,15 +559,15 @@ def self_test():
             '        <ProjectReference Private="false" />\n'
             "        <!-- snippet:end -->\n    </ItemGroup>\n</Project>\n",
         )
-        guide = scratch / KEYS_PAGE
+        keybindings = scratch / KEYS_PAGE
         write_text(
-            guide,
+            keybindings,
             "# Guide\n\n**Keys**\n\n<!-- keys:start -->\nstale row\n<!-- keys:end -->\n\n"
             "## Next\n",
         )
-        configuration = scratch / SETTINGS_PAGE
+        settings = scratch / SETTINGS_PAGE
         write_text(
-            configuration,
+            settings,
             "# Configuration\n\n<!-- docs-sync: settings -->\n"
             "<!-- /docs-sync: settings -->\n",
         )
@@ -580,7 +580,7 @@ def self_test():
         status, _, _ = check_scratch(write=True)
         if status != 0:
             raise DocsSyncError(f"self-test: writing a stale tree must succeed, exited {status}")
-        table = read_text(guide)
+        table = read_text(keybindings)
         if "| `Ctrl+A` / `Ctrl+B` | First thing |" not in table or "stale row" in table:
             raise DocsSyncError("self-test: the key table was not generated from keys.json")
         if "| `Esc` | Leave |" not in table:
@@ -628,25 +628,25 @@ def self_test():
 
         # 5. --check fails on a stale page, names it, and writes nothing.
         cases += 1
-        clean = read_text(guide)
-        write_text(guide, clean.replace("First thing", "Something else"))
-        stale = read_text(guide)
+        clean = read_text(keybindings)
+        write_text(keybindings, clean.replace("First thing", "Something else"))
+        stale = read_text(keybindings)
         status, _, err = check_scratch(write=False)
         if status != 1:
             raise DocsSyncError(f"self-test: --check on a stale table must exit 1, exited {status}")
-        if "guide.md" not in err:
+        if "keybindings.md" not in err:
             raise DocsSyncError("self-test: the failure must name the stale page")
-        if read_text(guide) != stale:
+        if read_text(keybindings) != stale:
             raise DocsSyncError("self-test: --check wrote to the tree")
-        write_text(guide, clean)
+        write_text(keybindings, clean)
 
         # 6. A deleted region marker fails instead of passing vacuously.
         cases += 1
-        write_text(guide, clean.replace(KEYS_END + "\n", ""))
+        write_text(keybindings, clean.replace(KEYS_END + "\n", ""))
         status, _, err = check_scratch(write=False)
         if status != 1 or "keys:end" not in err:
             raise DocsSyncError("self-test: a missing region marker must fail and name the marker")
-        write_text(guide, clean)
+        write_text(keybindings, clean)
 
         # 7. A snippet whose file is missing fails and names the path.
         cases += 1
@@ -690,7 +690,7 @@ def self_test():
         #     carries the entry's fields, the page both ways stays a no-op, a changed schema is
         #     stale on --check, and a lost marker fails instead of passing vacuously.
         cases += 1
-        settings_table = read_text(configuration)
+        settings_table = read_text(settings)
         for cell in (
             "`model`",
             "`profiles.<id>.maxOutput`",
@@ -702,11 +702,11 @@ def self_test():
                 raise DocsSyncError(
                     f"self-test: the settings table lost the {cell} cell from settings-schema.json"
                 )
-        second_settings = read_text(configuration)
+        second_settings = read_text(settings)
         status, out, _ = check_scratch(write=True)
         if (
             status != 0
-            or read_text(configuration) != second_settings
+            or read_text(settings) != second_settings
             or "up to date" not in out
         ):
             raise DocsSyncError(
@@ -717,7 +717,7 @@ def self_test():
             read_text(scratch / SETTINGS_SOURCE).replace("The default model id.", "Changed."),
         )
         status, _, err = check_scratch(write=False)
-        if status != 1 or "configuration.md" not in err:
+        if status != 1 or "settings.md" not in err:
             raise DocsSyncError(
                 "self-test: --check must notice a changed settings schema and name the page"
             )
@@ -725,14 +725,14 @@ def self_test():
             scratch / SETTINGS_SOURCE,
             read_text(scratch / SETTINGS_SOURCE).replace("Changed.", "The default model id."),
         )
-        lost_marker = read_text(configuration).replace(SETTINGS_END + "\n", "")
-        write_text(configuration, lost_marker)
+        lost_marker = read_text(settings).replace(SETTINGS_END + "\n", "")
+        write_text(settings, lost_marker)
         status, _, err = check_scratch(write=False)
         if status != 1 or "docs-sync: settings" not in err:
             raise DocsSyncError(
                 "self-test: a missing settings marker must fail and name the marker"
             )
-        write_text(configuration, second_settings)
+        write_text(settings, second_settings)
 
         # 12. The version region is the newest published stable release, not a number someone typed
         #     or a merely cut tag: a stale region regenerates, an rc tag leaves it alone, a stable

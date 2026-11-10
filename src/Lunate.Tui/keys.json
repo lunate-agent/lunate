@@ -114,8 +114,8 @@
             "keys": [
                 "Ctrl+P"
             ],
-            "reason": "deliberately unbound since #124: the model picker is Alt+P, and the guide lists it so a reader does not have to guess",
-            "action": "Unbound: nothing happens. It is deliberately left free (the model picker is `Alt+P`), and the guide lists it so a reader does not have to guess"
+            "reason": "deliberately unbound since #124: the model picker is Alt+P, and the keybindings reference lists it so a reader does not have to guess",
+            "action": "Unbound: nothing happens. It is deliberately left free (the model picker is `Alt+P`), and the keybindings reference lists it so a reader does not have to guess"
         },
         {
             "id": "alt-p",

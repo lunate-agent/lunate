@@ -3,7 +3,8 @@ using System.Text;
 namespace Lunate.Tui;
 
 /// <summary>
-/// Renders a <see cref="KeyPattern"/> the way the guide and the help overlay spell it: modifiers
+/// Renders a <see cref="KeyPattern"/> the way the keybindings reference and the help overlay spell
+/// it: modifiers
 /// first, then the key — <c>Ctrl+R</c>, <c>Alt+Enter</c>, <c>Shift+Tab</c>, <c>Esc</c>, <c>?</c>.
 /// The formatter lives beside the catalog so a binding's help text and the router cannot drift.
 /// </summary>

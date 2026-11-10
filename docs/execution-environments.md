@@ -204,7 +204,7 @@ behaviour.
 
 - [Run Lunate safely](security.md) — how approval, the bash guard, verified edits, the file-change
   bus and the container boundary compose.
-- [Configuration reference](configuration.md) — every settings key, generated from the schema.
+- [Settings reference](settings.md) — every settings key, generated from the schema.
 - [Usage](usage.md) — approvals, tool blocks and the modes.
 - [S-7 report](https://github.com/lunate-agent/lunate/pull/647) — the measured evidence and raw
   output, landing under `docs/dev/spikes/S-7/`.
