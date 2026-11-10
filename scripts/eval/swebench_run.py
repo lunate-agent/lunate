@@ -299,11 +299,11 @@ def main(argv: list[str] | None = None) -> int:
         previous_spent = arm["totalSpendUsd"]
     else:
         lunate_path = summary_dir / f"{args.run_id}.lunate.json"
-        previous_spent = (
-            float(json.loads(lunate_path.read_text(encoding="utf-8"))["totalSpendUsd"])
-            if lunate_path.is_file()
-            else 0.0
-        )
+        if lunate_path.is_file():
+            recorded = json.loads(lunate_path.read_text(encoding="utf-8"))["totalSpendUsd"]
+            previous_spent = float(recorded) if isinstance(recorded, (int, float)) else None
+        else:
+            previous_spent = 0.0
     if args.arm in ("baseline", "all"):
         if previous_spent is None:
             print(

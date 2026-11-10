@@ -452,5 +452,49 @@ class SwebenchRunCapTests(unittest.TestCase):
             self.assertIn("unknown", (root / "summary.md").read_text(encoding="utf-8"))
 
 
+    def test_baseline_is_not_started_when_the_lunate_total_is_unknown(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "instances.txt").write_text("alpha__one-1\n", encoding="utf-8")
+            (root / "run.json").write_text(
+                json.dumps(
+                    {
+                        "dataset": "SWE-bench/SWE-bench_Verified",
+                        "split": "test",
+                        "instancesFile": "instances.txt",
+                        "limits": {"maxCostUsd": 10, "maxTimeSeconds": 60},
+                        "models": [
+                            {"tier": "budget", "id": "opencode-go/budget"},
+                            {"tier": "frontier", "id": "opencode-go/frontier"},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (root / "run-1.lunate.json").write_text(
+                json.dumps({"totalSpendUsd": None}), encoding="utf-8"
+            )
+
+            result = swebench_run.main(
+                [
+                    "--config",
+                    str(root / "run.json"),
+                    "--work-dir",
+                    str(root / "work"),
+                    "--summary-dir",
+                    str(root),
+                    "--run-id",
+                    "run-1",
+                    "--arm",
+                    "baseline",
+                    "--mini-extra",
+                    "missing-mini-extra",
+                ]
+            )
+
+            self.assertEqual(0, result)
+            self.assertFalse((root / "run-1.baseline.json").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
