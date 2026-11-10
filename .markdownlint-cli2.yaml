@@ -25,6 +25,8 @@ config:
       - picture
       - source
       - img
+      - details
+      - summary
   # Keep-a-Changelog repeats "Added" / "Fixed" under each released version;
   # only true siblings (same text, same parent) are a duplicate heading.
   MD024:
