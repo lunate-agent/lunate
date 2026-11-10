@@ -590,6 +590,12 @@ A model SHALL resolve exactly one API family from the closed set `openai-chat`, 
 - **THEN** the Google.GenAI `AsIChatClient` client is used against the Google family base URL
 - **AND** a streamed tool call preserves the thought signature in returned reasoning content
 
+#### Scenario: A decision-only family is refused by the chat client factory
+
+- **GIVEN** a model that declares the decision-only `systemone` family
+- **WHEN** the chat client factory is asked to build its client
+- **THEN** construction fails with an error naming the family and the families that have clients, and no chat client is built
+
 ### Requirement: Provider request headers
 
 Every provider request SHALL identify the client with `User-Agent: lunate/<informational version>`. A provider's declared headers SHALL be applied to every family's requests and to discovery requests, through one shared HTTP handler rather than per-adapter code. A header value SHALL be a literal or a template over `{session.id}`, `{run.id}` and `{lunate.version}`, substituted at request time. A template that cannot be resolved — a `{session.id}` header on a call with no session — SHALL fail with an actionable error instead of sending an empty or partial value. Protocol headers set by an SDK (`anthropic-version`, `Authorization`) SHALL be left intact unless the provider declares the same name. The credential itself SHALL be applied only by the provider's declared placement — `Authorization: Bearer` by default, a named header, or a named query parameter — after removing any credential header the SDK added for that provider, so the key appears exactly once on the wire and never in a header template.
