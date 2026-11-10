@@ -64,15 +64,16 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   `proseOnly` carries the pages that have no runnable example yet with a one-line reason.
 - **Behaviour changes update the specs first.** `openspec/specs/` is the source of truth; when prose and spec disagree, the spec wins.
 - **Keep it current.** A change updates the documents it invalidates; stale documentation is a bug.
-- **New documents land in a home above.** If none fits, propose a new home in an OpenSpec change first, then add the page to `docs/docs.json` so the checker can see it.
+- **New documents land in a home above.** If none fits, propose a new home in an OpenSpec change
+  first, then add the page to `docs/docs.json` so the checker can see it.
 
 ## Verification gate
 
 `scripts/verify.sh` is the done-gate; [`../CONTRIBUTING.md`](../CONTRIBUTING.md) owns its step
 list. Its docs profile runs markdownlint, `scripts/docs-sync --check`, `scripts/docs-check --check`
 and the OpenSpec tree; the full profile also runs `scripts/docs-check --run` against the published
-binary after the runnable examples exist. By default its test phase runs the solution-wide `dotnet test` the gate has always used,
-once per culture. Setting `LUNATE_VERIFY_JOBS=2` (or more) opts into a faster local mode: the
+binary after the runnable examples exist. By default its test phase runs the solution-wide
+`dotnet test` the gate has always used, once per culture. Setting `LUNATE_VERIFY_JOBS=2` (or more) opts into a faster local mode: the
 default-culture and `de-AT` passes run at the same time, each with a bounded pool of test
 assemblies, while process- and environment-sensitive assemblies keep a serial lane inside a
 pass. That shaves about two minutes off the test phase locally; CI keeps the default path

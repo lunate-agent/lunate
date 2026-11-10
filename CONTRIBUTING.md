@@ -60,9 +60,9 @@ To install your built tool locally instead of publishing it, pack it and install
 A docs-only or proposal-only pull request runs `bash scripts/verify.sh --profile docs` instead:
 markdownlint, `openspec validate --all --strict`, `scripts/docs-sync --check`,
 `scripts/docs-check --check` and `scripts/no-docs-references.sh` (which fails if anything under
-`docs/` becomes a build input or a test's subject). `scripts/ci-plan.sh` picks the profile from the PR's changed paths, deny-by-default:
-only `docs/`, `adr/`, `openspec/` and root-level `*.md` qualify, and a change to the workflows, a
-rename out of those trees or anything else means the full gate. The default `--profile full` is the
+`docs/` becomes a build input or a test's subject). `scripts/ci-plan.sh` picks the profile from the
+PR's changed paths, deny-by-default: only `docs/`, `adr/`, `openspec/` and root-level `*.md` qualify,
+and a change to the workflows, a rename out of those trees or anything else means the full gate. The default `--profile full` is the
 whole gate above, unchanged.
 
 Useful narrower commands while working:
@@ -181,14 +181,15 @@ not what the other harnesses expect — set it back to `agents` and re-run `open
 
 A pull request that changes only prose — `docs/`, `adr/`, `openspec/`, or a root-level Markdown
 file — runs the docs profile: markdownlint, the generated-region check, the link/navigation check,
-the "no test reads `docs/`" guard and `openspec validate --all --strict`, in seconds. Anything that touches source, tests,
-templates or workflows runs the full matrix. The decision lives in `scripts/ci-plan.sh` and is
+the "no test reads `docs/`" guard and `openspec validate --all --strict`, in seconds. Anything that
+touches source, tests, templates or workflows runs the full matrix. The decision lives in `scripts/ci-plan.sh` and is
 deny-by-default, so a path nobody thought about runs the full gate rather than the cheap one.
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the
-link/navigation check and the docs lint in one job of a few seconds. A docs-only push skips the matrix, so without that job a check
-that fails on `main` stays invisible until the first pull request that touches documentation — which
+link/navigation check and the docs lint in one job of a few seconds. A docs-only push skips the
+matrix, so without that job a check that fails on `main` stays invisible until the first pull
+request that touches documentation — which
 is how `#738` (`check-adr-numbers.py` failing on `main`) survived. A red `tree-checks` on a `main`
 commit means one of those rules broke on the merge, not that the merge was fine.
 
