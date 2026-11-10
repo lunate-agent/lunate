@@ -25,7 +25,10 @@ internal sealed class WindowsChildProcess : ChildProcess
 
     public override StreamWriter? StandardInput => _process.StandardInput;
 
-    public static WindowsChildProcess Spawn(ProcessRunRequest request)
+    public static WindowsChildProcess Spawn(
+        ProcessRunRequest request,
+        IReadOnlyList<string>? passthrough = null
+    )
     {
         var startInfo = new ProcessStartInfo
         {
@@ -46,7 +49,7 @@ internal sealed class WindowsChildProcess : ChildProcess
         // what makes the built set the child's whole environment — and what keeps Lunate's
         // resolved credentials out of it.
         startInfo.Environment.Clear();
-        foreach ((string name, string value) in ChildProcess.BuildEnvironment(request))
+        foreach ((string name, string value) in ChildProcess.BuildEnvironment(request, passthrough))
         {
             startInfo.Environment[name] = value;
         }

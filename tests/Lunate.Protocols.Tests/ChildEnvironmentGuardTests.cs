@@ -59,8 +59,10 @@ public sealed class ChildEnvironmentGuardTests
             new[] { "ChildProcess.cs" },
             readers.Select(source => Path.GetFileName(source.Path)).Order().ToArray()
         );
+        // The configured list is the default at the policy-build site; the parameter is the seam a
+        // test hands its own list through, so a spawn never reads the process-wide list itself.
         Assert.Contains(
-            "passthrough: ToolEnvironmentPassthrough.Names",
+            "passthrough: passthrough ?? ToolEnvironmentPassthrough.Names",
             readers[0].Content,
             StringComparison.Ordinal
         );

@@ -5,16 +5,17 @@ namespace Lunate.Coding.Tests;
 /// <summary>
 /// The pass-through contract at the real spawn: the configured exact names reach the tool child on
 /// POSIX and on Windows, a credential name the user did not list is still stripped, and a name that
-/// merely looks like one survives. The parent set is handed in through the request, so the test
-/// never mutates the process environment.
+/// merely looks like one survives. The parent set is handed in through the request and the
+/// pass-through list through the spawn, so the test asserts the policy it states and never the
+/// process-wide list another class's startup may be configuring at the same moment.
 /// </summary>
-[Collection(ToolEnvironmentCollection.Name)]
 public sealed class ChildProcessToolEnvironmentTests
 {
     private const string PassedThroughToken = "sk-passthrough";
     private const string StrippedCredential = "alias-stripped";
     private const string LookAlike = "user-owned";
     private const string UserToken = "project-token";
+    private static readonly string[] PassedThroughNames = ["OPENAI_API_KEY", "MY_PROJECT_TOKEN"];
 
     [Fact]
     public async Task A_passed_through_name_reaches_the_posix_tool_child()
@@ -65,32 +66,27 @@ public sealed class ChildProcessToolEnvironmentTests
 
     private static async Task<string> RunAsync(string fileName, IReadOnlyList<string> arguments)
     {
-        ToolEnvironmentPassthrough.Configure(["OPENAI_API_KEY", "MY_PROJECT_TOKEN"]);
-        try
-        {
-            using var temp = new TempDirectory();
-            var request = new ProcessRunRequest(
-                fileName,
-                arguments,
-                temp.Root,
-                Environment: ParentEnvironment()
-            );
-            using Lunate.Coding.ChildProcess child = Lunate.Coding.ChildProcess.Start(request);
-            string stdout = await child.StandardOutput.ReadToEndAsync(
-                TestContext.Current.CancellationToken
-            );
-            string stderr = await child.StandardError.ReadToEndAsync(
-                TestContext.Current.CancellationToken
-            );
-            int exit = await child.WaitForExitAsync(TestContext.Current.CancellationToken);
+        using var temp = new TempDirectory();
+        var request = new ProcessRunRequest(
+            fileName,
+            arguments,
+            temp.Root,
+            Environment: ParentEnvironment()
+        );
+        using Lunate.Coding.ChildProcess child = Lunate.Coding.ChildProcess.Start(
+            request,
+            PassedThroughNames
+        );
+        string stdout = await child.StandardOutput.ReadToEndAsync(
+            TestContext.Current.CancellationToken
+        );
+        string stderr = await child.StandardError.ReadToEndAsync(
+            TestContext.Current.CancellationToken
+        );
+        int exit = await child.WaitForExitAsync(TestContext.Current.CancellationToken);
 
-            Assert.True(exit == 0, $"the child exited {exit}: {stderr}");
-            return stdout.Replace("\r\n", "\n", StringComparison.Ordinal);
-        }
-        finally
-        {
-            ToolEnvironmentPassthrough.ResetForTests();
-        }
+        Assert.True(exit == 0, $"the child exited {exit}: {stderr}");
+        return stdout.Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     private static void AssertPassThrough(string stdout)
