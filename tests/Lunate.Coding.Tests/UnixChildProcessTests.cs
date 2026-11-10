@@ -188,17 +188,17 @@ public sealed class UnixChildProcessTests
     }
 
     [Fact]
-    public async Task An_unrelated_variable_that_merely_looks_like_a_key_survives()
+    public async Task An_unrelated_variable_whose_segment_only_starts_with_key_survives()
     {
         SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
 
-        // The strip is a name list, not a pattern: a user's own variable beside a credential name
-        // is the user's business and must arrive.
-        using var environment = new ProcessEnvironment(("OPENAI_API_KEY_BACKUP", "user-owned"));
+        // The strip matches whole segments, never substrings: `KEYBOARD_LAYOUT`'s segment is
+        // `KEYBOARD`, not `KEY`, so a user's own variable beside a credential name must arrive.
+        using var environment = new ProcessEnvironment(("KEYBOARD_LAYOUT", "user-owned"));
         using var temp = new TempDirectory();
         var request = new ProcessRunRequest(
             "/bin/bash",
-            ["-c", "printf '%s' \"${OPENAI_API_KEY_BACKUP:-missing}\""],
+            ["-c", "printf '%s' \"${KEYBOARD_LAYOUT:-missing}\""],
             temp.Root
         );
         using Lunate.Coding.ChildProcess child = UnixChildProcess.Spawn(request);

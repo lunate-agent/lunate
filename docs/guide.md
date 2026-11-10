@@ -755,11 +755,17 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
 - A tool child (`bash`) is the user's shell, so its environment is the `Inherited` policy: the
   user's whole environment — an unrelated toolchain's own variables and `PATH` arrive — minus the
   variables Lunate resolves as provider credentials (each built-in provider's key variable and
-  alias, and each custom provider's `env:` reference). A model-chosen command cannot read the
-  user's provider key out of its environment, the same boundary the bash guard's `auth.json`
-  read-deny draws for files.
+  alias, and each custom provider's `env:` reference) and minus every variable whose name is
+  credential-shaped. A name is credential-shaped when one of its underscore-separated segments is
+  `KEY`, `TOKEN`, `SECRET` or `PASSWORD`, compared case-insensitively; matching is by whole segment,
+  never a substring, so `GITHUB_TOKEN` and `AWS_SECRET_ACCESS_KEY` do not arrive while `MONKEY` and
+  `GITLAB_TOKENIZE_TIMEOUT` do. A model-chosen command cannot read the user's provider key — or any
+  other credential-shaped variable — out of its environment, the same boundary the bash guard's
+  `auth.json` read-deny draws for files.
 - `toolEnvironment.passthrough` in `~/.lunate/settings.json` names the exact variables to admit into
-  tool children after that strip: `{"toolEnvironment": {"passthrough": ["MY_PROJECT_TOKEN"]}}`.
+  tool children after that strip: `{"toolEnvironment": {"passthrough": ["MY_PROJECT_TOKEN"]}}`. A
+  listed name survives even when the segment rule matches it, so the list is how a `*_TOKEN` of your
+  own reaches a tool child.
   Matching is by exact name — no wildcard, prefix or pattern — and a listed name the parent does not
   hold stays absent. The admitted names are listed at session start. An admitted variable is
   reachable by the model through tool processes: the model can read it from a command it runs, so

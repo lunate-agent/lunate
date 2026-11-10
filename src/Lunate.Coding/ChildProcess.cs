@@ -37,23 +37,27 @@ internal abstract class ChildProcess : IDisposable
     /// The tool child's environment: the builder's <see cref="ChildEnvironmentPolicy.Inherited"/>
     /// policy — the caller's replacement when one is given, otherwise the caller's own
     /// environment — with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on top,
-    /// <see cref="CredentialVariables"/> stripped from everything inherited, and the
-    /// <see cref="ToolEnvironmentPassthrough.Names">user's pass-through names</see> re-admitted
-    /// after that strip.
+    /// <see cref="CredentialVariables"/> stripped from everything inherited, every name
+    /// <see cref="CredentialVariables.IsSecretName">shaped like a credential</see> stripped by the
+    /// same deny, and the <see cref="ToolEnvironmentPassthrough.Names">user's pass-through
+    /// names</see> re-admitted after that strip.
     /// </summary>
     /// <remarks>
     /// The bash tool is the user's shell, so the user's own environment is what it must see. What it
-    /// must not see is a credential Lunate resolved: a model-chosen command reading the user's
-    /// provider key out of the environment is the leak the bash guard's <c>auth.json</c> read-deny
+    /// must not see is a credential: a name Lunate resolved, or a name whose shape says credential
+    /// (<c>GITHUB_TOKEN</c>, <c>AWS_SECRET_ACCESS_KEY</c>), because a model-chosen command reading
+    /// the user's key out of the environment is the leak the bash guard's <c>auth.json</c> read-deny
     /// closes for files. The stripping itself is the builder's (one implementation); this method
-    /// only names the policy and the names. The pass-through list is read here, where the policy is
-    /// built — never at a spawn site. <c>ChildEnvironmentGuardTests</c> pins all of it.
+    /// only names the policy, the names and the shape rule. The pass-through list is read here,
+    /// where the policy is built — never at a spawn site. <c>ChildEnvironmentGuardTests</c> pins all
+    /// of it.
     /// </remarks>
     internal static IReadOnlyDictionary<string, string> BuildEnvironment(ProcessRunRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return EnvironmentScrubber.Build(
+        return EnvironmentScrubber.BuildWithNameStrip(
             ChildEnvironmentPolicy.Inherited,
+            stripMatching: CredentialVariables.IsSecretName,
             set: request.ExtraEnvironment,
             passthrough: ToolEnvironmentPassthrough.Names,
             strip: CredentialVariables.All,

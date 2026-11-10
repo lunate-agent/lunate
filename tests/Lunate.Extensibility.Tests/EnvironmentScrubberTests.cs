@@ -229,6 +229,78 @@ public sealed class EnvironmentScrubberTests
     }
 
     [Fact]
+    public void The_strip_predicate_removes_a_matching_inherited_name()
+    {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["PATH"] = "/usr/bin",
+            ["GITHUB_TOKEN"] = "fixture-only",
+            ["MONKEY"] = "user-owned",
+        };
+
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.BuildWithNameStrip(
+            ChildEnvironmentPolicy.Inherited,
+            stripMatching: name => name.Split('_').Contains("TOKEN"),
+            inherited: parent
+        );
+
+        // A name list cannot express this rule; the predicate is how a shape deny reaches the one
+        // builder.
+        Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
+        Assert.Equal("user-owned", environment["MONKEY"]);
+    }
+
+    [Fact]
+    public void A_passed_through_name_wins_over_the_strip_predicate()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.BuildWithNameStrip(
+            ChildEnvironmentPolicy.Inherited,
+            stripMatching: name => name.Contains("TOKEN", StringComparison.Ordinal),
+            passthrough: ["GITHUB_TOKEN"],
+            inherited: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["PATH"] = "/usr/bin",
+                ["GITHUB_TOKEN"] = "user-owned",
+                ["NPM_TOKEN"] = "fixture-only",
+            }
+        );
+
+        Assert.Equal("user-owned", environment["GITHUB_TOKEN"]);
+        Assert.DoesNotContain("NPM_TOKEN", environment.Keys);
+    }
+
+    [Fact]
+    public void A_declared_value_cannot_put_a_predicate_match_back()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.BuildWithNameStrip(
+            ChildEnvironmentPolicy.Inherited,
+            stripMatching: name => name.Contains("TOKEN", StringComparison.Ordinal),
+            set: new Dictionary<string, string> { ["NPM_TOKEN"] = "re-added" },
+            inherited: Parent
+        );
+
+        // The shape deny is a deny for the whole child, like the name strip.
+        Assert.DoesNotContain("NPM_TOKEN", environment.Keys);
+    }
+
+    [Fact]
+    public void The_six_parameter_build_applies_no_name_predicate()
+    {
+        // The signature extensions compile against keeps its behaviour: nothing is stripped by
+        // shape unless the caller hands a predicate in.
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            inherited: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["PATH"] = "/usr/bin",
+                ["GITHUB_TOKEN"] = "fixture-only",
+            }
+        );
+
+        Assert.Equal("fixture-only", environment["GITHUB_TOKEN"]);
+    }
+
+    [Fact]
     public void The_scrubbed_policy_ignores_the_strip()
     {
         // A strip list is an inherited-policy instrument; the scrubbed policy already cannot carry

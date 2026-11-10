@@ -78,6 +78,11 @@ public static class EnvironmentScrubber
     /// that name alone. The strip still wins over a declared value, so a spawn site cannot
     /// re-introduce a stripped name by accident.
     /// </summary>
+    /// <remarks>
+    /// A caller whose policy removes a name by its shape — a segment rule a list of names cannot
+    /// express — calls <see cref="BuildWithNameStrip"/>. This signature stays exactly as it is, and
+    /// keeps its behaviour, for every caller and every extension already compiled against it.
+    /// </remarks>
     /// <param name="policy">The policy; the call site always names one.</param>
     /// <param name="read">Reads one parent variable; null reads the process environment.</param>
     /// <param name="set">Values to set; null sets none.</param>
@@ -89,6 +94,58 @@ public static class EnvironmentScrubber
     /// </param>
     public static IReadOnlyDictionary<string, string> Build(
         ChildEnvironmentPolicy policy,
+        Func<string, string?>? read = null,
+        IReadOnlyDictionary<string, string>? set = null,
+        IReadOnlyList<string>? passthrough = null,
+        IReadOnlyList<string>? strip = null,
+        IEnumerable<KeyValuePair<string, string>>? inherited = null
+    ) =>
+        BuildWithNameStrip(
+            policy,
+            stripMatching: null,
+            read: read,
+            set: set,
+            passthrough: passthrough,
+            strip: strip,
+            inherited: inherited
+        );
+
+    /// <summary>
+    /// Builds a child environment under <paramref name="policy"/>, with a caller-supplied name-shape
+    /// rule applied to the same deny as <paramref name="strip"/>: a list of names cannot express a
+    /// segment rule, so a caller whose policy removes a name by its shape hands the rule in here
+    /// rather than growing a builder of its own. <see cref="ChildEnvironmentPolicy.Inherited"/> is
+    /// the parent's whole environment minus the declared strip names and minus every name
+    /// <paramref name="stripMatching"/> matches, then plus the declared pass-through names
+    /// re-admitted from the parent — so an exact name the user opted back in wins over either deny
+    /// for that name alone. The strip still wins over a declared value, so a spawn site cannot
+    /// re-introduce a stripped name by accident.
+    /// </summary>
+    /// <remarks>
+    /// A separate entry point rather than a parameter on <see cref="Build"/>: adding an optional
+    /// parameter to that signature would leave extensions compiled against it calling a method that
+    /// no longer exists. <see cref="Build"/> delegates here with no name rule, so both entry points
+    /// run the same builder and no spawn site grows one of its own. The predicate is required here
+    /// because a caller reaching for this method has a rule to hand in.
+    /// </remarks>
+    /// <param name="policy">The policy; the call site always names one.</param>
+    /// <param name="stripMatching">
+    /// Removes an inherited name this returns true for, under <see cref="ChildEnvironmentPolicy.Inherited"/>;
+    /// null strips no name by shape. A declared pass-through name is re-admitted after it, exactly as
+    /// it is after <paramref name="strip"/>. <see cref="ChildEnvironmentPolicy.Scrubbed"/> ignores it:
+    /// that policy already cannot carry a name the caller did not declare.
+    /// </param>
+    /// <param name="read">Reads one parent variable; null reads the process environment.</param>
+    /// <param name="set">Values to set; null sets none.</param>
+    /// <param name="passthrough">Names read from the parent: the whole allow-list under <see cref="ChildEnvironmentPolicy.Scrubbed"/>, and the names re-admitted after the strip under <see cref="ChildEnvironmentPolicy.Inherited"/>; null passes none through.</param>
+    /// <param name="strip">Names removed under <see cref="ChildEnvironmentPolicy.Inherited"/>; null strips none.</param>
+    /// <param name="inherited">
+    /// The set <see cref="ChildEnvironmentPolicy.Inherited"/> starts from; null reads the process
+    /// environment. The test seam for the inherited policy.
+    /// </param>
+    public static IReadOnlyDictionary<string, string> BuildWithNameStrip(
+        ChildEnvironmentPolicy policy,
+        Func<string, bool>? stripMatching,
         Func<string, string?>? read = null,
         IReadOnlyDictionary<string, string>? set = null,
         IReadOnlyList<string>? passthrough = null,
@@ -126,6 +183,15 @@ public static class EnvironmentScrubber
                 environment.Remove(name);
             }
 
+            if (stripMatching is not null)
+            {
+                string[] matched = [.. environment.Keys.Where(stripMatching)];
+                foreach (string name in matched)
+                {
+                    environment.Remove(name);
+                }
+            }
+
             foreach ((string name, string value) in passedThrough)
             {
                 environment[name] = value;
@@ -153,10 +219,13 @@ public static class EnvironmentScrubber
         foreach ((string name, string value) in set ?? new Dictionary<string, string>())
         {
             // The inherited policy's strip is a deny for the whole child, so a declared value
-            // cannot put a stripped name back.
-            if (policy == ChildEnvironmentPolicy.Inherited && strip is { } stripped)
+            // cannot put a stripped name back — whether the name is listed or matched by shape.
+            if (policy == ChildEnvironmentPolicy.Inherited)
             {
-                if (stripped.Contains(name, StringComparer.Ordinal))
+                bool denied =
+                    (strip is { } stripped && stripped.Contains(name, StringComparer.Ordinal))
+                    || (stripMatching is not null && stripMatching(name));
+                if (denied)
                 {
                     continue;
                 }

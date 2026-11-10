@@ -4,9 +4,9 @@ namespace Lunate.Coding.Tests;
 
 /// <summary>
 /// The pass-through contract at the real spawn: the configured exact names reach the tool child on
-/// POSIX and on Windows, a credential name the user did not list is still stripped, and a name that
-/// merely looks like one survives. The parent set is handed in through the request, so the test
-/// never mutates the process environment.
+/// POSIX and on Windows, a credential name the user did not list is still stripped, and a name whose
+/// segment only resembles one (`GITLAB_TOKENIZE_TIMEOUT`, not `TOKEN`) survives. The parent set is
+/// handed in through the request, so the test never mutates the process environment.
 /// </summary>
 [Collection(ToolEnvironmentCollection.Name)]
 public sealed class ChildProcessToolEnvironmentTests
@@ -30,7 +30,7 @@ public sealed class ChildProcessToolEnvironmentTests
                 "-c",
                 "printf '%s|%s|%s|%s' \"${OPENAI_API_KEY:-missing}\" "
                     + "\"${GEMINI_API_KEY:-stripped}\" "
-                    + "\"${OPENAI_API_KEY_BACKUP:-missing}\" "
+                    + "\"${GITLAB_TOKENIZE_TIMEOUT:-missing}\" "
                     + "\"${MY_PROJECT_TOKEN:-missing}\"",
             ]
         );
@@ -55,7 +55,7 @@ public sealed class ChildProcessToolEnvironmentTests
                 "/c",
                 // cmd leaves an undefined %VAR% literal on the command line, so absence is
                 // asked with `if defined` instead of printing the variable and expecting empty.
-                "echo [%OPENAI_API_KEY%][%OPENAI_API_KEY_BACKUP%][%MY_PROJECT_TOKEN%]"
+                "echo [%OPENAI_API_KEY%][%GITLAB_TOKENIZE_TIMEOUT%][%MY_PROJECT_TOKEN%]"
                     + "& if defined GEMINI_API_KEY (echo leaked) else (echo stripped)",
             ]
         );
@@ -108,7 +108,7 @@ public sealed class ChildProcessToolEnvironmentTests
         {
             ["OPENAI_API_KEY"] = PassedThroughToken,
             ["GEMINI_API_KEY"] = StrippedCredential,
-            ["OPENAI_API_KEY_BACKUP"] = LookAlike,
+            ["GITLAB_TOKENIZE_TIMEOUT"] = LookAlike,
             ["MY_PROJECT_TOKEN"] = UserToken,
         };
 

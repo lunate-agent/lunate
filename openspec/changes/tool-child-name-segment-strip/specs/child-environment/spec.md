@@ -25,7 +25,7 @@
 - **THEN** it is not in the child's environment
 
 #### Scenario: The strip is a name list, not a pattern match
-- **GIVEN** a parent environment holding `MONKEY`, whose only segment is `MONKEY`, and `OPENAI_API_KEY_BACKUP`, which Lunate never resolved
+- **GIVEN** a parent environment holding `MONKEY` (its only segment is `MONKEY`) and `KEYBOARD_LAYOUT` (its segment is `KEYBOARD`)
 - **WHEN** a tool child's environment is built with `Inherited`
 - **THEN** both survive — the strip removes known names and whole credential-shaped segments, never a run of characters inside a segment
 
@@ -85,7 +85,7 @@ resolved list SHALL be named in one startup admission notice.
 
 - **GIVEN** a parent environment holding `OPENAI_API_KEY` and `OPENAI_API_KEY_BACKUP`, and a pass-through list naming only `OPENAI_API_KEY_BACKUP`
 - **WHEN** a tool child's environment is built with `Inherited`
-- **THEN** `OPENAI_API_KEY_BACKUP` arrives and `OPENAI_API_KEY` does not; a listed `OPENAI_*` matches nothing
+- **THEN** `OPENAI_API_KEY_BACKUP` arrives (the exact name wins over the strip and the segment rule) and `OPENAI_API_KEY` does not; a listed `OPENAI_*` matches nothing
 
 #### Scenario: A listed name the parent does not hold stays absent
 

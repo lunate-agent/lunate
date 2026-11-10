@@ -33,6 +33,24 @@ public sealed class CredentialVariablesTests
         Assert.Contains("OPENAI_API_KEY", names);
     }
 
+    [Theory]
+    [InlineData("GITHUB_TOKEN", true)]
+    [InlineData("AWS_SECRET_ACCESS_KEY", true)]
+    [InlineData("DATABASE_PASSWORD", true)]
+    [InlineData("OPENSSH_KEY", true)]
+    [InlineData("github_token", true)]
+    [InlineData("TOKEN", true)]
+    [InlineData("MONKEY", false)]
+    [InlineData("GITLAB_TOKENIZE_TIMEOUT", false)]
+    [InlineData("KEYBOARD_LAYOUT", false)]
+    [InlineData("PATH", false)]
+    public void The_segment_rule_matches_whole_underscore_segments_only(string name, bool stripped)
+    {
+        // MONKEY and GITLAB_TOKENIZE_TIMEOUT are the cases a substring test gets wrong; the rule is
+        // about a word in the name, not a run of characters inside one.
+        Assert.Equal(stripped, CredentialVariables.IsSecretName(name));
+    }
+
     [Fact]
     public void A_custom_providers_env_reference_is_registered_when_the_store_loads()
     {
