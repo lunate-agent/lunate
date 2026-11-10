@@ -50,7 +50,7 @@ internal sealed partial class ContainerEnvironment : IDisposable
         Func<string, string?>? findOnPath = null,
         ContainerProcessRun? run = null,
         Func<string>? newName = null,
-        bool isWindows = false
+        bool? isWindows = null
     )
     {
         _selection = selection;
@@ -59,7 +59,7 @@ internal sealed partial class ContainerEnvironment : IDisposable
         _newName = newName ?? (() => ContainerPrefix + Guid.NewGuid().ToString("N")[..8]);
         _enginePath = _findOnPath(selection.Engine);
         _unavailable =
-            isWindows
+            (isWindows ?? OperatingSystem.IsWindows())
                 ? $"container environments are not supported on Windows; use WSL2 with a translated "
                     + $"mount (follow-up) or run without --env ({selection.Display} was selected)"
             : _enginePath is null

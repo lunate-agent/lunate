@@ -173,6 +173,28 @@ internal static class WaitBudgets
     public static readonly TimeSpan CommandRun = TimeSpan.FromSeconds(60);
 
     /// <summary>
+    /// The command timeout the container tests hand to the environment or the tool. The fake engine
+    /// answers immediately, so the value never takes effect; it only has to be longer than the test
+    /// so an assertion about argv sees the request rather than a timeout, and it is the same number
+    /// for every container unit test so no call site invents one.
+    /// </summary>
+    public static readonly TimeSpan ContainerCommand = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// How long the cancel test lets a blocked container command start before it cancels, so the
+    /// cancellation reaches the exec client and the container-side process group while both are
+    /// still running. It is an input to the code under test, not a ceiling on a wait.
+    /// </summary>
+    public static readonly TimeSpan ContainerCancel = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// The tool timeout the real-container E2E hands a long command, so the timeout path fires and
+    /// the test can assert the command's process group no longer exists. It is an input to the tool
+    /// under test, and the E2E only runs where a container engine is present.
+    /// </summary>
+    public static readonly TimeSpan ContainerE2E = TimeSpan.FromSeconds(5);
+
+    /// <summary>
     /// The timeout that makes the tree kill fire, in the tests about <em>that</em> kill: it has to
     /// outlast a cold PowerShell start on a Windows runner — ten seconds was not enough under load,
     /// so the pid would never be written before the tree died — while staying short enough that the

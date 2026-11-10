@@ -18,6 +18,7 @@ public sealed class ContainerEnvironmentTests
     [Fact]
     public async Task The_create_command_mounts_only_the_workspace_at_the_same_path()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         var engine = new FakeEngine();
         using var environment = Build(engine);
@@ -25,7 +26,7 @@ public sealed class ContainerEnvironmentTests
         await environment.RunAsync(
             temp.Root,
             "echo hi",
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             Unguarded,
             CancellationToken.None
         );
@@ -51,6 +52,7 @@ public sealed class ContainerEnvironmentTests
     [Fact]
     public async Task The_exec_command_forwards_the_session_marker_and_strips_the_pgid_line()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         var engine = new FakeEngine();
         using var environment = Build(engine);
@@ -58,7 +60,7 @@ public sealed class ContainerEnvironmentTests
         ProcessRunResult result = await environment.RunAsync(
             temp.Root,
             "echo hi",
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             Unguarded,
             CancellationToken.None
         );
@@ -81,6 +83,7 @@ public sealed class ContainerEnvironmentTests
     [Fact]
     public async Task Two_commands_reuse_one_container()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         var engine = new FakeEngine();
         using var environment = Build(engine);
@@ -88,14 +91,14 @@ public sealed class ContainerEnvironmentTests
         await environment.RunAsync(
             temp.Root,
             "one",
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             Unguarded,
             CancellationToken.None
         );
         await environment.RunAsync(
             temp.Root,
             "two",
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             Unguarded,
             CancellationToken.None
         );
@@ -108,16 +111,17 @@ public sealed class ContainerEnvironmentTests
     [Fact]
     public async Task Cancel_kills_the_container_process_group()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         var engine = new FakeEngine { BlockExec = true };
         using var environment = Build(engine);
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+        using var cancellation = new CancellationTokenSource(WaitBudgets.ContainerCancel);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             environment.RunAsync(
                 temp.Root,
                 "sleep 30",
-                TimeSpan.FromSeconds(30),
+                WaitBudgets.ContainerCommand,
                 Unguarded,
                 cancellation.Token
             )
@@ -142,13 +146,14 @@ public sealed class ContainerEnvironmentTests
     [Fact]
     public async Task Dispose_removes_the_container()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         var engine = new FakeEngine();
         var environment = Build(engine);
         await environment.RunAsync(
             temp.Root,
             "hi",
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             Unguarded,
             CancellationToken.None
         );
@@ -165,6 +170,7 @@ public sealed class ContainerEnvironmentTests
     [Fact]
     public async Task A_missing_engine_is_a_teaching_error_and_never_a_host_run()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         var engine = new FakeEngine();
         using var environment = new ContainerEnvironment(
@@ -180,7 +186,7 @@ public sealed class ContainerEnvironmentTests
                 environment.RunAsync(
                     temp.Root,
                     "echo hi",
-                    TimeSpan.FromSeconds(10),
+                    WaitBudgets.ContainerCommand,
                     Unguarded,
                     CancellationToken.None
                 )
@@ -204,7 +210,7 @@ public sealed class ContainerEnvironmentTests
                 environment.RunAsync(
                     root,
                     "echo hi",
-                    TimeSpan.FromSeconds(10),
+                    WaitBudgets.ContainerCommand,
                     Unguarded,
                     CancellationToken.None
                 )
@@ -213,6 +219,64 @@ public sealed class ContainerEnvironmentTests
         Assert.Contains("':'", exception.Message, StringComparison.Ordinal);
         Assert.Empty(engine.Requests);
     }
+
+    [Fact]
+    public void The_host_platform_decides_whether_a_container_is_supported()
+    {
+        // No isWindows override: production must wire the host platform, or the Windows refusal in
+        // the spec is unreachable and the session tries a mount the engine cannot express.
+        using var environment = new ContainerEnvironment(
+            new ExecutionEnvironmentSelection("docker", "alpine"),
+            findOnPath: _ => "/usr/bin/docker",
+            run: (_, _, _, _) => throw new InvalidOperationException("must not run"),
+            newName: () => "lunate-tools-test"
+        );
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Contains("WSL2", environment.Unavailable, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Null(environment.Unavailable);
+        }
+    }
+
+    [Fact]
+    public async Task Windows_refuses_with_a_teaching_error_naming_the_wsl2_follow_up()
+    {
+        using var temp = new TempDirectory();
+        var engine = new FakeEngine();
+        using var environment = new ContainerEnvironment(
+            new ExecutionEnvironmentSelection("docker", "alpine"),
+            findOnPath: _ => EnginePath,
+            run: engine.Run,
+            newName: () => "lunate-tools-test",
+            isWindows: true
+        );
+
+        Assert.Contains("WSL2", environment.Unavailable, StringComparison.Ordinal);
+        ContainerEnvironmentException exception =
+            await Assert.ThrowsAsync<ContainerEnvironmentException>(() =>
+                environment.RunAsync(
+                    temp.Root,
+                    "echo hi",
+                    WaitBudgets.ContainerCommand,
+                    Unguarded,
+                    CancellationToken.None
+                )
+            );
+        Assert.Contains("WSL2", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(engine.Requests);
+    }
+
+    private static void SkipUnsupportedHost() =>
+        Assert.SkipWhen(
+            OperatingSystem.IsWindows(),
+            "container environments are not supported on Windows: the workspace cannot be mounted at "
+                + "the same absolute path on both sides, and the WSL2 translated-mount route is a "
+                + "follow-up"
+        );
 
     private static ContainerEnvironment Build(FakeEngine engine) =>
         new(

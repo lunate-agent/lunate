@@ -34,7 +34,7 @@ public sealed class ContainerEnvironmentE2ETests
         var tool = new BashTool(
             new Workspace(temp.Root),
             null,
-            TimeSpan.FromSeconds(5),
+            WaitBudgets.ContainerE2E,
             null,
             new BashGuard(),
             changeScanTimeout: null,

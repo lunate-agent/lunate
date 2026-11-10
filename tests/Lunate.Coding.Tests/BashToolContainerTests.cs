@@ -11,6 +11,7 @@ public sealed class BashToolContainerTests
     [Fact]
     public async Task A_container_call_returns_the_exec_output_and_keeps_the_result_contract()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         var engine = new FakeEngine();
         using var environment = new ContainerEnvironment(
@@ -22,7 +23,7 @@ public sealed class BashToolContainerTests
         var tool = new BashTool(
             new Workspace(temp.Root),
             null,
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             null,
             new BashGuard(),
             changeScanTimeout: null,
@@ -47,6 +48,7 @@ public sealed class BashToolContainerTests
     [Fact]
     public async Task A_missing_engine_is_an_error_that_names_the_engine()
     {
+        SkipUnsupportedHost();
         using var temp = new TempDirectory();
         using var environment = new ContainerEnvironment(
             new ExecutionEnvironmentSelection("docker", "alpine"),
@@ -57,7 +59,7 @@ public sealed class BashToolContainerTests
         var tool = new BashTool(
             new Workspace(temp.Root),
             null,
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             null,
             new BashGuard(),
             changeScanTimeout: null,
@@ -79,6 +81,7 @@ public sealed class BashToolContainerTests
     [Fact]
     public async Task A_container_write_is_published_by_the_host_change_scan()
     {
+        SkipUnsupportedHost();
         using var repo = new GitTestRepo();
         repo.Write("a.cs", "class A { }\n");
         repo.CommitAll();
@@ -98,7 +101,7 @@ public sealed class BashToolContainerTests
         var tool = new BashTool(
             new Workspace(repo.Root),
             null,
-            TimeSpan.FromSeconds(10),
+            WaitBudgets.ContainerCommand,
             null,
             new BashGuard(),
             changeScanTimeout: null,
@@ -124,6 +127,14 @@ public sealed class BashToolContainerTests
         Assert.Equal("a.cs", change.RelativePath);
         Assert.Equal("bash", change.Source);
     }
+
+    private static void SkipUnsupportedHost() =>
+        Assert.SkipWhen(
+            OperatingSystem.IsWindows(),
+            "container environments are not supported on Windows: the workspace cannot be mounted at "
+                + "the same absolute path on both sides, and the WSL2 translated-mount route is a "
+                + "follow-up"
+        );
 
     private sealed class RecordingChangeSink : IFileChangeSink
     {
