@@ -30,6 +30,21 @@ class AdrNumberingTests(unittest.TestCase):
         self.assertIn("tests/fixtures/adr-numbering/duplicate/adr/0001-second.md", output)
         self.assertIn("next free number: 0003", output)
 
+    def test_a_duplicate_at_the_numbers_that_broke_main(self):
+        """0034 was taken twice on main: the posix descriptor ADR and the pass-through ADR.
+
+        The fixture keeps those numbers rather than a toy 0001 pair, so the case that actually
+        reddened main has a test of its own.
+        """
+        result = self.run_fixture("duplicate-real-numbers")
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        output = result.stdout + result.stderr
+        self.assertIn("duplicate ADR-0034", output)
+        self.assertIn("0034-first.md", output)
+        self.assertIn("0034-second.md", output)
+        self.assertIn("next free number: 0036", output)
+
     def test_gap_reports_bracketing_files_missing_number_and_next_free_number(self):
         result = self.run_fixture("gap")
 

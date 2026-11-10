@@ -1,4 +1,4 @@
-# ADR-0034: The tool child's environment is an inherited policy plus an exact-name pass-through
+# ADR-0035: The tool child's environment is an inherited policy plus an exact-name pass-through
 
 Status: accepted — 2026-11-08
 
