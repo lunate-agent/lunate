@@ -1,6 +1,6 @@
 # ADR-0028: The decision layer is a general primitive, not an approval feature
 
-- Status: accepted — 2026-10-31 (maintainer sign-off on #183 with the scope correction; recorded as "proposed" until 2026-11-08)
+- Status: proposed — 2026-10-31 (sign-off scope correction on #183)
 - Date: 2026-10-31
 - Relates to: ADR-0002 (layering and MEAI model types), ADR-0003 (loop ownership),
   ADR-0017 (extensibility architecture), ADR-0027 (provider store, model profiles and usages)

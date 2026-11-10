@@ -249,8 +249,7 @@ trap 'exit 143' TERM
 # The docs profile: prose only. No build, no publish, no tests and no startup measurement, so a
 # docs or proposal pull request cannot go red on a flake in the suite it never runs. What prose can
 # break is (a) the generated regions drifting from the code they mirror, (b) the docs tree becoming
-# a build input or a test's subject, (c) ADR numbering and status, (d) Markdown lint, and (e) the
-# OpenSpec tree.
+# a build input or a test's subject, (c) ADR numbering, (d) Markdown lint, and (e) the OpenSpec tree.
 # Those are the five steps; `openspec validate` dominates the wall clock.
 docs_profile() {
   step "tools"
@@ -273,10 +272,6 @@ docs_profile() {
   step "ADR numbering"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_adr_numbers.py"
   python3 "${SCRIPT_DIR}/check-adr-numbers.py"
-
-  step "ADR status records"
-  python3 "${SCRIPT_DIR}/../tests/scripts/test_adr_status.py"
-  python3 "${SCRIPT_DIR}/check-adr-status.py"
 
   step "agent scratch paths"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_scratch_paths.py"
@@ -373,12 +368,8 @@ platform_checks() {
   fi
   npx --yes markdownlint-cli2@0.23.3
 
-  # The ADR status check and both agent-hygiene checks run in the full profile too: a code pull
-  # request can edit an ADR or close the bypasses (#241/#313) without ever running the docs profile.
-  step "ADR status records"
-  python3 "${SCRIPT_DIR}/../tests/scripts/test_adr_status.py"
-  python3 "${SCRIPT_DIR}/check-adr-status.py"
-
+  # Both checks run in the full profile too: the bypass they close (#241/#313) landed through a *code*
+  # pull request, which never runs the docs profile.
   step "agent scratch paths"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_scratch_paths.py"
   python3 "${SCRIPT_DIR}/check-scratch-paths.py" --base "${GITHUB_BASE_SHA:-origin/main}"
