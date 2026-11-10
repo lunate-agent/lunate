@@ -73,6 +73,9 @@ on this branch"` prints one prompt's final answer and `--json` emits every event
 Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
 [Customize](docs/configuration.md) · [Automate](openspec/specs/print-mode/spec.md)
 
+<details>
+<summary>Explore capabilities and extending Lunate</summary>
+
 ## What it can do
 
 - **Approvals with diffs** — writes and commands stop at a panel that shows what will happen; the
@@ -144,6 +147,11 @@ sources register the same way.
 - Reference extensions that run in CI: [`samples/extensions/`](samples/extensions/)
 - Supported extensions (`Lunate.Extensions.*`): [`extensions/`](extensions/)
 
+</details>
+
+<details>
+<summary>Security, platform, and project background</summary>
+
 ## Security model
 
 Lunate asks before every write and command and guards its own state at the OS level; it is not a
@@ -186,6 +194,8 @@ head-to-head suite that calibrates the claims above runs Pi and Tau beside Lunat
 Building from source, the verification gate, the repository map and the OpenSpec workflow are in
 [`CONTRIBUTING.md`](CONTRIBUTING.md); [`AGENTS.md`](AGENTS.md) holds the rules coding agents follow
 in this repository.
+
+</details>
 
 ## License
 
