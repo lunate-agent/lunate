@@ -28,7 +28,10 @@ internal sealed record TermiosLayout(
     uint ICanon,
     uint ISig,
     uint IExten,
-    uint IFlagClearMask
+    uint IFlagClearMask,
+    // tcflush's TCIFLUSH queue selector: XNU bsd/sys/termios.h defines it as 1, glibc
+    // bits/termios.h as 0.
+    int InputFlush
 )
 {
     internal int VMinOffset => CcBase + VMinIndex;
@@ -50,7 +53,8 @@ internal sealed record TermiosLayout(
             ISig: 0x0000_0080,
             IExten: 0x0000_0400,
             // IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON.
-            IFlagClearMask: 0x0000_03EB
+            IFlagClearMask: 0x0000_03EB,
+            InputFlush: 1
         );
 
     internal static TermiosLayout Linux { get; } =
@@ -68,7 +72,8 @@ internal sealed record TermiosLayout(
             ISig: 0x0000_0001,
             IExten: 0x0000_8000,
             // IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON.
-            IFlagClearMask: 0x0000_05EB
+            IFlagClearMask: 0x0000_05EB,
+            InputFlush: 0
         );
 
     // cfmakeraw's input half: echo, canonical mode, signals and extended processing
