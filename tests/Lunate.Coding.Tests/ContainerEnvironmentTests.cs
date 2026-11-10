@@ -144,6 +144,92 @@ public sealed class ContainerEnvironmentTests
     }
 
     [Fact]
+    public async Task A_timed_out_group_probe_removes_the_container()
+    {
+        SkipUnsupportedHost();
+        using var temp = new TempDirectory();
+        var engine = new FakeEngine
+        {
+            BlockExec = true,
+            GroupProbe = new ProcessRunResult(null, string.Empty, "probe timed out", true),
+        };
+        using var environment = Build(engine);
+        using var cancellation = new CancellationTokenSource(WaitBudgets.ContainerCancel);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            environment.RunAsync(
+                temp.Root,
+                "sleep 30",
+                WaitBudgets.ContainerCommand,
+                Unguarded,
+                cancellation.Token
+            )
+        );
+
+        Assert.Contains(
+            engine.Requests,
+            request =>
+                request.Arguments[0] == "rm" && request.Arguments.Contains("lunate-tools-test")
+        );
+    }
+
+    [Fact]
+    public async Task An_engine_failure_during_the_group_probe_removes_the_container()
+    {
+        SkipUnsupportedHost();
+        using var temp = new TempDirectory();
+        var engine = new FakeEngine
+        {
+            BlockExec = true,
+            GroupProbe = new ProcessRunResult(125, string.Empty, "engine failed", false),
+        };
+        using var environment = Build(engine);
+        using var cancellation = new CancellationTokenSource(WaitBudgets.ContainerCancel);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            environment.RunAsync(
+                temp.Root,
+                "sleep 30",
+                WaitBudgets.ContainerCommand,
+                Unguarded,
+                cancellation.Token
+            )
+        );
+
+        Assert.Contains(
+            engine.Requests,
+            request =>
+                request.Arguments[0] == "rm" && request.Arguments.Contains("lunate-tools-test")
+        );
+    }
+
+    [Fact]
+    public async Task An_engine_failure_during_the_group_kill_removes_the_container()
+    {
+        SkipUnsupportedHost();
+        using var temp = new TempDirectory();
+        var engine = new FakeEngine { BlockExec = true, FailKills = true };
+        using var environment = Build(engine);
+        using var cancellation = new CancellationTokenSource(WaitBudgets.ContainerCancel);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            environment.RunAsync(
+                temp.Root,
+                "sleep 30",
+                WaitBudgets.ContainerCommand,
+                Unguarded,
+                cancellation.Token
+            )
+        );
+
+        Assert.Contains(
+            engine.Requests,
+            request =>
+                request.Arguments[0] == "rm" && request.Arguments.Contains("lunate-tools-test")
+        );
+    }
+
+    [Fact]
     public async Task Dispose_removes_the_container()
     {
         SkipUnsupportedHost();
@@ -305,6 +391,10 @@ public sealed class ContainerEnvironmentTests
 
         internal bool BlockExec { get; init; }
 
+        internal bool FailKills { get; init; }
+
+        internal ProcessRunResult? GroupProbe { get; init; }
+
         internal async Task<ProcessRunResult> Run(
             ProcessRunRequest request,
             CancellationToken cancellationToken,
@@ -325,7 +415,7 @@ public sealed class ContainerEnvironmentTests
                 )
             )
             {
-                return Exit(1);
+                return GroupProbe ?? Exit(1);
             }
 
             if (
@@ -334,6 +424,11 @@ public sealed class ContainerEnvironmentTests
                 )
             )
             {
+                if (FailKills)
+                {
+                    throw new ContainerEnvironmentException("the engine failed during cleanup");
+                }
+
                 return Exit(0);
             }
 

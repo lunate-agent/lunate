@@ -105,22 +105,30 @@ internal sealed partial class ContainerEnvironment
         int id = pgid.Value;
         if (id > 0)
         {
-            await RunKillAsync(name, "TERM", id, ct).ConfigureAwait(false);
             try
             {
-                await Task.Delay(KillGrace, CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) { }
+                await RunKillAsync(name, "TERM", id, ct).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(KillGrace, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { }
 
-            await RunKillAsync(name, "KILL", id, ct).ConfigureAwait(false);
-            if (!await GroupAliveAsync(name, id, ct).ConfigureAwait(false))
+                await RunKillAsync(name, "KILL", id, ct).ConfigureAwait(false);
+                if (await GroupStateAsync(name, id, ct).ConfigureAwait(false) == GroupState.Gone)
+                {
+                    return;
+                }
+            }
+            catch (ContainerEnvironmentException)
             {
-                return;
+                // The engine failed during cleanup, so the group is unproven. Removing the container
+                // is the only way to guarantee the cancelled command cannot keep running.
             }
         }
 
-        // No pgid, or the group survived: the container cannot be reused safely. Remove it and let
-        // the next call create a fresh one.
+        // No pgid, an alive group, or an unproven probe: the container cannot be reused safely.
+        // Remove it and let the next call create a fresh one.
         lock (_containers)
         {
             _containers.Remove(root);
@@ -151,7 +159,7 @@ internal sealed partial class ContainerEnvironment
             .ConfigureAwait(false);
     }
 
-    private async Task<bool> GroupAliveAsync(string name, int pgid, CancellationToken ct)
+    private async Task<GroupState> GroupStateAsync(string name, int pgid, CancellationToken ct)
     {
         string script = string.Create(CultureInfo.InvariantCulture, $"kill -0 -{pgid}");
         ProcessRunResult result = await RunEngineAsync(
@@ -165,7 +173,21 @@ internal sealed partial class ContainerEnvironment
                 ct
             )
             .ConfigureAwait(false);
-        return result.ExitCode == 0;
+        return result.ExitCode switch
+        {
+            0 => GroupState.Alive,
+            1 => GroupState.Gone,
+            // A null exit code is a timeout, and an engine or shell failure is not evidence that
+            // the group is absent. Only the probe's explicit "no such process" status is proof.
+            _ => GroupState.Unproven,
+        };
+    }
+
+    private enum GroupState
+    {
+        Alive,
+        Gone,
+        Unproven,
     }
 
     private async Task<ProcessRunResult> RunEngineAsync(
