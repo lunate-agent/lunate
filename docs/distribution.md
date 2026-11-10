@@ -25,7 +25,7 @@ How Lunate reaches users: what a release carries, how the one-command installers
 
 ## Pre-release checks (manual, T-33)
 
-Before tagging, run the terminal matrix from the guide: Windows Terminal, conhost, Git Bash, macOS Terminal, one Linux terminal, and tmux over SSH. The tag itself runs the full verify gate on ubuntu, macos and windows before anything is published.
+Before tagging, run the terminal matrix from the guide: Windows Terminal, conhost, Git Bash, macOS Terminal, one Linux terminal, and tmux over SSH. The Release workflow runs the full verify gate on ubuntu before anything is published; the branch push already ran the three-OS CI matrix.
 
 ### 0. Re-read the README, the guide and the security model against the shipped behaviour
 
@@ -61,7 +61,7 @@ gh run list --workflow release.yml --limit 1
 
 ### 1. Tag the release
 
-CI fails the tag when it does not match `<Version>` in `Directory.Build.props`.
+The Release workflow fails the tag when it does not match `<Version>` in `Directory.Build.props`.
 
 ```sh
 git switch main
