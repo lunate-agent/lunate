@@ -94,7 +94,9 @@ public sealed class GuideKeyTableTests
     /// </summary>
     private static GuideRow[] GuideKeyTableRows()
     {
-        string page = File.ReadAllText(Path.Combine(TestPaths.RepositoryRoot, "docs", "dev", "guide.md"));
+        string page = File.ReadAllText(
+            Path.Combine(TestPaths.RepositoryRoot, "docs", "dev", "guide.md")
+        );
         string[] lines = page.Split('\n');
         // The heading is part of the requirement, not decoration: a table moved under another heading is
         // no longer the guide's key table, and a check that never looks for it passes on a page that lost

@@ -472,6 +472,7 @@ def self_test():
         (scratch / "src" / "Lunate.Tui").mkdir(parents=True)
         (scratch / "src" / "Lunate.Coding").mkdir(parents=True)
         (scratch / "docs" / "extensions").mkdir(parents=True)
+        (scratch / KEYS_PAGE).parent.mkdir(parents=True, exist_ok=True)
         (scratch / "templates").mkdir()
         # The version region reads the repository's tags, so the scratch tree is its own
         # repository with a known set of them (an unborn HEAD takes no tag, so it commits once).
