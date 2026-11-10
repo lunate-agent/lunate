@@ -13,6 +13,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Security policy | [`../SECURITY.md`](../SECURITY.md) | How to report a vulnerability, the trust model, secrets |
 | Changelog | [`../CHANGELOG.md`](../CHANGELOG.md) | Notable changes, one section per release |
 | Plan and status | [`guide.md`](guide.md) | The implementation plan, phases and roadmap |
+| Documentation architecture (proposed) | [`dev/information-architecture.md`](dev/information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and slice plan, awaiting sign-off |
 | Architecture overview | [`architecture.md`](architecture.md) | Component map, model pipeline, one run and the event path, as diagrams |
 | Extensibility spec | [`spec/extensibility.md`](spec/extensibility.md) | Contract and hooks, tool model, services, UI by mode, fitness suite (under ADR-0017) |
 | Export contract | [`spec/export.md`](spec/export.md) | `/export` and `/copy`: destination, credential redaction, the HTML document's CSP and escaping guarantees |
