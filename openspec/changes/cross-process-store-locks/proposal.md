@@ -13,6 +13,9 @@ document and the later replace drops the earlier change (review finding N-4, iss
   read-modify-write; a migration re-reads under the claim before writing.
 - A write that cannot take the claim within the store's bounded wait refuses with an error naming
   the file and the lock instead of writing anyway.
+- The setup wizard's commit takes the same claims on the settings file and the provider store
+  before it seeds its staged bodies, so its read-modify-write merges with another process's change
+  instead of replacing it, and merges its provider entry into the store it reads under the claim.
 - Read-only settings resolution and provider loading stay claim-free and never create a lock file
   just to read; each read still sees a complete document because replacement is atomic.
 
@@ -25,14 +28,15 @@ document and the later replace drops the earlier change (review finding N-4, iss
 ### Modified Capabilities
 
 - `agent-config`: settings writes gain a cross-process serialization guarantee beside the existing
-  read-modify-write and atomic-replace rules.
+  read-modify-write and atomic-replace rules, and the setup wizard's multi-file commit takes it.
 - `provider-store`: provider-store writes and the auth migration gain the same cross-process
-  serialization guarantee.
+  serialization guarantee; the wizard's commit merges its entry under the claim.
 
 ## Impact
 
 - Code: `src/Lunate.Coding/SettingsStore.cs` and its partials (`Providers`, `ProfileWrite`,
-  `Wizard`, `Tui`), `src/Lunate.Coding/ProviderStore.cs`.
+  `Wizard`, `Tui`), `src/Lunate.Coding/ProviderStore.cs`,
+  `src/Lunate.Coding/SetupWizardCommit.cs` and `src/Lunate.Coding/SetupWizardTransaction.cs`.
 - Tests: `tests/Lunate.Coding.Tests` gains cross-process regression tests that spawn a real child
   process and contend on the lock file.
 - Dependencies: none; reuses the internal `Lunate.Ai.FileLock` already used by the extension trust

@@ -14,7 +14,9 @@ Notable changes to Lunate, one section per release. The format follows
   in-process lock, so two Lunate processes that each read first could each replace the file and the
   later one silently dropped the earlier change. Each read-modify-write now takes an owner-only
   `settings.lock` / `providers.lock` claim beside the file, waits a bounded time and merges, or
-  refuses without writing (#584).
+  refuses without writing (#584). The setup wizard's commit takes the same two claims before it
+  seeds its staged bodies, so its three-file replace merges with another process's change instead
+  of replacing it.
 
 ## [0.3.0] - 2026-11-09
 

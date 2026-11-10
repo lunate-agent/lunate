@@ -6,9 +6,11 @@ The provider store SHALL hold a cross-process claim for every save and for its m
 read-modify-write, so a migration in one process does not replace a document another process saved
 from a stale read. The claim SHALL be a lock file beside `providers.json`, distinct from the store
 file so a reader is not refused. A migration SHALL take the claim and re-read the store under it
-before writing. A read-only load SHALL NOT take the claim and SHALL NOT create the lock file. A
-write that cannot take the claim within the bounded wait SHALL refuse with an error naming the
-store file and the lock file, and SHALL leave the store unchanged.
+before writing. The setup wizard's commit SHALL take the claim before it reads the store and SHALL
+merge its entry into the document it reads under the claim, not into a reading taken before the
+walk. A read-only load SHALL NOT take the claim and SHALL NOT create the lock file. A write that
+cannot take the claim within the bounded wait SHALL refuse with an error naming the store file and
+the lock file, and SHALL leave the store unchanged.
 
 #### Scenario: A migration re-reads under the claim
 
@@ -29,3 +31,9 @@ store file and the lock file, and SHALL leave the store unchanged.
 - **GIVEN** a provider store with entries and nothing to migrate
 - **WHEN** it loads
 - **THEN** no lock file exists beside it
+
+#### Scenario: The setup wizard's commit keeps an entry saved during the walk
+
+- **GIVEN** a provider entry another process saved after the wizard's walk had read the store
+- **WHEN** the wizard's commit takes the claim, seeds its staged copy and writes its own entry
+- **THEN** the saved entry is still in the store, beside the entry the walk staged

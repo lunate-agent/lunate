@@ -36,7 +36,8 @@ sequenceDiagram
 
 **Goals:**
 
-- Serialize every settings and provider-store read-modify-write across processes.
+- Serialize every settings and provider-store read-modify-write across processes, including the
+  setup wizard's commit, which replaces both files.
 - Keep a refused claim honest: bound the wait, name the file and the lock, change nothing.
 - Leave reads unchanged: no claim, no lock file created, and a complete document every time.
 - Prove it with a real second process, not a share-mode constant.
@@ -46,7 +47,9 @@ sequenceDiagram
 - A multi-file transaction spanning `auth.json`, `providers.json` and `settings.json`; the setup
   wizard's staging already gives that commit its own all-or-nothing shape.
 - Excluding readers; the lock file exists so readers never touch the claim.
-- The auth store: it replaces a whole in-memory document and has no read-modify-write path.
+- The auth store's own writes: it replaces a whole in-memory document and has no read-modify-write
+  path of its own, so the wizard commit is serialized by the settings claim but `auth login` in
+  another process is not (follow-up issue).
 - User-owned workspace files; the edit and write tools keep their mutation queue.
 
 ## Decisions
@@ -73,17 +76,30 @@ sequenceDiagram
    write that cannot claim says which file and which lock, and that nothing changed. Contention is
    a different failure from invalid data, so it surfaces as `InvalidOperationException` rather than
    the store's `InvalidDataException`.
-6. **The wizard's staged writers keep their own claims, and the target lock is not held across the
-   interactive walk.** Holding the target locks from the first seed to the commit would make every
-   other process time out for as long as a person takes to answer the wizard. The staged writes
-   still take a claim beside the staged copy (which the transaction deletes); the final replace is
-   not serialized with a concurrent writer. This is recorded as a risk, not widened into this card.
+6. **The wizard's commit claims its targets before it seeds.** The walk is answered before
+   `SetupWizardCommit.Commit`, so the commit itself is one short, non-interactive pass: claim the
+   settings file and the provider store, then seed the staged bodies from the targets, build them
+   with the same writers, and replace the targets while the claims are still held. The claims are
+   never held across a person answering a step, so another process waits for one pass, not for a
+   walk. A claim that cannot be taken refuses with the store's own error before any target is
+   touched, and the transaction's all-or-nothing restore is unchanged.
+7. **The wizard's provider entry merges into the staged copy, not into a pre-walk reading.** The
+   staged provider store is seeded from the target under the claim, so it is the document the
+   commit merges into; an entry another process saved while the walk was answered survives. The
+   commit therefore takes no entries argument: a caller cannot hand it a reading older than its
+   own claim.
 
 ## Risks / Trade-offs
 
-- **The wizard's seed-to-commit window remains last-writer-wins** -> The window is interactive and
-  a second writer during it is rare; a follow-up can re-seed and recompute under the target claims
-  at commit time without changing the walk. Named in the PR for #584.
+- **`auth.json` still has no claim of its own** -> The wizard's commit replaces all three files
+  under the settings and provider-store claims, so two wizard commits are serialized, but a
+  concurrent `auth login` in another process holds no claim on `auth.json` and can still lose one
+  side's key. Recorded as a follow-up issue in the same milestone; the auth store's own
+  read-modify-write needs the claim and a re-read, which is a separate change.
+- **An in-process direct writer and a commit can wait on each other's order** -> A store writer
+  takes the in-process gate and then the claim; the commit takes the claim and then reaches the
+  gate through the staged writers (on different paths). The window is one non-interactive pass and
+  the writer's bounded wait turns a collision into a refusal, never a lost update.
 - **A stale lock file looks like contention** -> `FileLock` claims an open handle, not the file's
   existence, so a leftover sidecar after a crash is harmless; the next writer claims it.
 - **A writer on a read-only store** -> Settings and provider writes already need a writable
