@@ -10,7 +10,9 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Settings reference | [`configuration.md`](configuration.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
 | First run | [`first-run.md`](first-run.md) | Choosing a provider, `lunate auth`, the `/auth` picker, custom OpenAI-compatible endpoints, the user's own model catalog and where credentials live |
 | Contributor guide | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Prerequisites, build, the verify gate, the repository map, the OpenSpec workflow |
-| Security policy | [`../SECURITY.md`](../SECURITY.md) | How to report a vulnerability, the trust model, secrets |
+| Security policy | [`../SECURITY.md`](../SECURITY.md) | How to report a vulnerability |
+| Security and safety | [`security.md`](security.md) | The user-facing posture: approvals, the workspace boundary, the bash guard, the container boundary, trust, secrets and what is out of scope |
+| Troubleshooting | [`troubleshooting.md`](troubleshooting.md) | Symptom → cause → next step for first-run, model, terminal, container and session failures |
 | Changelog | [`../CHANGELOG.md`](../CHANGELOG.md) | Notable changes, one section per release |
 | Plan and status | [`guide.md`](guide.md) | The implementation plan, phases and roadmap |
 | Documentation architecture (proposed) | [`dev/information-architecture.md`](dev/information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and slice plan, awaiting sign-off |

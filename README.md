@@ -36,7 +36,8 @@ agent and at home in polyglot repositories.
 - **Safe by default.** Every write and command asks first, with the edit's diff on screen;
   repository-provided code asks once per repository and again when it changes; and on macOS and
   Linux `bash` runs under an OS-level guard for Lunate's own state. Lunate says plainly that this
-  is not a sandbox ([`SECURITY.md`](SECURITY.md)).
+  is not a sandbox ([`docs/security.md`](docs/security.md); [`SECURITY.md`](SECURITY.md) is the
+  reporting policy).
 
 ## Get started
 
@@ -155,7 +156,8 @@ sources register the same way.
 ## Security model
 
 Lunate asks before every write and command and guards its own state at the OS level; it is not a
-sandbox. [`SECURITY.md`](SECURITY.md) owns the full posture.
+sandbox. [`docs/security.md`](docs/security.md) owns the full posture; [`SECURITY.md`](SECURITY.md) is
+the reporting policy.
 
 - File tools resolve paths canonically — symlinks included — and refuse anything outside the
   working directory.
