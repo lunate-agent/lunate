@@ -5,14 +5,18 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Document kind | Home | What it owns |
 | --- | --- | --- |
 | Project entry point | [`../README.md`](../README.md) | What Lunate is, why it exists, install, the three-step start and what it can do |
-| Usage | [`usage.md`](usage.md) | Sessions and the terminal: input, turns, tools, approvals, thinking and decisions, copy and export, forks and long sessions, trust, and the modes |
+| Usage | [`usage.md`](usage.md) | The interactive session: input, turns, tools, approvals, thinking, forks and long sessions, trust, and the modes |
 | Project instructions | [`agents-md.md`](agents-md.md) | The `AGENTS.md` chain from the repository root to the launch directory, and what reaches the system prompt |
 | Skills | [`skills.md`](skills.md) | Agent Skills: the scopes Lunate reads, `/skills`, `/skill:<name>`, the index budget and the trust decision |
 | MCP servers | [`mcp-servers.md`](mcp-servers.md) | The MCP client: where `mcpServers` is read, how a server starts, and what its child process inherits |
 | Themes and keys | [`themes-and-keys.md`](themes-and-keys.md) | The colour-depth policy, the key remaps `/settings` persists, and why `keys.json` stays the only declaration |
 | Execution environments | [`execution-environments.md`](execution-environments.md) | Run tool calls in a container: where commands and file tools run, the Docker/Podman flag and settings, what is mounted, and the measured cost and platform limits |
 | Settings reference | [`configuration.md`](configuration.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
-| First run | [`first-run.md`](first-run.md) | Choosing a provider, `lunate auth`, the `/auth` picker, custom OpenAI-compatible endpoints, the user's own model catalog and where credentials live |
+| Quickstart | [`quickstart.md`](quickstart.md) | Install, the first run and the setup wizard, the first task, and scripted setup |
+| Models and providers | [`models-and-providers.md`](models-and-providers.md) | Choosing a provider, `lunate auth`, the `/auth` picker, provider instances and credentials, profiles, custom OpenAI-compatible endpoints and the user's own model catalog |
+| Decisions | [`decisions.md`](decisions.md) | The optional decision layer: its profile, approvals, routing, the decide tool, question suggestions and the System One transport |
+| Copy, export and debug | [`export-copy-debug.md`](export-copy-debug.md) | `/copy`, `/export` and `/debug`: taking an answer, the session or a diagnostic bundle out |
+| Terminal setup | [`terminal-setup.md`](terminal-setup.md) | Supported terminals, Windows and tmux/SSH, narrow terminals and the shell the `bash` tool resolves |
 | Contributor guide | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Prerequisites, build, the verify gate, the repository map, the OpenSpec workflow |
 | Security policy | [`../SECURITY.md`](../SECURITY.md) | How to report a vulnerability |
 | Security and safety | [`security.md`](security.md) | The user-facing posture: approvals, the workspace boundary, the bash guard, the container boundary, trust, secrets and what is out of scope |

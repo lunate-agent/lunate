@@ -4,8 +4,8 @@
       "title": "Get started",
       "items": [
         {
-          "title": "First run",
-          "path": "first-run.md"
+          "title": "Quickstart",
+          "path": "quickstart.md"
         }
       ]
     },
@@ -15,6 +15,22 @@
         {
           "title": "Use the terminal",
           "path": "usage.md"
+        },
+        {
+          "title": "Models and providers",
+          "path": "models-and-providers.md"
+        },
+        {
+          "title": "Decisions",
+          "path": "decisions.md"
+        },
+        {
+          "title": "Copy, export and debug",
+          "path": "export-copy-debug.md"
+        },
+        {
+          "title": "Terminal setup",
+          "path": "terminal-setup.md"
         },
         {
           "title": "Configuration",
@@ -156,7 +172,12 @@
       ]
     }
   ],
-  "redirects": [],
+  "redirects": [
+    {
+      "from": "first-run.md",
+      "to": "quickstart.md"
+    }
+  ],
   "proseOnly": [
     {
       "path": "configuration.md",
@@ -251,10 +272,6 @@
       "reason": "Prose-only; its runnable example lands with the page's slice."
     },
     {
-      "path": "first-run.md",
-      "reason": "Prose-only until its provider and profile examples move to their task pages in S5."
-    },
-    {
       "path": "mcp-roslyn.md",
       "reason": "Host configuration example; no runnable command until its rewrite in S7."
     },
@@ -264,7 +281,7 @@
     },
     {
       "path": "usage.md",
-      "reason": "Prose-only; its runnable commands land with the usage split in S5."
+      "reason": "Prose-only; its commands are interactive slash commands, not unattended examples."
     },
     {
       "path": "security.md",
@@ -273,6 +290,14 @@
     {
       "path": "troubleshooting.md",
       "reason": "Symptom-and-fix page; each command depends on the failure being fixed, so none runs unattended."
+    },
+    {
+      "path": "export-copy-debug.md",
+      "reason": "Prose-only; the commands are interactive and the export and diagnostic contracts own the runnable examples."
+    },
+    {
+      "path": "terminal-setup.md",
+      "reason": "Prose-only; the terminal matrix and shell tables have no unattended command to run."
     }
   ]
 }
