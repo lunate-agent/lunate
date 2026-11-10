@@ -25,9 +25,11 @@ agent and at home in polyglot repositories.
 - **Understands C#.** Roslyn semantics with no plugin and no language server to install:
   `cs_diagnostics`, `cs_find_symbol`, `cs_find_references`, `cs_outline`, `cs_rename` — the
   diagnostics tool is a compile check after an edit, and an edit is verified against the compiler,
-  not the model's guess. On the published head-to-head C# suite Lunate finished 6/6 at **~5× fewer
-  tokens** than the heavy harnesses on the same tasks; the write-up is candid about what that suite
-  shows ([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
+  not the model's guess. The published benchmark evidence is a five-instance SWE-bench Verified
+  pilot, not a C# suite: Lunate resolved 2/5 with the budget model and 3/5 with the frontier model,
+  while the mini-swe-agent baseline resolved 4/5 and 3/5 on the same subset; the write-up states
+  the failures and the pilot's limits
+  ([`docs/eval/swebench-first-run.md`](docs/eval/swebench-first-run.md)).
 - **Yours to extend in C#.** Start from **one `.cs` file** — a header declares its tools and the
   NuGet packages it needs, you approve it once, and it compiles into the running session — and grow
   it into a NuGet package you install by id ([`docs/extensions/`](docs/extensions/README.md) owns the
@@ -177,9 +179,10 @@ the full matrix is in the [guide](docs/guide.md); pipes, CI and `TERM=dumb` are 
 ## Acknowledgements
 
 Lunate stands on two lightweight agents that came first — **Pi** and **Tau** — for the shape of the
-loop, the tool set and the idea that an agent's harness should be small enough to read. The
-head-to-head suite that calibrates the claims above runs Pi and Tau beside Lunate
-([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
+loop, the tool set and the idea that an agent's harness should be small enough to read. The C#
+head-to-head suite runs Pi and Tau beside Lunate
+([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)); the published SWE-bench pilot
+is a separate measurement ([`docs/eval/swebench-first-run.md`](docs/eval/swebench-first-run.md)).
 
 ## Contributing
 

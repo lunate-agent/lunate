@@ -1,8 +1,8 @@
 {
   "runId": "first-run-2026-11-08",
   "arm": "baseline",
-  "startedAt": "2026-11-08T10:18:31Z",
-  "finishedAt": "2026-11-08T10:20:11Z",
+  "startedAt": "2026-11-10T20:58:27Z",
+  "finishedAt": "2026-11-10T21:30:39Z",
   "dataset": "SWE-bench/SWE-bench_Verified",
   "split": "test",
   "subset": [
@@ -21,30 +21,88 @@
       "instances": [
         {
           "instanceId": "astropy__astropy-12907",
-          "exitCode": 1,
-          "completed": false,
-          "hasPatch": false,
-          "resolved": false,
-          "spendUsd": null,
-          "steps": 1,
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.00852096,
+          "steps": 16,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
-          "exitStatus": "AuthenticationError",
-          "failure": "baseline run failed",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/baseline"
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "django__django-13128",
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.009193884,
+          "steps": 22,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "django__django-15572",
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.006482076,
+          "steps": 12,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "pydata__xarray-3151",
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": false,
+          "spendUsd": 0.007517616000000001,
+          "steps": 21,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "Submitted",
+          "failure": "unresolved",
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "sphinx-doc__sphinx-8120",
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.010563659999999999,
+          "steps": 21,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
         }
       ],
-      "resolved": 0,
-      "total": 1,
-      "spendUsd": null,
-      "unpricedInstances": [
-        "astropy__astropy-12907"
-      ],
+      "resolved": 4,
+      "total": 5,
+      "spendUsd": 0.042278,
+      "unpricedInstances": [],
       "failures": [
         {
-          "instanceId": "astropy__astropy-12907",
-          "reason": "baseline run failed"
+          "instanceId": "pydata__xarray-3151",
+          "reason": "unresolved"
         }
       ]
     },
@@ -55,34 +113,98 @@
       "instances": [
         {
           "instanceId": "astropy__astropy-12907",
-          "exitCode": 1,
-          "completed": false,
-          "hasPatch": false,
-          "resolved": false,
-          "spendUsd": 0.0316742,
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.031497800000000006,
           "steps": 4,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
-          "exitStatus": "EOFError",
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "django__django-13128",
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.16161100000000003,
+          "steps": 8,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "django__django-15572",
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.03425400000000001,
+          "steps": 4,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "pydata__xarray-3151",
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": false,
+          "spendUsd": 0.06541780000000001,
+          "steps": 7,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "Submitted",
+          "failure": "unresolved",
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+        },
+        {
+          "instanceId": "sphinx-doc__sphinx-8120",
+          "exitCode": 1,
+          "completed": false,
+          "hasPatch": false,
+          "resolved": false,
+          "spendUsd": 0.04503820000000001,
+          "steps": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "limit": null,
+          "exitStatus": "APIError",
           "failure": "baseline run failed",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/baseline"
+          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
         }
       ],
-      "resolved": 0,
-      "total": 1,
-      "spendUsd": 0.031674,
+      "resolved": 3,
+      "total": 5,
+      "spendUsd": 0.337819,
       "unpricedInstances": [],
       "failures": [
         {
-          "instanceId": "astropy__astropy-12907",
+          "instanceId": "pydata__xarray-3151",
+          "reason": "unresolved"
+        },
+        {
+          "instanceId": "sphinx-doc__sphinx-8120",
           "reason": "baseline run failed"
         }
       ]
     }
   ],
   "total": 5,
-  "totalSpendUsd": 30.031674,
-  "capReached": true,
+  "totalSpendUsd": 1.678134,
+  "capReached": false,
   "hostArchitecture": "arm64"
 }

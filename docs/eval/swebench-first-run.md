@@ -33,12 +33,18 @@ different measurements.
 
 ## Results
 
+The Lunate arm was measured on 2026-11-08; the mini-swe-agent arm on 2026-11-10, with the same
+pinned definition and the same dataset split. Both are one logical run: the pinned subset and
+models did not change between the arms.
+
 | Arm | Model | Tier | Resolved | Spend |
 | --- | --- | --- | --- | --- |
 | Lunate | `opencode-go/deepseek-v4.1-flash` | budget | **2/5** | $0.1637 |
 | Lunate | `openrouter/anthropic/claude-opus-5.5` | frontier | **3/5** | $1.1343 |
-| mini-swe-agent | `openai/deepseek-v4.1-flash` (OpenCode Go) | budget | pending | pending |
-| mini-swe-agent | `openrouter/anthropic/claude-opus-5.5` | frontier | pending | pending |
+| mini-swe-agent | `openai/deepseek-v4.1-flash` (OpenCode Go) | budget | **4/5** | $0.0423 |
+| mini-swe-agent | `openrouter/anthropic/claude-opus-5.5` | frontier | **3/5** | $0.3378 |
+
+Total: $1.6781 of the $30.00 cap. The cap was not reached and no instance was unpriced.
 
 Per instance (Lunate):
 
@@ -50,17 +56,62 @@ Per instance (Lunate):
 | `pydata__xarray-3151` | step limit, no patch | patch, unresolved |
 | `sphinx-doc__sphinx-8120` | resolved (step limit) | resolved (10 steps) |
 
+Per instance (mini-swe-agent):
+
+| Instance | Budget | Frontier |
+| --- | --- | --- |
+| `astropy__astropy-12907` | resolved (16 steps) | resolved (4 steps) |
+| `django__django-13128` | resolved (22 steps) | resolved (8 steps) |
+| `django__django-15572` | resolved (12 steps) | resolved (4 steps) |
+| `pydata__xarray-3151` | submitted, unresolved (21 steps) | submitted, unresolved (7 steps) |
+| `sphinx-doc__sphinx-8120` | resolved (21 steps) | API error, no patch (6 steps) |
+
 ## Cost
 
-<!-- COST -->
+The run had one US$30 cap; the orchestrator passed the remaining budget to each invocation and
+the baseline had its own US$3 limit per instance. The Lunate rows are priced from the pinned
+catalog entry, and the baseline rows from the LiteLLM registry. No instance was unpriced, so the
+total is a measured number rather than a substitute.
+
+| Arm | Model | Spend |
+| --- | --- | --- |
+| Lunate | `opencode-go/deepseek-v4.1-flash` | $0.1637 |
+| Lunate | `openrouter/anthropic/claude-opus-5.5` | $1.1343 |
+| mini-swe-agent | `openai/deepseek-v4.1-flash` (OpenCode Go) | $0.0423 |
+| mini-swe-agent | `openrouter/anthropic/claude-opus-5.5` | $0.3378 |
+| **Total** | | **$1.6781 of $30.00** |
+
+The cap was not reached and no cost-limit stop occurred, so every intended instance ran.
 
 ## Failures
 
-<!-- FAILURES -->
+Every failure is kept; none is dropped from the resolved counts.
+
+- **Lunate, budget model:** all five instances reached the 50-step limit (exit 2).
+  `django__django-15572` and `sphinx-doc__sphinx-8120` still resolved; `astropy__astropy-12907`,
+  `django__django-13128` and `pydata__xarray-3151` produced no patch.
+- **Lunate, frontier model:** `django__django-13128` produced an empty patch after 13 steps;
+  `pydata__xarray-3151` produced a patch that the official harness did not resolve after 9 steps.
+- **mini-swe-agent, budget model:** `pydata__xarray-3151` submitted a patch that the official
+  harness did not resolve (21 steps).
+- **mini-swe-agent, frontier model:** `pydata__xarray-3151` submitted a patch that the official
+  harness did not resolve (7 steps); `sphinx-doc__sphinx-8120` stopped with an `APIError` after
+  6 calls and produced no patch. The failed call's spend is still counted.
+- No cost-limit stop and no unpriced instance occurred.
 
 ## What this run does and does not show
 
-<!-- SCOPE -->
+**It shows:** the adapter runs real Verified instances end to end, the official harness is the only
+scorer, both arms use the same subset and models, and a five-instance run costs well under the
+cap. It also shows the failure modes: a 50-step budget is tight for the budget model, an empty
+patch is not a resolved instance, and a provider error is recorded as a failure rather than hidden.
+
+**It does not show:** a reliability or quality ranking. Five instances are 1% of Verified, there
+is one sample per model, and the mini-swe-agent baseline resolved 4/5 with the budget model and
+3/5 with the frontier model — the pilot does not show Lunate ahead of that baseline. The C#
+head-to-head suite is a different measurement and does not support a SWE-bench claim. The host is
+arm64 running the official `linux/amd64` images under QEMU, so wall-clock times are not comparable
+to a native x86_64 host. The run is a pilot, not a full Verified number.
 
 ## Adapter findings from the first real instance
 
