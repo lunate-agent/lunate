@@ -1,0 +1,18 @@
+
+== tool call cost, same product code, only the shell seam moved ==
+| row | n | min ms | median ms | p95 ms | max ms |
+| --- | --- | --- | --- | --- | --- |
+| bash tool, local shell | 15 | 93.4 | 163.5 | 211.7 | 218.3 |
+| bash tool, container through the shim | 15 | 191.3 | 289.8 | 378.5 | 739.4 |
+| engine exec: client + /bin/bash -c true | 15 | 105.2 | 134.8 | 146.7 | 150.5 |
+| engine exec: client + true (no shell) | 15 | 128.9 | 138.0 | 152.5 | 155.1 |
+| engine exec: client + /bin/bash -c true, -w workspace | 15 | 129.6 | 139.3 | 150.3 | 154.2 |
+per-call overhead of the container environment: 126.3 ms on this host (median), 1.8x the local call
+
+== cold container: create + start, then remove ==
+create+start+run -d (5 samples): min 136.3 ms, median 146.2 ms, max 164.1 ms
+
+== stop and start of an existing container ==
+stop+start (3 samples): min 10261.9 ms, median 10284.1 ms, max 10338.7 ms
+
+checks: 0, failures: 0
