@@ -165,7 +165,7 @@ public sealed class BashChangeTrackerTests
     }
 
     [Fact]
-    public async Task Untracked_directories_are_skipped_untracked_files_are_published()
+    public async Task New_files_inside_untracked_directories_are_published()
     {
         using var repo = new GitTestRepo();
         repo.Write("a.cs", "class A { }\n");
@@ -178,8 +178,37 @@ public sealed class BashChangeTrackerTests
         ScanReport changes = await tracker.ObserveAsync("run_1", repo.Root, Ct);
 
         Assert.Equal(
-            [new BashChangeTracker.Change("newfile.cs", FileChangeKind.Created)],
-            changes.Changes
+            [
+                new BashChangeTracker.Change("newdir/inner.cs", FileChangeKind.Created),
+                new BashChangeTracker.Change("newfile.cs", FileChangeKind.Created),
+            ],
+            changes.Changes.OrderBy(change => change.RelativePath, StringComparer.Ordinal)
+        );
+    }
+
+    [Fact]
+    public async Task A_new_file_inside_an_already_untracked_directory_is_published()
+    {
+        using var repo = new GitTestRepo();
+        repo.Write("a.cs", "class A { }\n");
+        repo.CommitAll();
+        repo.Write(".s7-evidence/old.txt", "old\n");
+        var tracker = new BashChangeTracker(scanTimeout: WaitBudgets.BashScan);
+        await tracker.ObserveAsync("run_1", repo.Root, Ct);
+
+        repo.Write(".s7-evidence/container-bash.txt", "new\n");
+        repo.Write("s7-scan-probe.txt", "probe\n");
+        ScanReport changes = await tracker.ObserveAsync("run_1", repo.Root, Ct);
+
+        Assert.Equal(
+            [
+                new BashChangeTracker.Change(
+                    ".s7-evidence/container-bash.txt",
+                    FileChangeKind.Created
+                ),
+                new BashChangeTracker.Change("s7-scan-probe.txt", FileChangeKind.Created),
+            ],
+            changes.Changes.OrderBy(change => change.RelativePath, StringComparer.Ordinal)
         );
     }
 
