@@ -97,8 +97,8 @@ guessing.
 | `lunate auth status` | Reports the resolved default provider and whether a credential exists; exits 0 when it does and 1 when it does not, so a bootstrap script can branch on it. |
 
 Named provider entries in `~/.lunate/providers.json` — the file that holds several entries of one
-provider kind — are the reference in [Models and
-providers](providers.md#add-a-named-provider-entry).
+provider kind — are the reference in
+[Models and providers](providers.md#add-a-named-provider-entry).
 
 ## Profiles and usages
 
@@ -247,12 +247,12 @@ remains in `auth.json`; new multi-provider setups should use `providers.json` an
 `settings.json`. The model can then be selected in `/model` by its qualified provider/model id.
 
 Your own catalogue of model entries in `~/.lunate/models.json`, and the `lunate --discover` and
-`lunate --update-catalog` commands that write and refresh it, are in [Models and
-providers](providers.md#add-a-model-to-your-own-catalog).
+`lunate --update-catalog` commands that write and refresh it, are in
+[Models and providers](providers.md#add-a-model-to-your-own-catalog).
 
-Stored keys, the provider files and which source a credential comes from are [Models and
-providers](providers.md#where-the-credential-lives) territory; the variables themselves are in
-[Environment variables](environment-variables.md#supply-a-credential).
+Stored keys, the provider files and which source a credential comes from are
+[Models and providers](providers.md#where-the-credential-lives) territory; the variables themselves
+are in [Environment variables](environment-variables.md#supply-a-credential).
 
 ## If the first run refuses
 
