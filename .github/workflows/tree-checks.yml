@@ -1,0 +1,67 @@
+name: Tree checks
+
+# The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs
+# regions and the docs lint -- used to run only where a pull request asked for them: `verify-docs`
+# when the change was prose, the always-on `Process` job for the region check. A docs-only push to
+# main skips `ci.yml` entirely (its `paths-ignore`), and `verify-docs` is selected only for a docs
+# *pull request*, so a defect in one of them stayed invisible on main until the first pull request
+# that touched documentation. That is how `#738` survived: `check-adr-numbers.py` failed on main,
+# and every push run was green because none of them ran it. A check that cannot fail on main is a
+# check nobody sees fail until it blocks someone else's work.
+#
+# These four are seconds of wall clock and need no build, so one small job runs all of them on every
+# push to main. A pull request's behaviour is unchanged: it gets the same checks through
+# `verify-docs` (prose), the `platform` profile (code, except ADR numbering) and `Process`.
+
+on:
+  push:
+    branches: [main]
+
+# A push to main is never superseded: a newer push must not cancel the verdict an older one is still
+# producing for its own commit (#705).
+concurrency:
+  group: tree-checks-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tree-checks:
+    name: tree-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # `check-spec-archive.py` diffs the pushed range against `github.event.before`, which a
+          # shallow clone does not carry, and the version region in README.md is derived from the
+          # release tags, which a shallow checkout does not fetch either.
+          fetch-depth: 0
+          fetch-tags: true
+
+      # One step per check, so a red run names the rule that broke instead of "the docs job".
+      - name: ADR numbering
+        run: python3 scripts/check-adr-numbers.py
+
+      - name: Spec changes are archived
+        env:
+          # The push's own range: on main `origin/main` is HEAD, so a diff against it would pass
+          # vacuously. An all-zero sha is a branch's first push, which has nothing before it.
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base="${PUSH_BEFORE}"
+          case "${base}" in
+            "" | 0000000000000000000000000000000000000000)
+              base="$(git rev-list --max-parents=0 HEAD | tail -1)"
+              ;;
+          esac
+          echo "checking the pushed range ${base}...HEAD"
+          python3 scripts/check-spec-archive.py --base "${base}"
+
+      - name: Generated docs regions
+        run: python3 scripts/docs-sync --check
+
+      - name: Docs lint
+        run: npx --yes markdownlint-cli2@0.23.3

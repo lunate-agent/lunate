@@ -42,8 +42,10 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   the parser's accepted keys), and `<!-- docs-sync: version --> …` in the README with the newest
   non-prerelease release tag, and it expands `<!-- snippet: <path> -->` into a fenced block
   taken from that real file — the marker owns the block below it. Edit the source, then run
-  `scripts/docs-sync`; `--check` is what the gate runs, in the docs profile and in the always-on
-  `Process` job (that job's checkout fetches the tags, which the version region reads).
+  `scripts/docs-sync`; `--check` is what the gate runs, in the docs profile, in the always-on
+  `Process` job (that job's checkout fetches the tags, which the version region reads), and in
+  `tree-checks.yml` on every push to `main` — a docs-only push skips the matrix, so that push is the
+  one place a stale region had no gate at all.
 - **Behaviour changes update the specs first.** `openspec/specs/` is the source of truth; when prose and spec disagree, the spec wins.
 - **Keep it current.** A change updates the documents it invalidates; stale documentation is a bug.
 - **New documents land in a home above.** If none fits, propose a new home in an OpenSpec change first.

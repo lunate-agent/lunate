@@ -281,6 +281,9 @@ docs_profile() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_spec_archive.py"
   python3 "${SCRIPT_DIR}/check-spec-archive.py" --base "${GITHUB_BASE_SHA:-origin/main}"
 
+  step "the cheap tree checks also run on main"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_tree_checks.py"
+
   step "docs are not build inputs"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
 
@@ -370,6 +373,11 @@ platform_checks() {
   step "spec changes are archived"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_spec_archive.py"
   python3 "${SCRIPT_DIR}/check-spec-archive.py" --base "${GITHUB_BASE_SHA:-origin/main}"
+
+  # The wiring test for .github/workflows/tree-checks.yml: the four cheap checks must run on every
+  # push to main too, because a docs-only push skips the matrix and a check cannot fail there.
+  step "the cheap tree checks also run on main"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_tree_checks.py"
 
   step "public API"
   if ! check_shipped_api_unchanged; then
