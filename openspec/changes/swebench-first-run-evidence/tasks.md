@@ -11,7 +11,7 @@
 
 ## 3. Baseline run
 
-- [ ] 3.1 Smoke-run one instance and both models; confirm the baseline exits with a submission rather than `EOFError`.
+- [x] 3.1 Smoke-run one instance and both models; confirm the baseline exits with a submission rather than `EOFError`.
 - [ ] 3.2 Run the baseline on all five instances with both models into `first-run-2026-11-08`.
 - [ ] 3.3 Commit `first-run-2026-11-08.baseline.json` and the merged `summary.json` / `summary.md`.
 
@@ -19,7 +19,7 @@
 
 - [ ] 4.1 Fill the cost, failure and scope sections of `docs/eval/swebench-first-run.md` from the completed run.
 - [ ] 4.2 Replace the README benchmark sentence with this run's measured numbers and a link to the write-up.
-- [ ] 4.3 Document the run entry point, pinned files and baseline command in `eval/README.md`.
+- [x] 4.3 Document the run entry point, pinned files and baseline command in `eval/README.md`.
 
 ## 5. Close-out
 

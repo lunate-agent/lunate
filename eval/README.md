@@ -148,10 +148,24 @@ python3 scripts/eval/swebench_run.py --arm all \
   --lunate-bin artifacts/linux-x64/lunate --mini-extra mini-extra --run-id <run-id>
 ```
 
+The arms can also be run and merged separately (for example when one arm resumes after an
+interruption):
+
+```bash
+python3 scripts/eval/swebench_run.py --arm lunate --lunate-bin artifacts/linux-x64/lunate --run-id <run-id>
+python3 scripts/eval/swebench_run.py --arm baseline --mini-extra mini-extra --run-id <run-id>
+python3 scripts/eval/swebench_run.py --arm merge --run-id <run-id>
+```
+
+The first two write `<run-id>.lunate.json` and `<run-id>.baseline.json`; `merge` writes the
+committed `summary.json` and `summary.md`. `--resume` reuses a completed Lunate instance run.
+
 The orchestrator passes the run's remaining budget to each Lunate invocation as `--max-cost`, runs
 mini-swe-agent on the same subset and models with its own cost limit, and takes every resolved count
-from `swebench.harness.run_evaluation`. The committed `eval/swebench/summary.json` and `summary.md`
-are the evidence; the per-instance patches and trajectories stay under the ignored `eval/runs/`.
+from `swebench.harness.run_evaluation`. When an instance's spend cannot be priced, the run stops and
+the summary reports that instance as unpriced and the run total as unknown — never the cap or a
+number above it. The committed `eval/swebench/summary.json` and `summary.md` are the evidence; the
+per-instance patches and trajectories stay under the ignored `eval/runs/`.
 
 On an arm64 host running the official `linux/amd64` images under QEMU, export
 `DOTNET_EnableWriteXorExecute=0`; the adapter sets invariant globalization itself because the
