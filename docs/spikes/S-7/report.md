@@ -1,7 +1,7 @@
 # S-7 report — execution environments
 
 - Date: 2026-11-08
-- Card: [#625](https://github.com/wdaniel1993/lunate/issues/625), spike only — no product change,
+- Card: [#625](https://github.com/lunate-agent/lunate/issues/625), spike only — no product change,
   no OpenSpec delta, no ADR (the decision it needs is a scope decision on three cards, not a new
   architecture rule; see [Why no ADR](#why-no-adr))
 - Question: can Lunate's tools run inside a Docker/Podman `exec` with the workspace bind-mounted,
@@ -114,7 +114,7 @@ regression.
 
 ## What each follow-on card now carries
 
-### [#626](https://github.com/wdaniel1993/lunate/issues/626) — environment abstraction refactor
+### [#626](https://github.com/lunate-agent/lunate/issues/626) — environment abstraction refactor
 
 Unchanged in shape, but the spike fixes what the interface has to expose and one thing it must not
 take on:
@@ -138,7 +138,7 @@ take on:
 - Also needed for #627's header/`/context` line: the seam must be able to describe itself in one
   short string ("local" or the environment's name). That is a property, not a new flag.
 
-### [#627](https://github.com/wdaniel1993/lunate/issues/627) — docker/podman tool runner
+### [#627](https://github.com/lunate-agent/lunate/issues/627) — docker/podman tool runner
 
 The acceptance criteria stay; the spike makes four of them concrete and adds one:
 
@@ -162,7 +162,7 @@ The acceptance criteria stay; the spike makes four of them concrete and adds one
 - Windows stays out of this card: E2E on Linux CI is unchanged, and the WSL2 path with a translated
   mount is named as the follow-up rather than half-built here.
 
-### [#628](https://github.com/wdaniel1993/lunate/issues/628) — execution environments: docs
+### [#628](https://github.com/lunate-agent/lunate/issues/628) — execution environments: docs
 
 Same three criteria, plus the facts the page has to carry (all measured above): file tools stay
 host-side because the mount is the workspace; the state root, keys and prefix are not mounted; one

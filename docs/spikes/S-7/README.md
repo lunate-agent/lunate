@@ -2,9 +2,9 @@
 
 Time-boxed spike for issue #625: can `bash` and the file tools run inside a Docker/Podman container
 with the workspace bind-mounted, and what does that cost? The answers are posted on the follow-on
-cards — [#626](https://github.com/wdaniel1993/lunate/issues/626) (abstraction),
-[#627](https://github.com/wdaniel1993/lunate/issues/627) (container runner),
-[#628](https://github.com/wdaniel1993/lunate/issues/628) (docs) — and recorded here with the raw
+cards — [#626](https://github.com/lunate-agent/lunate/issues/626) (abstraction),
+[#627](https://github.com/lunate-agent/lunate/issues/627) (container runner),
+[#628](https://github.com/lunate-agent/lunate/issues/628) (docs) — and recorded here with the raw
 measurements in [`evidence/`](evidence/).
 
 - [`report.md`](report.md) — the findings, the decision and the scope each follow-on card carries.
