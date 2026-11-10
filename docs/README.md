@@ -5,7 +5,11 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Document kind | Home | What it owns |
 | --- | --- | --- |
 | Project entry point | [`../README.md`](../README.md) | What Lunate is, why it exists, install, the three-step start and what it can do |
-| Usage | [`usage.md`](usage.md) | Sessions and the terminal: input, turns, tools, approvals, thinking and decisions, copy and export, forks and long sessions, trust, extensions/MCP/skills/`AGENTS.md`, and the modes |
+| Usage | [`usage.md`](usage.md) | Sessions and the terminal: input, turns, tools, approvals, thinking and decisions, copy and export, forks and long sessions, trust, and the modes |
+| Project instructions | [`agents-md.md`](agents-md.md) | The `AGENTS.md` chain from the repository root to the launch directory, and what reaches the system prompt |
+| Skills | [`skills.md`](skills.md) | Agent Skills: the scopes Lunate reads, `/skills`, `/skill:<name>`, the index budget and the trust decision |
+| MCP servers | [`mcp-servers.md`](mcp-servers.md) | The MCP client: where `mcpServers` is read, how a server starts, and what its child process inherits |
+| Themes and keys | [`themes-and-keys.md`](themes-and-keys.md) | The colour-depth policy, the key remaps `/settings` persists, and why `keys.json` stays the only declaration |
 | Execution environments | [`execution-environments.md`](execution-environments.md) | Run tool calls in a container: where commands and file tools run, the Docker/Podman flag and settings, what is mounted, and the measured cost and platform limits |
 | Settings reference | [`configuration.md`](configuration.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
 | First run | [`first-run.md`](first-run.md) | Choosing a provider, `lunate auth`, the `/auth` picker, custom OpenAI-compatible endpoints, the user's own model catalog and where credentials live |
