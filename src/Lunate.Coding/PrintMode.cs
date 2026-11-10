@@ -664,23 +664,34 @@ internal static class PrintMode
     /// </summary>
     /// <summary>
     /// Installs the tool-process pass-through list from the resolved settings, once the provider
-    /// store has registered each custom provider's <c>env:</c> names, and warns once when a listed
-    /// name is also a credential. The list is read later, where the tool child's policy is built.
+    /// store has registered each custom provider's <c>env:</c> names: one line names the admitted
+    /// variables, and one warning follows when a listed name is also a credential. The list is read
+    /// later, where the tool child's policy is built.
     /// </summary>
     private static void ApplyToolEnvironment(
         AgentSettings settings,
         PrintUserInteraction interaction
     )
     {
-        if (
-            ToolEnvironmentPassthrough.Configure(settings.ToolEnvironment.Passthrough) is
-            { Count: > 0 } collisions
-        )
+        ToolEnvironmentPassthrough.Admission admission = ToolEnvironmentPassthrough.Configure(
+            settings.ToolEnvironment.Passthrough
+        );
+        if (admission.Names.Count > 0)
+        {
+            interaction.Notify(
+                new UserNotice(
+                    NoticeLevel.Info,
+                    ToolEnvironmentPassthrough.AdmissionNotice(admission.Names)
+                )
+            );
+        }
+
+        if (admission.Collisions.Count > 0)
         {
             interaction.Notify(
                 new UserNotice(
                     NoticeLevel.Warning,
-                    ToolEnvironmentPassthrough.CollisionWarning(collisions)
+                    ToolEnvironmentPassthrough.CollisionWarning(admission.Collisions)
                 )
             );
         }

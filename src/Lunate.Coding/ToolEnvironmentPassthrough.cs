@@ -35,11 +35,13 @@ internal static class ToolEnvironmentPassthrough
     }
 
     /// <summary>
-    /// Installs the configured names (trimmed, blanks dropped, duplicates removed) and returns the
-    /// ones that are also Lunate credential names — the names a startup warning must carry. The
-    /// named variables are still passed through: an explicit name is an explicit user act.
+    /// Installs the configured names (trimmed, blanks dropped, duplicates removed) and returns what
+    /// was admitted plus the names that are also Lunate credential names — the names a startup
+    /// warning must carry. The named variables are still passed through: an explicit name is an
+    /// explicit user act. The frontends render the admitted names from this result rather than
+    /// reading <see cref="Names"/>, so only the policy-build site reads the process-wide list.
     /// </summary>
-    internal static IReadOnlyList<string> Configure(IReadOnlyList<string> names)
+    internal static Admission Configure(IReadOnlyList<string> names)
     {
         ArgumentNullException.ThrowIfNull(names);
         IReadOnlyList<string> configured =
@@ -54,9 +56,25 @@ internal static class ToolEnvironmentPassthrough
         {
             _names = configured;
             IReadOnlyList<string> credentials = CredentialVariables.All;
-            return [.. configured.Where(name => credentials.Contains(name, Comparer))];
+            return new Admission(
+                configured,
+                [.. configured.Where(name => credentials.Contains(name, Comparer))]
+            );
         }
     }
+
+    /// <summary>The installed names and the credential-name collisions among them.</summary>
+    internal sealed record Admission(IReadOnlyList<string> Names, IReadOnlyList<string> Collisions);
+
+    /// <summary>
+    /// The one startup line naming the variables admitted into tool processes, so the user can see
+    /// what they allowed whatever the collision state. Empty when nothing is admitted, which keeps
+    /// a default install quiet.
+    /// </summary>
+    internal static string AdmissionNotice(IReadOnlyList<string> names) =>
+        names.Count == 0
+            ? string.Empty
+            : $"toolEnvironment.passthrough admits {string.Join(", ", names)} into tool processes.";
 
     /// <summary>
     /// The one startup line naming a pass-through entry that is also a credential: the user asked
