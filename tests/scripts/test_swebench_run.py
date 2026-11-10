@@ -423,6 +423,34 @@ class SwebenchRunCapTests(unittest.TestCase):
         self.assertTrue(arm["capReached"])
         self.assertEqual([1, 1], [len(item["instances"]) for item in arm["arms"]])
 
+    def test_the_cap_stops_before_the_next_instance(self) -> None:
+        from unittest import mock
+
+        calls: list[str] = []
+
+        def runner(definition, instance_id, model, work_root, remaining):
+            calls.append(instance_id)
+            return {
+                "instanceId": instance_id,
+                "resolved": False,
+                "spendUsd": remaining,
+                "failure": None,
+            }
+
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(swebench_run, "run_lunate_instance", side_effect=runner):
+                arm = swebench_run.run_arm(
+                    self.definition(cap=15.0),
+                    ["alpha__one-1", "beta__two-2"],
+                    "lunate",
+                    Path(directory),
+                )
+
+        self.assertEqual(["alpha__one-1", "alpha__one-1"], calls)
+        self.assertTrue(arm["capReached"])
+        self.assertAlmostEqual(15.0, arm["totalSpendUsd"])
+        self.assertEqual([1, 1], [len(item["instances"]) for item in arm["arms"]])
+
     def test_merge_does_not_turn_an_unknown_total_into_a_number(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
