@@ -276,13 +276,13 @@ trap 'exit 143' TERM
 # The docs profile: prose only. No build, no publish, no tests and no startup measurement, so a
 # docs or proposal pull request cannot go red on a flake in the suite it never runs. What prose can
 # break is (a) the generated regions drifting from the code they mirror, (b) the docs tree becoming
-# a build input or a test's subject, (c) ADR numbering and status, (d) Markdown lint, and (e) the
-# OpenSpec tree.
-# Those are the five steps; `openspec validate` dominates the wall clock.
+# a build input or a test's subject, (c) broken links, anchors, redirects or navigation, (d) ADR
+# numbering and status, (e) Markdown lint, and (f) the OpenSpec tree.
+# `openspec validate` dominates the wall clock.
 docs_profile() {
   step "tools"
   if ! command -v python3 >/dev/null 2>&1; then
-    echo "verify: python3 is required for the docs profile (scripts/docs-sync); install Python 3 and re-run" >&2
+    echo "verify: python3 is required for the docs profile (scripts/docs-sync and scripts/docs-check); install Python 3 and re-run" >&2
     exit 1
   fi
   if ! command -v node >/dev/null 2>&1; then
@@ -297,6 +297,10 @@ docs_profile() {
   step "generated docs regions"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_published_release.py"
   python3 "${SCRIPT_DIR}/docs-sync" --check
+
+  step "docs links and navigation"
+  python3 "${SCRIPT_DIR}/docs-check" --self-test
+  python3 "${SCRIPT_DIR}/docs-check" --check
 
   step "ADR numbering"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_adr_numbers.py"
@@ -355,8 +359,8 @@ sha256_file() {
 }
 
 # The steps that do not depend on the operating system: packaging files, formatting, the generated
-# docs regions, markdownlint, the two agent-hygiene checks, the public API and — when the caller
-# installed it — the OpenSpec tree. CI runs them once in the `platform` job; an OS leg skips them
+# docs regions, the link/navigation check, markdownlint, the two agent-hygiene checks, the public
+# API and — when the caller installed it — the OpenSpec tree. CI runs them once in the `platform` job; an OS leg skips them
 # (VERIFY_SKIP_PLATFORM_CHECKS=1) because a second copy on every runner is cost, not depth. A local
 # `verify.sh` run keeps the old behaviour and runs them as part of the full gate.
 platform_checks() {
@@ -400,6 +404,10 @@ platform_checks() {
   step "generated docs regions"
   python3 "${SCRIPT_DIR}/docs-sync" --check
 
+  step "docs links and navigation"
+  python3 "${SCRIPT_DIR}/docs-check" --self-test
+  python3 "${SCRIPT_DIR}/docs-check" --check
+
   step "docs lint"
   if ! command -v node >/dev/null 2>&1; then
     echo "verify: node is required for the documentation lint step; install Node.js (npx runs the pinned markdownlint-cli2)" >&2
@@ -421,8 +429,8 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_spec_archive.py"
   python3 "${SCRIPT_DIR}/check-spec-archive.py" --base "${GITHUB_BASE_SHA:-origin/main}"
 
-  # The wiring test for .github/workflows/tree-checks.yml: the four cheap checks must run on every
-  # push to main too, because a docs-only push skips the matrix and a check cannot fail there.
+  # The wiring test for .github/workflows/tree-checks.yml: the cheap checks must run on every push
+  # to main too, because a docs-only push skips the matrix and a check cannot fail there.
   step "the cheap tree checks also run on main"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_tree_checks.py"
 
@@ -453,7 +461,7 @@ platform_checks() {
 platform_profile() {
   step "tools"
   if ! command -v python3 >/dev/null 2>&1; then
-    echo "verify: python3 is required for the platform profile (scripts/docs-sync)" >&2
+    echo "verify: python3 is required for the platform profile (scripts/docs-sync and scripts/docs-check)" >&2
     exit 1
   fi
   if ! dotnet tool restore; then
@@ -632,6 +640,9 @@ verify_primary_after_tests() {
 
   step "write verifier budget"
   run_tests "write verifier budget" dotnet test --project tests/Lunate.Roslyn.Tests/Lunate.Roslyn.Tests.csproj -c "$CONFIGURATION" --no-build --filter-trait Category=Perf
+
+  step "runnable docs examples"
+  python3 "${SCRIPT_DIR}/docs-check" --run --binary "$BINARY"
 
   step "install script (fixture release)"
   version="$(product_version)"

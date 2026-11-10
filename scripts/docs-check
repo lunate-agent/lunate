@@ -1,0 +1,889 @@
+#!/usr/bin/env python3
+"""Checks the documentation tree against its navigation manifest and runnable markers.
+
+`docs/docs.json` is the machine-readable map (`navigation`, `redirects`, `proseOnly`). The checker
+answers four questions:
+
+  1. every navigation path exists exactly once, and every user-path page is in it;
+  2. every relative link and `#anchor` in the user and maintainer pages resolves;
+  3. every redirect is a valid four-line stub, or a rename into maintainer material;
+  4. every user-path page carries a runnable marker, or is `proseOnly` with a reason.
+
+Markers: `<!-- snippet: <path> -->` (expanded by scripts/docs-sync), `<!-- config: <kind> -->`
+above a fenced JSON block, and `<!-- run: offline|help|no <reason> -->` above a fenced bash block.
+`--run` executes the `offline` and `help` blocks against a published `lunate` binary; `no` needs a
+one-line reason and is never run. No network command is executed by the checker.
+
+Usage:
+  scripts/docs-check --check
+  scripts/docs-check --run [--binary <path>]
+  scripts/docs-check --self-test
+
+Python 3 only (standard library); every CI runner and macOS ship it.
+"""
+
+import argparse
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+MANIFEST = Path("docs") / "docs.json"
+ROOT_DOCUMENTS = ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "AGENTS.md")
+RECORD_PREFIXES = (
+    "docs/spikes/",
+    "docs/eval/",
+    "docs/dev/spikes/",
+    "docs/dev/eval/",
+)
+MAINTAINER_FILES = {"README.md", "architecture.md", "distribution.md", "guide.md"}
+MAINTAINER_PREFIXES = ("spec/", "media/", "dev/")
+SETTINGS_SCHEMA = Path("src/Lunate.Coding/settings-schema.json")
+CONFIG_KINDS = ("settings", "mcp", "providers", "extension", "auth")
+RUN_KINDS = ("offline", "help", "no")
+
+FENCE_OPEN = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})([^\n]*)$")
+LINK = re.compile(
+    r"!?\[[^\]]*\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'|\([^)]*\)))?\s*\)"
+)
+REFERENCE_LINK = re.compile(r"^[ \t]{0,3}\[[^\]]+\]:\s*(\S+)", re.M)
+COMMENT = re.compile(r"<!--.*?-->", re.S)
+INLINE_CODE = re.compile(r"`[^`\n]*`")
+HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+CONFIG_MARKER = re.compile(r"^<!--\s*config:\s*(.*?)\s*-->$")
+RUN_MARKER = re.compile(r"^<!--\s*run:\s*(.*?)\s*-->$")
+SNIPPET_MARKER = re.compile(r"^<!--\s*snippet:\s*(.*?)\s*-->$")
+MOVED_MARKER = re.compile(r"^<!--\s*moved:\s*(.*?)\s*-->$")
+
+
+def read_text(path):
+    with open(path, "r", encoding="utf-8", newline="") as file:
+        return file.read()
+
+
+def write_text(path, text):
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        file.write(text)
+
+
+def posix(path):
+    return path.as_posix()
+
+
+def is_record(relative):
+    return any(relative == prefix.rstrip("/") or relative.startswith(prefix) for prefix in RECORD_PREFIXES)
+
+
+def is_maintainer(relative):
+    if relative in MAINTAINER_FILES:
+        return True
+    return any(relative.startswith(prefix) for prefix in MAINTAINER_PREFIXES)
+
+
+def docs_files(root):
+    docs = root / "docs"
+    if not docs.is_dir():
+        return []
+    return sorted(path for path in docs.rglob("*.md") if path.is_file())
+
+
+def document_paths(root):
+    paths = []
+    for name in ROOT_DOCUMENTS:
+        path = root / name
+        if path.is_file():
+            paths.append(path)
+    paths.extend(docs_files(root))
+    return paths
+
+
+def relative_document(root, path):
+    return posix(path.relative_to(root))
+
+
+def docs_relative(root, path):
+    return posix(path.relative_to(root / "docs"))
+
+
+def normalize_docs_path(value):
+    if not value.strip():
+        return None
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts or posix(path) == ".":
+        return None
+    return posix(path)
+
+
+def fenced_blocks(lines):
+    """Returns (opening-line index, info string, body) for each fenced code block."""
+    blocks = []
+    index = 0
+    while index < len(lines):
+        match = FENCE_OPEN.match(lines[index])
+        if not match:
+            index += 1
+            continue
+        fence = match.group(1)
+        char = fence[0]
+        length = len(fence)
+        info = match.group(2).strip()
+        opening = index
+        body = []
+        index += 1
+        close = re.compile(
+            r"^[ \t]*" + re.escape(char) + "{" + str(length) + r",}[ \t]*$"
+        )
+        while index < len(lines) and not close.match(lines[index]):
+            body.append(lines[index])
+            index += 1
+        blocks.append((opening, info, "\n".join(body)))
+        index += 1
+    return blocks
+
+
+def previous_marker_line(lines, opening):
+    index = opening - 1
+    while index >= 0 and not lines[index].strip():
+        index -= 1
+    return index
+
+
+def parse_run_marker(value):
+    match = re.match(r"^(offline|help|no)\b(.*)$", value.strip())
+    if not match:
+        return None, ""
+    kind = match.group(1)
+    reason = match.group(2).strip()
+    reason = re.sub(r"^[:\-–—]\s*", "", reason).strip()
+    return kind, reason
+
+
+def validate_config(root, kind, body, where, problems):
+    if kind not in CONFIG_KINDS:
+        problems.append(f"{where}: unknown config kind '{kind}'")
+        return
+    try:
+        document = json.loads(body)
+    except json.JSONDecodeError as error:
+        problems.append(f"{where}: the {kind} example is not valid JSON: {error.msg}")
+        return
+    if kind != "settings":
+        return
+    if not isinstance(document, dict):
+        problems.append(f"{where}: the settings example must be a JSON object")
+        return
+    schema_path = root / SETTINGS_SCHEMA
+    if not schema_path.is_file():
+        problems.append(f"{where}: cannot check settings keys without {posix(SETTINGS_SCHEMA)}")
+        return
+    schema = json.loads(read_text(schema_path))
+    allowed = {entry["name"].split(".", 1)[0] for entry in schema.get("entries", [])}
+    unknown = sorted(key for key in document if key not in allowed)
+    if unknown:
+        problems.append(
+            f"{where}: settings example uses key(s) the store refuses: {', '.join(unknown)}"
+        )
+
+
+def scan_markers(root, relative, text, problems):
+    """Returns (has-a-marker, runnable blocks) and reports broken markers."""
+    lines = text.splitlines()
+    used = set()
+    runs = []
+    has_marker = False
+
+    for opening, info, body in fenced_blocks(lines):
+        marker_index = previous_marker_line(lines, opening)
+        marker = lines[marker_index].strip() if marker_index >= 0 else ""
+        config_match = CONFIG_MARKER.match(marker)
+        run_match = RUN_MARKER.match(marker)
+        info_parts = info.split()
+        kind = None
+        if config_match:
+            kind = config_match.group(1).strip()
+            used.add(marker_index)
+        if kind is not None:
+            has_marker = True
+            where = f"{relative}:{opening + 1}"
+            if not info_parts or info_parts[0] not in ("json",):
+                problems.append(f"{where}: a config marker must sit above a fenced JSON block")
+            else:
+                validate_config(root, kind, body, where, problems)
+
+        if run_match:
+            used.add(marker_index)
+            has_marker = True
+            where = f"{relative}:{opening + 1}"
+            kind, reason = parse_run_marker(run_match.group(1))
+            if kind is None:
+                problems.append(
+                    f"{where}: '{run_match.group(1).strip()}' is not offline, help or no"
+                )
+            else:
+                if not info_parts or info_parts[0] not in ("bash", "sh"):
+                    problems.append(f"{where}: a run marker must sit above a fenced bash block")
+                if kind == "no" and not reason:
+                    problems.append(f"{where}: 'run: no' needs a one-line reason")
+                runs.append((kind, reason, relative, opening + 1, body))
+
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if (CONFIG_MARKER.match(stripped) or RUN_MARKER.match(stripped)) and index not in used:
+            problems.append(
+                f"{relative}:{index + 1}: marker '{stripped}' is not above a fenced block"
+            )
+        snippet = SNIPPET_MARKER.match(stripped)
+        if snippet:
+            has_marker = True
+            target = root / snippet.group(1).strip()
+            if not target.is_file():
+                problems.append(
+                    f"{relative}:{index + 1}: snippet source does not exist: "
+                    f"{snippet.group(1).strip()}"
+                )
+    return has_marker, runs
+
+
+def slugify(text):
+    text = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", text)
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = text.replace("`", "")
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.strip().lower()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"\s+", "-", text)
+    return text
+
+
+def anchors_of(text):
+    anchors = set()
+    counts = {}
+    for line in text.splitlines():
+        match = HEADING.match(line)
+        if match:
+            base = slugify(match.group(2))
+            count = counts.get(base, 0)
+            anchors.add(base if count == 0 else f"{base}-{count}")
+            counts[base] = count + 1
+        for name in re.findall(r'\b(?:id|name)="([^"]+)"', line):
+            anchors.add(name)
+    return anchors
+
+
+def without_fences(text):
+    lines = text.splitlines()
+    kept = []
+    fence = None
+    for line in lines:
+        opening = FENCE_OPEN.match(line)
+        if fence is None and opening:
+            fence = opening.group(1)
+            kept.append("")
+            continue
+        if fence is not None:
+            close = re.compile(
+                r"^[ \t]*" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}[ \t]*$"
+            )
+            if close.match(line):
+                fence = None
+            kept.append("")
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def links_of(text):
+    text = without_fences(text)
+    text = COMMENT.sub("", text)
+    text = INLINE_CODE.sub("", text)
+    links = [match.group(1).strip("<>") for match in LINK.finditer(text)]
+    links.extend(match.group(1).strip("<>") for match in REFERENCE_LINK.finditer(text))
+    return links
+
+
+def resolve_link(root, source, target):
+    path_part, _, fragment = target.partition("#")
+    if not path_part:
+        destination = source
+    elif path_part.startswith("/"):
+        destination = root / path_part.lstrip("/")
+    else:
+        destination = (source.parent / path_part).resolve()
+    return destination, fragment
+
+
+def check_links(root, paths, problems):
+    anchor_cache = {}
+    for source in paths:
+        relative = relative_document(root, source)
+        if is_record(relative):
+            continue
+        text = read_text(source)
+        for target in links_of(text):
+            if not target or target.startswith(("http://", "https://", "mailto:", "tel:", "#")):
+                if target.startswith("#") and target[1:] not in anchors_of(text):
+                    problems.append(f"{relative}: missing anchor '{target}'")
+                continue
+            if "://" in target or target.startswith("data:"):
+                continue
+            destination, fragment = resolve_link(root, source, target)
+            try:
+                destination.relative_to(root)
+            except ValueError:
+                problems.append(f"{relative}: link escapes the repository: {target}")
+                continue
+            if not destination.exists():
+                problems.append(f"{relative}: missing link target: {target}")
+                continue
+            if fragment and destination.suffix.lower() == ".md":
+                if destination not in anchor_cache:
+                    anchor_cache[destination] = anchors_of(read_text(destination))
+                if fragment not in anchor_cache[destination]:
+                    problems.append(f"{relative}: missing anchor '{target}'")
+
+
+def flatten_navigation(nodes, problems, where="navigation"):
+    entries = []
+    if not isinstance(nodes, list):
+        problems.append(f"{where}: must be a list")
+        return entries
+    for index, node in enumerate(nodes):
+        label = f"{where}[{index}]"
+        if not isinstance(node, dict):
+            problems.append(f"{label}: must be an object")
+            continue
+        title = node.get("title")
+        if not isinstance(title, str) or not title.strip():
+            problems.append(f"{label}: has no title")
+        if "path" in node and "items" in node:
+            problems.append(f"{label}: has both a path and items")
+            continue
+        if "path" in node:
+            path = normalize_docs_path(str(node["path"]))
+            if path is None:
+                problems.append(f"{label}: path must stay under docs/: {node['path']}")
+            else:
+                entries.append((title, path))
+        elif "items" in node:
+            entries.extend(flatten_navigation(node["items"], problems, f"{label}.items"))
+        else:
+            problems.append(f"{label}: has neither a path nor items")
+    return entries
+
+
+def check_stub(root, source, target):
+    problems = []
+    relative = docs_relative(root, source)
+    lines = read_text(source).splitlines()
+    while lines and not lines[-1].strip():
+        lines.pop()
+    if len(lines) != 4:
+        return [f"{relative}: a redirect stub must carry only the marker and three lines"]
+    marker = MOVED_MARKER.match(lines[0].strip())
+    if not marker:
+        return [f"{relative}: the first line must be '<!-- moved: <target> -->'"]
+    if lines[1].strip() != "# Moved":
+        problems.append(f"{relative}: the stub heading must be '# Moved'")
+    if lines[2].strip():
+        problems.append(f"{relative}: the stub needs a blank line after '# Moved'")
+    sentence = re.match(
+        r"^This page is now \[[^\]]+\]\(([^)]+)\)\. Update your bookmarks\.$", lines[3].strip()
+    )
+    if not sentence:
+        return problems + [f"{relative}: the stub must be the standard moved-page sentence"]
+    expected = (root / "docs" / target).resolve()
+    marker_target = marker.group(1).strip()
+    marker_paths = [
+        (source.parent / marker_target).resolve(),
+        (root / "docs" / marker_target).resolve(),
+    ]
+    if expected not in marker_paths:
+        problems.append(f"{relative}: the moved marker does not point at {target}")
+    link_target = sentence.group(1).strip()
+    link_path = (source.parent / link_target).resolve()
+    if link_path != expected:
+        problems.append(f"{relative}: the moved-page link does not point at {target}")
+    return problems
+
+
+def check_navigation_region(root, navigation, problems):
+    index = root / "docs" / "index.md"
+    if not index.is_file():
+        return
+    start = "<!-- docs-sync: navigation -->"
+    end = "<!-- /docs-sync: navigation -->"
+    lines = read_text(index).splitlines()
+    starts = [i for i, line in enumerate(lines) if line.strip() == start]
+    ends = [i for i, line in enumerate(lines) if line.strip() == end]
+    if len(starts) != 1 or len(ends) != 1:
+        problems.append(
+            f"docs/index.md: expected one '{start}' and one '{end}', found "
+            f"{len(starts)} and {len(ends)}"
+        )
+        return
+    if starts[0] > ends[0]:
+        problems.append("docs/index.md: the navigation end marker comes before its start")
+        return
+
+    def render(nodes, depth=0):
+        rendered = []
+        for node in nodes:
+            indent = "  " * depth
+            if "items" in node:
+                rendered.append(f"{indent}- **{node['title']}**")
+                rendered.extend(render(node["items"], depth + 1))
+            else:
+                rendered.append(f"{indent}- [{node['title']}]({node['path']})")
+        return rendered
+
+    expected = render(navigation)
+    actual = [line for line in lines[starts[0] + 1 : ends[0]] if line.strip()]
+    if actual != expected:
+        problems.append(
+            "docs/index.md: the docs-sync: navigation region does not match docs/docs.json; "
+            "expected:\n" + "\n".join(expected)
+        )
+
+
+def check(root, manifest=None):
+    root = Path(root).resolve()
+    manifest_path = Path(manifest).resolve() if manifest else root / MANIFEST
+    problems = []
+    try:
+        data = json.loads(read_text(manifest_path))
+    except FileNotFoundError:
+        return [f"{posix(manifest_path)}: manifest does not exist"]
+    except json.JSONDecodeError as error:
+        return [f"{posix(manifest_path)}: invalid JSON: {error.msg}"]
+    if not isinstance(data, dict):
+        return [f"{posix(manifest_path)}: the manifest must be a JSON object"]
+
+    navigation = data.get("navigation")
+    redirects = data.get("redirects", [])
+    prose_only = data.get("proseOnly", [])
+    if not isinstance(navigation, list):
+        problems.append("docs/docs.json: navigation must be a list")
+        navigation = []
+    if not isinstance(redirects, list):
+        problems.append("docs/docs.json: redirects must be a list")
+        redirects = []
+    if not isinstance(prose_only, list):
+        problems.append("docs/docs.json: proseOnly must be a list")
+        prose_only = []
+
+    entries = flatten_navigation(navigation, problems)
+    navigation_paths = []
+    for title, path in entries:
+        if not isinstance(title, str) or not title.strip():
+            continue
+        destination = root / "docs" / path
+        if not destination.is_file():
+            problems.append(f"docs/docs.json: navigation path does not exist: {path}")
+        if path in navigation_paths:
+            problems.append(f"docs/docs.json: navigation path appears more than once: {path}")
+        navigation_paths.append(path)
+
+    redirect_entries = []
+    redirect_from = set()
+    for index, entry in enumerate(redirects):
+        label = f"docs/docs.json: redirects[{index}]"
+        if not isinstance(entry, dict):
+            problems.append(f"{label} must be an object")
+            continue
+        source = normalize_docs_path(str(entry.get("from", "")))
+        target = normalize_docs_path(str(entry.get("to", "")))
+        if source is None or target is None:
+            problems.append(f"{label}: from and to must stay under docs/")
+            continue
+        if source in redirect_from:
+            problems.append(f"{label}: from appears more than once: {source}")
+        redirect_from.add(source)
+        redirect_entries.append((source, target))
+        target_file = root / "docs" / target
+        if not target_file.is_file():
+            problems.append(f"{label}: target does not exist: {target}")
+        source_file = root / "docs" / source
+        if source_file.is_file():
+            problems.extend(check_stub(root, source_file, target))
+        elif not target.startswith("dev/"):
+            problems.append(f"{label}: {source} has no redirect stub")
+
+    user_pages = []
+    for path in docs_files(root):
+        relative = docs_relative(root, path)
+        if is_record(posix(path.relative_to(root))) or is_maintainer(relative):
+            continue
+        if relative in redirect_from:
+            continue
+        user_pages.append(relative)
+
+    user_set = set(user_pages)
+    seen = set()
+    for path in navigation_paths:
+        if path in seen:
+            continue
+        seen.add(path)
+        if path not in user_set:
+            problems.append(
+                f"docs/docs.json: navigation path is not a user-path page: {path}"
+            )
+    for page in user_pages:
+        if page not in seen:
+            problems.append(f"docs/docs.json: user-path page is not in navigation: {page}")
+
+    prose_paths = {}
+    for index, entry in enumerate(prose_only):
+        label = f"docs/docs.json: proseOnly[{index}]"
+        if not isinstance(entry, dict):
+            problems.append(f"{label} must be an object")
+            continue
+        path = normalize_docs_path(str(entry.get("path", "")))
+        reason = entry.get("reason")
+        if path is None:
+            problems.append(f"{label}: path must stay under docs/")
+            continue
+        if path not in navigation_paths:
+            problems.append(f"{label}: path is not in navigation: {path}")
+        if path in prose_paths:
+            problems.append(f"{label}: path appears more than once: {path}")
+        if not isinstance(reason, str) or not reason.strip():
+            problems.append(f"{label}: needs a reason")
+        prose_paths[path] = reason
+
+    documents = document_paths(root)
+    marker_pages = set()
+    for path in documents:
+        relative = relative_document(root, path)
+        has_marker, _ = scan_markers(root, relative, read_text(path), problems)
+        if has_marker and relative.startswith("docs/"):
+            marker_pages.add(relative[len("docs/") :])
+    for page in user_pages:
+        if page not in marker_pages and page not in prose_paths:
+            problems.append(
+                f"docs/{page}: has no snippet, config or run marker and is not proseOnly"
+            )
+
+    check_links(root, documents, problems)
+    check_navigation_region(root, navigation, problems)
+    return problems
+
+
+def run_examples(root, binary):
+    root = Path(root).resolve()
+    problems = []
+    runs = []
+    for path in document_paths(root):
+        relative = relative_document(root, path)
+        _, found = scan_markers(root, relative, read_text(path), problems)
+        runs.extend(found)
+    runnable = [run for run in runs if run[0] in ("offline", "help")]
+    if not runnable:
+        return problems
+    if not binary:
+        return problems + ["docs-check: --run needs --binary <path> or LUNATE_BIN"]
+    binary = Path(binary).resolve()
+    if not binary.is_file():
+        return problems + [f"docs-check: binary does not exist: {posix(binary)}"]
+    bash = shutil.which("bash")
+    if not bash:
+        return problems + ["docs-check: --run needs bash on PATH"]
+
+    scratch = tempfile.mkdtemp(prefix="docs-check-run.", dir=os.environ.get("TMPDIR") or None)
+    try:
+        bin_dir = Path(scratch) / "bin"
+        bin_dir.mkdir()
+        shim = bin_dir / "lunate"
+        shim.write_text(f"#!/bin/sh\nexec {shlex.quote(str(binary))} \"$@\"\n", encoding="utf-8")
+        shim.chmod(0o755)
+        for index, (kind, reason, relative, line, body) in enumerate(runnable):
+            work = Path(scratch) / f"run-{index}"
+            home = work / "home"
+            lunate_home = work / "lunate-home"
+            home.mkdir(parents=True)
+            lunate_home.mkdir()
+            environment = os.environ.copy()
+            environment["PATH"] = str(bin_dir) + os.pathsep + environment.get("PATH", "")
+            environment["HOME"] = str(home)
+            environment["LUNATE_HOME"] = str(lunate_home)
+            environment["XDG_CONFIG_HOME"] = str(home / ".config")
+            result = subprocess.run(
+                [bash, "-euo", "pipefail", "-c", body],
+                cwd=work,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+            if result.returncode != 0:
+                output = (result.stdout + result.stderr).strip()
+                problems.append(
+                    f"{relative}:{line}: run:{kind} exited {result.returncode}"
+                    + (f": {output}" if output else "")
+                )
+        return problems
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def self_test():
+    failures = []
+
+    def expect(name, files, fails, contains=None):
+        with tempfile.TemporaryDirectory(prefix="docs-check-self-test.", dir=os.environ.get("TMPDIR") or None) as tmp:
+            root = Path(tmp)
+            for relative, text in files.items():
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                write_text(path, text)
+            problems = check(root)
+            joined = "\n".join(problems)
+            if fails and not problems:
+                failures.append(f"{name}: expected a failure, got none")
+            elif not fails and problems:
+                failures.append(f"{name}: expected success, got:\n{joined}")
+            elif fails and contains and contains not in joined:
+                failures.append(f"{name}: expected '{contains}' in:\n{joined}")
+
+    def manifest(navigation, redirects=None, prose_only=None):
+        return json.dumps(
+            {
+                "navigation": navigation,
+                "redirects": redirects or [],
+                "proseOnly": prose_only or [],
+            },
+            indent=2,
+        )
+
+    def base_navigation(index=False):
+        items = [
+            {"title": "Start", "path": "start.md"},
+            {"title": "Next", "path": "next.md"},
+        ]
+        if index:
+            items.append({"title": "Home", "path": "index.md"})
+        return [{"title": "Get started", "items": items}]
+
+    def base(index=False):
+        files = {
+            "docs/docs.json": manifest(base_navigation(index)),
+            "docs/start.md": "# Start\n\nSee [next](next.md#details).\n\n"
+            "<!-- snippet: src/example.txt -->\n",
+            "docs/next.md": "# Next\n\n## Details\n\n"
+            "<!-- snippet: src/example.txt -->\n",
+            "docs/README.md": "# Documentation map\n\nMaintainer page.\n",
+            "src/example.txt": "example\n",
+            "src/Lunate.Coding/settings-schema.json": json.dumps(
+                {"version": 1, "entries": [{"name": "schemaVersion"}]}
+            ),
+        }
+        if index:
+            files["docs/index.md"] = (
+                "# Home\n\n<!-- docs-sync: navigation -->\n"
+                "- **Get started**\n  - [Start](start.md)\n  - [Next](next.md)\n"
+                "  - [Home](index.md)\n<!-- /docs-sync: navigation -->\n\n"
+                "<!-- snippet: src/example.txt -->\n"
+            )
+        return files
+
+    def changed(files, **updates):
+        result = dict(files)
+        result.update(updates)
+        return result
+
+    expect("valid tree", base(), False)
+    expect("valid tree with navigation region", base(index=True), False)
+    expect(
+        "missing navigation path",
+        changed(base(), **{"docs/docs.json": manifest([{"title": "G", "items": [{"title": "Start", "path": "missing.md"}, {"title": "Next", "path": "next.md"}]}])}),
+        True,
+        "navigation path does not exist",
+    )
+    expect(
+        "unlisted user page",
+        changed(base(), **{"docs/extra.md": "# Extra\n\n<!-- snippet: src/example.txt -->\n"}),
+        True,
+        "user-path page is not in navigation",
+    )
+    expect(
+        "duplicate navigation path",
+        changed(base(), **{"docs/docs.json": manifest([{"title": "G", "items": [{"title": "Start", "path": "start.md"}, {"title": "Again", "path": "start.md"}, {"title": "Next", "path": "next.md"}]}])}),
+        True,
+        "appears more than once",
+    )
+    expect(
+        "broken relative link",
+        changed(base(), **{"docs/start.md": "# Start\n\n[gone](gone.md)\n\n<!-- snippet: src/example.txt -->\n"}),
+        True,
+        "missing link target",
+    )
+    expect(
+        "broken anchor",
+        changed(base(), **{"docs/start.md": "# Start\n\n[next](next.md#absent)\n\n<!-- snippet: src/example.txt -->\n"}),
+        True,
+        "missing anchor",
+    )
+    expect(
+        "missing redirect stub",
+        changed(base(), **{"docs/docs.json": manifest(base_navigation(), [{"from": "old.md", "to": "next.md"}])}),
+        True,
+        "has no redirect stub",
+    )
+    expect(
+        "maintainer rename without a stub",
+        changed(
+            base(),
+            **{
+                "docs/docs.json": manifest(
+                    base_navigation(), [{"from": "old.md", "to": "dev/architecture.md"}]
+                ),
+                "docs/dev/architecture.md": "# Architecture\n\nMaintainer page.\n",
+            },
+        ),
+        False,
+    )
+    redirect_stub = (
+        "<!-- moved: next.md -->\n# Moved\n\n"
+        "This page is now [Next](next.md). Update your bookmarks.\n"
+    )
+    expect(
+        "valid redirect stub",
+        changed(
+            base(),
+            **{
+                "docs/docs.json": manifest(base_navigation(), [{"from": "old.md", "to": "next.md"}]),
+                "docs/old.md": redirect_stub,
+            },
+        ),
+        False,
+    )
+    expect(
+        "redirect stub with extra content",
+        changed(
+            base(),
+            **{
+                "docs/docs.json": manifest(base_navigation(), [{"from": "old.md", "to": "next.md"}]),
+                "docs/old.md": redirect_stub + "\nExtra paragraph.\n",
+            },
+        ),
+        True,
+        "only the marker",
+    )
+    expect(
+        "prose-only without a reason",
+        changed(
+            base(),
+            **{
+                "docs/docs.json": manifest(base_navigation(), prose_only=[{"path": "start.md"}]),
+                "docs/start.md": "# Start\n\nNo runnable example yet.\n",
+            },
+        ),
+        True,
+        "needs a reason",
+    )
+    expect(
+        "unmarked user page",
+        changed(base(), **{"docs/start.md": "# Start\n\nNo runnable example yet.\n"}),
+        True,
+        "has no snippet, config or run marker",
+    )
+    expect(
+        "invalid config example",
+        changed(
+            base(),
+            **{
+                "docs/docs.json": manifest(
+                    [{"title": "G", "items": [{"title": "Start", "path": "start.md"}, {"title": "Next", "path": "next.md"}]}]
+                ),
+                "docs/start.md": "# Start\n\n<!-- config: settings -->\n```json\n{\n```\n",
+            },
+        ),
+        True,
+        "not valid JSON",
+    )
+    expect(
+        "run marker without a reason",
+        changed(
+            base(),
+            **{
+                "docs/start.md": "# Start\n\n<!-- run: no -->\n```bash\nlunate --help\n```\n"
+            },
+        ),
+        True,
+        "needs a one-line reason",
+    )
+    expect(
+        "navigation region mismatch",
+        changed(
+            base(index=True),
+            **{
+                "docs/index.md": "# Home\n\n<!-- docs-sync: navigation -->\n"
+                "- **Wrong**\n<!-- /docs-sync: navigation -->\n"
+            },
+        ),
+        True,
+        "does not match docs/docs.json",
+    )
+
+    with tempfile.TemporaryDirectory(prefix="docs-check-self-test.", dir=os.environ.get("TMPDIR") or None) as tmp:
+        root = Path(tmp)
+        for relative, text in base().items():
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            write_text(path, text)
+        binary = root / "fake-lunate"
+        binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        binary.chmod(0o755)
+        write_text(
+            root / "docs/start.md",
+            "# Start\n\n<!-- run: help -->\n```bash\nlunate --help\n```\n",
+        )
+        if run_examples(root, binary):
+            failures.append("run: a succeeding help block must pass")
+        binary.write_text("#!/bin/sh\nexit 3\n", encoding="utf-8")
+        if not any("exited 3" in problem for problem in run_examples(root, binary)):
+            failures.append("run: a failing help block must be reported")
+
+    if failures:
+        for failure in failures:
+            print(f"docs-check: self-test: {failure}", file=sys.stderr)
+        return 1
+    print("docs-check: self-test passed")
+    return 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="docs-check",
+        description="Check the documentation tree against docs/docs.json.",
+    )
+    parser.add_argument("--check", action="store_true", help="check the tree (the default)")
+    parser.add_argument("--run", action="store_true", help="execute run:offline and run:help blocks")
+    parser.add_argument("--self-test", action="store_true", help="run the checker's own tests")
+    parser.add_argument("--root", default=str(REPOSITORY_ROOT), help="repository root")
+    parser.add_argument("--binary", help="published lunate binary for --run")
+    arguments = parser.parse_args(argv)
+
+    if arguments.self_test:
+        return self_test()
+
+    root = Path(arguments.root).resolve()
+    problems = check(root)
+    if arguments.run:
+        problems.extend(run_examples(root, arguments.binary or os.environ.get("LUNATE_BIN")))
+    if problems:
+        for problem in problems:
+            print(f"docs-check: {problem}", file=sys.stderr)
+        return 1
+    print("docs-check: OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

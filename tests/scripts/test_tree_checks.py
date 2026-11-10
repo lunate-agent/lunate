@@ -1,8 +1,8 @@
 """Pins the wiring of the main-push tree checks (#740).
 
-The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs regions
-and the docs lint -- ran only where a pull request selected the docs profile, plus the always-on
-`Process` job's region check. A docs-only push to main skips `ci.yml` entirely (its `paths-ignore`)
+The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs regions,
+the docs link/navigation check and the docs lint -- ran only where a pull request selected the docs
+profile, plus the always-on `Process` job's region check. A docs-only push to main skips `ci.yml` entirely (its `paths-ignore`)
 and `verify-docs` is only selected for a *docs pull request*, so a defect in one of these checks
 stayed invisible on main until the first pull request that touched documentation: `#738`
 (`check-adr-numbers.py` failing on main) survived exactly that way.
@@ -19,11 +19,12 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "tree-checks.yml"
 
-# The four checks the card names, by the command line that runs each one.
+# The checks the card names, by the command line that runs each one.
 CHECKS = {
     "ADR numbering": "scripts/check-adr-numbers.py",
     "spec archive": "scripts/check-spec-archive.py",
     "generated docs regions": "scripts/docs-sync --check",
+    "docs links and navigation": "scripts/docs-check --check",
     "docs lint": "markdownlint-cli2",
 }
 
@@ -71,7 +72,7 @@ class TreeChecksWorkflowTests(unittest.TestCase):
 
         self.assertNotIn("pull_request", text)
 
-    def test_all_four_cheap_checks_run(self) -> None:
+    def test_all_cheap_checks_run(self) -> None:
         text = without_comments(workflow_text())
 
         for name, command in CHECKS.items():

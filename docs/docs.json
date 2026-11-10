@@ -27,6 +27,27 @@
       ]
     },
     {
+      "title": "Customize",
+      "items": [
+        {
+          "title": "Project instructions",
+          "path": "agents-md.md"
+        },
+        {
+          "title": "Skills",
+          "path": "skills.md"
+        },
+        {
+          "title": "MCP servers",
+          "path": "mcp-servers.md"
+        },
+        {
+          "title": "Themes and keys",
+          "path": "themes-and-keys.md"
+        }
+      ]
+    },
+    {
       "title": "Build on it",
       "items": [
         {
@@ -159,6 +180,10 @@
   "redirects": [],
   "proseOnly": [
     {
+      "path": "agents-md.md",
+      "reason": "Prose-only; an AGENTS.md example is a project file, not a command the checker can run."
+    },
+    {
       "path": "configuration.md",
       "reason": "Prose-only today; its generated settings table and config example move to the reference page in S2."
     },
@@ -255,8 +280,20 @@
       "reason": "Prose-only until its provider and profile examples move to their task pages in S5."
     },
     {
+      "path": "mcp-servers.md",
+      "reason": "Host configuration example; no runnable command until its rewrite."
+    },
+    {
       "path": "mcp-roslyn.md",
       "reason": "Host configuration example; no runnable command until its rewrite in S7."
+    },
+    {
+      "path": "skills.md",
+      "reason": "Prose-only; a skill is a directory of files, not a command the checker can run."
+    },
+    {
+      "path": "themes-and-keys.md",
+      "reason": "Prose-only; themes and keybindings are interactive settings, so no command runs unattended."
     },
     {
       "path": "third-party-licences.md",

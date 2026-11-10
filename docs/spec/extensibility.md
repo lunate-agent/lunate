@@ -1,6 +1,6 @@
 # Extensibility architecture
 
-Status: working spec under ADR-0017. The durable decisions live in `adr/0017-extensibility-architecture.md`; this document is the detail the cards build against. Behavioural requirements that are already testable live in the OpenSpec specs ([`agent-events`](../openspec/specs/agent-events/spec.md), [`agent-tools`](../openspec/specs/agent-tools/spec.md), [`agent-sessions`](../openspec/specs/agent-sessions/spec.md)) and are referenced by name, not duplicated.
+Status: working spec under ADR-0017. The durable decisions live in `adr/0017-extensibility-architecture.md`; this document is the detail the cards build against. Behavioural requirements that are already testable live in the OpenSpec specs ([`agent-events`](../../openspec/specs/agent-events/spec.md), [`agent-tools`](../../openspec/specs/agent-tools/spec.md), [`agent-sessions`](../../openspec/specs/agent-sessions/spec.md)) and are referenced by name, not duplicated.
 
 ## Principles
 
@@ -69,7 +69,7 @@ Rules:
 
 ## Tool model
 
-The byte-level contract is owned by [`agent-tools`](../openspec/specs/agent-tools/spec.md) and is extended by the `add-extension-formats` change; the summary:
+The byte-level contract is owned by [`agent-tools`](../../openspec/specs/agent-tools/spec.md) and is extended by the `add-extension-formats` change; the summary:
 
 - **Exposure**: `Direct` (model + programmatic, default), `ModelOnly` (model only), `Programmatic` (scripts only, never declared), `Deferred` (discoverable, not declared upfront), `Hidden` (internal). The registry declares only what the model should see; nested/programmatic execution respects the same gate.
 - **Namespaces**: name, description, instructions — grouping for discovery and prompt rendering (MCP servers namespace their tools).
