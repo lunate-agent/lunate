@@ -23,5 +23,5 @@
 
 ## 5. Close-out
 
-- [ ] 5.1 Run the three Python test files, `openspec validate swebench-first-run-evidence --strict`, `openspec validate --all --strict`, `bash scripts/check-openspec-skills.sh`, `python3 scripts/check-spec-archive.py --base origin/main` and `git status --short`.
-- [ ] 5.2 Sync the benchmark-harness spec and archive `swebench-first-run-evidence` as the final commit on the branch.
+- [x] 5.1 Run the three Python test files, `openspec validate swebench-first-run-evidence --strict`, `openspec validate --all --strict`, `bash scripts/check-openspec-skills.sh`, `python3 scripts/check-spec-archive.py --base origin/main` and `git status --short`.
+- [x] 5.2 Sync the benchmark-harness spec and archive `swebench-first-run-evidence` as the final commit on the branch.
