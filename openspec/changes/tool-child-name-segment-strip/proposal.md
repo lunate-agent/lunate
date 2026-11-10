@@ -16,9 +16,12 @@ in.
 - `toolEnvironment.passthrough` wins over the segment rule exactly as it wins over the known-name
   strip: a listed name survives even when a segment matches. The setting stays user-scope only,
   keeps the project/workspace refusal, and keeps its startup admission notice.
-- `EnvironmentScrubber.Build` gains an optional predicate overload so a caller can hand the shared
-  builder a name-shape rule; the existing six-parameter signature and its default behaviour stay in
-  place, so an extension compiled against today's signature keeps working unchanged.
+- `EnvironmentScrubber` gains a companion entry point, `BuildWithNameStrip`, so a caller can hand
+  the shared builder a name-shape rule; the existing six-parameter `Build` signature and its
+  default behaviour stay in place, so an extension compiled against today's signature keeps working
+  unchanged. (A new optional parameter on `Build` was the first shape; the repository's public-API
+  overload analyzers refuse it beside the existing optional-parameter signature, and keeping that
+  signature is the hard compatibility requirement.)
 - A new decision record, ADR-0036 (addendum), states what is now reachable and what is not.
 
 ## Capabilities

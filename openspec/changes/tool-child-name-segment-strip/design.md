@@ -51,13 +51,15 @@ belongs beside them in `CredentialVariables`, but the builder that applies the s
   different question ("did Lunate resolve this name?") that the collision warning still asks.
   Alternative rejected: a second static class, which would split the credential vocabulary across
   two files.
-- **The builder takes the rule as an optional predicate, via a new overload that keeps the old
-  signature.** `Inherited` callers may pass `stripMatching: name => …`; the six-parameter overload
-  delegates with `null`, so today's callers and already-compiled extensions get exactly today's
-  behaviour. The predicate is applied under `Inherited` only, like `strip`: `Scrubbed` already
-  cannot carry an undeclared name. Alternative rejected: a name-list parameter of patterns, which
-  would put string parsing in the shared builder and make the segment rule a second implementation
-  there.
+- **The builder takes the rule through a companion entry point that keeps the old signature.**
+  `EnvironmentScrubber.BuildWithNameStrip(policy, stripMatching, read = null, …)` applies the
+  predicate under `Inherited` only, like `strip`; `Scrubbed` already cannot carry an undeclared
+  name. The six-parameter `Build` delegates to it with `stripMatching: null`, so today's callers
+  and already-compiled extensions get exactly today's behaviour. Alternative rejected: a new
+  optional parameter on `Build`, which keeps the name but adds a second optional-parameter overload
+  — RS0026/RS0027 refuse that pair, and the old signature is the binary-compatibility requirement.
+  Alternative rejected: a name-list parameter of patterns, which would put string parsing in the
+  shared builder and make the segment rule a second implementation there.
 - **Ordering inside `Build` is unchanged: remember pass-through values, remove strip names *and*
   predicate matches, re-admit the remembered values, then apply declared values with the strip as a
   deny.** So an exact pass-through name wins over both denies, and a declared `ExtraEnvironment`

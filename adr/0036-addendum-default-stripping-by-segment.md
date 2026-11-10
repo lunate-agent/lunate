@@ -40,11 +40,13 @@ describes a word in the name, not a run of characters inside one.
    known-name strip.** The list is still matched by exact name, still user-scope settings only
    (a project or workspace settings file carrying `toolEnvironment` is refused by name), and still
    named in one startup admission notice. An admitted name is an explicit user act.
-3. **The rule reaches the child through the one shared builder.** `EnvironmentScrubber.Build`
-   gains an optional name predicate in a new overload; the six-parameter signature stays untouched
-   and keeps today's behaviour, so an extension compiled against it keeps working unchanged. The
-   tool child's policy build (`ChildProcess.BuildEnvironment`) passes the segment rule, so every
-   tool call gets it by default and no spawn site decides an environment of its own.
+3. **The rule reaches the child through the one shared builder.** `EnvironmentScrubber` gains a
+   companion entry point, `BuildWithNameStrip(policy, stripMatching, …)`, which applies a
+   caller-supplied name predicate under `Inherited`; the six-parameter `Build` signature stays
+   untouched, delegates with no predicate and keeps today's behaviour, so an extension compiled
+   against it keeps working unchanged. The tool child's policy build
+   (`ChildProcess.BuildEnvironment`) passes the segment rule, so every tool call gets it by default
+   and no spawn site decides an environment of its own.
 4. **The `Scrubbed` policy is unaffected.** Extension hosts never receive the inherited set; the
    rule, like the strip, is an `Inherited`-only instrument.
 
