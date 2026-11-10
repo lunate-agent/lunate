@@ -110,21 +110,19 @@ stub it can page back through; observation masking trims old turns without losin
 ## Run limits
 
 A run can be capped by cost and wall-clock time as well as by its step limit. Both are off by
-default, interactively and in print mode. Set them in `settings.json` with `maxCost` (US dollars)
-and `maxTime` (seconds), or per invocation with `--max-cost <usd>` and `--max-time <duration>`
-(integer seconds or a `s`, `m`, `h` suffix).
+default. Set them in `settings.json` with `maxCost` (US dollars) and `maxTime` (seconds), or per
+invocation with `--max-cost <usd>` and `--max-time <duration>` (integer seconds or a `s`, `m`, `h`
+suffix).
 
 - The cost limit is cumulative for the session: a resumed session keeps the spend its recorded
   usages already reached, so restarting does not reset the budget.
 - The wall-clock limit is per run and uses one monotonic timer.
 - Either limit ends the run when the reached value equals the limit, with a notice that names the
   limit, its value and the spend or time reached. The limit is recorded in the session.
-- Print mode exits `3` for a cost limit and `4` for a time limit (step and length limits stay `2`).
 - A cost limit over a model the catalog cannot price refuses to start, because an unknown price is
   not `$0`; pass `--allow-unpriced` only when the limit may cover priced usage alone.
 
-Print mode is usually unattended, so set a cost limit there: `lunate -p --max-cost 2 "…"` is a
-budget the run cannot exceed without saying so.
+Print mode turns the same limits into exit codes a script branches on: [Print mode](print.md#cap-the-run).
 
 ## Run commands in a container
 
@@ -137,13 +135,17 @@ has the full flow, the measurements and the platform limits.
 
 ## Modes
 
-- **Interactive** — `lunate`: the TUI session with approvals, the live area and command history
-  ([`openspec/specs/tui/spec.md`](../openspec/specs/tui/spec.md)).
-- **Print** — `lunate -p [--json] [--yolo] "<prompt>"`: one prompt to completion, the final answer as
-  the only thing on stdout, diagnostics on stderr, exit codes that scripts can branch on
-  ([`openspec/specs/print-mode/spec.md`](../openspec/specs/print-mode/spec.md)).
-- **ACP** — `lunate --acp`: serves the Agent Client Protocol over stdio for an editor, with nothing
-  but protocol on stdout ([`openspec/specs/protocols/spec.md`](../openspec/specs/protocols/spec.md)).
+This page is the interactive session. Lunate also runs headless, and each of those modes has its own
+page:
+
+- **Interactive** — `lunate`: the TUI session described here, with approvals, the live area and
+  command history ([`openspec/specs/tui/spec.md`](../openspec/specs/tui/spec.md)).
+- **Print** — `lunate -p [--json] [--yolo] "<prompt>"`: one prompt to completion, the final answer
+  as the only thing on stdout, diagnostics on stderr, exit codes a script can branch on.
+  [Print mode](print.md) owns that contract; [JSON events](json-events.md) owns the `--json` stream.
+- **ACP** — `lunate --acp`: the Agent Client Protocol over stdio for an editor, with nothing but
+  protocol on stdout. [ACP](acp.md) owns the approvals, the editor's file system and the protocol
+  rules.
 
 ## Related
 

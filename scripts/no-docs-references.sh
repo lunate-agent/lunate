@@ -15,9 +15,11 @@
 #
 # The allowances are the test files named in ALLOWED_DOCS_READERS below, each with the read it
 # owns: GuideKeyTableTests (issue #267) checks docs/keybindings.md's key cells against Lunate.Tui's
-# KeyBindingCatalog, and DocsConfigExamplesTests loads every fenced settings/providers/auth example
-# through the store that reads the real file, so a documented example cannot rot. Name the test
-# here and print the allowance -- never quietly bypass the shape checks above.
+# KeyBindingCatalog, DocsConfigExamplesTests loads every fenced settings/providers/auth example
+# through the store that reads the real file, and DocsCliOptionsTests compares docs/cli.md's
+# option tables against the binary's own `--help` text (S7 of the 0.4.0 documentation
+# architecture, #755), so a documented option cannot go missing from the help or the reverse.
+# Name the test here and print the allowance -- never quietly bypass the shape checks above.
 #
 # What does not: a docs path handed to an in-memory fixture or a rendered value -- AddFile,
 # AddDirectory, AddTree, CompletionItem.File. That is a workspace or a display string, not a file
@@ -43,6 +45,7 @@ FILESYSTEM_CALL='(File|Directory)\.[A-Za-z]+\([^;]*"docs[/"\\]'
 ALLOWED_DOCS_READERS=(
   tests/Lunate.Tui.Tests/GuideKeyTableTests.cs
   tests/Lunate.Coding.Tests/DocsConfigExamplesTests.cs
+  tests/Lunate.Coding.Tests/DocsCliOptionsTests.cs
 )
 
 findings=0

@@ -19,6 +19,10 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Decisions | [`decisions.md`](decisions.md) | The optional decision layer: its profile, approvals, routing, the decide tool, question suggestions and the System One transport |
 | Copy, export and debug | [`export-copy-debug.md`](export-copy-debug.md) | `/copy`, `/export` and `/debug`: taking an answer, the session or a diagnostic bundle out |
 | Terminal setup | [`terminal-setup.md`](terminal-setup.md) | Supported terminals, Windows and tmux/SSH, narrow terminals and the shell the `bash` tool resolves |
+| Settings reference | [`configuration.md`](configuration.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
+| First run | [`first-run.md`](first-run.md) | Choosing a provider, `lunate auth`, the `/auth` picker and custom OpenAI-compatible endpoints |
+| Automation | [`print.md`](print.md), [`json-events.md`](json-events.md), [`acp.md`](acp.md), [`ci.md`](ci.md) | One-shot print mode and its exit codes, the `--json` event stream, the editor integration over ACP, and the scripted setup, trust and unattended run |
+| CLI and environment reference | [`cli.md`](cli.md), [`providers.md`](providers.md), [`environment-variables.md`](environment-variables.md) | Every command and option checked against `--help`, the provider presets and entry formats, and every environment variable Lunate reads |
 | Contributor guide | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Prerequisites, build, the verify gate, the repository map, the OpenSpec workflow |
 | Security policy | [`../SECURITY.md`](../SECURITY.md) | How to report a vulnerability |
 | Security and safety | [`security.md`](security.md) | The user-facing posture: approvals, the workspace boundary, the bash guard, the container boundary, trust, secrets and what is out of scope |
