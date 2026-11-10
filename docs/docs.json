@@ -185,7 +185,7 @@
     },
     {
       "path": "execution-environments.md",
-      "reason": "Prose-only; the container command example is marked for --run when the page is split in S5."
+      "reason": "Prose-only; the container flag has no unattended example that does not need a container image."
     },
     {
       "path": "extensions-remote.md",
