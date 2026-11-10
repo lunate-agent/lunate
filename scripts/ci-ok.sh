@@ -46,7 +46,6 @@ decide() {
     local event="${EVENT_NAME:-}" draft="${DRAFT:-}" plan="${PLAN:-}"
     local profile="${PROFILE:-}" verify="${VERIFY:-}" powershell="${POWERSHELL:-}"
     local ps_required="${PS_REQUIRED:-}" docs="${DOCS:-}" perf="${PERF:-}" platform="${PLATFORM:-}"
-    local ref_type="${REF_TYPE:-branch}"
 
     echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform"
 
@@ -66,8 +65,8 @@ decide() {
             fi
             ;;
         full)
-            # The dedicated macOS perf leg is a release-only job as of the PR-gate relief:
-            # a pull request sees it skipped, while main/tags/nightly still require it.
+            # The dedicated macOS perf leg is a nightly trend as of #724: a release tag is owned by
+            # the Release workflow, not this one. A pull request sees it skipped.
             local perf_gate="$perf"
             case "$event" in
                 pull_request | merge_group)
@@ -77,12 +76,10 @@ decide() {
                     [ "$perf" = "skipped" ] && perf_gate="success"
                     ;;
                 push)
-                    # A release tag is the one push the startup budget may fail, and the nightly keeps
-                    # reporting it. A push to main must never be reddened by a measurement taken on a
-                    # shared runner, so on a branch push its result does not feed this check at all.
-                    if [ "${ref_type:-branch}" != "tag" ]; then
-                        perf_gate="success"
-                    fi
+                    # A push that reaches this workflow is a push to main: tags belong to
+                    # release.yml. A shared runner varies by a few percent, so on a branch push its
+                    # result does not feed this check at all.
+                    perf_gate="success"
                     ;;
             esac
             if [ "$verify" != "success" ] || [ "$perf_gate" != "success" ] || [ "$platform" != "success" ]; then
@@ -138,7 +135,6 @@ PY
 _run_from_env() {
     env EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
         VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
-        REF_TYPE="${11:-branch}" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
 }
 
@@ -286,6 +282,126 @@ _self_concurrency() {
     fi
 }
 
+# Evaluate whether a workflow's `on.push` filters select one push scenario, and print `runs` or
+# `does-not-run`. Only the literal list filters the workflows use are understood; anything else is
+# an error, so a new trigger shape cannot slip past the assertions below.
+_push_trigger_decision() {
+    python3 - "$1" "$2" <<'PY'
+import fnmatch
+import re
+import sys
+
+workflow_path, scenario = sys.argv[1:]
+scenarios = {
+    "push-main": ("branch", "main"),
+    "push-tag": ("tag", "v1.2.3"),
+}
+if scenario not in scenarios:
+    sys.exit(f"unknown scenario: {scenario}")
+ref_type, name = scenarios[scenario]
+
+
+def unquote(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        return value[1:-1]
+    return value
+
+
+def list_value(value):
+    value = value.strip()
+    if not value:
+        return []
+    if value.startswith("[") and value.endswith("]"):
+        inner = value[1:-1].strip()
+        if not inner:
+            return []
+        return [unquote(part) for part in inner.split(",") if part.strip()]
+    return [unquote(value)]
+
+
+with open(workflow_path, encoding="utf-8") as handle:
+    lines = [line.rstrip("\r\n") for line in handle]
+
+filters = {}
+inside_on = False
+inside_push = False
+current_key = None
+for line in lines:
+    if not line.strip() or line.lstrip().startswith("#"):
+        continue
+    indent = len(line) - len(line.lstrip(" "))
+    stripped = line.strip()
+    if indent == 0:
+        inside_on = stripped == "on:"
+        inside_push = False
+        current_key = None
+        continue
+    if not inside_on:
+        continue
+    if indent == 2:
+        inside_push = stripped == "push:"
+        current_key = None
+        continue
+    if not inside_push:
+        continue
+    if stripped.startswith("- ") and current_key:
+        filters.setdefault(current_key, []).append(unquote(stripped[2:]))
+        continue
+    match = re.fullmatch(r"([A-Za-z-]+):\s*(.*)", stripped)
+    if match:
+        current_key = match.group(1)
+        filters[current_key] = list_value(match.group(2))
+
+branch_filtered = any(key in filters for key in ("branches", "branches-ignore"))
+tag_filtered = any(key in filters for key in ("tags", "tags-ignore"))
+
+
+def matches(key):
+    return any(fnmatch.fnmatchcase(name, pattern) for pattern in filters.get(key, []))
+
+
+if ref_type == "branch":
+    if not branch_filtered and not tag_filtered:
+        runs = True
+    elif not branch_filtered:
+        runs = False
+    else:
+        runs = ("branches" not in filters or matches("branches")) and not matches(
+            "branches-ignore"
+        )
+else:
+    if not branch_filtered and not tag_filtered:
+        runs = True
+    elif not tag_filtered:
+        runs = False
+    else:
+        runs = ("tags" not in filters or matches("tags")) and not matches("tags-ignore")
+
+print("runs" if runs else "does-not-run")
+PY
+}
+
+# A trigger invariant: the event this workflow must (or must not) run for. A workflow whose trigger
+# cannot be evaluated fails the self-test rather than passing vacuously.
+_self_push_trigger() {
+    local name="$1" workflow="$2" scenario="$3" want="$4"
+    local out status=0
+    if ! out="$(_push_trigger_decision "$workflow" "$scenario" 2>&1)"; then
+        status=$?
+    fi
+    CASES=$((CASES + 1))
+    if [ "$status" -ne 0 ]; then
+        echo "self-test: FAIL: ${name} (${scenario}): ${out}" >&2
+        FAILURES=$((FAILURES + 1))
+        return 0
+    fi
+    if [ "$out" != "$want" ]; then
+        echo "self-test: FAIL: ${name}: ${scenario} expected '${want}', got '${out}'" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
 self_test() {
     CASES=0
     FAILURES=0
@@ -327,16 +443,12 @@ self_test() {
         pull_request false success full skipped success skipped success success true
     _self_case "a skipped perf leg on a pull request" 0 "the full gate succeeded" \
         pull_request false success full success success skipped skipped success true
-    _self_case "a skipped perf leg on a tag push" 1 "did not succeed" \
-        push "" success full success success skipped skipped success true tag
     _self_case "a skipped perf leg on a branch push is not required" 0 "the full gate succeeded" \
-        push "" success full success success skipped skipped success true branch
+        push "" success full success success skipped skipped success true
     _self_case "a failed perf leg on a branch push never feeds this check" 0 "the full gate succeeded" \
-        push "" success full success success skipped failure success true branch
-    _self_case "a failed perf leg on a tag push fails the release" 1 "did not succeed" \
-        push "" success full success success skipped failure success true tag
+        push "" success full success success skipped failure success true
     _self_case "a failed perf leg on the nightly is the nightly verdict" 1 "did not succeed" \
-        schedule "" success full success success skipped failure success true branch
+        schedule "" success full success success skipped failure success true
     _self_case "a skipped perf leg on a merge group" 0 "the full gate succeeded" \
         merge_group "" success full success success skipped skipped success true
     _self_case "a failed perf leg on a merge group is still a failure" 1 "did not succeed" \
@@ -367,6 +479,13 @@ self_test() {
         pull_request false skipped "" skipped skipped skipped skipped "" ""
     _self_case "an unreadable profile" 1 "no usable profile" \
         pull_request false success "" skipped skipped skipped skipped "" ""
+
+    # The event this workflow runs for: a main push runs the required gate, while a tag push belongs
+    # to release.yml and must never leave a second ci-ok verdict on the release commit (#724).
+    _self_push_trigger "ci: a push to main runs the required gate" "$WORKFLOW" push-main runs
+    _self_push_trigger "ci: a tag push does not run this workflow" "$WORKFLOW" push-tag does-not-run
+    _self_push_trigger "release: a v* tag still runs the release workflow" \
+        "${REPO_ROOT}/.github/workflows/release.yml" push-tag runs
 
     # The wiring this script's decisions rely on.
     _self_workflow "ci-ok must not gate itself on draft (a skip reads as satisfied)" \
@@ -399,8 +518,10 @@ self_test() {
         perf 'scripts/perf\.sh' 1
     _self_workflow "the perf leg must run on the full profile only" \
         perf "^    if: needs\.plan\.outputs\.profile == 'full'" 1
-    _self_workflow "the perf leg must run only on a release tag or the nightly" \
-        perf "github\.ref_type == 'tag'" 1
+    _self_workflow "the perf leg must run only on the nightly" \
+        perf "github\.event_name == 'schedule'" 1
+    _self_workflow "the perf leg must not run for a release tag" \
+        perf "github\.ref_type == 'tag'" 0
     _self_workflow "the PowerShell leg must be gated on the changed paths" \
         verify-powershell "needs\.changes\.outputs\.powershell == 'true'" 1
     _self_workflow "the changes job must decide through scripts/ci-powershell-paths.sh" \
@@ -412,8 +533,6 @@ self_test() {
     # comparing text.
     _self_concurrency "ci: a push to main is never cancelled" "$WORKFLOW" push-main \
         "ci-refs/heads/main" false
-    _self_concurrency "ci: a tag push is never cancelled" "$WORKFLOW" push-tag \
-        "ci-refs/tags/v1.2.3" false
     _self_concurrency "ci: a pull request supersedes its own older run" "$WORKFLOW" pull_request \
         "ci-refs/pull/42/merge" true
     _self_concurrency "ci: a merge group is never cancelled" "$WORKFLOW" merge_group \

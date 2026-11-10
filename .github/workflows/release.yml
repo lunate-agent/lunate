@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    # A tag push is the Release workflow's event; ci.yml deliberately does not run on tags (#724).
     tags:
       - 'v*'
   workflow_dispatch:

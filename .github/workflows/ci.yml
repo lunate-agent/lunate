@@ -3,13 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
-    # A tag is a release candidate or a release: the full gate, including the PowerShell leg, must
-    # run on it even when the commit itself was already verified (the tag is what ships).
-    tags: ['v*']
+    # Tags belong to the Release workflow, which runs the release gate and publishes. CI must not
+    # run on a tag: a tag push would leave a second `ci-ok` verdict -- and a red one -- on the
+    # commit it tags, even though the branch push already gated that commit (#724).
     # Docs/spec-only pushes skip CI (they cannot break the build). A push that
     # touches any code or workflow file still runs the full matrix; docs-only
-    # pushes are linted by the docs-lint workflow instead. Path filters are not
-    # evaluated for tag pushes.
+    # pushes are linted by the docs-lint workflow instead.
     paths-ignore:
       - 'docs/**'
       - 'adr/**'
@@ -37,9 +36,9 @@ on:
         default: "2"
 
 # Supersede in-flight runs only for the same obligation: a pull-request push makes the pull
-# request's previous run obsolete, while a push to main, a tag and a merge-group gate each need
-# their own completed verdict. The nightly runs on the same branch as a push, so it gets its own
-# group and cancels nothing (#705).
+# request's previous run obsolete, while a push to main and a merge-group gate each need their own
+# completed verdict. The nightly runs on the same branch as a push, so it gets its own group and
+# cancels nothing (#705).
 concurrency:
   group: ci-${{ github.ref }}${{ github.event_name == 'schedule' && '-nightly' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -148,7 +147,7 @@ jobs:
           case "${EVENT_NAME}" in
             pull_request | merge_group) ;;
             *)
-              # A push, a tag, a manual dispatch or the nightly run always exercises the Windows gate.
+              # A push, a manual dispatch or the nightly run always exercises the Windows gate.
               echo "not a pull request: the PowerShell leg runs"
               echo "powershell=true" >>"${GITHUB_OUTPUT}"
               exit 0
@@ -558,12 +557,11 @@ jobs:
   perf:
     name: perf (${{ matrix.os }})
     needs: plan
-    # The startup budget is a release verdict and a nightly trend, nothing else. A release tag may
-    # fail on it; the nightly reports it and the number is tracked over time. A push to main or a
-    # merge queue batch must never go red on it: a shared runner varies by a few percent, and a 4%
-    # overrun (311 ms against a 300 ms budget) ejected a whole batch from the merge queue. The
-    # per-PR verify shards still enforce the budget through STARTUP_BUDGET_ENFORCE.
-    if: needs.plan.outputs.profile == 'full' && (github.event_name == 'schedule' || github.ref_type == 'tag')
+    # The startup budget is a nightly trend here; the Release workflow's own gate measures it for a
+    # tag. A push to main or a merge queue batch must never go red on it: a shared runner varies by a
+    # few percent, and a 4% overrun (311 ms against a 300 ms budget) ejected a whole batch from the
+    # merge queue. The per-PR verify shards still enforce the budget through STARTUP_BUDGET_ENFORCE.
+    if: needs.plan.outputs.profile == 'full' && github.event_name == 'schedule'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -649,7 +647,6 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          REF_TYPE: ${{ github.ref_type }}
           DRAFT: ${{ github.event.pull_request.draft }}
           PLAN: ${{ needs.plan.result }}
           PROFILE: ${{ needs.plan.outputs.profile }}
