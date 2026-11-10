@@ -699,6 +699,34 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Launch_options_parse_run_limits()
+    {
+        LaunchOptions options = Parse("--max-cost", "1.25", "--max-time", "5m", "--allow-unpriced");
+
+        Assert.Equal(1.25m, options.MaxCostUsd);
+        Assert.Equal(TimeSpan.FromTicks(5 * TimeSpan.TicksPerMinute), options.MaxTime);
+        Assert.True(options.AllowUnpriced);
+    }
+
+    [Theory]
+    [InlineData("--max-cost", "0")]
+    [InlineData("--max-cost", "free")]
+    [InlineData("--max-time", "0s")]
+    [InlineData("--max-time", "soon")]
+    public void Launch_options_refuse_invalid_run_limits(string flag, string value)
+    {
+        Assert.False(LaunchOptions.TryParse([flag, value], out _, out string? error));
+        Assert.Contains(flag, error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Launch_options_reject_an_inline_allow_unpriced_value()
+    {
+        Assert.False(LaunchOptions.TryParse(["--allow-unpriced=true"], out _, out string? error));
+        Assert.Contains("does not take a value", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Launch_options_parse_an_inline_session_id()
     {
         Assert.Equal("s_1", Parse("--session=s_1").Session);

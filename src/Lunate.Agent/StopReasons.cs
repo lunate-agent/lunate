@@ -26,6 +26,12 @@ public static class StopReasons
     /// <summary>The run stopped before a model call because its token budget was exhausted.</summary>
     public const string TokenLimit = "token_limit";
 
+    /// <summary>The run reached its configured cost limit.</summary>
+    public const string CostLimit = "cost_limit";
+
+    /// <summary>The run reached its configured wall-clock limit.</summary>
+    public const string TimeLimit = "time_limit";
+
     /// <summary>A subagent spawn was refused because the spawn depth (fixed at 1) is reached.</summary>
     public const string DepthLimit = "depth_limit";
 

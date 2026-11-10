@@ -42,6 +42,28 @@ public sealed record AgentHarnessOptions
     /// <summary>The maximum number of model calls per run.</summary>
     public int MaxSteps { get; init; } = 50;
 
+    /// <summary>
+    /// The cumulative cost ceiling of the session in US dollars, or null for no cost limit. The
+    /// harness seeds its spend from the attached session's recorded usages and adds every accounted
+    /// usage, so a resumed session keeps the spend it had before the restart.
+    /// </summary>
+    public decimal? MaxCostUsd { get; init; }
+
+    /// <summary>The wall-clock ceiling of one run, or null for no time limit.</summary>
+    public TimeSpan? MaxTime { get; init; }
+
+    /// <summary>
+    /// Whether a cost limit may run with unpriced accounting. When false (the default), a cost
+    /// limit over an unpriced model refuses to start; unpriced records are never counted as zero.
+    /// </summary>
+    public bool AllowUnpricedCost { get; init; }
+
+    /// <summary>
+    /// The monotonic clock the wall-clock limit and its timer use; null uses the system clock.
+    /// Tests inject a controllable one to pin the boundary.
+    /// </summary>
+    public TimeProvider? TimeProvider { get; init; }
+
     /// <summary>The maximum number of retries per model call after a transient failure.</summary>
     public int MaxRetries { get; init; } = 3;
 

@@ -165,6 +165,16 @@ internal static class Scripts
     internal static ChatResponseUpdate ToolCalls() =>
         new(ChatRole.Assistant, []) { FinishReason = ChatFinishReason.ToolCalls };
 
+    internal static ChatResponseUpdate Usage(long input, long output) =>
+        new(
+            ChatRole.Assistant,
+            [
+                new UsageContent(
+                    new UsageDetails { InputTokenCount = input, OutputTokenCount = output }
+                ),
+            ]
+        );
+
     internal static ChatResponseUpdate Stop() =>
         new(ChatRole.Assistant, []) { FinishReason = ChatFinishReason.Stop };
 

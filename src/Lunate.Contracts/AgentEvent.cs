@@ -186,6 +186,20 @@ public sealed record CompactionApplied(
 public sealed record StepLimitReached(string RunId, int MaxSteps) : ExtensionEvent(RunId);
 
 /// <summary>
+/// A run that reached its configured cost limit. <see cref="MaxCostUsd"/> is the limit and
+/// <see cref="SpendUsd"/> the cumulative spend reached when the run stopped.
+/// </summary>
+public sealed record CostLimitReached(string RunId, decimal MaxCostUsd, decimal SpendUsd)
+    : ExtensionEvent(RunId);
+
+/// <summary>
+/// A run that reached its configured wall-clock limit. <see cref="MaxTime"/> is the limit and
+/// <see cref="Elapsed"/> the run time reached when the run stopped.
+/// </summary>
+public sealed record TimeLimitReached(string RunId, TimeSpan MaxTime, TimeSpan Elapsed)
+    : ExtensionEvent(RunId);
+
+/// <summary>
 /// A steering message the loop injected into the running history, carrying the appended session
 /// entry id (null when no session is attached) and the message text itself. The text rides on the
 /// event because a frontend that echoes the message cannot rely on the session entry being visible

@@ -1707,3 +1707,43 @@ Lunate.Agent.DecisionFailed.QuestionId.get -> string! (forwarded, contained in L
 Lunate.Agent.DecisionFailed.QuestionId.init -> void (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.DecisionUnavailable.QuestionId.get -> string! (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.DecisionUnavailable.QuestionId.init -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.AgentHarnessOptions.AllowUnpricedCost.get -> bool
+Lunate.Agent.AgentHarnessOptions.AllowUnpricedCost.init -> void
+Lunate.Agent.AgentHarnessOptions.MaxCostUsd.get -> decimal?
+Lunate.Agent.AgentHarnessOptions.MaxCostUsd.init -> void
+Lunate.Agent.AgentHarnessOptions.MaxTime.get -> System.TimeSpan?
+Lunate.Agent.AgentHarnessOptions.MaxTime.init -> void
+Lunate.Agent.AgentHarnessOptions.TimeProvider.get -> System.TimeProvider?
+Lunate.Agent.AgentHarnessOptions.TimeProvider.init -> void
+Lunate.Agent.CostLimitReached (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.CostLimitReached.CostLimitReached(string! RunId, decimal MaxCostUsd, decimal SpendUsd) -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.CostLimitReached.Deconstruct(out string! RunId, out decimal MaxCostUsd, out decimal SpendUsd) -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.CostLimitReached.Equals(Lunate.Agent.CostLimitReached? other) -> bool (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.CostLimitReached.MaxCostUsd.get -> decimal (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.CostLimitReached.MaxCostUsd.init -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.CostLimitReached.SpendUsd.get -> decimal (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.CostLimitReached.SpendUsd.init -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached.Deconstruct(out string! RunId, out System.TimeSpan MaxTime, out System.TimeSpan Elapsed) -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached.Elapsed.get -> System.TimeSpan (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached.Elapsed.init -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached.Equals(Lunate.Agent.TimeLimitReached? other) -> bool (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached.MaxTime.get -> System.TimeSpan (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached.MaxTime.init -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.TimeLimitReached.TimeLimitReached(string! RunId, System.TimeSpan MaxTime, System.TimeSpan Elapsed) -> void (forwarded, contained in Lunate.Contracts)
+const Lunate.Agent.StopReasons.CostLimit = "cost_limit" -> string!
+const Lunate.Agent.StopReasons.TimeLimit = "time_limit" -> string!
+override Lunate.Agent.CostLimitReached.<Clone>$() -> Lunate.Agent.CostLimitReached! (forwarded, contained in Lunate.Contracts)
+override Lunate.Agent.CostLimitReached.Equals(object? obj) -> bool (forwarded, contained in Lunate.Contracts)
+override Lunate.Agent.CostLimitReached.GetHashCode() -> int (forwarded, contained in Lunate.Contracts)
+override Lunate.Agent.CostLimitReached.ToString() -> string! (forwarded, contained in Lunate.Contracts)
+override Lunate.Agent.TimeLimitReached.<Clone>$() -> Lunate.Agent.TimeLimitReached! (forwarded, contained in Lunate.Contracts)
+override Lunate.Agent.TimeLimitReached.Equals(object? obj) -> bool (forwarded, contained in Lunate.Contracts)
+override Lunate.Agent.TimeLimitReached.GetHashCode() -> int (forwarded, contained in Lunate.Contracts)
+override Lunate.Agent.TimeLimitReached.ToString() -> string! (forwarded, contained in Lunate.Contracts)
+override sealed Lunate.Agent.CostLimitReached.Equals(Lunate.Agent.ExtensionEvent? other) -> bool (forwarded, contained in Lunate.Contracts)
+override sealed Lunate.Agent.TimeLimitReached.Equals(Lunate.Agent.ExtensionEvent? other) -> bool (forwarded, contained in Lunate.Contracts)
+static Lunate.Agent.CostLimitReached.operator !=(Lunate.Agent.CostLimitReached? left, Lunate.Agent.CostLimitReached? right) -> bool (forwarded, contained in Lunate.Contracts)
+static Lunate.Agent.CostLimitReached.operator ==(Lunate.Agent.CostLimitReached? left, Lunate.Agent.CostLimitReached? right) -> bool (forwarded, contained in Lunate.Contracts)
+static Lunate.Agent.TimeLimitReached.operator !=(Lunate.Agent.TimeLimitReached? left, Lunate.Agent.TimeLimitReached? right) -> bool (forwarded, contained in Lunate.Contracts)
+static Lunate.Agent.TimeLimitReached.operator ==(Lunate.Agent.TimeLimitReached? left, Lunate.Agent.TimeLimitReached? right) -> bool (forwarded, contained in Lunate.Contracts)

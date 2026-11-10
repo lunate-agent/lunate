@@ -457,7 +457,10 @@ Tools: read, write, edit, bash{extra_tools}.
 **Config**
 
 `~/.lunate/settings.json` holds profiles, usage assignments, approval policy, output limits and
-write-verification mode, plus `projection.batchTurns` (default 4;
+write-verification mode, plus `maxCost` (the cumulative session cost ceiling in US dollars) and
+`maxTime` (the per-run wall-clock ceiling in seconds), both off when unset. A cost limit over a
+model the catalog cannot price refuses to start unless `--allow-unpriced` is passed, and print mode
+adds `--max-cost`/`--max-time` per run. Also `projection.batchTurns` (default 4;
 `LUNATE_PROJECTION_BATCH_TURNS` overrides it) and the observation-mask windows
 `projection.maskTurns` (default 8) and `projection.maskErrorTurns` (default 32);
 `~/.lunate/providers.json` holds named provider instances; and `~/.lunate/auth.json` holds stored

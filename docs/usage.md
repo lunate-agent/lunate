@@ -141,6 +141,25 @@ When a tool result would flood the window, the text is spilled to a file and the
 stub it can page back through; observation masking trims old turns without losing the transcript.
 `/context` reports what each saved: `saved tokens: spills 0, masking 0, read stubs 0`.
 
+## Run limits
+
+A run can be capped by cost and wall-clock time as well as by its step limit. Both are off by
+default, interactively and in print mode. Set them in `settings.json` with `maxCost` (US dollars)
+and `maxTime` (seconds), or per invocation with `--max-cost <usd>` and `--max-time <duration>`
+(integer seconds or a `s`, `m`, `h` suffix).
+
+- The cost limit is cumulative for the session: a resumed session keeps the spend its recorded
+  usages already reached, so restarting does not reset the budget.
+- The wall-clock limit is per run and uses one monotonic timer.
+- Either limit ends the run when the reached value equals the limit, with a notice that names the
+  limit, its value and the spend or time reached. The limit is recorded in the session.
+- Print mode exits `3` for a cost limit and `4` for a time limit (step and length limits stay `2`).
+- A cost limit over a model the catalog cannot price refuses to start, because an unknown price is
+  not `$0`; pass `--allow-unpriced` only when the limit may cover priced usage alone.
+
+Print mode is usually unattended, so set a cost limit there: `lunate -p --max-cost 2 "…"` is a
+budget the run cannot exceed without saying so.
+
 ## Modes
 
 - **Interactive** — `lunate`: the TUI session with approvals, the live area and command history

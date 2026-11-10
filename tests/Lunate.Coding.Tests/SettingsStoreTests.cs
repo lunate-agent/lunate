@@ -31,6 +31,39 @@ public sealed class SettingsStoreTests
         Assert.Equal(DecisionQuestionsMode.Off, settings.Decisions.Questions);
         Assert.False(settings.Tui.Fullscreen);
         Assert.Empty(settings.Favorites);
+        Assert.Null(settings.MaxCostUsd);
+        Assert.Null(settings.MaxTime);
+    }
+
+    [Fact]
+    public void Run_limits_are_read_from_settings()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            """{"schemaVersion":2,"maxCost":1.25,"maxTime":90}"""
+        );
+
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
+
+        Assert.Equal(1.25m, settings.MaxCostUsd);
+        Assert.Equal(TimeSpan.FromTicks(90 * TimeSpan.TicksPerSecond), settings.MaxTime);
+    }
+
+    [Theory]
+    [InlineData("""{"schemaVersion":2,"maxCost":0}""", "'maxCost' must be a positive")]
+    [InlineData("""{"schemaVersion":2,"maxTime":0}""", "'maxTime' must be a positive")]
+    [InlineData("""{"schemaVersion":2,"maxTime":1.5}""", "'maxTime' must be a positive")]
+    public void Invalid_run_limits_refuse_the_file(string json, string expected)
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(temp.File("settings.json"), json);
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            SettingsStore.Resolve(temp.File("settings.json"), _ => null)
+        );
+
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

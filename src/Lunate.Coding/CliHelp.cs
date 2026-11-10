@@ -182,6 +182,15 @@ internal static class CliHelp
         );
         output.WriteLine("  --no-tools                     expose no tools for the run");
         output.WriteLine(
+            "  --max-cost <usd>               stop the run at this cumulative session spend"
+        );
+        output.WriteLine(
+            "  --max-time <duration>          stop the run at this wall-clock limit (30s, 5m, 1h)"
+        );
+        output.WriteLine(
+            "  --allow-unpriced               allow a cost limit over a model with no known price"
+        );
+        output.WriteLine(
             "  --offline                      skip the daily update check for this run"
         );
         output.WriteLine(

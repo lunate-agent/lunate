@@ -133,6 +133,18 @@ public sealed class PrintEventJsonTests
                 """{"type":"step_limit_reached","runId":"run_1","maxSteps":50}"""
             },
             {
+                new CostLimitReached("run_1", 1.25m, 1.25m),
+                """{"type":"cost_limit_reached","runId":"run_1","maxCostUsd":1.25,"spendUsd":1.25}"""
+            },
+            {
+                new TimeLimitReached(
+                    "run_1",
+                    TimeSpan.FromTicks(5 * TimeSpan.TicksPerSecond),
+                    TimeSpan.FromTicks(5 * TimeSpan.TicksPerSecond)
+                ),
+                """{"type":"time_limit_reached","runId":"run_1","maxTimeSeconds":5,"elapsedSeconds":5}"""
+            },
+            {
                 new ToolProgressUpdate("run_1", "call_1", "working"),
                 """{"type":"tool_progress_update","runId":"run_1","callId":"call_1","message":"working"}"""
             },
