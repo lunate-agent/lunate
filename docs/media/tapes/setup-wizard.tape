@@ -23,10 +23,11 @@ Set Padding 12
 Set Theme "Dracula"
 
 Hide
-Type "bash ../../scripts/render-setup-wizard.sh"
+Type "clear; bash ../../scripts/render-setup-wizard.sh"
 Enter
-Sleep 8s
+Sleep 12s
 Show
+Sleep 1s
 
 # Provider: filter the preset list to the custom-endpoint row.
 Type "Custom"
