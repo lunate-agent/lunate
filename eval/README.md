@@ -47,6 +47,86 @@ Per task the runner makes a fresh `mktemp -d`, copies `repo/`, runs the selected
 
 Metrics come from the tool's own output: `steps` = model calls (`usage_updated` events for lunate, `num_turns` for claude, `step_finish` events for opencode, `turn_end` events for pi/tau), `total_tokens` = the summed token traffic (claude: input + cache creation + cache read + output; pi/tau: the per-turn `totalTokens`, falling back to input + output + cache read + cache write), `seconds` = wall clock of the agent run, `edit_tiers` = the distinct `matchTier` values of `edit` tool results (lunate only; `n/a` for the other tools, which have no tier concept).
 
+## SWE-bench Verified adapter
+
+`scripts/eval/swebench.py` runs Lunate's print mode inside the official SWE-bench Verified
+instance images and hands the resulting patch to the official evaluation. It is the entry point
+for the published SWE-bench number; it does not score anything itself.
+
+Prerequisites, once per machine:
+
+```bash
+docker version                                  # a reachable daemon
+python3 -m pip install swebench                 # the official evaluation package
+dotnet publish src/Lunate.Coding -c Release -r linux-x64 --self-contained true \
+  -p:PublishSingleFile=true -o artifacts/linux-x64
+export OPENROUTER_API_KEY=...                   # or the provider variable for your model
+```
+
+A one-instance dry run, which is the quickest way to debug the adapter:
+
+```bash
+python3 scripts/eval/swebench.py --dry-run \
+  --instance astropy__astropy-12907 \
+  --model deepseek/deepseek-v4.1-flash \
+  --lunate-bin artifacts/linux-x64/lunate
+```
+
+The dry run defaults to `--evaluate never`. Add `--evaluate always` to hand the single patch to
+the official harness, or omit `--dry-run` for a run whose `--evaluate` default is `auto`. The
+adapter invokes `python -m swebench.harness.run_evaluation` with a local `dataset.json` built from
+the selected official records, so the evaluation sees exactly the instances that were run.
+
+| Option | Meaning |
+| --- | --- |
+| `--instance <id>` | Instance id to run; repeat for more than one. Required unless `--dry-run` selects it. |
+| `--dry-run` | Run exactly one instance; evaluation defaults to `never`. |
+| `--model <id>` | Exact Lunate model id, passed to `lunate -p --model`. |
+| `--lunate-bin <path>` | Self-contained `linux-x64` single-file Lunate executable. A non-ELF file is refused with the publish command. |
+| `--dataset-file <path>` | Local SWE-bench JSON array or JSONL records; use this for offline and reproducible runs. |
+| `--dataset-name <name>` | Official dataset name when no local file is given (default `princeton-nlp/SWE-bench_Verified`). |
+| `--split <split>` | Dataset split (default `test`). |
+| `--output-dir <dir>` | Parent of the run directories (default `eval/runs/swebench`, ignored by git). |
+| `--run-id <id>` | Run directory name (default a UTC timestamp). An existing non-empty directory is refused. |
+| `--evaluate <auto\|always\|never>` | `auto` outside a dry run, `never` inside it. `always` evaluates even when a patch is empty. |
+| `--env <name>` | Provider credential variable to forward by name; repeatable. Without it the known provider variables that are set are forwarded. |
+| `--timeout <seconds>` | Container and official test timeout (default `1800`). |
+| `--eval-python <path>` | Interpreter that can import the official `swebench` package (default: this Python). |
+| `--docker <path>` | Docker client (default `docker`). |
+| `--keep` | Keep the instance container for debugging instead of `--rm`. |
+
+Each run writes `eval/runs/swebench/<run-id>/`:
+
+| Path | Contents |
+| --- | --- |
+| `run.json` | Run id, model, dataset, forwarded environment variable *names*, per-instance exit code and relative artifact paths, official evaluation command and exit code, redaction count. |
+| `predictions.jsonl` | The official prediction schema: `instance_id`, `model_name_or_path`, `model_patch`. |
+| `dataset.json` | The selected official instance records, passed to the official evaluation. |
+| `evaluation.log` | Combined stdout/stderr of the official harness. |
+| `official-results.json` | The official run summary, when the harness produced it. |
+| `<instance-id>/trajectory.jsonl` | The unmodified `lunate -p --json` event stream. |
+| `<instance-id>/patch.diff` | Baseline-aware `git diff HEAD --binary` from the image's `/testbed`. |
+| `<instance-id>/lunate.log` | Lunate diagnostics (stderr). |
+| `<instance-id>/exit-code` | Lunate's semantic exit code. |
+| `<instance-id>/official-report.json` | The official per-instance report, when produced. |
+
+Credentials are environment-only. The adapter forwards each selected variable with `docker run -e
+NAME` so the value never appears in the adapter's process arguments or in `run.json`; after the run
+it scans the trajectory, logs, patch, predictions and report and replaces any occurrence of a
+forwarded value with `[REDACTED:<NAME>]`.
+
+The adapter pins `--platform linux/amd64` and needs a Docker host that can run the official x86_64 images (native or emulated). It does not build
+images: it uses the image named by the dataset, or derives the official
+`swebench/sweb.eval.x86_64.<id with __ -> _1776_>` name for older records, and pulls it when absent.
+
+### ProgramBench is out of scope
+
+ProgramBench is deliberately not covered by this adapter. Its inference images provide a compiled
+binary and documentation rather than a git `/testbed`, and its submission is a `submission.tar.gz`
+of the whole generated codebase evaluated by `programbench eval`; a SWE-bench patch has no place in
+that handoff. A second adapter for ProgramBench, if wanted, is a separate change against the
+official `programbench` CLI.
+
 ## Row schema
 
 `results.csv` header (committed once): `date,phase,tool,model,tasks,passed,pass_rate,steps,total_tokens,seconds,edit_tiers,notes`.
