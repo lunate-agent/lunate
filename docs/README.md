@@ -42,7 +42,11 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   the router and the in-app help read), `<!-- docs-sync: settings --> …` in `configuration.md`
   from `src/Lunate.Coding/settings-schema.json` (the file `SettingsSchema` reads and tests pin to
   the parser's accepted keys), and `<!-- docs-sync: version --> …` in the README with the newest
-  non-prerelease release tag, and it expands `<!-- snippet: <path> -->` into a fenced block
+  *published* stable release — the newest non-prerelease tag whose release attached its
+  `SHA256SUMS`, the asset that exists exactly when the release does. A tag whose release never
+  published is not a release, and the channel-manifest guard reads the same definition from
+  [`../scripts/published_release.py`](../scripts/published_release.py). It also expands
+  `<!-- snippet: <path> -->` into a fenced block
   taken from that real file — the marker owns the block below it. Edit the source, then run
   `scripts/docs-sync`; `--check` is what the gate runs, in the docs profile, in the always-on
   `Process` job (that job's checkout fetches the tags, which the version region reads), and in
