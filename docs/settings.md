@@ -4,7 +4,8 @@ Every key the settings parser accepts, and only those keys. The table below is g
 [`src/Lunate.Coding/settings-schema.json`](../src/Lunate.Coding/settings-schema.json) — the same
 file the store's `SettingsSchema` table reads and tests pin to the parser's own literals — so it
 cannot list a key the store refuses. Edit the schema, then run `scripts/docs-sync` to regenerate;
-`--check` fails a stale page.
+`--check` fails a stale page. How to configure a session — decision profiles, provider entries and
+the rest of the file — is in [configuration](configuration.md).
 
 The store reads user settings from `~/.lunate/settings.json`. A project may carry settings in
 `.lunate/settings.json` at the workspace root, where a different scope applies: user settings
