@@ -105,6 +105,78 @@ public sealed class ToolEnvironmentPassthroughTests
         Assert.Equal(string.Empty, ToolEnvironmentPassthrough.AdmissionNotice([]));
 
     [Fact]
+    public void Stripped_names_are_the_shape_rule_catch_and_not_the_familiar_false_positives()
+    {
+        string[] environment =
+        [
+            "GITHUB_TOKEN",
+            "AWS_SECRET_ACCESS_KEY",
+            "NPM_TOKEN",
+            "DATABASE_PASSWORD",
+            "MONKEY",
+            "GITLAB_TOKENIZE_TIMEOUT",
+            "KEYBOARD_LAYOUT",
+            "HOCKEY_POOL",
+            "PLAIN",
+        ];
+
+        IReadOnlyList<string> stripped =
+            ToolEnvironmentPassthrough.StrippedNames(environment);
+
+        Assert.Equal(
+            ["AWS_SECRET_ACCESS_KEY", "DATABASE_PASSWORD", "GITHUB_TOKEN", "NPM_TOKEN"],
+            stripped
+        );
+    }
+
+    [Fact]
+    public void A_resolved_credential_name_is_not_reported_as_newly_stripped()
+    {
+        // OPENAI_API_KEY was stripped before this rule existed; naming it at startup would be noise
+        // rather than an explanation, and the line exists to explain the surprising removal.
+        IReadOnlyList<string> stripped =
+            ToolEnvironmentPassthrough.StrippedNames(["OPENAI_API_KEY", "GITHUB_TOKEN"]);
+
+        Assert.Equal(["GITHUB_TOKEN"], stripped);
+    }
+
+    [Fact]
+    public void An_admitted_name_is_not_reported_as_stripped()
+    {
+        try
+        {
+            ToolEnvironmentPassthrough.Configure(["NPM_TOKEN"]);
+
+            IReadOnlyList<string> stripped =
+                ToolEnvironmentPassthrough.StrippedNames(["NPM_TOKEN", "GITHUB_TOKEN"]);
+
+            Assert.Equal(["GITHUB_TOKEN"], stripped);
+        }
+        finally
+        {
+            ToolEnvironmentPassthrough.ResetForTests();
+        }
+    }
+
+    [Fact]
+    public void The_notice_names_the_variables_and_the_way_back_in()
+    {
+        string notice = ToolEnvironmentPassthrough.StrippedNotice(["NPM_TOKEN"]);
+
+        Assert.Contains("NPM_TOKEN", notice);
+        Assert.Contains("toolEnvironment.passthrough", notice);
+        // Names only: a value never reaches a notice, and this is the test that says so.
+        Assert.DoesNotContain("=", notice);
+    }
+
+    [Fact]
+    public void Nothing_stripped_means_no_notice()
+    {
+        Assert.Equal(string.Empty, ToolEnvironmentPassthrough.StrippedNotice([]));
+        Assert.Empty(ToolEnvironmentPassthrough.StrippedNames(["MONKEY", "PLAIN", "HOCKEY_POOL"]));
+    }
+
+    [Fact]
     public void Reset_clears_a_configured_list()
     {
         ToolEnvironmentPassthrough.Configure(["MY_PROJECT_TOKEN"]);

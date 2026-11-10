@@ -86,6 +86,45 @@ internal static class ToolEnvironmentPassthrough
         + (collisions.Count == 1 ? "that name" : "those names")
         + " as a provider credential.";
 
+    /// <summary>
+    /// The names in <paramref name="environment"/> that the default strip removes by shape and the
+    /// pass-through does not re-admit, sorted so a notice's order does not follow the environment's.
+    /// </summary>
+    /// <remarks>
+    /// Names the resolved credential list already covers are left out, because those were stripped
+    /// before this rule existed and naming them would turn a startup line into noise: the point is
+    /// the variable that disappeared *because of the new shape rule* — <c>GITHUB_TOKEN</c>,
+    /// <c>NPM_TOKEN</c>, <c>DATABASE_PASSWORD</c>. Names only, never values.
+    /// </remarks>
+    internal static IReadOnlyList<string> StrippedNames(IEnumerable<string> environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        IReadOnlyList<string> admitted = Names;
+        IReadOnlyList<string> credentials = CredentialVariables.All;
+        return
+        [
+            .. environment
+                .Where(name => CredentialVariables.IsSecretName(name))
+                .Where(name => !credentials.Contains(name, Comparer))
+                .Where(name => !admitted.Contains(name, Comparer))
+                .Distinct(Comparer)
+                .OrderBy(name => name, StringComparer.Ordinal),
+        ];
+    }
+
+    /// <summary>
+    /// The one startup line naming the inherited variables the shape rule removes and pointing at the
+    /// way back in, so a user whose <c>NPM_TOKEN</c> vanished can see why. Empty when nothing is
+    /// removed, which keeps a machine with no credential-shaped names quiet.
+    /// </summary>
+    internal static string StrippedNotice(IReadOnlyList<string> names) =>
+        names.Count == 0
+            ? string.Empty
+            : "The tool child's environment omits "
+                + string.Join(", ", names)
+                + " — those names carry a credential-shaped segment (KEY, TOKEN, SECRET, PASSWORD); "
+                + "list any you want a tool to see under toolEnvironment.passthrough.";
+
     /// <summary>Clears the configured names; the process-wide list is what tests must not inherit.</summary>
     internal static void ResetForTests()
     {
