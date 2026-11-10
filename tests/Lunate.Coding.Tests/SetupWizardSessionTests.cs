@@ -243,7 +243,9 @@ public sealed class SetupWizardSessionTests
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("model: gpt-3.5-turbo");
+        // The write's own notice is the frame after the summary: the transcript line that used to
+        // carry `model:` here is no longer the last frame once the files are saved.
+        await host.WaitForFrameAsync("setup written");
         host.Console.Complete();
         await run;
 
