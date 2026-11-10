@@ -101,7 +101,7 @@ a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis
 | `openspec/specs/` | current behaviour, the source of truth |
 | `openspec/changes/` | in-flight proposals and tasks |
 | `adr/` | durable architectural decisions |
-| `docs/` | guide, spikes, eval write-ups and the documentation map |
+| `docs/` | guide and documentation map; `docs/dev/` holds the contracts, spikes and eval evidence |
 | `templates/`, `samples/` | the extension template and the reference extensions (the fitness suite) |
 | `extensions/` | the first-party supported extension tier, shipped as `Lunate.Extensions.*` packages |
 

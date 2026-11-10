@@ -21,7 +21,7 @@
   0/200); no public deterministic frame stepping (the library's own
   `TerminalApp.Tick` is internal and reached only by reflection); and key
   bindings that change within days. Retiring T-18/T-19 for this is not
-  justified now. See [ADR 0019](../../../adr/0019-xenoatom-terminal-ui.md).
+  justified now. See [ADR 0019](../../../../adr/0019-xenoatom-terminal-ui.md).
 - Raw evidence: [`evidence/`](evidence/).
 
 ## What was built
@@ -336,7 +336,7 @@ for the live area and input line now; its Markdown control is rejected on
 dependency grounds (full-stack closure, global-instance constraint) — the
 parser question itself lives in the T-19 change. Full rationale, the retire/keep
 lists for all three options and the re-open triggers are in
-[ADR 0019](../../../adr/0019-xenoatom-terminal-ui.md) (status **proposed**).
+[ADR 0019](../../../../adr/0019-xenoatom-terminal-ui.md) (status **proposed**).
 
 Decisive reasons:
 

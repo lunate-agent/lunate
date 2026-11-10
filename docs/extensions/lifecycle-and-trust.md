@@ -169,7 +169,7 @@ servers still run. `/extensions` reads `extensions disabled (--no-extensions)`.
 
 ## See also
 
-- The normative loading and trust contract: [`docs/spec/extensibility.md`](../spec/extensibility.md)
+- The normative loading and trust contract: [`docs/dev/spec/extensibility.md`](../dev/spec/extensibility.md)
 - The full manifest field reference: [manifest.md](manifest.md)
 - Run and inspect failures: [troubleshooting.md](troubleshooting.md)
 - Remote lifecycle: [remote extensions](../extensions-remote.md)

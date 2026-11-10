@@ -27,7 +27,7 @@ agent and at home in polyglot repositories.
   diagnostics tool is a compile check after an edit, and an edit is verified against the compiler,
   not the model's guess. On the published head-to-head C# suite Lunate finished 6/6 at **~5× fewer
   tokens** than the heavy harnesses on the same tasks; the write-up is candid about what that suite
-  shows ([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
+  shows ([`docs/dev/eval/t35-head-to-head.md`](docs/dev/eval/t35-head-to-head.md)).
 - **Yours to extend in C#.** Start from **one `.cs` file** — a header declares its tools and the
   NuGet packages it needs, you approve it once, and it compiles into the running session — and grow
   it into a NuGet package you install by id ([`docs/extensions/`](docs/extensions/README.md) owns the
@@ -94,7 +94,7 @@ Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
   never grant one ([usage](docs/usage.md#a-second-model-can-decide-when-it-is-worth-it)).
 - **Copy and export** — `/copy` works over ssh via OSC 52; `/export html` writes a hardened,
   credential-redacted document, `/export jsonl` the session file
-  ([contract](docs/spec/export.md)).
+  ([contract](docs/dev/spec/export.md)).
 - **Sessions that fork** — `/fork` continues under a new id, `/clone` restarts from an earlier
   turn ([usage](docs/usage.md#fork-a-session-without-losing-the-tail)).
 - **Long sessions** — tool results spill to a file and old turns are masked without losing the
@@ -144,7 +144,7 @@ sources register the same way.
   and the test kit
 - Authoring guide: [`docs/extensions/`](docs/extensions/README.md) — quickstart, manifest reference,
   one page per contribution, lifecycle and trust, testing and troubleshooting
-- Contract and hook catalogue: [`docs/spec/extensibility.md`](docs/spec/extensibility.md)
+- Contract and hook catalogue: [`docs/dev/spec/extensibility.md`](docs/dev/spec/extensibility.md)
 - Reference extensions that run in CI: [`samples/extensions/`](samples/extensions/)
 - Supported extensions (`Lunate.Extensions.*`): [`extensions/`](extensions/)
 
@@ -189,7 +189,7 @@ the full matrix is in the [guide](docs/guide.md); pipes, CI and `TERM=dumb` are 
 Lunate stands on two lightweight agents that came first — **Pi** and **Tau** — for the shape of the
 loop, the tool set and the idea that an agent's harness should be small enough to read. The
 head-to-head suite that calibrates the claims above runs Pi and Tau beside Lunate
-([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
+([`docs/dev/eval/t35-head-to-head.md`](docs/dev/eval/t35-head-to-head.md)).
 
 ## Contributing
 

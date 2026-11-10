@@ -8,7 +8,7 @@
   checks, no API keys. Raw evidence: [`evidence/`](evidence/), including
   `run-checks.sh` output and the check 6 release extract.
 - Outcome: **recommend the own loop, borrow MAF's approval and session
-  patterns**; ADR draft [`adr/0003`](../../../adr/0003-loop-own-vs-maf-harness.md)
+  patterns**; ADR draft [`adr/0003`](../../../../adr/0003-loop-own-vs-maf-harness.md)
   is accepted (2026-10-04).
 
 ## What was built

@@ -85,4 +85,4 @@ and its
 
 - Providers and model ids: [model-providers.md](model-providers.md)
 - Virtual models: [virtual-models.md](virtual-models.md)
-- The registry contract: [`docs/spec/extensibility.md`](../../spec/extensibility.md#services-for-long-lived-integrations)
+- The registry contract: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#services-for-long-lived-integrations)

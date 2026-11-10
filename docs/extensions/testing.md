@@ -166,7 +166,7 @@ solution members and run in the same gate. Run the extension's own test project 
 ## The missing-primitive rule
 
 The spec ends with the rule that governs this section: **a sample that needs a workaround means the
-core is missing a primitive** ([`docs/spec/extensibility.md`](../spec/extensibility.md#fitness-suite-samplesextensions-ci)).
+core is missing a primitive** ([`docs/dev/spec/extensibility.md`](../dev/spec/extensibility.md#fitness-suite-samplesextensions-ci)).
 Do not hide a missing primitive behind a workaround in a sample or a test. Report it, describe the
 primitive the extension needed, and propose the change. The same rule applies to tests: a test that
 has to reach around the contract is evidence about the contract.
