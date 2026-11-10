@@ -387,7 +387,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: verify-timing-${{ matrix.rid }}-${{ matrix.shard }}-of-${{ matrix.shard_count }}
-          path: .artifacts/verify-timing/
+          path: artifacts/verify-timing/
           if-no-files-found: warn
           retention-days: 14
 

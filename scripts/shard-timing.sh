@@ -8,7 +8,7 @@
 #   shard-timing.sh --self-test
 #
 # The JSON file goes to <out-dir>/verify-<rid>-<shard>-of-<count>.json (default
-# .artifacts/verify-timing). When --summary names a file -- CI passes GITHUB_STEP_SUMMARY -- a
+# artifacts/verify-timing). When --summary names a file -- CI passes GITHUB_STEP_SUMMARY -- a
 # Markdown row is appended there as well.
 
 set -euo pipefail
@@ -20,7 +20,7 @@ fail() {
 
 record() {
   local rid="" shard="" shard_count="" profile="" seconds="" status=""
-  local out_dir=".artifacts/verify-timing" summary=""
+  local out_dir="artifacts/verify-timing" summary=""
 
   while [ $# -gt 0 ]; do
     case "$1" in
