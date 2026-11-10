@@ -19,6 +19,14 @@ namespace Lunate.Coding;
 /// therefore never reaches auth.json unless its provider entry, the profiles and the decisions
 /// keys land beside it, and a failed commit leaves the previous configuration exactly as it was.
 /// </para>
+/// <para>
+/// The commit is also a read-modify-write, so it takes the target claims before it seeds: the
+/// staged bodies start from the bytes the targets hold once the claims are held, and the replace
+/// lands while they are still held. A change another process lands while this commit waits is
+/// therefore merged, not dropped (spec: Cross-process settings writes, Cross-process
+/// provider-store writes). The walk itself — the interactive part — happens before this call, so
+/// the claims are held for one short pass, never while a person answers a step.
+/// </para>
 /// </summary>
 internal static class SetupWizardCommit
 {
@@ -28,17 +36,11 @@ internal static class SetupWizardCommit
     /// surfaces as one exception naming what failed, and no target file keeps a partial commit:
     /// auth.json, providers.json and settings.json are unchanged byte for byte.
     /// </summary>
-    public static void Commit(
-        SetupWizardModel model,
-        CommitPaths paths,
-        Func<AuthStore> loadAuth,
-        Func<IReadOnlyList<ProviderEntry>> loadEntries
-    )
+    public static void Commit(SetupWizardModel model, CommitPaths paths, Func<AuthStore> loadAuth)
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(loadAuth);
-        ArgumentNullException.ThrowIfNull(loadEntries);
 
         if (!model.HasStagedWrites)
         {
@@ -58,6 +60,13 @@ internal static class SetupWizardCommit
             credentialSecret = secret;
         }
 
+        // The claims come before the seed: the seed's read is the read-modify-write base, so what
+        // another process wrote while this commit waited for the claim is merged rather than
+        // replaced. Both claims are held until the last replace; nothing before them is written.
+        using IDisposable claims = SetupWizardTransaction.ClaimTargets(
+            paths.SettingsPath,
+            paths.ProviderStorePath
+        );
         using SetupWizardTransaction transaction = SetupWizardTransaction.Create(
             paths.SettingsPath,
             credentialSecret is null ? null : live.FilePath
@@ -67,8 +76,9 @@ internal static class SetupWizardCommit
         // today: the sections the walk does not touch survive the commit.
         SetupWizardTransaction.Seed(live.FilePath, transaction.Auth);
         SetupWizardTransaction.Seed(paths.SettingsPath, transaction.Settings);
+        SetupWizardTransaction.Seed(paths.ProviderStorePath, transaction.Providers);
 
-        WriteStaged(model, transaction, credentialProvider, credentialSecret, loadEntries);
+        WriteStaged(model, transaction, credentialProvider, credentialSecret);
         transaction.Commit([
             new(transaction.Auth, live.FilePath),
             new(transaction.Providers, paths.ProviderStorePath),
@@ -87,8 +97,7 @@ internal static class SetupWizardCommit
         SetupWizardModel model,
         SetupWizardTransaction transaction,
         string? credentialProvider,
-        string? credentialSecret,
-        Func<IReadOnlyList<ProviderEntry>> loadEntries
+        string? credentialSecret
     )
     {
         var stagedPaths = new CommitPaths(transaction.Settings, transaction.Providers);
@@ -103,7 +112,7 @@ internal static class SetupWizardCommit
                 auth.Save();
             }
 
-            WriteProviderEntry(model, stagedPaths, loadEntries);
+            WriteProviderEntry(model, stagedPaths);
         }
 
         WriteProfileAndUsages(model, stagedPaths);
@@ -115,11 +124,7 @@ internal static class SetupWizardCommit
 
     // --- provider entry ---
 
-    private static void WriteProviderEntry(
-        SetupWizardModel model,
-        CommitPaths paths,
-        Func<IReadOnlyList<ProviderEntry>> loadEntries
-    )
+    private static void WriteProviderEntry(SetupWizardModel model, CommitPaths paths)
     {
         WizardProviderChoice provider = model.Provider!;
         if (provider.Custom)
@@ -139,13 +144,13 @@ internal static class SetupWizardCommit
             }
             else
             {
-                SaveEntry(StagedEntry(model), paths, loadEntries);
+                SaveEntry(StagedEntry(model), paths);
             }
 
             return;
         }
 
-        SaveEntry(StagedEntry(model), paths, loadEntries);
+        SaveEntry(StagedEntry(model), paths);
     }
 
     /// <summary>
@@ -231,13 +236,13 @@ internal static class SetupWizardCommit
         SettingsStore.WriteProvider(custom, paths.SettingsPath);
     }
 
-    private static void SaveEntry(
-        ProviderEntry entry,
-        CommitPaths paths,
-        Func<IReadOnlyList<ProviderEntry>> loadEntries
-    )
+    private static void SaveEntry(ProviderEntry entry, CommitPaths paths)
     {
-        IEnumerable<ProviderEntry> kept = loadEntries()
+        // The staged copy was seeded from the target under the target claim, so it is the document
+        // this commit merges into: an entry another process saved while the walk was answered
+        // survives instead of being replaced by the walk's pre-commit reading.
+        IEnumerable<ProviderEntry> kept = ProviderStore
+            .ReadEntries(paths.ProviderStorePath)
             .Where(existing => !string.Equals(existing.Name, entry.Name, StringComparison.Ordinal));
         ProviderStore.Save(
             paths.ProviderStorePath,

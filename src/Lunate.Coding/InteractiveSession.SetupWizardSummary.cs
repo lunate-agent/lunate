@@ -50,8 +50,7 @@ internal sealed partial class InteractiveSession
         SetupWizardCommit.Commit(
             wizard,
             new SetupWizardCommit.CommitPaths(settingsPath, providerPath),
-            () => _auth,
-            () => _providerEntries
+            () => _auth
         );
     }
 

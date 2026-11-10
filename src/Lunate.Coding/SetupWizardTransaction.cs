@@ -52,6 +52,45 @@ internal sealed class SetupWizardTransaction : IDisposable
         return new SetupWizardTransaction(staging);
     }
 
+    /// <summary>
+    /// Claims the stores a commit replaces — the settings file and the provider store — before
+    /// anything is seeded or staged (spec: Cross-process settings writes, Cross-process
+    /// provider-store writes). The seed then reads what another process has already written, and
+    /// the claim is still held when the staged body replaces the target, so two processes merge
+    /// instead of the later one winning from a stale read. Settings is claimed before the provider
+    /// store so two commits in two processes cannot deadlock on each other.
+    /// <para>
+    /// Nothing is written before both claims are held: a claim that cannot be taken refuses with
+    /// the store's own error and the commit has touched no target. The bounded wait is the store's;
+    /// the commit itself holds the claims for one non-interactive pass.
+    /// </para>
+    /// </summary>
+    public static IDisposable ClaimTargets(string settingsPath, string providerStorePath)
+    {
+        FileLock settings = SettingsStore.AcquireWriteLock(settingsPath);
+        try
+        {
+            return new TargetClaims([settings, ProviderStore.AcquireLock(providerStorePath)]);
+        }
+        catch
+        {
+            settings.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>The claims a commit holds, released in the reverse order they were taken.</summary>
+    private sealed class TargetClaims(IReadOnlyList<FileLock> claims) : IDisposable
+    {
+        public void Dispose()
+        {
+            for (var index = claims.Count - 1; index >= 0; index--)
+            {
+                claims[index].Dispose();
+            }
+        }
+    }
+
     /// <summary>Copies an existing file into the stage: every store writer is a read-modify-write.</summary>
     public static void Seed(string source, string staged)
     {

@@ -298,7 +298,7 @@ public static partial class SettingsStore
     /// holder. A write that cannot take it refuses rather than replacing a document another
     /// process is editing.
     /// </summary>
-    private static FileLock AcquireWriteLock(string path) => AcquireWriteLock(path, LockTimeout);
+    internal static FileLock AcquireWriteLock(string path) => AcquireWriteLock(path, LockTimeout);
 
     internal static FileLock AcquireWriteLock(string path, TimeSpan timeout)
     {

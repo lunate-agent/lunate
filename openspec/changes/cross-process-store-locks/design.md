@@ -94,7 +94,7 @@ sequenceDiagram
 - **`auth.json` still has no claim of its own** -> The wizard's commit replaces all three files
   under the settings and provider-store claims, so two wizard commits are serialized, but a
   concurrent `auth login` in another process holds no claim on `auth.json` and can still lose one
-  side's key. Recorded as a follow-up issue in the same milestone; the auth store's own
+  side's key. Recorded as follow-up issue #791 in the same milestone; the auth store's own
   read-modify-write needs the claim and a re-read, which is a separate change.
 - **An in-process direct writer and a commit can wait on each other's order** -> A store writer
   takes the in-process gate and then the claim; the commit takes the claim and then reaches the

@@ -89,7 +89,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         );
         model.RecordCredential(new WizardCredentialChoice("env:ANTHROPIC_API_KEY"));
 
-        SetupWizardCommit.Commit(model, Paths(), LoadAuth, () => LoadEntries);
+        SetupWizardCommit.Commit(model, Paths(), LoadAuth);
 
         Assert.True(!File.Exists(_temp.File("auth.json")));
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
@@ -113,7 +113,7 @@ public sealed class SetupWizardCommitTests : IDisposable
         }
 
         string settingsBefore = Seed(SettingsPath, """{"schemaVersion": 2, "favorites": []}""");
-        SetupWizardCommit.Commit(model, Paths(), LoadAuth, () => LoadEntries);
+        SetupWizardCommit.Commit(model, Paths(), LoadAuth);
         string settingsAfter = Seed(SettingsPath, """{"schemaVersion": 2, "favorites": []}""");
         Assert.Equal(settingsBefore, settingsAfter);
     }
@@ -300,7 +300,23 @@ public sealed class SetupWizardCommitTests : IDisposable
         // B-5: the credential used to be saved before the entry and "restored" in memory only, so
         // a later failure left the new key on disk and the previous key gone. The commit now
         // stages the key and touches no target until every body is ready.
-        var model = PresetWalk("new-secret");
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "openai",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "openai-realtime",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("openai", Key: "new-secret"));
+        model.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
+        model.RecordChatProfile(
+            new WizardProfileChoice("chat-main", "gpt-5", ReasoningLevel: null)
+        );
         string authPath = _temp.File("auth.json");
         Seed(
             authPath,
@@ -312,14 +328,13 @@ public sealed class SetupWizardCommitTests : IDisposable
         byte[] providersBefore = File.ReadAllBytes(ProviderStorePath);
         byte[] settingsBefore = File.ReadAllBytes(SettingsPath);
 
-        // The injected provider read runs after the credential has been written to the stage, so
-        // the commit fails after the auth write and before any target file is replaced.
-        var injected = new InvalidOperationException("injected failure after the auth write");
-        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() =>
-            SetupWizardCommit.Commit(model, Paths(), LoadAuth, () => throw injected)
+        // The unsupported family is refused when the provider entry is built: after the credential
+        // has been written to the stage, and before any target file is replaced.
+        InvalidDataException failure = Assert.Throws<InvalidDataException>(() =>
+            SetupWizardCommit.Commit(model, Paths(), LoadAuth)
         );
 
-        Assert.Same(injected, failure);
+        Assert.Contains("openai-realtime", failure.Message, StringComparison.Ordinal);
         Assert.Equal(authBefore, File.ReadAllBytes(authPath));
         Assert.Equal(providersBefore, File.ReadAllBytes(ProviderStorePath));
         Assert.Equal(settingsBefore, File.ReadAllBytes(SettingsPath));
@@ -365,8 +380,7 @@ public sealed class SetupWizardCommitTests : IDisposable
                 SetupWizardCommit.Commit(
                     model,
                     new SetupWizardCommit.CommitPaths(SettingsPath, providersPath),
-                    LoadAuth,
-                    () => ProviderStore.Load(providersPath, LoadAuth(), []).Entries
+                    LoadAuth
                 )
             );
             Assert.True(
@@ -626,14 +640,11 @@ public sealed class SetupWizardCommitTests : IDisposable
     }
 
     private void Commit(SetupWizardModel model) =>
-        SetupWizardCommit.Commit(model, Paths(), LoadAuth, () => LoadEntries);
+        SetupWizardCommit.Commit(model, Paths(), LoadAuth);
 
     private SetupWizardCommit.CommitPaths Paths() => new(SettingsPath, ProviderStorePath);
 
     private AuthStore LoadAuth() => AuthStore.Load(_temp.File("auth.json"));
-
-    private IReadOnlyList<ProviderEntry> LoadEntries =>
-        ProviderStore.Load(ProviderStorePath, LoadAuth(), []).Entries;
 
     private static string Seed(string path, string content)
     {

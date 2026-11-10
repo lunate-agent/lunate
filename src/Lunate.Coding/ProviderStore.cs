@@ -116,13 +116,10 @@ internal sealed class ProviderStore
         IReadOnlyList<CustomProvider> legacyProviders
     )
     {
-        ProviderFile file = Read(filePath);
         var entries = new Dictionary<string, ProviderEntry>(StringComparer.Ordinal);
-        foreach (ProviderFileRecord record in file.Providers)
+        foreach (ProviderEntry entry in ReadEntries(filePath))
         {
-            // Read validated every row already, so this conversion cannot fail.
-            TryCreateRecord(record, out ProviderEntry? entry, out _);
-            entries.Add(entry!.Name, entry);
+            entries.Add(entry.Name, entry);
         }
 
         bool migrated = false;
@@ -164,6 +161,26 @@ internal sealed class ProviderStore
     }
 
     /// <summary>
+    /// The entries the store file holds, validated, without migrating and without taking the
+    /// claim: a caller that already holds the store's claim reads its working copy with this, and
+    /// a read-only load reads through the same parse.
+    /// </summary>
+    internal static IReadOnlyList<ProviderEntry> ReadEntries(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ProviderFile file = Read(filePath);
+        var entries = new List<ProviderEntry>(file.Providers.Length);
+        foreach (ProviderFileRecord record in file.Providers)
+        {
+            // Read validated every row already, so this conversion cannot fail.
+            TryCreateRecord(record, out ProviderEntry? entry, out _);
+            entries.Add(entry!);
+        }
+
+        return entries;
+    }
+
+    /// <summary>
     /// The cross-process claim beside a provider store: <c>providers.lock</c> for
     /// <c>providers.json</c>. It serializes a migration and a save against another process's
     /// read-modify-write; a read-only load does not take it.
@@ -174,7 +191,7 @@ internal sealed class ProviderStore
         return Path.ChangeExtension(filePath, ".lock");
     }
 
-    private static FileLock AcquireLock(string filePath) => AcquireLock(filePath, LockTimeout);
+    internal static FileLock AcquireLock(string filePath) => AcquireLock(filePath, LockTimeout);
 
     internal static FileLock AcquireLock(string filePath, TimeSpan timeout)
     {
