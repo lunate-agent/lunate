@@ -1,0 +1,166 @@
+S-8 setup-flow research evidence
+===============================
+
+Date: 2026-11-08
+Card: #680
+Method: installed CLI help, shipped source and documentation, and this
+repository's current implementation. No live provider request was made and no
+credential was entered. OAuth flows were read, not run.
+
+Versions observed
+-----------------
+- opencode v2.2.0 (/Users/danielwallner/.opencode/bin/opencode)
+- openspec 1.14.0 (@fission-ai/openspec, /opt/homebrew/bin/openspec)
+- pi 1.3.0 (@earendil-works/pi-coding-agent, /opt/homebrew/bin/pi)
+- gemini 0.41.2 (@google/gemini-cli, /opt/homebrew/bin/gemini)
+- Lunate branch wt/issue-680 at origin/main 2649040c (2026-11-08)
+
+Commands run
+------------
+- opencode --version
+- opencode auth --help
+- opencode auth login --help
+- opencode auth list
+- openspec --version
+- openspec init --help
+- pi --version
+- pi --help
+- pi auth --help
+- gemini --version
+- gemini --help
+
+openspec init probe
+-------------------
+A real non-interactive init was run in a throw-away directory under $TMPDIR:
+
+  openspec init --tools opencode --no-animation
+
+Observed output (verbatim, ANSI colour stripped):
+
+  - Creating OpenSpec structure...
+  ▌ OpenSpec structure created
+  - Setting up OpenCode...
+  ✔ Setup complete for OpenCode
+
+  OpenSpec Setup Complete
+
+  Created: OpenCode
+  11 skills and 11 commands in .opencode/
+  Config: openspec/config.yaml (schema: spec-driven)
+
+  Getting started:
+    Start your first change: /opsx-propose "your idea"
+
+  Note: 1 more workflow is available (update).
+  Add it with `openspec config profile`.
+
+  Learn more: https://github.com/Fission-AI/OpenSpec
+  Feedback:   https://github.com/Fission-AI/OpenSpec/issues
+
+The probe created .opencode/commands/opsx-*.md, openspec/config.yaml and
+openspec/specs/.gitkeep. This is the "created/refreshed + counts + next
+command" summary shape cited in the report. The raw output and file list are
+also kept in `openspec-init-probe.txt`.
+
+OpenCode
+--------
+CLI facts (2026-11-08):
+- `opencode auth --help` describes "manage integrations and credentials" and
+  lists list/login/logout/export/import/switch.
+- `opencode auth login --help` takes an optional integration target, `--method`
+  and repeatable `--answer key=value`.
+- `opencode auth list` prints integration, method and state, e.g.
+  "OpenCode Go  API key  stored", "GitHub Copilot  OAuth  stored".
+- Every command accepts a global `--wizard` flag.
+
+Shipped documentation read on 2026-11-08:
+- https://opencode.ai/docs/cli/providers/
+  - "/connect lists the integrations available from the current server and
+    project. Select a provider, choose an authentication method when it offers
+    more than one, and follow the prompts."
+  - "Run /connect again to add another account. Selecting an already connected
+    provider opens its account list, where you can activate, rename, or delete
+    a saved account."
+  - "The CLI and TUI render those forms before starting authentication."
+  - "Each successful API-key, OAuth, or command login creates a saved account.
+    The newest account becomes active."
+  - "Saved API keys and OAuth tokens live in the server's SQLite database."
+- https://opencode.ai/docs/providers/
+  - "/connect, choose a provider, and enter its credentials. Then run /models to
+    select one of its models."
+  - Custom providers are declared in opencode.jsonc, not collected by /connect.
+
+Pi
+--
+From the installed package docs (pi 1.3.0):
+- docs/providers.md: "Most hosted providers support one or both of these
+  authentication methods: Sign in through a browser or device flow backed by
+  OAuth; Provide an API key." "/login [provider] to see the methods supported
+  by a provider."
+- docs/providers.md: auth.json can hold API keys and OAuth tokens; a key may be
+  a literal, an environment variable name, or a command prefixed with `!`.
+- docs/quickstart.md: "In Pi, run /login. Choose a provider, then follow the
+  prompts to use a subscription or store an API key."
+- docs/slash-commands.md: `/login [provider]` "Add provider authentication";
+  `/logout` "Remove provider authentication".
+- Pi has no separate first-run wizard: it opens the session and `/login` is a
+  slash command. Custom providers are configured in models.json.
+- `pi auth` is only print/check, not the login entry point.
+
+Gemini CLI
+----------
+Installed bundle: /opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/
+interactiveCli-WWICCK5B.js (gemini 0.41.2). The AuthDialog component:
+- Heading: "Get started".
+- Question: "How would you like to authenticate for this project?".
+- Rows: "Sign in with Google", "Use Gemini API Key", "Vertex AI"; Cloud Shell
+  or metadata-server rows appear only when the environment says so.
+- `settings.merged.security.auth.enforcedType` filters the rows to one method.
+- The initial row comes from `security.auth.selectedType`, then
+  `GEMINI_DEFAULT_AUTH_TYPE`, then an existing `GEMINI_API_KEY`, then
+  "Sign in with Google".
+- The API-key dialog says "Please enter your Gemini API key. It will be
+  securely stored in your system keychain." and links "You can get an API key
+  from ...".
+- Auth errors render inline in the same dialog.
+- The dialog ends with the Terms of Services and Privacy Notice link.
+
+Lunate current implementation
+-----------------------------
+- openspec/specs/setup-wizard/spec.md:31-46 defines the ten-step full walk.
+- openspec/specs/setup-wizard/spec.md:157-171 requires one staged write at the
+  confirmed summary and byte-identical files on abort.
+- openspec/specs/setup-wizard/spec.md:183-185 pins 80 and 60 columns only.
+- src/Lunate.Coding/SetupWizardModel.cs:129-141 lists the ten steps.
+- src/Lunate.Coding/SetupWizardModel.cs:209 is the only step move:
+  `public void Enter(SetupStep step) => Step = step;`.
+- src/Lunate.Coding/InteractiveSession.SetupWizard.cs:166-172 only goes back
+  when a step returns WizardMove.Back (the connection/model check failure
+  paths); forward is always Next().
+- src/Lunate.Coding/InteractiveSession.SetupWizardEntries.cs:49-57 is the
+  configured-install entry menu: add a provider, add a profile, change the chat
+  profile, edit the decisions layer, walk everything. There is no manage /
+  rename / remove / switch action.
+- src/Lunate.Coding/InteractiveSession.SetupWizard.cs:1190-1220 is the
+  decisions menu: it collects one switch choice and leaves; there is no
+  return-to-menu / Done loop.
+- src/Lunate.Coding/InteractiveSession.SetupWizard.cs:1022-1085 offers only the
+  chosen provider's Jev version or the chosen provider's chat model for the
+  decision profile.
+- src/Lunate.Coding/InteractiveSession.SetupWizard.cs:972-1016 binds fast only
+  to the chat profile; there is no fast model picker.
+- src/Lunate.Coding/InteractiveSession.SetupWizardSummary.cs:213-380 renders
+  provider, credential source, checks, model, profiles, decisions and a
+  skipped-steps line; no line names the file a value is written to.
+- tests/Lunate.Coding.Tests/SetupWizardWidthTests.cs:27 pins the menu and
+  summary at 80 and 60 columns.
+
+Limits
+------
+- One machine (macOS 26.3.1, arm64) and one day.
+- OAuth, keychain storage, provider forms and account switching were read in
+  docs/source, not exercised against a provider.
+- The interactive welcome animation and searchable multi-select were read in
+  source; the non-interactive init above was run.
+- Tool versions and paths are as observed on 2026-11-08; later releases may
+  change them.
