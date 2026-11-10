@@ -46,4 +46,4 @@
 - [x] 6.1 Run the wizard commit and claim classes, the store classes and the cross-process store
   class; run CSharpier over the tree.
 - [x] 6.2 Re-run `openspec validate --all --strict` and `bash scripts/check-openspec-skills.sh`.
-- [ ] 6.3 Archive this change as the final commit of the branch, after the repair lands.
+- [x] 6.3 Archive this change as the final commit of the branch, after the repair lands.
