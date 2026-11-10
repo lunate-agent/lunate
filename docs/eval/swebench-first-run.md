@@ -33,7 +33,22 @@ different measurements.
 
 ## Results
 
-<!-- SUMMARY_TABLE -->
+| Arm | Model | Tier | Resolved | Spend |
+| --- | --- | --- | --- | --- |
+| Lunate | `opencode-go/deepseek-v4.1-flash` | budget | **2/5** | $0.1637 |
+| Lunate | `openrouter/anthropic/claude-opus-5.5` | frontier | **3/5** | $1.1343 |
+| mini-swe-agent | `openai/deepseek-v4.1-flash` (OpenCode Go) | budget | pending | pending |
+| mini-swe-agent | `openrouter/anthropic/claude-opus-5.5` | frontier | pending | pending |
+
+Per instance (Lunate):
+
+| Instance | Budget | Frontier |
+| --- | --- | --- |
+| `astropy__astropy-12907` | step limit, no patch | resolved (3 steps) |
+| `django__django-13128` | step limit, no patch | empty patch |
+| `django__django-15572` | resolved (step limit) | resolved (7 steps) |
+| `pydata__xarray-3151` | step limit, no patch | patch, unresolved |
+| `sphinx-doc__sphinx-8120` | resolved (step limit) | resolved (10 steps) |
 
 ## Cost
 
