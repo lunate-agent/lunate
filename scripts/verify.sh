@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 cd "${SCRIPT_DIR}/.."
 
+VERIFY_START_EPOCH="$(date +%s)"
+
 # Which gate to run. `full` is the whole thing (build, publish, both test passes, install/tool
 # roundtrips, formatting, public API); `docs` is the prose profile, and it deliberately runs no
 # build and no test; `platform` is the platform-independent half of `full` — formatting, docs,
@@ -238,10 +240,35 @@ verify_cleanup() {
   VERIFY_TMP_ROOT=""
 }
 
-# The EXIT trap does the cleanup; route signals into a plain exit so a killed
-# run still fires it. Without these, TERM/INT/HUP terminate bash without the
-# EXIT trap and leave the full install-staging dir behind (~0.7 GB per run).
-trap verify_cleanup EXIT
+# The shard's wall time lands in the run summary and in a tiny artifact, so a later shard-count
+# change can see which leg is the pole without reading every runner log. A failed shard records
+# too: the pole matters most on the red run. Timing is observability, not a gate condition, so a
+# recorder problem is warned about instead of replacing the gate's own exit status.
+record_wall_time() {
+  local status="$1" seconds
+  seconds=$(( $(date +%s) - VERIFY_START_EPOCH ))
+  bash "${SCRIPT_DIR}/shard-timing.sh" record \
+    --rid "$RID" \
+    --shard "$SHARD_I" \
+    --shard-count "$SHARD_N" \
+    --profile "$PROFILE" \
+    --seconds "$seconds" \
+    --status "$status" \
+    --summary "${GITHUB_STEP_SUMMARY:-}" ||
+    echo "verify: could not record the shard wall time" >&2
+}
+
+verify_exit() {
+  local status=$?
+  record_wall_time "$status"
+  verify_cleanup
+  return "$status"
+}
+
+# The EXIT trap does the cleanup and records the wall time; route signals into a plain exit so a
+# killed run still fires it. Without these, TERM/INT/HUP terminate bash without the EXIT trap and
+# leave the full install-staging dir behind (~0.7 GB per run).
+trap verify_exit EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
