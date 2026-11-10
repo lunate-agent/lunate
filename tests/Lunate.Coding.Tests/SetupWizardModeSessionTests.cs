@@ -107,16 +107,20 @@ public sealed class SetupWizardModeSessionTests
         await host.WaitForFrameAsync("> high");
         host.Console.SendEnter();
 
+        // The fast step's flat list: the chat model's own row is the reuse answer. The list ends
+        // with the inline row and Skip, so the model row is two rows up from the default.
         await host.WaitForFrameAsync("fast usage");
-        host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
-        await host.WaitForFrameAsync("> Yes, bind it as fast");
+        host.Console.SendUp();
+        host.Console.SendUp();
+        await host.WaitForFrameAsync("> openai/pin-reasoner (openai-chat");
         host.Console.SendEnter();
 
         await host.WaitForFrameAsync(
             "Decision profile (this provider serves no native Jev profile"
         );
         host.Console.SendUp();
-        await host.WaitForFrameAsync("> adapt the chat model (adapter)");
+        host.Console.SendUp();
+        await host.WaitForFrameAsync("> openai/pin-reasoner (adapter, openai-chat");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decision check");
         host.Console.SendEnter(); // skip
