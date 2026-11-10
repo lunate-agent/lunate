@@ -11,8 +11,8 @@ guard; [SECURITY.md](../SECURITY.md) compares the layers and [S-7](#evidence-and
 was measured.
 
 > **Status.** Container execution is the execution-environment work tracked by
-> [#626](https://github.com/wdaniel1993/lunate/issues/626) and
-> [#627](https://github.com/wdaniel1993/lunate/issues/627). This page records the shape, the settings
+> [#626](https://github.com/lunate-agent/lunate/issues/626) and
+> [#627](https://github.com/lunate-agent/lunate/issues/627). This page records the shape, the settings
 > and the measured limits. The security-policy question for commands inside the container is still
 > pending sign-off on #627, and the page does not claim more than the S-7 run measured.
 
@@ -191,7 +191,7 @@ its CI run is linked.
 
 ## Evidence and limits
 
-The evidence is the S-7 spike ([report and raw output in PR #647](https://github.com/wdaniel1993/lunate/pull/647),
+The evidence is the S-7 spike ([report and raw output in PR #647](https://github.com/lunate-agent/lunate/pull/647),
 landing under `docs/spikes/S-7/`). One run: macOS 26.3.1 arm64, Podman 6.1.0, an Apple-VM
 `podman machine` with 4 vCPU and 4 GiB, image `mcr.microsoft.com/dotnet/sdk:10.0` (Ubuntu 24.04,
 aarch64). It drove the real `BashTool`, `ReadTool` and `WriteTool`, not a reimplementation.
@@ -208,5 +208,5 @@ behaviour.
   bus and the container boundary compose.
 - [Configuration reference](configuration.md) — every settings key, generated from the schema.
 - [Usage](usage.md) — approvals, tool blocks and the modes.
-- [S-7 report](https://github.com/wdaniel1993/lunate/pull/647) — the measured evidence and raw
+- [S-7 report](https://github.com/lunate-agent/lunate/pull/647) — the measured evidence and raw
   output, landing under `docs/spikes/S-7/`.

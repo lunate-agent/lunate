@@ -53,7 +53,7 @@ the host's post-call scan. The OS-level guard still wraps the host `exec` client
 state-root write before the container is touched. It does not follow the command inside the
 container: the mount boundary is what limits that command's reach, and whether that is the accepted
 policy for inner commands is the open sign-off question on
-[#627](https://github.com/wdaniel1993/lunate/issues/627). The container is not a jail: the engine
+[#627](https://github.com/lunate-agent/lunate/issues/627). The container is not a jail: the engine
 socket, a pre-existing hardlink and the workspace itself remain reachable.
 [Run tool calls in a container](docs/execution-environments.md) has the flags, the flow and the
 measured limits.
