@@ -39,9 +39,21 @@ public sealed class ToolEnvironmentPrintModeTests
             Assert.Equal(0, exitCode);
             Assert.Equal("ok", output);
             string[] lines = errors.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            string[] passThroughLines =
+            [
+                .. lines.Where(line =>
+                    line.Contains("toolEnvironment.passthrough", StringComparison.Ordinal)
+                ),
+            ];
+            Assert.Equal(2, passThroughLines.Length);
+            string admission = Assert.Single(
+                passThroughLines,
+                line => !line.Contains("Lunate also resolves", StringComparison.Ordinal)
+            );
+            Assert.Contains("OPENAI_API_KEY", admission, StringComparison.Ordinal);
             string warning = Assert.Single(
-                lines,
-                line => line.Contains("toolEnvironment.passthrough", StringComparison.Ordinal)
+                passThroughLines,
+                line => line.Contains("Lunate also resolves", StringComparison.Ordinal)
             );
             Assert.Contains("OPENAI_API_KEY", warning, StringComparison.Ordinal);
         }
@@ -52,7 +64,7 @@ public sealed class ToolEnvironmentPrintModeTests
     }
 
     [Fact]
-    public async Task A_user_owned_name_installs_without_a_warning()
+    public async Task A_user_owned_name_is_named_at_startup()
     {
         try
         {
@@ -78,7 +90,14 @@ public sealed class ToolEnvironmentPrintModeTests
             (int exitCode, _, string errors) = await PrintModeTestSupport.RunAsync(options);
 
             Assert.Equal(0, exitCode);
-            Assert.DoesNotContain("toolEnvironment.passthrough", errors, StringComparison.Ordinal);
+            string admission = Assert.Single(
+                errors.Split('\n', StringSplitOptions.RemoveEmptyEntries),
+                line => line.Contains("toolEnvironment.passthrough", StringComparison.Ordinal)
+            );
+            Assert.Contains("MY_PROJECT_TOKEN", admission, StringComparison.Ordinal);
+            Assert.Contains("tool processes", admission, StringComparison.Ordinal);
+            // The admission is stated on its own; no collision warning accompanies it.
+            Assert.DoesNotContain("Lunate also resolves", errors, StringComparison.Ordinal);
         }
         finally
         {

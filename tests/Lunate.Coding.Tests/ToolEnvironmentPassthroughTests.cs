@@ -21,14 +21,14 @@ public sealed class ToolEnvironmentPassthroughTests
     {
         try
         {
-            IReadOnlyList<string> collisions = ToolEnvironmentPassthrough.Configure([
+            ToolEnvironmentPassthrough.Admission admission = ToolEnvironmentPassthrough.Configure([
                 " MY_PROJECT_TOKEN ",
                 "PROXY_URL",
                 "MY_PROJECT_TOKEN",
                 "  ",
             ]);
 
-            Assert.Empty(collisions);
+            Assert.Empty(admission.Collisions);
             Assert.Equal(["MY_PROJECT_TOKEN", "PROXY_URL"], ToolEnvironmentPassthrough.Names);
         }
         finally
@@ -42,14 +42,13 @@ public sealed class ToolEnvironmentPassthroughTests
     {
         try
         {
-            IReadOnlyList<string> collisions = ToolEnvironmentPassthrough.Configure([
+            ToolEnvironmentPassthrough.Admission admission = ToolEnvironmentPassthrough.Configure([
                 "MY_PROJECT_TOKEN",
                 "OPENAI_API_KEY",
             ]);
 
-            Assert.Equal(["OPENAI_API_KEY"], collisions);
-            // The explicit name is still passed through; the warning is the only signal.
-            Assert.Equal(["MY_PROJECT_TOKEN", "OPENAI_API_KEY"], ToolEnvironmentPassthrough.Names);
+            Assert.Equal(["OPENAI_API_KEY"], admission.Collisions);
+            Assert.Equal(["MY_PROJECT_TOKEN", "OPENAI_API_KEY"], admission.Names);
         }
         finally
         {
@@ -63,7 +62,9 @@ public sealed class ToolEnvironmentPassthroughTests
         try
         {
             Assert.Empty(
-                ToolEnvironmentPassthrough.Configure(["OPENAI_API_KEY_BACKUP", "OPENAI_*"])
+                ToolEnvironmentPassthrough
+                    .Configure(["OPENAI_API_KEY_BACKUP", "OPENAI_*"])
+                    .Collisions
             );
         }
         finally
@@ -85,6 +86,23 @@ public sealed class ToolEnvironmentPassthroughTests
         Assert.Contains("GEMINI_API_KEY", warning, StringComparison.Ordinal);
         Assert.Contains("provider credential", warning, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void The_admission_notice_names_the_variables_in_order()
+    {
+        string notice = ToolEnvironmentPassthrough.AdmissionNotice([
+            "MY_PROJECT_TOKEN",
+            "PROXY_URL",
+        ]);
+
+        Assert.Contains("toolEnvironment.passthrough", notice, StringComparison.Ordinal);
+        Assert.Contains("MY_PROJECT_TOKEN, PROXY_URL", notice, StringComparison.Ordinal);
+        Assert.Contains("tool processes", notice, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_admission_notice_is_empty_for_an_empty_list() =>
+        Assert.Equal(string.Empty, ToolEnvironmentPassthrough.AdmissionNotice([]));
 
     [Fact]
     public void Reset_clears_a_configured_list()
