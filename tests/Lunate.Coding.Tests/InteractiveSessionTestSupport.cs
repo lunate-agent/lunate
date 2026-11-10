@@ -946,7 +946,7 @@ internal sealed class InteractiveSessionHost : IDisposable
                 );
             }
 
-            await Task.Delay(1, TestContext.Current.CancellationToken);
+            await Task.Delay(WaitBudgets.PollInterval, TestContext.Current.CancellationToken);
         }
     }
 
@@ -1049,7 +1049,7 @@ internal sealed class InteractiveSessionHost : IDisposable
                     .ConfigureAwait(false);
             }
 
-            await Task.Delay(1, TestContext.Current.CancellationToken);
+            await Task.Delay(WaitBudgets.PollInterval, TestContext.Current.CancellationToken);
         }
     }
 

@@ -127,7 +127,7 @@ public sealed class CommandUnloadTests
                 throw new TimeoutException("the condition never became true");
             }
 
-            await Task.Delay(5, Ct);
+            await Task.Delay(WaitBudgets.PollInterval, Ct);
         }
     }
 }

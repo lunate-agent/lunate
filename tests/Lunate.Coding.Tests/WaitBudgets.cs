@@ -50,6 +50,23 @@ namespace Lunate.Coding.Tests;
 internal static class WaitBudgets
 {
     /// <summary>
+    /// The interval between polls in a wait helper.
+    /// <para>
+    /// It was one millisecond. On a 2-vCPU runner that starves the very code the wait is waiting
+    /// for: the wait yields, the runner schedules nothing else in the window it just opened, and
+    /// the condition it watches cannot progress — #710 counted three failures in one weekend from
+    /// exactly that, and PRs #704 and #711 showed it as an amplifier over their own defects.
+    /// </para>
+    /// <para>
+    /// A tenth of a second is two orders of magnitude below every ceiling in this file, so a wait
+    /// that would have passed still passes: it just stops competing with the work it is watching.
+    /// This is an interval, not a budget — nothing here is widened, and a genuine hang still fails
+    /// the leg at the same number of seconds.
+    /// </para>
+    /// </summary>
+    public static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
     /// A wait that spans a turn boundary: the run finishes (the session and its history are
     /// written), the follow-up queue drains, and the next turn starts. The writes alone queue behind
     /// the rest of the runner, on every leg and by more than the tight in-process window allows.
