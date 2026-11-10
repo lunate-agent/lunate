@@ -1,9 +1,7 @@
 # Key bindings
 
-Every binding the prompt routes, in the spelling the in-app help overlay renders. The table is
-generated from [`src/Lunate.Tui/keys.json`](../src/Lunate.Tui/keys.json) — the file the router and
-the in-app help read — so it cannot list a binding the product does not have. Edit the catalogue,
-then run `scripts/docs-sync`; `--check` fails a stale page.
+The prompt's bindings, one meaning each; [the guide](guide.md) describes the components and layout
+they drive.
 
 **Key bindings (one meaning each)**
 
