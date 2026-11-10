@@ -596,7 +596,7 @@ def run_examples(root, binary):
         bin_dir = Path(scratch) / "bin"
         bin_dir.mkdir()
         shim = bin_dir / "lunate"
-        shim.write_text(f"#!/bin/sh\nexec {shlex.quote(str(binary))} \"$@\"\n", encoding="utf-8")
+        write_text(shim, f"#!/bin/sh\nexec {shlex.quote(str(binary))} \"$@\"\n")
         shim.chmod(0o755)
         for index, (kind, reason, relative, line, body) in enumerate(runnable):
             work = Path(scratch) / f"run-{index}"
@@ -847,7 +847,7 @@ def self_test():
             path.parent.mkdir(parents=True, exist_ok=True)
             write_text(path, text)
         binary = root / "fake-lunate"
-        binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        write_text(binary, "#!/bin/sh\nexit 0\n")
         binary.chmod(0o755)
         write_text(
             root / "docs/start.md",
@@ -855,7 +855,7 @@ def self_test():
         )
         if run_examples(root, binary):
             failures.append("run: a succeeding help block must pass")
-        binary.write_text("#!/bin/sh\nexit 3\n", encoding="utf-8")
+        write_text(binary, "#!/bin/sh\nexit 3\n")
         if not any("exited 3" in problem for problem in run_examples(root, binary)):
             failures.append("run: a failing help block must be reported")
 
