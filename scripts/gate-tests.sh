@@ -350,6 +350,20 @@ if [ "$shard_union3" != "$partition_all" ]; then
   echo "gate-tests: FAIL: shards 1/3..3/3 do not partition the test projects" >&2
   exit 1
 fi
+# The CI matrix runs four shards per OS (#696). Each must own a real slice: a shard that owns
+# nothing would either fail the gate or, worse, look like a smoke test.
+shard_union4="$(printf '%s\n' "$(shard_slice 1 4)" "$(shard_slice 2 4)" "$(shard_slice 3 4)" "$(shard_slice 4 4)" | LC_ALL=C sort)"
+if [ "$shard_union4" != "$partition_all" ]; then
+  echo "gate-tests: FAIL: shards 1/4..4/4 do not partition the test projects" >&2
+  diff <(printf '%s\n' "$shard_union4") <(printf '%s\n' "$partition_all") | head -20 >&2
+  exit 1
+fi
+for shard_index in 1 2 3 4; do
+  if [ -z "$(shard_slice "$shard_index" 4)" ]; then
+    echo "gate-tests: FAIL: shard ${shard_index}/4 owns zero test projects" >&2
+    exit 1
+  fi
+done
 # Round-robin keeps the run balanced: neighbouring shard sizes differ by at most one.
 shard_size_1="$(printf '%s\n' "$(shard_slice 1 2)" | grep -c . || true)"
 shard_size_2="$(printf '%s\n' "$(shard_slice 2 2)" | grep -c . || true)"
@@ -381,6 +395,23 @@ module_union="$(printf '%s\n%s\n' "$(CONFIGURATION=Release SHARD_I=1 SHARD_N=2 v
 module_union_all="$(printf '%s\n' "$shard_modules_all" | tr ';' '\n' | LC_ALL=C sort)"
 if [ "$module_union" != "$module_union_all" ]; then
   echo "gate-tests: FAIL: the shard module expressions do not cover the solution set" >&2
+  exit 1
+fi
+module_union4="$(for shard_index in 1 2 3 4; do
+  CONFIGURATION=Release SHARD_I="$shard_index" SHARD_N=4 verify_shard_modules | tr ';' '\n'
+done | LC_ALL=C sort)"
+if [ "$module_union4" != "$module_union_all" ]; then
+  echo "gate-tests: FAIL: the four-shard module expressions do not cover the solution set" >&2
+  exit 1
+fi
+
+echo "gate-tests: the shard wall-time recorder writes the timing and the summary row"
+if ! grep -Fq 'shard-timing.sh' "${SCRIPT_DIR}/verify.sh"; then
+  echo "gate-tests: FAIL: verify.sh does not invoke shard-timing.sh, so no shard records its wall time" >&2
+  exit 1
+fi
+if ! bash "${SCRIPT_DIR}/shard-timing.sh" --self-test >/dev/null; then
+  echo "gate-tests: FAIL: shard-timing.sh self-test failed" >&2
   exit 1
 fi
 
