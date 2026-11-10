@@ -18,6 +18,7 @@ from swebench_run_support import (  # noqa: E402
     trajectory_totals,
 )
 from swebench_baseline import baseline_command  # noqa: E402
+import swebench_run  # noqa: E402
 
 EVAL = REPOSITORY / "eval" / "swebench"
 
@@ -25,10 +26,19 @@ EVAL = REPOSITORY / "eval" / "swebench"
 class SwebenchRunDefinitionTests(unittest.TestCase):
     def test_the_pinned_subset_is_the_stride_rule(self) -> None:
         subset = load_subset(EVAL / "instances.txt")
+        official = [
+            line.strip()
+            for line in (REPOSITORY / "tests" / "fixtures" / "swebench" / "verified-test-ids.txt")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
 
-        self.assertEqual(5, len(subset))
-        self.assertEqual("astropy__astropy-12907", subset[0])
-        self.assertEqual("sphinx-doc__sphinx-8120", subset[-1])
+        self.assertEqual(500, len(official))
+        self.assertEqual(
+            [official[index] for index in (0, 100, 200, 300, 400)],
+            subset,
+        )
 
     def test_the_pinned_models_are_one_budget_and_one_frontier(self) -> None:
         definition = load_definition(EVAL / "run.json")
@@ -368,6 +378,78 @@ run_dir = output / run_id
             self.assertFalse(marker.exists())
             resumed_arm = json.loads((summary / "run-1.lunate.json").read_text(encoding="utf-8"))
             self.assertEqual(1, resumed_arm["arms"][0]["resolved"])
+
+
+class SwebenchRunCapTests(unittest.TestCase):
+    def definition(self, cap: float = 30.0) -> dict:
+        return {
+            "_run_id": "run-1",
+            "_started_at": "2026-11-10T00:00:00Z",
+            "dataset": "SWE-bench/SWE-bench_Verified",
+            "split": "test",
+            "limits": {"maxCostUsd": cap, "maxTimeSeconds": 60},
+            "models": [
+                {"tier": "budget", "id": "opencode-go/budget"},
+                {"tier": "frontier", "id": "opencode-go/frontier"},
+            ],
+            "_keep_images": True,
+            "_resume": False,
+        }
+
+    def test_an_unpriced_instance_stops_the_run_and_leaves_the_total_unknown(self) -> None:
+        from unittest import mock
+
+        calls: list[tuple[str, str]] = []
+
+        def runner(definition, instance_id, model, work_root, remaining):
+            calls.append((instance_id, model["tier"]))
+            return {
+                "instanceId": instance_id,
+                "resolved": False,
+                "spendUsd": None if model["tier"] == "budget" else 0.5,
+                "failure": None,
+            }
+
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(swebench_run, "run_lunate_instance", side_effect=runner):
+                arm = swebench_run.run_arm(
+                    self.definition(), ["alpha__one-1", "beta__two-2"], "lunate", Path(directory)
+                )
+
+        self.assertEqual(
+            {("alpha__one-1", "budget"), ("alpha__one-1", "frontier")}, set(calls)
+        )
+        self.assertIsNone(arm["totalSpendUsd"])
+        self.assertTrue(arm["capReached"])
+        self.assertEqual([1, 1], [len(item["instances"]) for item in arm["arms"]])
+
+    def test_merge_does_not_turn_an_unknown_total_into_a_number(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "run-1.lunate.json").write_text(
+                json.dumps(
+                    {
+                        "runId": "run-1",
+                        "dataset": "SWE-bench/SWE-bench_Verified",
+                        "split": "test",
+                        "subset": ["alpha__one-1"],
+                        "total": 1,
+                        "maxCostUsd": 30.0,
+                        "totalSpendUsd": None,
+                        "capReached": True,
+                        "startedAt": "2026-11-10T00:00:00Z",
+                        "finishedAt": "2026-11-10T00:01:00Z",
+                        "arms": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            swebench_run.merge(root, "run-1")
+
+            summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+            self.assertIsNone(summary["totalSpendUsd"])
+            self.assertIn("unknown", (root / "summary.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -169,6 +169,7 @@ def run_arm(
     arms = []
     rows_by_tier = {model["tier"]: [] for model in models}
     cap_reached = False
+    unknown_spend = False
     for instance_id in subset:
         if spent >= cap:
             cap_reached = True
@@ -196,15 +197,18 @@ def run_arm(
                     rows_by_model[model["tier"]] = future.result()
         rows = [rows_by_model[model["tier"]] for model in models]
         for row in rows:
-            if row.get("spendUsd") is not None:
-                spent += row["spendUsd"]
+            if row.get("spendUsd") is None:
+                unknown_spend = True
             else:
-                spent = cap
+                spent += row["spendUsd"]
         for model, row in zip(models, rows):
             rows_by_tier[model["tier"]].append(row)
         if not definition.get("_keep_images"):
             image = instance_image(instance_id)
             subprocess.run([definition["_docker"], "rmi", "-f", image], capture_output=True, text=True, check=False)
+        if unknown_spend:
+            cap_reached = True
+            break
     for model in models:
         arms.append(summarize_arm(arm, model["tier"], model["id"], rows_by_tier[model["tier"]]))
     return {
@@ -218,7 +222,7 @@ def run_arm(
         "maxCostUsd": cap,
         "arms": arms,
         "total": len(subset),
-        "totalSpendUsd": round(spent, 6),
+        "totalSpendUsd": None if unknown_spend else round(spent, 6),
         "capReached": cap_reached,
         "hostArchitecture": platform.machine(),
     }
@@ -231,6 +235,10 @@ def merge(summary_dir: Path, run_id: str) -> Path:
     arms = list(lunate["arms"])
     if baseline:
         arms += baseline["arms"]
+    totals = [lunate["totalSpendUsd"]]
+    if baseline:
+        totals.append(baseline["totalSpendUsd"])
+    total_spend = None if any(total is None for total in totals) else round(totals[-1], 6)
     summary = {
         "schemaVersion": 1,
         "runId": run_id,
@@ -239,9 +247,7 @@ def merge(summary_dir: Path, run_id: str) -> Path:
         "subset": lunate["subset"],
         "total": lunate["total"],
         "maxCostUsd": lunate["maxCostUsd"],
-        "totalSpendUsd": round(
-            (baseline or lunate)["totalSpendUsd"], 6
-        ),
+        "totalSpendUsd": total_spend,
         "capReached": lunate["capReached"] or bool(baseline and baseline.get("capReached")),
         "arms": arms,
         "lunate": {"startedAt": lunate["startedAt"], "finishedAt": lunate["finishedAt"]},
@@ -299,10 +305,17 @@ def main(argv: list[str] | None = None) -> int:
             else 0.0
         )
     if args.arm in ("baseline", "all"):
-        arm = run_arm(definition, subset, "baseline", work_root, initial_spent=previous_spent)
-        (summary_dir / f"{args.run_id}.baseline.json").write_text(
-            json.dumps(arm, indent=2) + "\n", encoding="utf-8", newline="\n"
-        )
+        if previous_spent is None:
+            print(
+                "swebench-run: the Lunate arm has an unpriced instance, so the cap cannot be "
+                "certified; not starting the baseline",
+                file=sys.stderr,
+            )
+        else:
+            arm = run_arm(definition, subset, "baseline", work_root, initial_spent=previous_spent)
+            (summary_dir / f"{args.run_id}.baseline.json").write_text(
+                json.dumps(arm, indent=2) + "\n", encoding="utf-8", newline="\n"
+            )
     if args.arm in ("merge", "all"):
         merge(summary_dir, args.run_id)
     return 0

@@ -153,11 +153,16 @@ def summarize_arm(arm: str, tier: str, model: str, rows: list[dict]) -> dict:
 
 
 def render_markdown(summary: dict) -> str:
+    total = (
+        "unknown (an instance could not be priced)"
+        if summary["totalSpendUsd"] is None
+        else f"${summary['totalSpendUsd']:.4f}"
+    )
     lines = [
         f"# SWE-bench first run — {summary['runId']}",
         "",
         f"Dataset: `{summary['dataset']}` (`{summary['split']}`), subset: {summary['total']} instances.",
-        f"Cost cap: ${summary['maxCostUsd']:.2f}; reported spend: ${summary['totalSpendUsd']:.4f}.",
+        f"Cost cap: ${summary['maxCostUsd']:.2f}; reported spend: {total}.",
         "",
         "| Arm | Model | Tier | Resolved | Spend | Failures |",
         "| --- | --- | --- | --- | --- | --- |",

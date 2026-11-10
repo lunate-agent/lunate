@@ -1,13 +1,13 @@
 ## 1. Spend accounting
 
-- [ ] 1.1 Add a failing test that an unpriced instance leaves the run total unknown, stops the run and never reports more than the cap.
-- [ ] 1.2 Fix `run_arm` / `merge` so unknown spend is tracked separately, `totalSpendUsd` is `null`, and `capReached` is true.
-- [ ] 1.3 Render an unknown total honestly in `summary.md`.
+- [x] 1.1 Add a failing test that an unpriced instance leaves the run total unknown, stops the run and never reports more than the cap.
+- [x] 1.2 Fix `run_arm` / `merge` so unknown spend is tracked separately, `totalSpendUsd` is `null`, and `capReached` is true.
+- [x] 1.3 Render an unknown total honestly in `summary.md`.
 
 ## 2. Pinned stride
 
-- [ ] 2.1 Add `tests/fixtures/swebench/verified-test-ids.txt` with the official Verified test ids and their provenance.
-- [ ] 2.2 Add a test asserting the five pinned ids equal the fixture at indices 0, 100, 200, 300 and 400.
+- [x] 2.1 Add `tests/fixtures/swebench/verified-test-ids.txt` with the official Verified test ids and their provenance.
+- [x] 2.2 Add a test asserting the five pinned ids equal the fixture at indices 0, 100, 200, 300 and 400.
 
 ## 3. Baseline run
 
