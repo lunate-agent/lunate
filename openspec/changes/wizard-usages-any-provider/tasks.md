@@ -43,6 +43,10 @@
 - [x] 4.3 Summary test naming a fast usage and a decision profile from another provider.
 - [x] 4.4 Update the existing decision-picker tests to navigate the flat list by filter, and the
   `WizardDecisionChoice` construction sites.
+- [x] 4.5 `SetupWizardUsageWalkTests`: each of the three routes driven through the wizard's own
+  pickers — the fast step reusing the chat profile, the fast step taking another configured
+  provider's model and running its check, and the decision step's inline row returning to the same
+  picker before the check and the one commit.
 
 ## 5. Verification and close-out
 

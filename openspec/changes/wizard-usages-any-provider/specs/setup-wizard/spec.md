@@ -2,7 +2,7 @@
 
 ### Requirement: The full walk
 
-The wizard SHALL present ten steps in order — provider, credential, connection test, model, model check, chat profile, optional fast and decision profiles, decisions settings, summary, write — and SHALL implement every step with the existing list picker, masked prompt and question components (no new interaction primitives): only the credential value is read through the masked prompt; every other typed value — provider id, endpoint URL, API family, credential placement, region, models URL, model id, profile name, routing description — is read through the visible prompt, which echoes what is typed, including spaces. The masked prompt hides the credential behind one asterisk per character and keeps pasted text to its non-whitespace characters; the visible prompt shows the characters as typed and keeps pasted spaces, stripping only line breaks. Each step:
+The wizard SHALL present ten steps in order — provider, credential, connection test, model, model check, chat profile, optional fast and decision profiles, decisions settings, summary, write — and SHALL implement every step with the existing list picker, masked prompt, visible prompt and question components (no new interaction primitives): only the credential value is read through the masked prompt; every other typed value — provider id, endpoint URL, API family, credential placement, region, models URL, model id, profile name, routing description — is read through the visible prompt, which echoes what is typed, including spaces. The masked prompt hides the credential behind one asterisk per character and keeps pasted text to its non-whitespace characters; the visible prompt shows the characters as typed and keeps pasted spaces, stripping only line breaks. Each step:
 
 1. **Provider** lists the presets in `providers.json` order followed by `Custom OpenAI-compatible endpoint…`, and shows each provider's region (from the preset; asked for a custom provider). The custom path asks the endpoint, its API family (default `openai-chat`), its credential placement (default bearer; `x-api-key` for an Anthropic endpoint), its region and an optional models URL, and refuses an unknown family by name.
 2. **Credential** offers "use `<VAR>` from the environment" first when the provider's standard variable is already set (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, …), storing an `env:<VARIABLE>` reference; otherwise it reads a key through the masked prompt, and offers a `lunate auth`-stored key when one exists. The credential value SHALL never be written to `providers.json` or `settings.json`.
@@ -11,7 +11,7 @@ The wizard SHALL present ten steps in order — provider, credential, connection
 5. **Model check** makes one minimal real request through the model's resolved API family: one short completion for a chat profile, one tiny noul for a decision profile. The cost SHALL be stated before it runs and the check SHALL be skippable (`--no-model-check` on the flag path). A failure SHALL name the model, the family and the HTTP status or response shape, and offer going back to the model step; a skip or failure SHALL be marked unverified in the summary. A discovery success alone SHALL NOT count as a verified model.
 6. **Chat profile** asks the profile name and its thinking level, offering only the levels the chosen model supports; the question is skipped entirely for a model without a reasoning style.
 7. **Fast and decision profiles** are optional and default to skip. Both steps offer a model from any configured provider (see Fast and decision usages from any provider). When the chosen provider exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the preset's pinned version; otherwise the decision profile is offered as an **adapter**, labelled as such in the picker and summary. When the chosen provider is `opencode-go`, the native Jev line is labelled "native Jev — billed to your OpenCode pay-as-you-go balance, not the Go plan; no box questions" and no box question is asked for it; other presets keep the existing native/adapter labels. When routing is enabled, the step asks for each routing profile's description and warns once if one is left blank.
-8. **Decisions settings** presents every switch with its `off`/unset default and one explanatory line each; accepting the defaults writes nothing for the layer.
+8. **Decisions settings** presents every switch with its `off`/unset default and one explanatory line each, plus a **Done — leave the decisions settings** entry. After each switch is answered the step SHALL present the list again with the earlier answers kept, so several switches are collected in one pass; only the Done entry leaves the step. Accepting the defaults — Done with no switch changed — writes nothing for the layer.
 9. **Summary** shows every collected value — provider, region, credential source, endpoint, API family, credential placement, models URL, tested model, model-check result, profiles with their models and thinking levels, usage profiles with their provider and model, decision profile kind (native or adapter), every provider added inline with its credential and check, routing descriptions, decisions settings, and what was skipped — and writes nothing until it is confirmed with Enter.
 10. **Write** stores the provider entry and credential through the auth and provider stores and the profiles and usages through `SettingsStore`, in one pass.
 
@@ -83,11 +83,32 @@ Every step accepts skip; a skipped step leaves the value it would have configure
 - **WHEN** the decisions step collects them
 - **THEN** it asks each profile for a description, warns once if one is blank, and sends the descriptions as criteria per #494 §7
 
+#### Scenario: The decisions list stays open until Done
+
+- **GIVEN** the decisions settings step is open and the user changes the approval gate
+- **WHEN** the approval question is answered
+- **THEN** the decisions list is presented again with the approval answer kept, and choosing **Done — leave the decisions settings** leaves the step
+
+#### Scenario: Two decision settings change in one pass
+
+- **GIVEN** the decisions settings step is open and the user changes the approval gate and then the decide tool
+- **WHEN** the user chooses **Done — leave the decisions settings**
+- **THEN** the summary and the commit carry both changed settings from the same pass
+
 #### Scenario: Skipped steps surface in the summary
 
 - **GIVEN** a wizard run where the auth step was skipped and fast/decision profiles were skipped
 - **WHEN** the summary renders
 - **THEN** each skipped item is named as skipped and no value was invented for it
+
+#### Scenario: A custom endpoint writes the same entry as `auth login --custom`
+
+- **GIVEN** the wizard's custom path with an Anthropic-compatible endpoint, family `anthropic-messages`
+  and placement `x-api-key`
+- **WHEN** the summary is confirmed
+- **THEN** `providers.json` carries the same entry shape the CLI writes (`baseUrls` keyed by family,
+  `credentialPlacement`, optional `modelsUrl`), the credential stays in the auth store, and no secret
+  appears in either file
 
 #### Scenario: The Go Jev label names the billing
 
@@ -101,11 +122,39 @@ Every step accepts skip; a skipped step leaves the value it would have configure
 - **WHEN** the provider id, endpoint URL, region, model id and profile name are typed at their steps, and then an API key is typed at the credential step
 - **THEN** every non-credential prompt renders and records what was typed, including spaces, and the credential prompt renders one asterisk per character with its plaintext never in the live state
 
-#### Scenario: A custom endpoint writes the same entry as `auth login --custom`
+### Requirement: The model step resolves the id in the walked provider's scope
 
-- **GIVEN** a custom endpoint answered in the provider step with a typed key and a model
-- **WHEN** the summary is confirmed
-- **THEN** `settings.providers` receives the same entry shape `auth login --custom` writes and the key lands only in the auth store
+The model step SHALL resolve the chosen model id against the provider entry the walk is configuring before it resolves anything else: the catalogue entry `<provider id>/<model id>` first, then the exact catalogue id, then the single catalogue entry whose wire id the chosen id is. A discovered listing of a custom endpoint SHALL keep serving bare wire ids, and such an id SHALL never abort the walk. Where the walked provider's own entry answers, the walk SHALL stage the id without an extra prompt; where it does not, and the catalogue holds the id under several providers, the walk SHALL offer those qualified ids in a picker and stage the chosen one. Where nothing in the catalogue matches, the walk SHALL stage the id as given and let the model check decide. No step of the walk SHALL fail with an internal ambiguity message.
+
+#### Scenario: A custom endpoint's bare id that several catalogue providers serve
+
+- **GIVEN** a custom endpoint whose discovery listing offers `kimi-k2.7-code`, which the catalogue holds as `moonshotai/kimi-k2.7-code`, `opencode/kimi-k2.7-code` and `opencode-go/kimi-k2.7-code`
+- **WHEN** the walk stages that id at the model step
+- **THEN** the walk continues to the model check without a prompt, and the summary's model is `kimi-k2.7-code`
+
+#### Scenario: An id one catalogue entry of the walked provider answers
+
+- **GIVEN** the `moonshotai` preset and a discovery listing that offers `kimi-k2.7-code`
+- **WHEN** the walk stages that id at the model step
+- **THEN** it stages it without a picker, and the model check resolves `moonshotai/kimi-k2.7-code`
+
+#### Scenario: An id several unrelated catalogue providers serve
+
+- **GIVEN** the `openai` preset and a model id the catalogue holds under `moonshotai`, `opencode` and `opencode-go`
+- **WHEN** the walk stages that id at the model step
+- **THEN** the step offers `moonshotai/kimi-k2.7-code`, `opencode/kimi-k2.7-code` and `opencode-go/kimi-k2.7-code` and stages the one the user picks
+
+#### Scenario: The flag path takes the same resolution
+
+- **GIVEN** `lunate setup --provider local --endpoint <url> --model kimi-k2.7-code`
+- **WHEN** the walk resolves the model's API family and runs its checks
+- **THEN** it completes and exits 0 instead of failing with an ambiguity error
+
+#### Scenario: The written configuration resolves on the next start
+
+- **GIVEN** a walk that staged a custom endpoint with the bare id `kimi-k2.7-code`
+- **WHEN** the confirmed configuration is loaded for the next session
+- **THEN** the profile resolves that id through its own provider entry, not through the whole catalogue
 
 ## ADDED Requirements
 
