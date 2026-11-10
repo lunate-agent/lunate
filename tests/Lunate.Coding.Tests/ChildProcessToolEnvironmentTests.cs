@@ -3,7 +3,7 @@ using Lunate.Extensibility.Abstractions;
 namespace Lunate.Coding.Tests;
 
 /// <summary>
-/// The pass-through contract at the real spawn: the configured exact names reach the tool child on
+/// The pass-through contract at the real spawn: the exact names on the list reach the tool child on
 /// POSIX and on Windows, a credential name the user did not list is still stripped, and a name that
 /// merely looks like one survives. The parent set is handed in through the request and the
 /// pass-through list through the spawn, so the test asserts the policy it states and never the
