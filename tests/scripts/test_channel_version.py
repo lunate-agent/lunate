@@ -32,7 +32,7 @@ class ChannelVersionTests(unittest.TestCase):
         # The Scoop bucket served 0.1.0 while the tag was 0.3.0. The binary's first-run hint on
         # the second line is what defeated the old PowerShell check, so it stays in the fixture.
         result = self.run_checker(
-            "Scoop", "v0.3.0", "0.1.0+92fe1e5\nhome /tmp/lunate-home (LUNATE_HOME)"
+            "Scoop", "v0.3.0", "0.1.0+92fe1e5\nhome D:/a/_temp/lunate-home (LUNATE_HOME)"
         )
 
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
@@ -42,7 +42,7 @@ class ChannelVersionTests(unittest.TestCase):
 
     def test_a_stable_channel_at_the_tag_passes(self):
         result = self.run_checker(
-            "Homebrew", "v0.3.0", "0.3.0+a8af348\nhome /tmp/lunate-home (LUNATE_HOME)"
+            "Homebrew", "v0.3.0", "0.3.0+a8af348\nhome D:/a/_temp/lunate-home (LUNATE_HOME)"
         )
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
