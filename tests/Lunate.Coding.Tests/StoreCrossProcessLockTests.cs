@@ -26,9 +26,6 @@ public sealed class StoreCrossProcessLockTests
     );
     private const string MigrationChild = nameof(A_migration_reads_again_under_the_claim);
 
-    /// <summary>How long the waiting writer is given to prove it is actually waiting.</summary>
-    private static readonly TimeSpan ContentionWindow = TimeSpan.FromMilliseconds(300);
-
     [Fact]
     public async Task A_settings_write_waits_for_a_claim_another_process_holds()
     {
@@ -47,7 +44,7 @@ public sealed class StoreCrossProcessLockTests
 
         using FileLock held = FileLock.Acquire(
             Path.ChangeExtension(path, ".lock"),
-            TimeSpan.FromSeconds(5)
+            WaitBudgets.StoreClaimHold
         );
         Task<(int ExitCode, string Output)> child = TestChildProcess.RunAsync(
             typeof(StoreCrossProcessLockTests),
@@ -63,7 +60,7 @@ public sealed class StoreCrossProcessLockTests
 
         // The child has reached the writer. While this process holds the claim, the write must not
         // land: a last-writer-wins store would let it through here.
-        await Task.Delay(ContentionWindow, TestContext.Current.CancellationToken);
+        await Task.Delay(WaitBudgets.StoreClaimContention, TestContext.Current.CancellationToken);
         Assert.False(child.IsCompleted, "the child wrote while another process held the claim");
         Assert.DoesNotContain("child", File.ReadAllText(path), StringComparison.Ordinal);
 
@@ -103,7 +100,7 @@ public sealed class StoreCrossProcessLockTests
 
         using FileLock held = FileLock.Acquire(
             Path.ChangeExtension(path, ".lock"),
-            TimeSpan.FromSeconds(5)
+            WaitBudgets.StoreClaimHold
         );
         Task<(int ExitCode, string Output)> child = TestChildProcess.RunAsync(
             typeof(StoreCrossProcessLockTests),
@@ -116,7 +113,7 @@ public sealed class StoreCrossProcessLockTests
         );
 
         await WaitForReadyAsync(ready);
-        await Task.Delay(ContentionWindow, TestContext.Current.CancellationToken);
+        await Task.Delay(WaitBudgets.StoreClaimContention, TestContext.Current.CancellationToken);
         Assert.False(child.IsCompleted, "the child saved while another process held the claim");
         Assert.DoesNotContain("child", File.ReadAllText(path), StringComparison.Ordinal);
 
@@ -163,7 +160,7 @@ public sealed class StoreCrossProcessLockTests
 
         using FileLock held = FileLock.Acquire(
             Path.ChangeExtension(providersPath, ".lock"),
-            TimeSpan.FromSeconds(5)
+            WaitBudgets.StoreClaimHold
         );
         Task<(int ExitCode, string Output)> child = TestChildProcess.RunAsync(
             typeof(StoreCrossProcessLockTests),
@@ -176,7 +173,7 @@ public sealed class StoreCrossProcessLockTests
         );
 
         await WaitForReadyAsync(ready);
-        await Task.Delay(ContentionWindow, TestContext.Current.CancellationToken);
+        await Task.Delay(WaitBudgets.StoreClaimContention, TestContext.Current.CancellationToken);
         Assert.False(child.IsCompleted, "the migration wrote while another process held the claim");
 
         // A provider entry lands after the child's first read and before its claim is granted; a
@@ -220,10 +217,10 @@ public sealed class StoreCrossProcessLockTests
 
         using FileLock held = FileLock.Acquire(
             Path.ChangeExtension(path, ".lock"),
-            TimeSpan.FromSeconds(5)
+            WaitBudgets.StoreClaimHold
         );
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
-            SettingsStore.AcquireWriteLock(path, TimeSpan.FromMilliseconds(50))
+            SettingsStore.AcquireWriteLock(path, WaitBudgets.StoreClaimRefusal)
         );
 
         Assert.Contains(path, error.Message, StringComparison.Ordinal);
@@ -244,10 +241,10 @@ public sealed class StoreCrossProcessLockTests
 
         using FileLock held = FileLock.Acquire(
             Path.ChangeExtension(path, ".lock"),
-            TimeSpan.FromSeconds(5)
+            WaitBudgets.StoreClaimHold
         );
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
-            ProviderStore.AcquireLock(path, TimeSpan.FromMilliseconds(50))
+            ProviderStore.AcquireLock(path, WaitBudgets.StoreClaimRefusal)
         );
 
         Assert.Contains(path, error.Message, StringComparison.Ordinal);
@@ -287,17 +284,18 @@ public sealed class StoreCrossProcessLockTests
 
     private static async Task WaitForReadyAsync(string path)
     {
-        long deadline = Environment.TickCount64 + 30_000;
+        long deadline = Environment.TickCount64 + (long)WaitBudgets.SpawnWindow.TotalMilliseconds;
         while (!File.Exists(path))
         {
             if (Environment.TickCount64 >= deadline)
             {
                 throw new TimeoutException(
-                    $"the child never reached the write: '{path}' did not appear within 30 s."
+                    $"the child never reached the write: '{path}' did not appear within "
+                        + $"{WaitBudgets.SpawnWindow.TotalSeconds:0} s."
                 );
             }
 
-            await Task.Delay(25, TestContext.Current.CancellationToken);
+            await Task.Delay(WaitBudgets.ChildMarkerPoll, TestContext.Current.CancellationToken);
         }
     }
 }
