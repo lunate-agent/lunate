@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using Lunate.Tui.Platform;
 
 namespace Lunate.Tui.Tests;
@@ -45,6 +46,7 @@ public sealed class UnixRawModeTests
         Assert.Equal(0x0000_0100u, layout.ICanon);
         Assert.Equal(0x0000_0400u, layout.IExten);
         Assert.Equal(MacOsClearMask, layout.IFlagClearMask);
+        Assert.Equal(1, layout.InputFlush);
     }
 
     [Fact]
@@ -69,6 +71,7 @@ public sealed class UnixRawModeTests
         Assert.Equal(0x0000_0002u, layout.ICanon);
         Assert.Equal(0x0000_8000u, layout.IExten);
         Assert.Equal(LinuxClearMask, layout.IFlagClearMask);
+        Assert.Equal(0, layout.InputFlush);
     }
 
     [Theory]
@@ -138,4 +141,81 @@ public sealed class UnixRawModeTests
             UnixRawMode.Current
         );
     }
+
+    /// <summary>
+    /// The restore writes the captured attributes back so the pty is exactly as the session found
+    /// it. Darwin sets PENDIN on the tcsetattr that re-enables ICANON, and only a read or an input
+    /// flush clears it; with no reader on this slave the flush is the only thing that can. This is
+    /// a real pty, not a byte-window stand-in, so the kernel's own attribute handling is under test.
+    /// </summary>
+    [Fact]
+    public void Enter_restores_a_pty_slave_to_its_captured_baseline()
+    {
+        Assert.SkipUnless(
+            !OperatingSystem.IsWindows(),
+            "the pty allocation and termios calls are POSIX-only."
+        );
+
+        int master = posix_openpt(O_Rdwr);
+        Assert.True(master >= 0, "posix_openpt failed");
+        int slave = -1;
+        try
+        {
+            Assert.Equal(0, grantpt(master));
+            Assert.Equal(0, unlockpt(master));
+            slave = open(SlaveName(master), O_Rdwr);
+            Assert.True(slave >= 0, "opening the pty slave failed");
+
+            var baseline = new byte[UnixRawMode.TermiosBufferSize];
+            Assert.Equal(0, tcgetattr(slave, baseline));
+
+            using (UnixRawMode.Enter(slave)) { }
+
+            var restored = new byte[UnixRawMode.TermiosBufferSize];
+            Assert.Equal(0, tcgetattr(slave, restored));
+
+            Assert.Equal(Convert.ToHexString(baseline), Convert.ToHexString(restored));
+        }
+        finally
+        {
+            if (slave >= 0)
+            {
+                close(slave);
+            }
+
+            close(master);
+        }
+    }
+
+    private static string SlaveName(int master)
+    {
+        var buffer = new byte[256];
+        Assert.Equal(0, ptsname_r(master, buffer, (nuint)buffer.Length));
+        int length = Array.IndexOf(buffer, (byte)0);
+        Assert.True(length > 0);
+        return System.Text.Encoding.UTF8.GetString(buffer, 0, length);
+    }
+
+    private const int O_Rdwr = 2;
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int posix_openpt(int flags);
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int grantpt(int fd);
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int unlockpt(int fd);
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int ptsname_r(int fd, byte[] buffer, nuint length);
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int open(string path, int flags);
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int close(int fd);
+
+    [DllImport("libc", SetLastError = true)]
+    private static extern int tcgetattr(int fd, byte[] termios);
 }
