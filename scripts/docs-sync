@@ -16,12 +16,11 @@ Three mechanisms, all driven by markers in a Markdown file:
       store refuses. The page must carry the pair, like the guide's.
 
   <!-- docs-sync: version --> ... <!-- /docs-sync: version -->
-      replaced with the current stable release, derived from the newest *published* stable release:
-      the newest non-prerelease tag whose release attached its SHA256SUMS, which exists exactly when
-      the release does. A tag whose release never published is not a release, so a failed release
-      cannot make the README advertise a version nobody can install. The channel-manifest guard
-      reads the same definition from `scripts/published_release.py`. README.md must carry this pair;
-      a missing marker is a failure, not a page without a generated region.
+      replaced with the current stable release, derived from the newest non-prerelease tag in the
+      repository's git history (`vX.Y.Z`, no `v` prefix and no prerelease suffix counts) — the same
+      fact `scripts/release-versions.sh` derives for packaging, so the README cannot keep
+      advertising a version that is not the newest tag. README.md must carry this pair; a missing
+      marker is a failure, not a page without a generated region.
 
   <!-- snippet: <repo-relative path> -->
       replaced with a fenced code block holding that file's text. If the file carries a
@@ -47,8 +46,6 @@ import sys
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
 
-import published_release
-
 KEYS_PAGE = "docs/guide.md"
 KEYS_SOURCE = "src/Lunate.Tui/keys.json"
 KEYS_START = "<!-- keys:start -->"
@@ -62,6 +59,8 @@ SETTINGS_END = "<!-- /docs-sync: settings -->"
 VERSION_PAGE = "README.md"
 VERSION_START = "<!-- docs-sync: version -->"
 VERSION_END = "<!-- /docs-sync: version -->"
+
+STABLE_TAG = re.compile(r"^v?(\d+\.\d+\.\d+)$")
 
 SNIPPET_PREFIX = "<!-- snippet:"
 SNIPPET_SUFFIX = "-->"
@@ -256,36 +255,56 @@ def replace_settings_region(root, path, text):
     )
 
 
-def stable_release(root, fetch=None):
-    """The newest published stable release as `X.Y.Z`, not copied by hand.
+def stable_release(root):
+    """The newest non-prerelease tag as `X.Y.Z`, parsed from `git tag --list`, not copied by hand.
 
-    `scripts/published_release.py` owns the definition: prerelease tags are skipped, and so is a
-    stable tag whose release never attached its SHA256SUMS, because a tag with no release is not a
-    release. A clone without the tags fails here with the remedy named, instead of silently
-    checking a region that never changes.
+    Prerelease tags carry a suffix (`v0.3.0-rc.1`) and are skipped, so an rc tag never
+    advertises a stable version. A clone without the tags fails here with the remedy named,
+    instead of silently checking a region that never changes.
     """
+    import subprocess
+
     try:
-        return published_release.published_version(root, fetch)
-    except published_release.ReleaseError as error:
+        result = subprocess.run(
+            ["git", "-C", str(root), "tag", "--list"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except FileNotFoundError:
+        raise DocsSyncError("git is required to read the release tags for the version region")
+    except subprocess.CalledProcessError as error:
         raise DocsSyncError(
-            f"{error}; the version region is derived from the repository's published releases -- "
-            "shallow checkouts get their tags with 'git fetch --tags'"
-        ) from error
+            f"git tag failed: {error.stderr.strip() or f'no repository under {root}'}"
+        )
+
+    releases = [
+        tuple(int(part) for part in STABLE_TAG.match(tag).group(1).split("."))
+        for tag in result.stdout.split()
+        if STABLE_TAG.match(tag)
+    ]
+    if not releases:
+        raise DocsSyncError(
+            "no non-prerelease release tag (vX.Y.Z) was found; the version region is derived from "
+            "the repository's git tags -- shallow checkouts get theirs with 'git fetch --tags'"
+        )
+    version = max(releases)
+    return f"{version[0]}.{version[1]}.{version[2]}"
 
 
-def version_region_lines(root, fetch=None):
+def version_region_lines(root):
     """The one line the README's version region carries: release number and release-notes link."""
-    version = stable_release(root, fetch)
+    version = stable_release(root)
     return [
         f"The current stable release is [**{version}**]"
         f"(https://github.com/lunate-agent/lunate/releases/tag/v{version})."
     ]
 
 
-def replace_version_region(root, path, text, fetch=None):
-    """Swaps the lines between the version markers for the release line built from the releases.
+def replace_version_region(root, path, text):
+    """Swaps the lines between the version markers for the release line built from the tags.
 
-    Only pages that declare the start marker are rewritten; the release lookup runs exactly
+    Only pages that declare the start marker are rewritten; the tag derivation runs exactly
     when a region is about to be written or checked.
     """
     lines = lines_of(text)
@@ -303,7 +322,7 @@ def replace_version_region(root, path, text, fetch=None):
         VERSION_START,
         VERSION_END,
         "'/docs-sync: version'",
-        version_region_lines(root, fetch),
+        version_region_lines(root),
     )
 
 
@@ -380,14 +399,14 @@ def expand_snippets(root, path, lines):
     return expanded
 
 
-def page(root, path, fetch=None):
+def page(root, path):
     """The page's expected text: its generated regions regenerated and its snippets expanded."""
     relative = path.relative_to(root).as_posix()
     text = read_text(path)
     if relative == KEYS_PAGE or any(line.strip() == KEYS_START for line in lines_of(text)):
         text = replace_keys_region(root, relative, text)
     text = replace_settings_region(root, relative, text)
-    text = replace_version_region(root, relative, text, fetch)
+    text = replace_version_region(root, relative, text)
     return "\n".join(expand_snippets(root, relative, lines_of(text))) + "\n"
 
 
@@ -406,11 +425,11 @@ def pages(root):
     return sorted(path for path in docs.rglob("*.md") if path.is_file()) + [root / VERSION_PAGE]
 
 
-def plan(root, fetch=None):
+def plan(root):
     """Every generated page whose text differs from what is on disk."""
     changes = []
     for path in pages(root):
-        text = page(root, path, fetch)
+        text = page(root, path)
         if text != read_text(path):
             changes.append((path, text))
     return changes
@@ -431,8 +450,8 @@ def differences(before, after, limit=10):
     return "\n".join(shown)
 
 
-def run(root, write, fetch=None):
-    changes = plan(root, fetch)
+def run(root, write):
+    changes = plan(root)
     if not changes:
         print("docs-sync: up to date")
         return 0
@@ -452,13 +471,13 @@ def run(root, write, fetch=None):
     return 1
 
 
-def capture(root, write, fetch=None):
+def capture(root, write):
     """Runs the real report path with its two streams captured, as main() reports them."""
     out = io.StringIO()
     err = io.StringIO()
     with redirect_stdout(out), redirect_stderr(err):
         try:
-            status = run(root, write, fetch)
+            status = run(root, write)
         except (DocsSyncError, json.JSONDecodeError, OSError) as failure:
             print(f"docs-sync: {failure}", file=sys.stderr)
             status = 1
@@ -484,23 +503,10 @@ def self_test():
         )
         for tag in ("v0.1.0", "v0.2.0-rc.1", "v0.2.1"):
             subprocess.run(["git", "tag", tag], cwd=scratch, check=True)
-
-        # The release lookup waits for a real release asset; the self-test answers it from this
-        # set, so a test never reaches GitHub. A tag missing from the set has no release.
-        published = {"v0.1.0", "v0.2.1"}
-
-        def fetch(tag):
-            if tag not in published:
-                raise published_release.ReleaseMissing(f"{tag} has no release asset")
-            return {"probe": "0" * 64}
-
-        def check_scratch(write):
-            return capture(scratch, write, fetch)
-
-        release_notes = version_region_lines(scratch, fetch)[0]
+        release_notes = version_region_lines(scratch)[0]
         if "0.2.1" not in release_notes or "0.1.0" in release_notes:
             raise DocsSyncError(
-                "self-test: the version region must carry the newest published release, 0.2.1"
+                "self-test: the version region must carry the newest non-prerelease tag, 0.2.1"
             )
         release_page = scratch / VERSION_PAGE
         write_text(
@@ -577,7 +583,7 @@ def self_test():
 
         # 1. Writing a stale tree regenerates the table.
         cases += 1
-        status, _, _ = check_scratch(write=True)
+        status, _, _ = capture(scratch, write=True)
         if status != 0:
             raise DocsSyncError(f"self-test: writing a stale tree must succeed, exited {status}")
         table = read_text(guide)
@@ -601,7 +607,7 @@ def self_test():
         if "<!-- snippet: templates/sample.csproj -->" not in snippet:
             raise DocsSyncError("self-test: the snippet marker must stay in the page")
         second = read_text(page_path)
-        status, out, _ = check_scratch(write=True)
+        status, out, _ = capture(scratch, write=True)
         if status != 0 or read_text(page_path) != second or "up to date" not in out:
             raise DocsSyncError("self-test: a second run must leave a generated page unchanged")
         write_text(
@@ -610,7 +616,7 @@ def self_test():
                 'Private="false"', 'Private="true"'
             ),
         )
-        status, _, _ = check_scratch(write=False)
+        status, _, _ = capture(scratch, write=False)
         if status != 1:
             raise DocsSyncError("self-test: --check must notice a changed snippet source")
         write_text(
@@ -622,7 +628,7 @@ def self_test():
 
         # 4. --check passes on a tree that was just written.
         cases += 1
-        status, _, _ = check_scratch(write=False)
+        status, _, _ = capture(scratch, write=False)
         if status != 0:
             raise DocsSyncError(f"self-test: --check must pass on a clean tree, exited {status}")
 
@@ -631,7 +637,7 @@ def self_test():
         clean = read_text(guide)
         write_text(guide, clean.replace("First thing", "Something else"))
         stale = read_text(guide)
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1:
             raise DocsSyncError(f"self-test: --check on a stale table must exit 1, exited {status}")
         if "guide.md" not in err:
@@ -643,7 +649,7 @@ def self_test():
         # 6. A deleted region marker fails instead of passing vacuously.
         cases += 1
         write_text(guide, clean.replace(KEYS_END + "\n", ""))
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "keys:end" not in err:
             raise DocsSyncError("self-test: a missing region marker must fail and name the marker")
         write_text(guide, clean)
@@ -651,7 +657,7 @@ def self_test():
         # 7. A snippet whose file is missing fails and names the path.
         cases += 1
         write_text(page_path, marked_page.replace("sample.csproj", "gone.csproj"))
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "no such file" not in err:
             raise DocsSyncError("self-test: a missing snippet source must fail and name the path")
 
@@ -659,7 +665,7 @@ def self_test():
         cases += 1
         write_text(scratch / "templates" / "sample.unknownext", "x\n")
         write_text(page_path, marked_page.replace("sample.csproj", "sample.unknownext"))
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "LANGUAGES" not in err:
             raise DocsSyncError("self-test: an unknown fence language must fail with a hint")
 
@@ -671,14 +677,14 @@ def self_test():
             notes,
             "# Notes\n\nA marker looks like `<!-- snippet: templates/sample.csproj -->` in prose.\n",
         )
-        status, _, _ = check_scratch(write=False)
+        status, _, _ = capture(scratch, write=False)
         if status != 0:
             raise DocsSyncError("self-test: a sentence mentioning a marker must not be one")
 
         # 10. A malformed marker at the start of a line fails instead of silently generating nothing.
         cases += 1
         write_text(notes, "# Notes\n\n<!-- snippet templates/sample.csproj -->\n")
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "on a line of its own" not in err:
             raise DocsSyncError("self-test: a malformed marker must fail and show the shape")
         write_text(
@@ -703,7 +709,7 @@ def self_test():
                     f"self-test: the settings table lost the {cell} cell from settings-schema.json"
                 )
         second_settings = read_text(configuration)
-        status, out, _ = check_scratch(write=True)
+        status, out, _ = capture(scratch, write=True)
         if (
             status != 0
             or read_text(configuration) != second_settings
@@ -716,7 +722,7 @@ def self_test():
             scratch / SETTINGS_SOURCE,
             read_text(scratch / SETTINGS_SOURCE).replace("The default model id.", "Changed."),
         )
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "configuration.md" not in err:
             raise DocsSyncError(
                 "self-test: --check must notice a changed settings schema and name the page"
@@ -727,66 +733,48 @@ def self_test():
         )
         lost_marker = read_text(configuration).replace(SETTINGS_END + "\n", "")
         write_text(configuration, lost_marker)
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "docs-sync: settings" not in err:
             raise DocsSyncError(
                 "self-test: a missing settings marker must fail and name the marker"
             )
         write_text(configuration, second_settings)
 
-        # 12. The version region is the newest published stable release, not a number someone typed
-        #     or a merely cut tag: a stale region regenerates, an rc tag leaves it alone, a stable
-        #     tag whose release never published leaves it alone (the v0.3.0 state that made main
-        #     red), the release appearing makes --check fail, and a lost marker fails instead of
-        #     passing vacuously.
+        # 12. The version region is the newest non-prerelease tag, not a number someone typed: a
+        #     stale region regenerates, an rc tag leaves it alone, a new release tag makes --check
+        #     fail, and a lost marker fails instead of passing vacuously.
         cases += 1
-        status, _, _ = check_scratch(write=True)
+        status, _, _ = capture(scratch, write=True)
         if status != 0 or read_text(release_page).count(release_notes) != 1:
             raise DocsSyncError(
-                "self-test: the version region must regenerate from the published releases"
+                "self-test: the version region must regenerate from the checked-out tags"
             )
         stable_written = read_text(release_page)
         subprocess.run(["git", "tag", "v0.3.0-rc.2"], cwd=scratch, check=True)
-        status, _, _ = check_scratch(write=False)
+        status, _, _ = capture(scratch, write=False)
         if status != 0:
             raise DocsSyncError(
                 "self-test: a prerelease tag must not stale the version region"
             )
         subprocess.run(["git", "tag", "v0.3.0"], cwd=scratch, check=True)
-        status, _, _ = check_scratch(write=False)
-        if status != 0 or read_text(release_page) != stable_written:
-            raise DocsSyncError(
-                "self-test: a stable tag with no published release must not stale the version "
-                "region, and --check must stay clean on that tree"
-            )
-        published.add("v0.3.0")
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "README.md" not in err:
             raise DocsSyncError(
-                "self-test: --check must notice a newly published release and name README.md"
+                "self-test: --check must notice a new release tag and name README.md"
             )
-        status, _, _ = check_scratch(write=True)
+        status, _, _ = capture(scratch, write=True)
         if status != 0 or "0.3.0" not in read_text(release_page):
             raise DocsSyncError(
-                "self-test: writing must pick up the newly published release, 0.3.0"
+                "self-test: writing must pick up the new release tag, 0.3.0"
             )
         lost_version_marker = read_text(release_page).replace(VERSION_END + "\n", "")
         write_text(release_page, lost_version_marker)
-        status, _, err = check_scratch(write=False)
+        status, _, err = capture(scratch, write=False)
         if status != 1 or "docs-sync: version" not in err:
             raise DocsSyncError(
                 "self-test: a missing version marker must fail and name the marker"
             )
         write_text(release_page, stable_written)
-
-        # 13. Nothing published at all is a clear failure, never a silent pass with an old line.
-        cases += 1
-        published.clear()
-        status, _, err = check_scratch(write=False)
-        if status != 1 or "no published stable release" not in err:
-            raise DocsSyncError(
-                "self-test: no published release must fail clearly, not pass silently"
-            )
 
         print(f"self-test: {cases}/{cases}")
         return 0
