@@ -77,6 +77,7 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
         )
 
         self.assertIn("swebench-single", command)
+        self.assertIn("--exit-immediately", command)
         self.assertIn("swebench.yaml", command)
         self.assertTrue(any("mini-swe-agent.yaml" in part for part in command))
         self.assertTrue(any("model.litellm_model_registry=" in part for part in command))

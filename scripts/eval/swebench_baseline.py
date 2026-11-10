@@ -40,6 +40,7 @@ def baseline_command(definition: dict, instance_id: str, model: dict, trajectory
         "--model",
         alias,
         "--yolo",
+        "--exit-immediately",
         "-c",
         "swebench.yaml",
         "-c",
