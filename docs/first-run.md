@@ -41,27 +41,9 @@ Quick never hides a default: a setting it skips appears in that block. `Esc` at 
 run with nothing written. The full walk is the only path that writes several stores; the entry menu
 below writes only the answers it collects.
 
-## `lunate setup` — non-interactive and scripted
-
-`lunate setup` runs the same walk without a TTY. Every answer is a flag; an absent flag skips its
-step and invents nothing. The connection test and the model check run unless suppressed: `--no-test`
-sends no provider request at all (it skips both), while `--no-model-check` skips only the paid model
-check and keeps the free discovery request. The summary goes to stdout and never contains a
-credential.
-
-```bash
-printf '%s\n' "$OPENAI_API_KEY" |
-  lunate setup \
-    --provider openai --credential env:OPENAI_API_KEY \
-    --model gpt-4.1 --profile chat-main --thinking medium
-```
-
-The flag set is `--provider`, `--endpoint`, `--api-family`, `--credential-placement`,
-`--models-url`, `--credential` (an `env:`/`auth:` reference), `--key-stdin`, `--model`, `--profile`,
-`--thinking`, `--fast`, `--as-decision`, `--no-test` (offline: skips the connection test and the
-model check, so no provider request is sent), `--no-model-check` (skips the model check only), and
-`--force`. A run without a terminal exits 2 and names the missing answer when a value needs
-interaction; 0 after a real commit or a no-op; 1 for a store/load failure.
+`lunate setup` runs the same walk from flags without a terminal: one flag per answer, nothing
+invented for an absent one. [CI and unattended runs](ci.md#configure-a-machine-without-a-terminal)
+has the flag set, the exit codes and a working example.
 
 ## `/setup` — re-run from a session
 
@@ -114,40 +96,9 @@ guessing.
 | `lunate auth logout <provider>` | Removes the stored entry, names a still-set environment variable without its value, and exits non-zero when nothing was stored. |
 | `lunate auth status` | Reports the resolved default provider and whether a credential exists; exits 0 when it does and 1 when it does not, so a bootstrap script can branch on it. |
 
-## Provider instances and credentials
-
-The twelve built-in provider kinds are templates for adapters and defaults. A user may define
-multiple named provider entries of one kind in `~/.lunate/providers.json`:
-
-```json providers
-{
-  "schemaVersion": 1,
-  "providers": [
-    {
-      "name": "work-anthropic",
-      "kind": "anthropic",
-      "baseUrl": "https://api.anthropic.com",
-      "credentialReference": "auth:work-anthropic",
-      "region": "eu"
-    }
-  ]
-}
-```
-
-`credentialReference` and optional header values are references, never secret values. Supported
-sources are `auth:<key>` and `env:<VARIABLE>`. The credential itself stays in `auth.json` or the
-environment. `region` (`eu`, `us`, or `local`) is
-descriptive metadata only: it does not choose an endpoint or guarantee data residency.
-
-On load, Lunate idempotently migrates legacy stored keys and custom endpoints into matching provider
-entries. An explicit provider entry wins, and migration never copies the secret out of `auth.json`.
-Environment credentials continue to take precedence over stored keys, including in CI. Reachability
-shown by `auth list` is a bounded unauthenticated probe; it sends neither credentials nor optional
-headers.
-
-Project settings may refer to user-defined providers and profiles or lower user limits. They cannot
-define a provider, endpoint, credential reference, or header secret. This prevents a repository from
-redirecting a user's credentials to its own server.
+Named provider entries in `~/.lunate/providers.json` — the file that holds several entries of one
+provider kind — are the reference in [Models and
+providers](providers.md#add-a-named-provider-entry).
 
 ## Profiles and usages
 
@@ -295,36 +246,13 @@ legacy single-endpoint setup. Its endpoint is migrated into the named provider s
 remains in `auth.json`; new multi-provider setups should use `providers.json` and a profile in
 `settings.json`. The model can then be selected in `/model` by its qualified provider/model id.
 
-## Your own model catalog
+Your own catalogue of model entries in `~/.lunate/models.json`, and the `lunate --discover` and
+`lunate --update-catalog` commands that write and refresh it, are in [Models and
+providers](providers.md#add-a-model-to-your-own-catalog).
 
-`~/.lunate/models.json` is your catalog of model entries; a user entry overrides a built-in one with
-the same id, and adding a model never needs a code change. An entry carries `id`, `provider`
-(`openai` for any OpenAI-compatible endpoint, `anthropic`), optional `endpoint`, `contextWindow`,
-`supportsTools` and an `auth` reference naming a key in `lunate auth login`'s `auth.json`. An
-optional `reasoning` declares the model's reasoning style:
-
-- `effort` — OpenAI-compatible reasoning effort.
-- `budget` — Anthropic extended thinking.
-- `inline` — the model embeds thinking markers in its text stream.
-
-Absent means no reasoning support. A profile in `settings.json` may narrow this further per use
-with `reasoningLevel` and `reasoningBudget`; every profile key is in the generated
-[configuration reference](configuration.md).
-
-For an endpoint that is not in the catalog at all, `lunate --discover <name-or-url>` prints a
-`models.json`-shaped draft of the model's entry to stdout — you review it and copy it into the file;
-nothing is written for you.
-
-## Where the credential lives
-
-Stored keys live in `~/.lunate/auth.json` under `keys`, schema 1, with owner-only permissions where
-the platform has file modes. `providers.json` and `settings.json` contain only provider/profile
-configuration and credential references, never resolved secret values.
-
-Every preset also has a provider environment variable — `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
-`GROQ_API_KEY` and so on; Google also accepts `GEMINI_API_KEY`. When that variable is set it wins
-over the key stored in the file. `lunate auth list` shows which source is in use, and
-`lunate auth status` answers whether the resolved default provider has a credential at all.
+Stored keys, the provider files and which source a credential comes from are [Models and
+providers](providers.md#where-the-credential-lives) territory; the variables themselves are in
+[Environment variables](environment-variables.md#supply-a-credential).
 
 ## If the first run refuses
 
