@@ -162,7 +162,7 @@ public static partial class SettingsStore
     /// decides which variables survive the credential strip, so only the user settings may set it:
     /// a cloned repository must not be able to pull a credential into a tool process. The message
     /// names the full key and the scope rule rather than the generic "not allowed" the allow-list
-    /// scan would produce (ADR-0034).
+    /// scan would produce (ADR-0035).
     /// </summary>
     private static void FindForbiddenToolEnvironmentKeys(JsonElement value, List<string> problems)
     {

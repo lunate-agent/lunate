@@ -6,7 +6,7 @@ namespace Lunate.Coding;
 /// The <c>toolEnvironment</c> settings section: the exact environment variable names a user admits
 /// into tool processes after the inherited policy's credential strip. Values live at the top level
 /// of the same file; this section only names variables to pass through, never their values. The
-/// section is user-scope only: a project settings file is refused by name (ADR-0034).
+/// section is user-scope only: a project settings file is refused by name (ADR-0035).
 /// </summary>
 public static partial class SettingsStore
 {
