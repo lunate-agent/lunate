@@ -22,7 +22,7 @@ public sealed class InteractiveSessionKeymapTests
     [Fact]
     public async Task A_keymap_file_rebinds_a_key_which_drives_its_action()
     {
-        KeyBinding[] before = [.. KeyBindingCatalog.All];
+        KeyBinding[] before = Pristine();
         try
         {
             using var host = new InteractiveSessionHost();
@@ -63,7 +63,7 @@ public sealed class InteractiveSessionKeymapTests
     [Fact]
     public async Task The_file_beats_the_catalogue_with_one_startup_line()
     {
-        KeyBinding[] before = [.. KeyBindingCatalog.All];
+        KeyBinding[] before = Pristine();
         try
         {
             using var host = new InteractiveSessionHost();
@@ -100,7 +100,7 @@ public sealed class InteractiveSessionKeymapTests
     [Fact]
     public async Task An_unknown_id_fails_the_load_and_the_shipped_keys_stand()
     {
-        KeyBinding[] before = [.. KeyBindingCatalog.All];
+        KeyBinding[] before = Pristine();
         try
         {
             using var host = new InteractiveSessionHost();
@@ -131,7 +131,7 @@ public sealed class InteractiveSessionKeymapTests
     [Fact]
     public async Task Two_of_the_files_own_bindings_in_conflict_fail_the_load_wholesale()
     {
-        KeyBinding[] before = [.. KeyBindingCatalog.All];
+        KeyBinding[] before = Pristine();
         try
         {
             using var host = new InteractiveSessionHost();
@@ -162,7 +162,7 @@ public sealed class InteractiveSessionKeymapTests
     [Fact]
     public async Task LUNATE_KEYMAP_selects_the_file()
     {
-        KeyBinding[] before = [.. KeyBindingCatalog.All];
+        KeyBinding[] before = Pristine();
         string envFile = ScratchFile("env");
         try
         {
@@ -202,7 +202,7 @@ public sealed class InteractiveSessionKeymapTests
     [Fact]
     public async Task The_keymap_flag_beats_the_env_file()
     {
-        KeyBinding[] before = [.. KeyBindingCatalog.All];
+        KeyBinding[] before = Pristine();
         string flagPath = ScratchFile("flag");
         string envPath = ScratchFile("env");
         try
@@ -245,6 +245,16 @@ public sealed class InteractiveSessionKeymapTests
             File.Delete(envPath);
             KeyBindingCatalog.Replace(before);
         }
+    }
+
+    /// <summary>
+    /// The shipped catalogue, reloaded from the embedded file: a test starts from what ships, never
+    /// from an overlay an earlier test's restore left in the static catalogue.
+    /// </summary>
+    private static KeyBinding[] Pristine()
+    {
+        KeyBindingCatalog.Reload();
+        return [.. KeyBindingCatalog.All];
     }
 
     /// <summary>The session home's own keymap file: <c>&lt;home&gt;/.lunate/keymap.json</c>.</summary>

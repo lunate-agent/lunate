@@ -13,7 +13,21 @@ namespace Lunate.Tui.Tests;
 [Collection("keymap-catalogue")]
 public sealed class KeymapFileTests
 {
-    private static readonly KeyBinding[] Shipped = [.. KeyBindingCatalog.All];
+    private static readonly KeyBinding[] Shipped;
+
+    /// <summary>
+    /// The baseline is captured in an explicit static constructor, not in a field initializer: this
+    /// type has no static constructor of its own otherwise, which makes it <c>beforefieldinit</c> and
+    /// lets the runtime defer the initializer to the first <em>field access</em> — inside
+    /// <see cref="Restore"/>, after the test had already applied its overlay, so every later test
+    /// restored the overlay instead of the shipped rows. It cost the Windows leg of one CI run 8
+    /// failures; <see cref="Restore"/> reloads the shipped file even then.
+    /// </summary>
+    static KeymapFileTests()
+    {
+        KeyBindingCatalog.Reload();
+        Shipped = [.. KeyBindingCatalog.All];
+    }
 
     [Fact]
     public void A_user_entry_replaces_its_bindings_keys_and_nothing_else()
@@ -310,6 +324,41 @@ public sealed class KeymapFileTests
         }
     }
 
+    /// <summary>
+    /// The catalogue is static and every test here changes it, so the undo must put the <em>shipped</em>
+    /// rows back — never a baseline captured after an overlay. That baseline used to be a lazy static
+    /// field initializer, which a runtime may defer past the first overlay: on the Windows leg every
+    /// later restore restored the overlay, and eight tests in two classes of this collection failed.
+    /// </summary>
+    [Fact]
+    public void A_restore_returns_the_catalogue_to_the_shipped_rows()
+    {
+        try
+        {
+            Assert.Null(
+                Apply(
+                    """{"version":1,"bindings":[{"id":"enter.submit.idle","keys":[{"kind":"Character","ctrl":true,"text":"j"}]}]}"""
+                ).Error
+            );
+            KeyEvent enter = new(KeyKind.Enter, null, false, false, false);
+            Assert.NotEqual(RoutedKey.Submit, KeyRouter.Route(enter, turnRunning: false));
+
+            Restore();
+
+            Assert.Equal(RoutedKey.Submit, KeyRouter.Route(enter, turnRunning: false));
+            Assert.Equal(
+                RoutedKey.Edit,
+                KeyRouter.Route(
+                    new KeyEvent(KeyKind.Character, "j", Ctrl: true, Shift: false, Alt: false)
+                )
+            );
+        }
+        finally
+        {
+            Restore();
+        }
+    }
+
     [Fact]
     public void The_path_resolves_flag_over_variable_over_the_home_file()
     {
@@ -322,18 +371,22 @@ public sealed class KeymapFileTests
             KeymapFile.ResolvePath(null, "/home", _ => "/env/keymap.json")
         );
         // The fallback is the home's own keymap.json — asserted as "that file in that directory",
-        // not by rebuilding the same Path.Combine the resolver uses.
-        AssertHomeFile(KeymapFile.ResolvePath(null, "/home", _ => null));
+        // not by rebuilding the same Path.Combine the resolver uses. The home is absolute on every
+        // platform: a POSIX-style "/home" is drive-relative on Windows, where the directory then
+        // does not read back as the home that went in.
+        string home = Path.Combine(Path.GetTempPath(), "lunate-keymap-home");
+        AssertHomeFile(home, KeymapFile.ResolvePath(null, home, _ => null));
         // A blank variable is unset, the same rule LUNATE_HOME itself follows.
         AssertHomeFile(
-            KeymapFile.ResolvePath(null, "/home", name => name == KeymapFile.Variable ? " " : null)
+            home,
+            KeymapFile.ResolvePath(null, home, name => name == KeymapFile.Variable ? " " : null)
         );
     }
 
-    private static void AssertHomeFile(string path)
+    private static void AssertHomeFile(string home, string path)
     {
         Assert.Equal(KeymapFile.FileName, Path.GetFileName(path));
-        Assert.Equal(Path.GetFullPath("/home"), Path.GetDirectoryName(path));
+        Assert.Equal(Path.GetFullPath(home), Path.GetFullPath(Path.GetDirectoryName(path)!));
     }
 
     private static KeymapOutcome Apply(string json)
@@ -346,7 +399,12 @@ public sealed class KeymapFileTests
 
     private static void AssertCatalogueUnchanged() => Assert.Equal(Shipped, KeyBindingCatalog.All);
 
-    private static void Restore() => KeyBindingCatalog.Replace(Shipped);
+    /// <summary>
+    /// The shipped rows, reloaded from the embedded file: the catalogue is static, and rows an
+    /// overlay drops cannot come back through <see cref="Lunate.Tui.KeyBindingCatalog.Remap"/>,
+    /// which never accepts an empty key list.
+    /// </summary>
+    private static void Restore() => KeyBindingCatalog.Reload();
 
     private sealed class TempDir : IDisposable
     {

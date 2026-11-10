@@ -319,4 +319,18 @@ internal static partial class KeyBindingCatalog
             All = [.. rows];
         }
     }
+
+    /// <summary>
+    /// Reloads the catalogue from the embedded <c>keys.json</c> — the shipped rows, whatever an
+    /// earlier test or overlay left behind. The tests' undo: <see cref="Replace"/> can only restore
+    /// rows it was handed, so a restore whose baseline was captured after an overlay would put the
+    /// overlay back.
+    /// </summary>
+    internal static void Reload()
+    {
+        lock (Gate)
+        {
+            All = Load();
+        }
+    }
 }
