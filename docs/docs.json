@@ -129,8 +129,41 @@
       ]
     },
     {
+      "title": "Automate",
+      "items": [
+        {
+          "title": "Print mode",
+          "path": "print.md"
+        },
+        {
+          "title": "JSON events",
+          "path": "json-events.md"
+        },
+        {
+          "title": "ACP editor integration",
+          "path": "acp.md"
+        },
+        {
+          "title": "CI and unattended runs",
+          "path": "ci.md"
+        }
+      ]
+    },
+    {
       "title": "Reference",
       "items": [
+        {
+          "title": "CLI reference",
+          "path": "cli.md"
+        },
+        {
+          "title": "Providers",
+          "path": "providers.md"
+        },
+        {
+          "title": "Environment variables",
+          "path": "environment-variables.md"
+        },
         {
           "title": "Third-party licences",
           "path": "third-party-licences.md"
