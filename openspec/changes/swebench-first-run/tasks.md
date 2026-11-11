@@ -22,17 +22,17 @@
 
 ## 4. The published run
 
-- [ ] 4.1 Run the Lunate arm on all five instances with both models; keep every failed or unresolved instance.
-- [ ] 4.2 Run the mini-swe-agent baseline on the same five instances and both models.
-- [ ] 4.3 Commit `eval/swebench/summary.json` with the official counts, the spend against the cap and the failure list.
+- [x] 4.1 Run the Lunate arm on all five instances with both models; keep every failed or unresolved instance.
+- [x] 4.2 Run the mini-swe-agent baseline on the same five instances and both models.
+- [x] 4.3 Commit `eval/swebench/summary.json` with the official counts, the spend against the cap and the failure list.
 
 ## 5. Write-up and claim
 
-- [ ] 5.1 Write `docs/eval/swebench-first-run.md`: the numbers, the cost, the failures and what the run does and does not show.
-- [ ] 5.2 Update the README C# claim to cite that write-up and only the measured result.
-- [ ] 5.3 Document the run entry point, the pinned files and the baseline command in `eval/README.md`.
+- [x] 5.1 Write `docs/eval/swebench-first-run.md`: the numbers, the cost, the failures and what the run does and does not show.
+- [x] 5.2 Update the README C# claim to cite that write-up and only the measured result.
+- [x] 5.3 Document the run entry point, the pinned files and the baseline command in `eval/README.md`.
 
 ## 6. Close-out
 
-- [ ] 6.1 Run the focused checks: the three Python test files, `openspec validate swebench-first-run --strict`, `openspec validate --all --strict`, `bash scripts/check-openspec-skills.sh`, `dotnet csharpier check .` and `git status --short`.
-- [ ] 6.2 Sync the benchmark-harness spec and archive `swebench-first-run` as the final commit on the branch.
+- [x] 6.1 Run the focused checks: the three Python test files, `openspec validate swebench-first-run --strict`, `openspec validate --all --strict`, `bash scripts/check-openspec-skills.sh`, `dotnet csharpier check .` and `git status --short`.
+- [x] 6.2 Sync the benchmark-harness spec and archive `swebench-first-run` as the final commit on the branch.
