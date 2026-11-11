@@ -27,7 +27,7 @@ provider and model ids without a network call.
 | `demo.gif` | the README hero | [`tapes/demo.tape`](tapes/demo.tape) |
 | `features/input.gif` | [`usage.md`](../usage.md) — input box and autocomplete | [`tapes/features-input.tape`](tapes/features-input.tape) |
 | `features/turns.gif` | [`usage.md`](../usage.md) — two turns, user echo, tool block | [`tapes/features-turns.tape`](tapes/features-turns.tape) |
-| `features/narrow.gif` | [`usage.md`](../usage.md) — 40-column frame | [`tapes/features-narrow.tape`](tapes/features-narrow.tape) |
+| `features/narrow.gif` | [`terminal-setup.md`](../terminal-setup.md) — 40-column frame | [`tapes/features-narrow.tape`](tapes/features-narrow.tape) |
 | `features/approval.gif` | [`usage.md`](../usage.md) — the approval panel | [`tapes/features-approval.tape`](tapes/features-approval.tape) |
 | `features/tools.gif` | [`usage.md`](../usage.md) — tool blocks and `Ctrl+O` | [`tapes/features-tools.tape`](tapes/features-tools.tape) |
 | `features/diagnostics.gif` | [`usage.md`](../usage.md) — `cs_diagnostics` after an edit | [`tapes/features-diagnostics.tape`](tapes/features-diagnostics.tape) |
@@ -36,8 +36,8 @@ provider and model ids without a network call.
 | `features/thinking.gif` | [`usage.md`](../usage.md) — reasoning streaming | [`tapes/features-thinking.tape`](tapes/features-thinking.tape) |
 | `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](tapes/features-bash.tape) |
 | `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](tapes/features-follow-up.tape) |
-| `setup-wizard.gif` | `docs/first-run.md` — the keyless first-run walk | [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) |
-| `first-run.gif` | not on disk yet — see [`first-run.md`](first-run.md) | recorded by hand with a real key |
+| `setup-wizard.gif` | [`quickstart.md`](../quickstart.md) — the keyless first-run walk | [`tapes/setup-wizard.tape`](tapes/setup-wizard.tape) |
+| `first-run.gif` | not on disk yet — see [`quickstart.md`](../quickstart.md) | recorded by hand with a real key |
 
 A note on the logo and social preview: the brand files do not live in this media set — the
 build packs them as package icons out of [`assets/brand/`](../../assets/brand/), a build-owned

@@ -473,7 +473,7 @@ secrets; header values may be literals or references. Header templates are limit
 migrate idempotently, without copying secrets; environment credentials retain precedence. Project
 settings may reference existing user providers/profiles and lower limits, but cannot define endpoints
 or credential references. Provider `region` is metadata, not a routing or residency policy. See
-[first run](first-run.md) for setup and examples. For a custom wire API, `lunate auth login --custom`
+[models and providers](models-and-providers.md) for setup and examples. For a custom wire API, `lunate auth login --custom`
 accepts `--api-family`, `--credential-placement` and `--models-url`; omitted family keeps the existing
 `openai-chat` default. The generated [configuration reference](configuration.md) lists every settings
 key with its type, default, scope and allowed values, and is the page `--check` keeps from going stale.
@@ -504,7 +504,7 @@ that profile by name; `openrouter` serves Jev 1.14 (box questions with an image)
 pay-as-you-go balance, not the Go plan. Jev Router is an
 ordinary chat model: a chat profile points at it like any other OpenRouter model and does not set
 `apiFamily`, so it never takes the decision transport. See
-[`configuration.md`](configuration.md#system-one-decision-profiles) for the presets, alias refusal,
+[`decisions.md`](decisions.md#system-one-decision-profiles) for the presets, alias refusal,
 cost reporting and the 32k per-question budget.
 
 The top-level `verify` setting selects how staged writes are verified: `block` (default) prevents a

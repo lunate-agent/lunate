@@ -71,7 +71,7 @@ and writes nothing until you confirm the summary — `Esc` leaves without changi
 interrupts the running turn, `/quit` leaves. For a script or CI, `lunate -p "summarise what changed
 on this branch"` prints one prompt's final answer and `--json` emits every event as one JSON line.
 
-Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
+Next: [Quickstart](docs/quickstart.md) · [Models and providers](docs/models-and-providers.md) ·
 [Customize](docs/configuration.md) · [Automate](openspec/specs/print-mode/spec.md)
 
 <details>
@@ -84,17 +84,17 @@ Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
 - **Full transcripts** — finished tool calls commit as one line; `ctrl+o` opens every block with
   its whole output and diff ([usage](docs/usage.md#tool-calls-commit-as-one-line)).
 - **Narrow terminals** — one layout that keeps every choice on screen down to 40 columns
-  ([usage](docs/usage.md#it-fits-a-narrow-terminal)).
+  ([terminal setup](docs/terminal-setup.md#fit-a-narrow-terminal)).
 - **C# tools** — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` with no
   plugin to install ([usage](docs/usage.md#c-the-compiler-agrees-with)); `lunate mcp roslyn` serves
   the read-only versions to any MCP host ([`docs/mcp-roslyn.md`](docs/mcp-roslyn.md)).
 - **Reasoning you can watch** — `/thinking low|medium|high` streams live and collapses to one line
   ([usage](docs/usage.md#you-can-watch-it-think)).
 - **A second model for approvals and routing** — a decision layer that can only tighten an approval,
-  never grant one ([usage](docs/usage.md#a-second-model-can-decide-when-it-is-worth-it)).
+  never grant one ([decisions](docs/decisions.md)).
 - **Copy and export** — `/copy` works over ssh via OSC 52; `/export html` writes a hardened,
   credential-redacted document, `/export jsonl` the session file
-  ([contract](docs/dev/spec/export.md)).
+  ([copy, export and debug](docs/export-copy-debug.md)).
 - **Sessions that fork** — `/fork` continues under a new id, `/clone` restarts from an earlier
   turn ([usage](docs/usage.md#fork-a-session-without-losing-the-tail)).
 - **Long sessions** — tool results spill to a file and old turns are masked without losing the
@@ -182,7 +182,8 @@ Three targets, each built and verified in CI on every commit, plus a performance
 
 Terminals: Windows Terminal, conhost, VS Code's integrated terminal, Git Bash, macOS Terminal.app,
 iTerm2, Ghostty, WezTerm, Kitty, Alacritty, the common Linux terminals, and tmux/screen over SSH —
-the full matrix is in the [guide](docs/guide.md); pipes, CI and `TERM=dumb` are print mode.
+the full matrix is in [terminal setup](docs/terminal-setup.md); pipes, CI and `TERM=dumb` are print
+mode.
 
 ## Acknowledgements
 
