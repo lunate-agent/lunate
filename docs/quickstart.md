@@ -26,10 +26,16 @@ Homebrew (`brew tap lunate-agent/tap`, `brew install lunate`), Scoop and the .NE
 
 ## Start in a repository
 
-Run `lunate` in a repository with no usable configuration. When stdin and stdout are terminals, the
-setup wizard opens instead of the prompt:
+Lunate's first run is the setup wizard. It has two depths on one walk: **Quick** (the default) asks
+provider, credential, connection test, model, model check and chat profile; **Detailed** asks every
+setting as well — a custom provider's fields, thinking level, fast/decision profiles and the
+decisions layer. Nothing is written until the summary is confirmed. Re-run it at any time with
+`/setup` in a session or `lunate setup` from a shell.
 
 ![The setup wizard walking provider, credential, connection test, model check and summary](media/setup-wizard.gif)
+
+Start `lunate` in a repository with no usable configuration. When stdin and stdout are terminals,
+the wizard opens instead of the prompt:
 
 - **Mode** — the first step defaults to Quick; choose the mode row to switch to Detailed. Switching
   keeps every answer already collected. `/setup`'s scoped entries stay detailed.
@@ -73,7 +79,7 @@ one prompt's final answer and `--json` emits every event as one JSON line.
 
 ## Re-run the wizard from a session
 
-On a configured install, `/setup` opens an entry menu instead of the full walk:
+On a configured install, `/setup` opens the entry menu instead of the full walk:
 
 - add a provider,
 - add a profile,

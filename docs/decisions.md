@@ -40,7 +40,7 @@ settings** leaves it. The same keys can be edited in the file directly.
 
 ## What each consumer does
 
-`decisions` names one profile and opts into any of four consumers: approvals (`off`, `shadow`,
+`decisions` in `settings.json` names one profile and opts into any of four consumers: approvals (`off`, `shadow`,
 `enforce`, with a threshold for how sure a deny must be), routing (`off`, `shadow`, `enforce` over
 two or more profiles), the information-only decide tool, and display-only suggestions beside a
 question's top option.
