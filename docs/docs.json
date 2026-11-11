@@ -148,6 +148,14 @@
       "title": "Reference",
       "items": [
         {
+          "title": "Settings reference",
+          "path": "settings.md"
+        },
+        {
+          "title": "Keybindings reference",
+          "path": "keybindings.md"
+        },
+        {
           "title": "Third-party licences",
           "path": "third-party-licences.md"
         }
@@ -181,7 +189,15 @@
   "proseOnly": [
     {
       "path": "configuration.md",
-      "reason": "Prose-only today; its generated settings table and config example move to the reference page in S2."
+      "reason": "Prose-only; its generated settings table lives in the settings reference, and its config example lands with the configuration split in S6."
+    },
+    {
+      "path": "settings.md",
+      "reason": "Generated settings table from settings-schema.json; a docs-sync region, not a snippet/config/run marker, and no unattended command applies."
+    },
+    {
+      "path": "keybindings.md",
+      "reason": "Generated key table from keys.json; a docs-sync region, not a snippet/config/run marker, and no unattended command applies."
     },
     {
       "path": "execution-environments.md",

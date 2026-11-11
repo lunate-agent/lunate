@@ -2,9 +2,10 @@
 
 What the interactive session does turn by turn: typing and completing a prompt, what a turn commits
 to the scrollback, how tools and approvals appear, sessions and thinking — and the three modes
-Lunate runs in. Configuration lives in [configuration](configuration.md); the things a project or
-the user owns — project instructions, skills, MCP servers, the theme and the key remaps — have a
-page each in [AGENTS.md](agents-md.md), [skills](skills.md), [MCP servers](mcp-servers.md) and
+Lunate runs in. Configuration lives in [configuration](configuration.md) and the generated
+[settings reference](settings.md); the things a project or the user owns — project instructions,
+skills, MCP servers, the theme and the key remaps — have a page each in
+[AGENTS.md](agents-md.md), [skills](skills.md), [MCP servers](mcp-servers.md) and
 [themes and keys](themes-and-keys.md); copy, export and debug have their own
 [page](export-copy-debug.md) and the optional decision layer is [Decisions](decisions.md).
 
@@ -151,7 +152,9 @@ has the full flow, the measurements and the platform limits.
 - [Decisions](decisions.md) — the optional second model for approvals, routing and questions
 - [Copy, export and debug](export-copy-debug.md) — taking an answer, the session or a bundle out
 - [Set up your terminal](terminal-setup.md) — supported terminals, shells and the narrow layout
-- [Configuration](configuration.md) — every settings key, generated from the schema
+- [Configuration](configuration.md) — decision profiles, provider entries and the rest of the file
+- [Settings reference](settings.md) — every settings key, generated from the schema
+- [Keybindings reference](keybindings.md) — every prompt binding, generated from the catalog
 - [AGENTS.md](agents-md.md) — project rules from the root down to the launch directory
 - [Skills](skills.md) — `SKILL.md` bundles a project or the user ships
 - [MCP servers](mcp-servers.md) — the servers a session starts from configuration

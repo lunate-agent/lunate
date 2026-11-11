@@ -9,7 +9,7 @@ namespace Lunate.Coding.Tests;
 /// <summary>
 /// <c>settings-schema.json</c> is the one place every accepted settings key is written down; the
 /// parser accepts its keys through literals in a dozen <c>SettingsStore*.cs</c> partials, and the
-/// generated docs/configuration.md table is rendered from this file by <c>scripts/docs-sync</c>.
+/// generated docs/settings.md table is rendered from this file by <c>scripts/docs-sync</c>.
 /// These tests pin the three sides together so a key cannot exist in one of them alone: the file
 /// must list what the store accepts (both directions), a file carrying every listed key must
 /// resolve cleanly, and the file's scope column must match what the project merge actually does.

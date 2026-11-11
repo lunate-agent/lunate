@@ -6,7 +6,7 @@ namespace Lunate.Tui;
 /// The keymap, read from <c>keys.json</c> — the one place a key's meaning is written down, embedded
 /// in this assembly at build time. Ordered: the first row that matches the key and applies to the
 /// context wins, so specific rows precede general ones. The router, the in-app help and
-/// <c>docs/guide.md</c>'s table all read this file: the table is generated from it by
+/// <c>docs/keybindings.md</c>'s table all read this file: the table is generated from it by
 /// <c>scripts/docs-sync</c>, so no prose can describe a binding the router does not have. A
 /// <see cref="Remap"/> changes an existing binding's keys in place; it never adds a second row.
 /// </summary>
@@ -15,8 +15,9 @@ namespace Lunate.Tui;
 /// a future user bindings file overrides), the key patterns it answers to, the intent the router
 /// returns, the context flags that must all be present (<c>None</c> = every state), and the help
 /// text. An absent modifier is unconstrained, which is how <c>Escape</c> matches any modifiers
-/// held. The file also carries <c>guideRows</c> (the guide's table rows, each naming the bindings
-/// it documents); this assembly ignores them — they exist so the docs and the router cannot drift.
+/// held. The file also carries <c>guideRows</c> (the keybindings reference's table rows, each
+/// naming the bindings it documents); this assembly ignores them — they exist so the docs and the
+/// router cannot drift.
 /// </remarks>
 internal static class KeyBindingCatalog
 {

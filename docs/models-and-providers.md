@@ -106,7 +106,7 @@ redirecting a user's credentials to its own server.
 
 `~/.lunate/settings.json` binds a profile name to a provider entry and catalog model, then assigns
 profiles to existing usages; every settings key with its type, default and scope is in the
-generated [configuration reference](configuration.md). For example:
+generated [settings reference](settings.md). For example:
 
 <!-- config: settings -->
 ```json settings
@@ -148,7 +148,7 @@ optional `reasoning` declares the model's reasoning style:
 
 Absent means no reasoning support. A profile in `settings.json` may narrow this further per use
 with `reasoningLevel` and `reasoningBudget`; every profile key is in the generated
-[configuration reference](configuration.md).
+[settings reference](settings.md).
 
 For an endpoint that is not in the catalog at all, `lunate --discover <name-or-url>` prints a
 `models.json`-shaped draft of the model's entry to stdout — you review it and copy it into the file;
