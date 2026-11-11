@@ -135,7 +135,7 @@ public sealed class WrappedLiveAreaTests
         // share one clipped line at 40 columns; submitting and waiting for the next step pins
         // that every repaint happened before the frame is read.
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("as the fast");
+        await host.WaitForFrameAsync("fast usage");
         var screen = new TerminalScreen(width);
         foreach (string write in host.Console.Writes)
         {
@@ -181,7 +181,7 @@ public sealed class WrappedLiveAreaTests
         host.Console.SendText("chat-main");
         host.Console.SendEnter();
 
-        await host.WaitForFrameAsync("as the fast");
+        await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
 
         await host.WaitForFrameAsync("Decision profile");

@@ -33,7 +33,7 @@ public sealed class SetupWizardSummaryTests
         wizard.RecordChatProfile(new WizardProfileChoice("main", "claude-sonnet-5-5", "high"));
         wizard.RecordFastProfile(true);
         wizard.RecordDecisionProfile(
-            new WizardDecisionChoice("decisions", "jev-1.14", Native: false, null)
+            new WizardUsageChoice("decisions", "local", "jev-1.14", "anthropic-messages")
         );
         wizard.RecordDecisions(
             new WizardDecisionsChoice(
@@ -153,11 +153,13 @@ public sealed class SetupWizardSummaryTests
         );
         wizard.RecordModel(new WizardModelChoice("anthropic/claude-sonnet-5-5", "openai-chat"));
         wizard.RecordDecisionProfile(
-            new WizardDecisionChoice(
+            new WizardUsageChoice(
                 "decisions",
+                "openrouter",
                 "openrouter/typesafe/jev-1.14",
+                ProviderApiFamilies.SystemOne,
                 Native: true,
-                "openrouter/typesafe/jev-1.14"
+                PinnedVersion: "openrouter/typesafe/jev-1.14"
             )
         );
 

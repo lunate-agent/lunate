@@ -311,9 +311,29 @@ internal static class SetupWizardSummary
             lines.Add("chat usage: " + bound);
         }
 
-        if (wizard.FastProfile && wizard.ChatProfile is { } fastProfile)
+        if (wizard.FastUsage is { } fast)
         {
-            lines.Add($"fast usage: {fastProfile.Name}");
+            lines.Add(
+                fast.ReuseChatProfile
+                    ? $"fast usage: {fast.ProfileName} (the chat profile also serves fast; checked as the chat model)"
+                    : $"fast usage: {fast.ProfileName} ({fast.ProviderId}/{fast.ModelId}"
+                        + (fast.ReasoningLevel is { } level ? $", thinking {level}" : string.Empty)
+                        + ")"
+            );
+            if (!fast.ReuseChatProfile)
+            {
+                lines.Add(
+                    (wizard.FastCheck?.Outcome) switch
+                    {
+                        WizardProgress.Passed => "fast check: passed",
+                        WizardProgress.Skipped =>
+                            "fast check: skipped — the fast profile stays unverified",
+                        WizardProgress.Failed =>
+                            $"fast check: failed ({wizard.FastCheck?.Detail}) — the fast profile stays unverified",
+                        _ => "fast check: not run — the fast profile stays unverified",
+                    }
+                );
+            }
         }
 
         if (wizard.DecisionProfile is { } decision)
@@ -324,6 +344,9 @@ internal static class SetupWizardSummary
                     + (decision.Native ? " (native" : " (adapter")
                     + (decision.PinnedVersion is { } pinned ? $", pinned {pinned}" : string.Empty)
                     + ")"
+            );
+            lines.Add(
+                $"decision model: {decision.ProviderId}/{decision.ModelId} (family {decision.ApiFamily})"
             );
         }
 
@@ -384,6 +407,33 @@ internal static class SetupWizardSummary
         else if (wizard.IsSkipped(SetupStep.Decisions))
         {
             lines.Add("decisions: defaults accepted (nothing written for the layer)");
+        }
+
+        foreach (WizardInlineProvider inline in wizard.InlineProviders)
+        {
+            lines.Add(
+                $"added provider: {inline.Provider.Id} (region {inline.Provider.Region ?? "(none)"})"
+            );
+            lines.Add(
+                $"added credential ({inline.Provider.Id}): "
+                    + (
+                        inline.Credential.Key is not null
+                            ? "the key you typed (stored only in the auth store)"
+                            : inline.Credential.Reference
+                    )
+            );
+            lines.Add(
+                $"added connection test ({inline.Provider.Id}): "
+                    + inline.ConnectionTest.Outcome switch
+                    {
+                        WizardProgress.Passed => "passed",
+                        WizardProgress.Failed => $"failed ({inline.ConnectionTest.Detail})",
+                        _ => "skipped",
+                    }
+            );
+            lines.Add(
+                $"added model ({inline.Provider.Id}): {inline.Model.ModelId} (family {inline.Model.ApiFamily})"
+            );
         }
 
         if (wizard.SkippedSteps is { Count: > 0 } skipped)

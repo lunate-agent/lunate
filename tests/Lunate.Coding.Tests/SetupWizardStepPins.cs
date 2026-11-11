@@ -124,9 +124,7 @@ public sealed class SetupWizardStepPins
         host.Console.SendEnter(); // skip
 
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
-        host.Console.SendUp(); // the skip default sits two rows below the native row
-        await host.WaitForFrameAsync("> adapt the chat model");
-        host.Console.SendUp();
+        host.Console.SendText("jev");
         await host.WaitForFrameAsync("> openrouter/typesafe/jev-1.14 (native Jev)");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decision check");
@@ -178,9 +176,7 @@ public sealed class SetupWizardStepPins
         host.Console.SendEnter(); // skip
 
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
-        host.Console.SendUp(); // the skip default sits two rows below the native row
-        await host.WaitForFrameAsync("> adapt the chat model");
-        host.Console.SendUp();
+        host.Console.SendText("jev");
         await host.WaitForFrameAsync("> opencode-go/jev-1.13 (native Jev");
         // The picker truncates the long label at the terminal width; pin the billing notice that
         // fits before the cut (the full sentence lives in the source, not the clipped frame).
@@ -241,7 +237,16 @@ public sealed class SetupWizardStepPins
         await host.WaitForFrameAsync(
             "Decision profile (this provider serves no native Jev profile"
         );
-        Assert.Contains("(adapter)", host.LastFrame, StringComparison.Ordinal);
+        Assert.Contains(
+            "Decision profile (this provider serves no native Jev profile",
+            host.LastFrame,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "openai/any-model (adapter, openai-chat)",
+            host.LastFrame,
+            StringComparison.Ordinal
+        );
 
         host.Console.SendEscape(); // the walk ends here, nothing written
         await host.WaitUntilAsync(() => !host.Session.IsRunning);

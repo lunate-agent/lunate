@@ -109,8 +109,8 @@ public sealed class SecretMaskingAuditTests
         await host.WaitForFrameAsync(
             "Decision profile (this provider serves no native Jev profile"
         );
-        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
-        await host.WaitForFrameAsync("> adapt the chat model (adapter)");
+        host.Console.SendText("local/any-model");
+        await host.WaitForFrameAsync("> local/any-model (adapter, openai-chat)");
         host.Console.SendEnter();
 
         await host.WaitForFrameAsync("Decision check");

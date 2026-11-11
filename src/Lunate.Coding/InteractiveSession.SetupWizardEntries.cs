@@ -135,7 +135,7 @@ internal sealed partial class InteractiveSession
                 if (providerEntry is { } addEntry)
                 {
                     wizard.CarryContext(
-                        CarriedProvider(addEntry),
+                        WizardUsageOptions.CarriedProvider(addEntry),
                         new WizardCredentialChoice(addEntry.CredentialReference),
                         null,
                         null
@@ -148,7 +148,7 @@ internal sealed partial class InteractiveSession
                 if (providerEntry is { } changeEntry && current is { } profile)
                 {
                     wizard.CarryContext(
-                        CarriedProvider(changeEntry),
+                        WizardUsageOptions.CarriedProvider(changeEntry),
                         new WizardCredentialChoice(changeEntry.CredentialReference),
                         CarriedModel(profile, changeEntry),
                         null
@@ -184,37 +184,6 @@ internal sealed partial class InteractiveSession
         }
 
         return _providerEntries.Count is 1 ? _providerEntries[0] : null;
-    }
-
-    /// <summary>The provider entry as the wizard's provider choice: a preset-named entry rides
-    /// its preset; anything else carries its own family URL, placement and models URL.</summary>
-    private static WizardProviderChoice CarriedProvider(ProviderEntry entry)
-    {
-        if (ProviderPresets.Find(entry.Name) is { } preset)
-        {
-            return new WizardProviderChoice(
-                entry.Name,
-                Custom: false,
-                entry.Region,
-                Endpoint: null,
-                ProviderApiFamilies.Name(preset.DefaultFamily),
-                preset.PlacementFor(preset.DefaultFamily),
-                entry.ModelsUrl ?? preset.ModelsUrl
-            );
-        }
-
-        ProviderApiFamily family = entry.BaseUrls is { Count: > 0 } table
-            ? table.Keys.First()
-            : entry.DefaultFamily;
-        return new WizardProviderChoice(
-            entry.Name,
-            Custom: true,
-            entry.Region,
-            entry.UrlFor(family) ?? entry.BaseUrl,
-            ProviderApiFamilies.Name(family),
-            entry.PlacementFor(family),
-            entry.ModelsUrl
-        );
     }
 
     /// <summary>The settings profile's model as the carried model choice; its declared reasoning
