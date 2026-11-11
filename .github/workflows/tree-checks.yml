@@ -2,13 +2,13 @@ name: Tree checks
 
 # The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs
 # regions, the docs link/navigation check and the docs lint -- used to run only where a pull
-# request asked for them: `verify-docs`
-# when the change was prose, the always-on `Process` job for the region check. A docs-only push to
-# main skips `ci.yml` entirely (its `paths-ignore`), and `verify-docs` is selected only for a docs
-# *pull request*, so a defect in one of them stayed invisible on main until the first pull request
-# that touched documentation. That is how `#738` survived: `check-adr-numbers.py` failed on main,
-# and every push run was green because none of them ran it. A check that cannot fail on main is a
-# check nobody sees fail until it blocks someone else's work.
+# request asked for them: `verify-docs` when the change was prose, the always-on `Process` job for
+# the region check. A docs-only push to main skips `ci.yml` entirely (its `paths-ignore`), and
+# `verify-docs` is selected only for a docs *pull request*, so a defect in one of them stayed
+# invisible on main until the first pull request that touched documentation. That is how `#738`
+# survived: `check-adr-numbers.py` failed on main, and every push run was green because none of them
+# ran it. A check that cannot fail on main is a check nobody sees fail until it blocks someone
+# else's work.
 #
 # These checks are seconds of wall clock and need no build, so one small job runs all of them on
 # every push to main. A pull request's behaviour is unchanged: it gets the same checks through

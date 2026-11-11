@@ -360,7 +360,8 @@ sha256_file() {
 
 # The steps that do not depend on the operating system: packaging files, formatting, the generated
 # docs regions, the link/navigation check, markdownlint, the two agent-hygiene checks, the public
-# API and — when the caller installed it — the OpenSpec tree. CI runs them once in the `platform` job; an OS leg skips them
+# API and — when the caller installed it — the OpenSpec tree. CI runs them once in the `platform`
+# job; an OS leg skips them
 # (VERIFY_SKIP_PLATFORM_CHECKS=1) because a second copy on every runner is cost, not depth. A local
 # `verify.sh` run keeps the old behaviour and runs them as part of the full gate.
 platform_checks() {

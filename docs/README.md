@@ -73,13 +73,13 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 list. Its docs profile runs markdownlint, `scripts/docs-sync --check`, `scripts/docs-check --check`
 and the OpenSpec tree; the full profile also runs `scripts/docs-check --run` against the published
 binary after the runnable examples exist. By default its test phase runs the solution-wide
-`dotnet test` the gate has always used, once per culture. Setting `LUNATE_VERIFY_JOBS=2` (or more) opts into a faster local mode: the
-default-culture and `de-AT` passes run at the same time, each with a bounded pool of test
-assemblies, while process- and environment-sensitive assemblies keep a serial lane inside a
-pass. That shaves about two minutes off the test phase locally; CI keeps the default path
-because timing-sensitive suites flaked on the shared Windows runner under the pooled load. The
-passes are independent processes, so overlapping them changes the wall time, not what the gate
-checks.
+`dotnet test` the gate has always used, once per culture. Setting `LUNATE_VERIFY_JOBS=2` (or more)
+opts into a faster local mode: the default-culture and `de-AT` passes run at the same time, each
+with a bounded pool of test assemblies, while process- and environment-sensitive assemblies keep a
+serial lane inside a pass. That shaves about two minutes off the test phase locally; CI keeps the
+default path because timing-sensitive suites flaked on the shared Windows runner under the pooled
+load. The passes are independent processes, so overlapping them changes the wall time, not what the
+gate checks.
 
 ## Blame and the one-time reformat
 

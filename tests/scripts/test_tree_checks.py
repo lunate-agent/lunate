@@ -4,8 +4,8 @@ The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the ge
 the docs link/navigation check and the docs lint -- ran only where a pull request selected the docs
 profile, plus the always-on `Process` job's region check. A docs-only push to main skips `ci.yml`
 entirely (its `paths-ignore`) and `verify-docs` is only selected for a *docs pull request*, so a
-defect in one of these checks
-stayed invisible on main until the first pull request that touched documentation: `#738`
+defect in one of these checks stayed invisible on main until the first pull request that touched
+documentation: `#738`
 (`check-adr-numbers.py` failing on main) survived exactly that way.
 
 These tests read `.github/workflows/tree-checks.yml` as text. There is no YAML parser in the gate's
