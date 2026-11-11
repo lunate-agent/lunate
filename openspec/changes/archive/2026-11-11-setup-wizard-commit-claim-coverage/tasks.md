@@ -20,5 +20,5 @@
   changed types.
 - [x] 2.2 Run the fast gate: Release build, CSharpier,
   `openspec validate --all --strict` and `bash scripts/check-openspec-skills.sh`.
-- [ ] 2.3 Sync the delta spec into `openspec/specs/setup-wizard/spec.md` and archive
+- [x] 2.3 Sync the delta spec into `openspec/specs/setup-wizard/spec.md` and archive
   the change as the final commit on the branch.
