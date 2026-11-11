@@ -36,7 +36,12 @@ internal static class SetupWizardCommit
     /// surfaces as one exception naming what failed, and no target file keeps a partial commit:
     /// auth.json, providers.json and settings.json are unchanged byte for byte.
     /// </summary>
-    public static void Commit(SetupWizardModel model, CommitPaths paths, Func<AuthStore> loadAuth)
+    public static void Commit(
+        SetupWizardModel model,
+        CommitPaths paths,
+        Func<AuthStore> loadAuth,
+        TimeSpan? claimTimeout = null
+    )
     {
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(paths);
@@ -65,7 +70,8 @@ internal static class SetupWizardCommit
         // replaced. Both claims are held until the last replace; nothing before them is written.
         using IDisposable claims = SetupWizardTransaction.ClaimTargets(
             paths.SettingsPath,
-            paths.ProviderStorePath
+            paths.ProviderStorePath,
+            claimTimeout
         );
         using SetupWizardTransaction transaction = SetupWizardTransaction.Create(
             paths.SettingsPath,
