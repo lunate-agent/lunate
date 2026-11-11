@@ -56,9 +56,9 @@ The wizard SHALL present ten steps in order — provider, credential, connection
 4. **Model** lists the models the discovery returned (search filters as text is typed); when discovery is unavailable or skipped, the step accepts a manually typed model id. The chosen model's API family is shown beside it.
 5. **Model check** makes one minimal real request through the model's resolved API family: one short completion for a chat profile, one tiny noul for a decision profile. The cost SHALL be stated before it runs and the check SHALL be skippable (`--no-model-check` on the flag path). A failure SHALL name the model, the family and the HTTP status or response shape, and offer going back to the model step; a skip or failure SHALL be marked unverified in the summary. A discovery success alone SHALL NOT count as a verified model.
 6. **Chat profile** asks the profile name and its thinking level, offering only the levels the chosen model supports; the question is skipped entirely for a model without a reasoning style.
-7. **Fast and decision profiles** are optional and default to skip. Both steps offer a model from any configured provider (see Fast and decision usages from any provider). When the chosen provider exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the preset's pinned version; otherwise the decision profile is offered as an **adapter**, labelled as such in the picker and summary. When the chosen provider is `opencode-go`, the native Jev line is labelled "native Jev — billed to your OpenCode pay-as-you-go balance, not the Go plan; no box questions" and no box question is asked for it; other presets keep the existing native/adapter labels. When routing is enabled, the step asks for each routing profile's description and warns once if one is left blank.
+7. **Fast and decision profiles** are optional and default to skip. When the chosen provider exposes the `systemone` family, its Jev model is offered as a **native** decision profile with the preset's pinned version; otherwise the decision profile is offered as an **adapter**, labelled as such in the picker and summary. When the chosen provider is `opencode-go`, the native Jev line is labelled "native Jev — billed to your OpenCode pay-as-you-go balance, not the Go plan; no box questions" and no box question is asked for it; other presets keep the existing native/adapter labels. When routing is enabled, the step asks for each routing profile's description and warns once if one is left blank.
 8. **Decisions settings** presents every switch with its `off`/unset default and one explanatory line each, plus a **Done — leave the decisions settings** entry. After each switch is answered the step SHALL present the list again with the earlier answers kept, so several switches are collected in one pass; only the Done entry leaves the step. Accepting the defaults — Done with no switch changed — writes nothing for the layer.
-9. **Summary** shows every collected value — provider, region, credential source, endpoint, API family, credential placement, models URL, tested model, model-check result, profiles with their models and thinking levels, usage profiles with their provider and model, decision profile kind (native or adapter), every provider added inline with its credential and check, routing descriptions, decisions settings, and what was skipped — and writes nothing until it is confirmed with Enter.
+9. **Summary** shows every collected value — provider, region, credential source, endpoint, API family, credential placement, models URL, tested model, model-check result, profiles with their models and thinking levels, decision profile kind (native or adapter), routing descriptions, decisions settings, and what was skipped — and writes nothing until it is confirmed with Enter.
 10. **Write** stores the provider entry and credential through the auth and provider stores and the profiles and usages through `SettingsStore`, in one pass.
 
 Every step accepts skip; a skipped step leaves the value it would have configured untouched. A step failed in the connection test or the model check is the card's go-back case: the wizard returns to the earlier step without losing the later answers.
@@ -275,49 +275,3 @@ The decision-profile check SHALL send its request with a request identity: the c
 - **GIVEN** a provider whose profile declares no session header
 - **WHEN** the decision check runs
 - **THEN** the check passes and the request carries no session header
-
-### Requirement: Fast and decision usages from any provider
-
-The fast and decision steps SHALL each offer a flat `provider/model` list built from the provider the walk configured in this run, every other provider already configured on the machine, and every provider added inline during this run. Each row SHALL name the provider that serves it, the model's API family, and — for the decision step — the native/adapter label; a model whose family declares a reasoning style SHALL show the thinking levels the following picker offers. The list SHALL end with `Set up another provider inline…` and `Skip`.
-
-Choosing the model the chat profile already uses SHALL keep today's binding: the chat profile also serves the `fast` usage. Choosing any other model SHALL write a profile for the chosen provider and model and bind the usage to it; a decided profile is named `decisions`, and a fast profile `fast` (suffixed with the provider name when `fast` is taken). No usage answer SHALL carry an `apiFamily` the chosen model's provider does not resolve, and the profile SHALL name the provider that serves it, not the walk's own provider.
-
-`Set up another provider inline…` SHALL run the provider, credential, connection-test and model sub-walk without leaving the usage step, then return to the same usage step with the answer it already had; the added provider and its credential SHALL appear in the review and SHALL be written in the same one-pass commit. A check the usage step runs SHALL send its request with the selected model's own provider entry and credential — a typed inline key stays in memory until the commit — and SHALL state the estimated cost before it runs; a skip SHALL leave that usage marked unverified in the summary.
-
-The `lunate setup` flag path SHALL keep its current answers: `--fast` binds the chat profile as `fast`, and `--decision` takes the run's own provider and model.
-
-#### Scenario: Fast from the provider configured in this run
-
-- **GIVEN** a walk that answered the chat profile from the chosen provider and no fast profile yet
-- **WHEN** the fast step picks the chat profile's model
-- **THEN** the usage `fast` binds the chat profile, a passing fast check is recorded, and the commit writes `usages.fast` without a second profile
-
-#### Scenario: Fast from another configured provider
-
-- **GIVEN** a configured `anthropic` provider besides the `openai` provider configured in this run
-- **WHEN** the fast step picks `anthropic/claude-sonnet-5-5` and its check passes
-- **THEN** a `fast` profile naming the `anthropic` provider is written, `usages.fast` binds it, and the review names both the provider and the model
-
-#### Scenario: Decision from another configured provider
-
-- **GIVEN** a configured `anthropic` provider and a walk that configured `openai`
-- **WHEN** the decision step picks an adapter model on `anthropic` and the decision check passes
-- **THEN** the `decisions` profile names `anthropic`, its model and the adapter label, `decisions.profile` binds it, and the check's request went to the Anthropic entry's credential
-
-#### Scenario: Inline provider for a usage
-
-- **GIVEN** a walk whose only provider is `openai` and a decision usage that needs an `opencode-go` native Jev model
-- **WHEN** the decision step chooses `Set up another provider inline…` and completes the sub-walk
-- **THEN** the sub-walk returns to the decision step with every earlier answer intact, the `opencode-go` provider and credential appear in the review, the native decision profile binds it, and the commit writes the provider, the credential and the profile in one pass
-
-#### Scenario: No route loses the answer the step already had
-
-- **GIVEN** a fast or decision step that has already selected a model
-- **WHEN** the user opens the inline provider sub-walk and returns, or picks a different model
-- **THEN** the chat profile, the model check and the decisions settings are unchanged, and only the usage answer is replaced
-
-#### Scenario: A skipped usage check stays unverified
-
-- **GIVEN** a usage whose check the user skips
-- **WHEN** the summary renders
-- **THEN** the usage is named unverified and confirming writes it anyway, because the skip was explicit
