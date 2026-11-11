@@ -104,6 +104,8 @@ public sealed class SecretMaskingAuditTests
         // Profile name is read by the recording prompt; fast usage is next.
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done — one provider for this walk
 
         // Bind the decision profile as an adapter so routing has two profiles to describe.
         await host.WaitForFrameAsync(

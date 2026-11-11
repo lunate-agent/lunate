@@ -145,6 +145,8 @@ public sealed class SetupWizardNavigationTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
@@ -285,6 +287,9 @@ public sealed class SetupWizardNavigationTests
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
 
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
+
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // skip
 
@@ -313,6 +318,8 @@ public sealed class SetupWizardNavigationTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");

@@ -137,6 +137,35 @@ public sealed class SetupWizardSummaryTests
     }
 
     [Fact]
+    public void A_typed_custom_entry_names_the_settings_and_auth_files()
+    {
+        var wizard = new SetupWizardModel();
+        wizard.RecordProvider(
+            new WizardProviderChoice(
+                "homelab",
+                Custom: true,
+                Region: null,
+                new Uri("http://localhost:8080/v1"),
+                "openai-chat",
+                CredentialPlacement.Bearer,
+                null
+            )
+        );
+        wizard.RecordCredential(new WizardCredentialChoice("homelab", Key: "typed-secret"));
+        wizard.RecordModel(new WizardModelChoice("local-model", "openai-chat"));
+
+        string text = string.Join("\n", SetupWizardSummary.Render(wizard));
+
+        Assert.Contains(
+            "entry settings.json; credential auth.json",
+            text,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("(written to auth.json)", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("typed-secret", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_native_decision_profile_names_its_pinned_version()
     {
         var wizard = new SetupWizardModel();

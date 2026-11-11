@@ -265,77 +265,75 @@ internal static class SetupWizardSummary
             );
         }
 
-        if (wizard.Provider is { } provider)
+        IReadOnlyList<WizardProviderRun> runs = wizard.AllProviderRuns;
+        foreach (WizardProviderRun run in runs)
         {
-            lines.Add(
-                $"provider: {provider.Id}"
-                    + (
-                        provider.Custom
-                            ? $" (custom endpoint {provider.Endpoint} — family {provider.ApiFamily}, placement {provider.Placement.ToCompact()}, region {provider.Region ?? "(none)"}"
-                                + (
-                                    provider.ModelsUrl is { } modelsUrl
-                                        ? $", models URL {modelsUrl}"
-                                        : ""
-                                )
-                                + ")"
-                        : provider.Region is { } region ? $" (region {region})"
-                        : string.Empty
-                    )
-            );
-        }
+            lines.Add(ProviderLine(run));
 
-        if (wizard.Credential is { } credential)
-        {
-            lines.Add(
-                "credential: "
-                    + (
-                        credential.Key is not null
-                            ? "the key you typed (stored only in the auth store)"
-                            : credential.Reference
-                    )
-            );
-        }
-
-        switch (wizard.ConnectionTest?.Outcome)
-        {
-            case WizardProgress.Passed:
-                lines.Add("connection test: passed");
-                break;
-            case WizardProgress.Skipped:
-                lines.Add("connection test: skipped");
-                break;
-            case WizardProgress.Failed:
-                lines.Add($"connection test: failed ({wizard.ConnectionTest?.Detail})");
-                break;
-        }
-
-        if (wizard.Model is { } model)
-        {
-            lines.Add($"model: {model.ModelId} (family {model.ApiFamily})");
-        }
-
-        switch (wizard.ModelCheck?.Outcome)
-        {
-            case WizardProgress.Passed:
-                lines.Add("model check: passed");
-                break;
-            case WizardProgress.Skipped:
-                lines.Add("model check: skipped — the model stays unverified");
-                break;
-            case WizardProgress.Failed:
+            if (run.Credential is { } credential)
+            {
                 lines.Add(
-                    $"model check: failed ({wizard.ModelCheck?.Detail}) — the model stays unverified"
+                    "credential: "
+                        + (
+                            credential.Key is not null
+                                ? "the key you typed (stored only in the auth store)"
+                                : credential.Reference
+                        )
+                        + $" (written to {CredentialTarget(run)})"
                 );
-                break;
-        }
+            }
 
-        if (wizard.ChatProfile is { } chat)
-        {
-            lines.Add(
-                "chat profile: "
-                    + chat.Name
-                    + (chat.ReasoningLevel is { } level ? $" (thinking {level})" : string.Empty)
-            );
+            switch (run.ConnectionTest?.Outcome)
+            {
+                case WizardProgress.Passed:
+                    lines.Add("connection test: passed");
+                    break;
+                case WizardProgress.Skipped:
+                    lines.Add("connection test: skipped");
+                    break;
+                case WizardProgress.Failed:
+                    lines.Add($"connection test: failed ({run.ConnectionTest?.Detail})");
+                    break;
+            }
+
+            if (run.Model is { } model)
+            {
+                lines.Add($"model: {model.ModelId} (family {model.ApiFamily})");
+            }
+
+            switch (run.ModelCheck?.Outcome)
+            {
+                case WizardProgress.Passed:
+                    lines.Add("model check: passed");
+                    break;
+                case WizardProgress.Skipped:
+                    lines.Add("model check: skipped — the model stays unverified");
+                    break;
+                case WizardProgress.Failed:
+                    lines.Add(
+                        $"model check: failed ({run.ModelCheck?.Detail}) — the model stays unverified"
+                    );
+                    break;
+            }
+
+            if (run.ChatProfile is { } chat)
+            {
+                lines.Add(
+                    "chat profile: "
+                        + chat.Name
+                        + (chat.ReasoningLevel is { } level ? $" (thinking {level})" : string.Empty)
+                );
+            }
+
+            if (run.FastProfile && run.ChatProfile is { } fastProfile)
+            {
+                lines.Add($"fast usage: {fastProfile.Name}");
+            }
+
+            if (runs.Count > 1)
+            {
+                AddSkippedLine(lines, run.Skipped);
+            }
         }
 
         if (wizard.ChatUsageBinding is { } bound)
@@ -468,28 +466,27 @@ internal static class SetupWizardSummary
             );
         }
 
-        if (wizard.SkippedSteps is { Count: > 0 } skipped)
+        if (runs.Count == 0)
         {
-            lines.Add(
-                $"skipped: "
-                    + string.Join(
-                        ", ",
-                        skipped.Select(step =>
-                            step switch
-                            {
-                                SetupStep.Provider => "provider",
-                                SetupStep.Credential => "credential",
-                                SetupStep.ConnectionTest => "connection test",
-                                SetupStep.Model => "model",
-                                SetupStep.ModelCheck => "model check",
-                                SetupStep.ChatProfile => "chat profile",
-                                SetupStep.FastProfile => "fast usage",
-                                SetupStep.DecisionProfile => "decision profile",
-                                SetupStep.Decisions => "decisions settings",
-                                _ => step.ToString(),
-                            }
-                        )
-                    )
+            AddSkippedLine(lines, wizard.SkippedSteps);
+        }
+        else if (runs.Count == 1)
+        {
+            // One run keeps the walk-ordered line the single-provider summary always had.
+            AddSkippedLine(
+                lines,
+                [.. runs[0].Skipped.Concat(wizard.SkippedSteps).Distinct().OrderBy(OrderOf)]
+            );
+        }
+        else
+        {
+            AddSkippedLine(
+                lines,
+                [
+                    .. wizard.SkippedSteps.Where(step =>
+                        step is SetupStep.DecisionProfile or SetupStep.Decisions
+                    ),
+                ]
             );
         }
 
@@ -505,12 +502,91 @@ internal static class SetupWizardSummary
         return lines;
     }
 
+    private static int OrderOf(SetupStep step)
+    {
+        for (var index = 0; index < SetupWizardModel.Order.Count; index++)
+        {
+            if (SetupWizardModel.Order[index] == step)
+            {
+                return index;
+            }
+        }
+
+        return int.MaxValue;
+    }
+
+    private static string ProviderLine(WizardProviderRun run)
+    {
+        WizardProviderChoice provider = run.Provider;
+        string detail =
+            provider.Custom
+                ? $" (custom endpoint {provider.Endpoint} — family {provider.ApiFamily}, placement {provider.Placement.ToCompact()}, region {provider.Region ?? "(none)"}"
+                    + (provider.ModelsUrl is { } modelsUrl ? $", models URL {modelsUrl}" : "")
+                    + ")"
+            : provider.Region is { } region ? $" (region {region})"
+            : string.Empty;
+        return $"provider: {provider.Id}{detail} — entry {EntryTarget(run)}; credential {CredentialTarget(run)}";
+    }
+
+    private static string EntryTarget(WizardProviderRun run) =>
+        run.Provider.Custom && run.Credential is { Key: { Length: > 0 } } && run.Model is not null
+            ? "settings.json"
+            : "providers.json";
+
+    private static string CredentialTarget(WizardProviderRun run) =>
+        run.Credential is { Key: { Length: > 0 } } ? "auth.json"
+        : run.Credential is { } reference && IsReference(reference.Reference)
+            ? "providers.json (reused reference)"
+        : "no credential file";
+
+    private static bool IsReference(string value) =>
+        value.StartsWith("env:", StringComparison.Ordinal)
+        || value.StartsWith("auth:", StringComparison.Ordinal);
+
+    private static void AddSkippedLine(List<string> lines, IReadOnlyList<SetupStep> skipped)
+    {
+        if (skipped.Count == 0)
+        {
+            return;
+        }
+
+        lines.Add(
+            "skipped: "
+                + string.Join(
+                    ", ",
+                    skipped.Select(step =>
+                        step switch
+                        {
+                            SetupStep.Provider => "provider",
+                            SetupStep.Credential => "credential",
+                            SetupStep.ConnectionTest => "connection test",
+                            SetupStep.Model => "model",
+                            SetupStep.ModelCheck => "model check",
+                            SetupStep.ChatProfile => "chat profile",
+                            SetupStep.FastProfile => "fast usage",
+                            SetupStep.DecisionProfile => "decision profile",
+                            SetupStep.Decisions => "decisions settings",
+                            _ => step.ToString(),
+                        }
+                    )
+                )
+        );
+    }
+
     private static IReadOnlyList<string> RoutingCandidateNames(SetupWizardModel wizard)
     {
         var names = new List<string>();
-        if (wizard.ChatProfile is { } chat)
+        if (wizard.ChatProfile is { } carried)
         {
-            names.Add(chat.Name);
+            names.Add(carried.Name);
+        }
+
+        foreach (WizardProviderRun run in wizard.AllProviderRuns)
+        {
+            if (run.ChatProfile is { } chat && !names.Contains(chat.Name, StringComparer.Ordinal))
+            {
+                names.Add(chat.Name);
+            }
         }
 
         if (wizard.DecisionProfile is { } decision)

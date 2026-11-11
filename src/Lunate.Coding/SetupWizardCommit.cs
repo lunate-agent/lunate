@@ -53,16 +53,17 @@ internal static class SetupWizardCommit
         }
 
         AuthStore live = loadAuth();
-        string? credentialProvider = null;
-        string? credentialSecret = null;
-        if (
-            model.Provider is { } provider
-            && !model.IsCarried(SetupStep.Provider)
-            && model.Credential is { Key: { Length: > 0 } secret }
-        )
+        IReadOnlyList<WizardProviderRun> runs = model.AllProviderRuns;
+        var typedSecrets = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (WizardProviderRun run in runs)
         {
-            credentialProvider = provider.Id;
-            credentialSecret = secret;
+            if (
+                run.Credential is { Key: { Length: > 0 } secret }
+                && (run.Provider != model.Provider || !model.IsCarried(SetupStep.Provider))
+            )
+            {
+                typedSecrets[run.Provider.Id] = secret;
+            }
         }
 
         // The claims come before the seed: the seed's read is the read-modify-write base, so what
@@ -75,7 +76,7 @@ internal static class SetupWizardCommit
         );
         using SetupWizardTransaction transaction = SetupWizardTransaction.Create(
             paths.SettingsPath,
-            credentialSecret is null ? null : live.FilePath
+            typedSecrets.Count == 0 ? null : live.FilePath
         );
 
         // Every writer is a read-modify-write, so a staged file starts from the bytes it has
@@ -84,7 +85,7 @@ internal static class SetupWizardCommit
         SetupWizardTransaction.Seed(paths.SettingsPath, transaction.Settings);
         SetupWizardTransaction.Seed(paths.ProviderStorePath, transaction.Providers);
 
-        WriteStaged(model, transaction, credentialProvider, credentialSecret);
+        WriteStaged(model, runs, transaction, typedSecrets);
         transaction.Commit([
             new(transaction.Auth, live.FilePath),
             new(transaction.Providers, paths.ProviderStorePath),
@@ -93,37 +94,42 @@ internal static class SetupWizardCommit
 
         // The session's in-memory store follows the file only once every file is in place:
         // nothing is applied to memory that a failed commit would have to undo.
-        if (credentialProvider is not null && credentialSecret is not null)
+        foreach ((string provider, string secret) in typedSecrets)
         {
-            live.Set(credentialProvider, credentialSecret);
+            live.Set(provider, secret);
         }
     }
 
     private static void WriteStaged(
         SetupWizardModel model,
+        IReadOnlyList<WizardProviderRun> runs,
         SetupWizardTransaction transaction,
-        string? credentialProvider,
-        string? credentialSecret
+        IReadOnlyDictionary<string, string> typedSecrets
     )
     {
         var stagedPaths = new CommitPaths(transaction.Settings, transaction.Providers);
-        if (model.Provider is not null && !model.IsCarried(SetupStep.Provider))
+        foreach (WizardProviderRun run in runs)
         {
-            if (credentialProvider is not null && credentialSecret is not null)
+            if (run.Provider == model.Provider && model.IsCarried(SetupStep.Provider))
+            {
+                continue;
+            }
+
+            if (typedSecrets.TryGetValue(run.Provider.Id, out string? secret))
             {
                 // The credential is staged like every other file: the wizard's key reaches
                 // auth.json in one replace, never before the rest of the commit.
                 AuthStore auth = AuthStore.Load(transaction.Auth);
-                auth.Set(credentialProvider, credentialSecret);
+                auth.Set(run.Provider.Id, secret);
                 auth.Save();
             }
 
-            WriteProviderEntry(model, stagedPaths);
+            WriteProviderEntry(run, stagedPaths);
         }
 
         WriteInlineProviders(model, transaction, stagedPaths);
-        WriteProfileAndUsages(model, stagedPaths);
-        WriteDecisions(model, stagedPaths);
+        WriteProfileAndUsages(model, runs, stagedPaths);
+        WriteDecisions(model, runs, stagedPaths);
     }
 
     /// <summary>
@@ -165,9 +171,9 @@ internal static class SetupWizardCommit
 
     // --- provider entry ---
 
-    private static void WriteProviderEntry(SetupWizardModel model, CommitPaths paths)
+    private static void WriteProviderEntry(WizardProviderRun run, CommitPaths paths)
     {
-        WizardProviderChoice provider = model.Provider!;
+        WizardProviderChoice provider = run.Provider;
         if (provider.Custom)
         {
             // A typed custom key pairs with the settings-section entry: the writer is the one
@@ -176,22 +182,22 @@ internal static class SetupWizardCommit
             // skipped model (or a reference-form credential) writes an explicit provider-store
             // entry instead — the same written shape, with the reference stored.
             if (
-                model.Credential?.Key is { } secretKey
-                && !IsReference(model.Credential.Reference)
-                && model.Model is { } modelChoice
+                run.Credential?.Key is { } secretKey
+                && !IsReference(run.Credential.Reference)
+                && run.Model is { } modelChoice
             )
             {
                 CommitTypedCustomEntry(provider, modelChoice, paths);
             }
             else
             {
-                SaveEntry(StagedEntry(model), paths);
+                SaveEntry(StagedEntry(provider, run.Credential), paths);
             }
 
             return;
         }
 
-        SaveEntry(StagedEntry(model), paths);
+        SaveEntry(StagedEntry(provider, run.Credential), paths);
     }
 
     /// <summary>
@@ -214,7 +220,8 @@ internal static class SetupWizardCommit
 
     /// <summary>The entry one provider answer, its credential and its model commit, built without
     /// writing anything. The one-argument overload is the walk's own provider; a provider added
-    /// inline from a usage step is built here too, so its check and its commit see one entry.</summary>
+    /// inline from a usage step or collected in an earlier provider run is built here too, so its
+    /// check and its commit see one entry.</summary>
     internal static ProviderEntry StagedEntry(
         WizardProviderChoice provider,
         WizardCredentialChoice? credential
@@ -226,7 +233,7 @@ internal static class SetupWizardCommit
             return CustomEntry(provider, credential);
         }
 
-        ProviderPreset? preset = ProviderPresets.Find(provider.Id);
+        ProviderPreset? preset = ProviderPresets.Find(provider.PresetKey);
         if (preset is null)
         {
             throw new InvalidDataException(
@@ -248,7 +255,7 @@ internal static class SetupWizardCommit
         bool overridesFamily = chosen != preset.DefaultFamily;
         return CreateEntry(
             provider.Id,
-            provider.Id,
+            preset.Id,
             preset.BaseUrl,
             CredentialReferenceOf(provider, credential),
             provider.ModelsUrl ?? preset.ModelsUrl,
@@ -402,19 +409,34 @@ internal static class SetupWizardCommit
 
     // --- profiles and usages ---
 
-    private static void WriteProfileAndUsages(SetupWizardModel model, CommitPaths paths)
+    private static void WriteProfileAndUsages(
+        SetupWizardModel model,
+        IReadOnlyList<WizardProviderRun> runs,
+        CommitPaths paths
+    )
     {
         WizardDecisionsChoice? decisions = model.Decisions;
-        if (model.ChatProfile is { } chat && !model.IsCarried(SetupStep.ChatProfile))
+        foreach (WizardProviderRun run in runs)
         {
+            if (run.ChatProfile is not { } chat)
+            {
+                continue;
+            }
+
+            if (run.Provider == model.Provider && model.IsCarried(SetupStep.ChatProfile))
+            {
+                continue;
+            }
+
             // The same shared rule the wizard step and the next startup apply: no writer may
             // persist a chat usage on a decision-only family.
             UsageProfileValidation.RequireChatFamily(
                 chat.Name,
                 chat.ModelId,
-                ChatFamily(model) ?? model.Model?.ApiFamily,
+                ChatFamily(run) ?? run.Model?.ApiFamily,
                 SetupState.ChatUsage
             );
+
             // The chat profile's routing description is part of the same profile entry, so one
             // writer pass carries both (settings: profiles.<name>.description). The family is
             // written when the walk resolved one the entry would not resolve by itself (#569),
@@ -422,17 +444,22 @@ internal static class SetupWizardCommit
             SettingsStore.WriteProfile(
                 ToModelProfile(
                     chat.Name,
-                    model,
+                    run.Provider,
                     chat.ModelId,
                     chat.ReasoningLevel,
                     Description(decisions, chat.Name),
-                    apiFamily: ChatFamily(model)
+                    apiFamily: ChatFamily(run)
                 ),
                 paths.SettingsPath
             );
-            if (model.BindChatUsage)
+            if (run.Provider != model.Provider || model.BindChatUsage)
             {
                 SettingsStore.WriteUsage("chat", chat.Name, paths.SettingsPath);
+            }
+
+            if (run.FastProfile)
+            {
+                SettingsStore.WriteUsage("fast", chat.Name, paths.SettingsPath);
             }
         }
 
@@ -492,8 +519,13 @@ internal static class SetupWizardCommit
             return null;
         }
 
-        return ProfileFamily(provider.Id, choice.ApiFamily);
+        return ProfileFamily(provider.PresetKey, choice.ApiFamily);
     }
+
+    /// <summary>One collected run's chat family: the model the run recorded, resolved the way
+    /// <see cref="ChatFamily(SetupWizardModel)"/> resolves the active run's.</summary>
+    private static string? ChatFamily(WizardProviderRun run) =>
+        run.Model is { } choice ? ProfileFamily(run.Provider.PresetKey, choice.ApiFamily) : null;
 
     /// <summary>A usage profile's family, written only when it differs from the default family the
     /// named provider's entry resolves on its own; a provider that is not a preset keeps its own
@@ -508,7 +540,7 @@ internal static class SetupWizardCommit
 
     private static ModelProfile ToModelProfile(
         string name,
-        SetupWizardModel model,
+        WizardProviderChoice provider,
         string modelId,
         string? reasoningLevel = null,
         string? description = null,
@@ -516,7 +548,7 @@ internal static class SetupWizardCommit
     ) =>
         new(
             name,
-            model.Provider!.Id,
+            provider.Id,
             modelId,
             ReasoningLevel: reasoningLevel,
             ApiFamily: apiFamily,
@@ -529,7 +561,11 @@ internal static class SetupWizardCommit
             ? description
             : null;
 
-    private static void WriteDecisions(SetupWizardModel model, CommitPaths paths)
+    private static void WriteDecisions(
+        SetupWizardModel model,
+        IReadOnlyList<WizardProviderRun> runs,
+        CommitPaths paths
+    )
     {
         WizardUsageChoice? decision = model.DecisionProfile;
         if (decision is not null && !model.IsCarried(SetupStep.DecisionProfile))
@@ -557,7 +593,7 @@ internal static class SetupWizardCommit
             IReadOnlyList<string> routingProfiles =
                 choices.RoutingProfiles.Count > 0
                     ? choices.RoutingProfiles
-                    : RoutingProfiles(model, model.DecisionProfile);
+                    : RoutingProfiles(model, runs, model.DecisionProfile);
             var list = new JsonArray([.. routingProfiles.Select(name => (JsonNode)name)]);
             SettingsStore.WriteDecisionsKey("routingProfiles", list, paths.SettingsPath);
         }
@@ -577,13 +613,25 @@ internal static class SetupWizardCommit
     /// configured profiles the settings already name; empty means routing cannot turn on here.</summary>
     private static IReadOnlyList<string> RoutingProfiles(
         SetupWizardModel model,
+        IReadOnlyList<WizardProviderRun> runs,
         WizardUsageChoice? decision
     )
     {
         List<string> names = [];
-        if (model.ChatProfile is { } chat)
+        if (
+            model.ChatProfile is { } carried
+            && !names.Contains(carried.Name, StringComparer.Ordinal)
+        )
         {
-            names.Add(chat.Name);
+            names.Add(carried.Name);
+        }
+
+        foreach (WizardProviderRun run in runs)
+        {
+            if (run.ChatProfile is { } chat && !names.Contains(chat.Name, StringComparer.Ordinal))
+            {
+                names.Add(chat.Name);
+            }
         }
 
         if (decision is not null)

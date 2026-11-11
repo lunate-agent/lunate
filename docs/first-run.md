@@ -3,8 +3,10 @@
 Lunate's first run is the setup wizard. It has two depths on one walk: **Quick** (the default) asks
 provider, credential, connection test, model, model check and chat profile; **Detailed** asks every
 setting as well — a custom provider's fields, thinking level, fast/decision profiles and the
-decisions layer. Nothing is written until the summary is confirmed. Re-run it at any time with
-`/setup` in a session or `lunate setup` from a shell.
+decisions layer. Either depth can collect several providers in one run, each with its own
+credential, connection test, model, model check and chat profile, before the fast/decision
+profiles, the decisions layer and the summary. Nothing is written until the summary is confirmed.
+Re-run it at any time with `/setup` in a session or `lunate setup` from a shell.
 
 ![The setup wizard walking provider, credential, connection test, model check and summary](media/setup-wizard.gif)
 
@@ -36,6 +38,11 @@ the wizard opens instead of the prompt:
   step). The model check runs after the selection, states its cost first, and a skip stays marked
   unverified. A `systemone` model is labelled native Jev, any other adapter model is labelled
   adapter.
+- **Another provider** — after a provider's steps, the provider list returns with **Add another
+  provider…** and **Done**. Adding walks the provider, credential, test, model and profile steps
+  again; **Done** continues to the decisions layer. Each provider keeps its own credential, and a
+  later one may reuse an `env:`/`auth:` reference instead of storing a second key. A name already
+  collected asks for a different name, so the first entry is never overwritten.
 - **Decisions** — Detailed only; each switch is shown with the value it holds now and one explanatory
   line; the list stays open after each change and refreshes every row, and **Done — leave the
   decisions settings** leaves it.

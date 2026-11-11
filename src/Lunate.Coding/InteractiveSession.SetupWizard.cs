@@ -1,3 +1,4 @@
+using System.Globalization;
 using Lunate.Ai;
 using Lunate.Tui;
 using Microsoft.Extensions.AI;
@@ -54,6 +55,10 @@ internal sealed partial class InteractiveSession
 
         /// <summary>The walk ends with nothing written.</summary>
         Abort,
+
+        /// <summary>The provider loop's **Done** was chosen; the walk continues after the
+        /// provider-scoped steps.</summary>
+        ProviderLoopDone,
     }
 
     /// <summary>The custom provider row's picker value; a leading NUL can never collide with an id.</summary>
@@ -70,6 +75,15 @@ internal sealed partial class InteractiveSession
 
     /// <summary>The provider step's mode row: toggles Quick/Detailed without clearing answers.</summary>
     internal const string WizardModeValue = "\0mode";
+
+    /// <summary>The provider list's **Add another provider…** row.</summary>
+    internal const string WizardAddProviderValue = "\0add-provider";
+
+    /// <summary>The provider list's **Done** row.</summary>
+    internal const string WizardProvidersDoneValue = "\0providers-done";
+
+    /// <summary>The prefix of a provider list's informational "already collected" row.</summary>
+    internal const string WizardConfiguredPrefix = "\0configured:";
 
     /// <summary>The custom row's label, exactly the auth picker's wording.</summary>
     internal const string WizardCustomLabel = "Custom OpenAI-compatible endpoint…";
@@ -189,6 +203,29 @@ internal sealed partial class InteractiveSession
                     continue;
                 }
 
+                if (move == WizardMove.ProviderLoopDone)
+                {
+                    // Done leaves the provider list where a single provider's walk continues: the
+                    // decision profile in Detailed, the summary in Quick (whose later steps stay at
+                    // their defaults), and the summary for an **Add a provider** entry.
+                    wizard.Enter(
+                        wizard.Entry is WizardEntry.AddProvider || wizard.IsQuick
+                            ? SetupStep.Summary
+                            : SetupStep.DecisionProfile
+                    );
+                    continue;
+                }
+
+                if (ReturnsToProviderList(wizard))
+                {
+                    // The run's provider-scoped steps are complete: the list offers another
+                    // provider or Done, and the next provider starts from the preset list again.
+                    wizard.MarkProviderReady();
+                    _listing = [];
+                    wizard.Enter(SetupStep.Provider);
+                    continue;
+                }
+
                 Navigate(wizard, move);
             }
 
@@ -270,6 +307,22 @@ internal sealed partial class InteractiveSession
         wizard.Enter(wizard.NextStep());
     }
 
+    /// <summary>Whether the step just answered ends a provider's scoped walk: the full walk after
+    /// its last provider-scoped step — the fast-profile step in Detailed, the chat profile in
+    /// Quick, which leaves the later steps at their defaults — and the **Add a provider** entry
+    /// after the connection test. Only entries that collect providers loop; a run that skipped the
+    /// provider step goes on to the decisions.
+    /// </summary>
+    private static bool ReturnsToProviderList(SetupWizardModel wizard) =>
+        wizard.Provider is not null
+        && (
+            (
+                wizard.Entry is WizardEntry.WalkEverything
+                && wizard.Step == (wizard.IsQuick ? SetupStep.ChatProfile : SetupStep.FastProfile)
+            )
+            || (wizard.Entry is WizardEntry.AddProvider && wizard.Step is SetupStep.ConnectionTest)
+        );
+
     /// <summary>A go-back inside an entry's scope: the walk keeps re-running earlier steps of the
     /// entry and never jumps before its first one (the earlier answers are the carried current
     /// configuration there, not this run's to redo).</summary>
@@ -299,7 +352,9 @@ internal sealed partial class InteractiveSession
     }
 
     /// <summary>Step 1: the preset list in providers.json order, then the custom row; a custom
-    /// provider answers id, endpoint, family, placement, region and optional models URL.</summary>
+    /// provider answers id, endpoint, family, placement, region and optional models URL. Once a
+    /// provider has finished its steps, the same step lists every collected provider with
+    /// **Add another provider…** and **Done** (spec: Several providers in one run).</summary>
     /// <summary>
     /// The picker's navigation verb, or null for an ordinary answer. Null (an aborted pick) is the
     /// walk's abort and is checked by the caller first (spec: The walk is navigable).
@@ -311,9 +366,73 @@ internal sealed partial class InteractiveSession
             WizardForwardValue => WizardMove.Forward,
             _ => null,
         };
-
     private async Task<WizardMove> ProviderStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
+        if (wizard.Provider is not null && wizard.ProviderReady)
+        {
+            return await ProviderListStepAsync(wizard, ct).ConfigureAwait(false);
+        }
+
+        return await PickProviderAsync(wizard, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>The collected providers, **Add another provider…** and **Done**. Picking a
+    /// collected row is informational; only adding starts the preset list again.</summary>
+    private async Task<WizardMove> ProviderListStepAsync(
+        SetupWizardModel wizard,
+        CancellationToken ct
+    )
+    {
+        List<string> labels = [];
+        List<string> values = [];
+        foreach (string id in wizard.ProviderIds)
+        {
+            labels.Add($"{id} — configured");
+            values.Add(WizardConfiguredPrefix + id);
+        }
+
+        labels.Add("Add another provider…");
+        values.Add(WizardAddProviderValue);
+        labels.Add(
+            $"Done — continue with {wizard.ProviderIds.Count.ToString(CultureInfo.InvariantCulture)} provider(s)"
+        );
+        values.Add(WizardProvidersDoneValue);
+
+        string? picked = await PickAsync(
+                "Add another provider?",
+                labels,
+                values,
+                PickerKind.WizardChoice,
+                ct,
+                WizardProvidersDoneValue
+            )
+            .ConfigureAwait(false);
+        if (picked is null)
+        {
+            return WizardMove.Abort;
+        }
+
+        if (picked == WizardProvidersDoneValue)
+        {
+            return WizardMove.ProviderLoopDone;
+        }
+
+        if (picked == WizardAddProviderValue)
+        {
+            _listing = [];
+            return await PickProviderAsync(wizard, ct).ConfigureAwait(false);
+        }
+
+        Notify(
+            "that provider is already collected; choose Add another provider… or Done",
+            NoticeLevel.Info
+        );
+        return WizardMove.Stay;
+    }
+
+    private async Task<WizardMove> PickProviderAsync(SetupWizardModel wizard, CancellationToken ct)
+    {
+        bool adding = wizard.ProviderIds.Count > 0;
         List<string> labels = [];
         List<string> values = [];
         if (wizard.Entry is WizardEntry.WalkEverything)
@@ -334,8 +453,8 @@ internal sealed partial class InteractiveSession
 
         labels.Add(WizardCustomLabel);
         values.Add(WizardCustomValue);
-        labels.Add("Skip provider setup");
-        values.Add(WizardSkipValue);
+        labels.Add(adding ? "Cancel adding a provider" : "Skip provider setup");
+        values.Add(adding ? WizardAddProviderValue : WizardSkipValue);
 
         string? selected = wizard.Provider switch
         {
@@ -377,6 +496,11 @@ internal sealed partial class InteractiveSession
             return WizardMove.Stay;
         }
 
+        if (picked == WizardAddProviderValue)
+        {
+            return WizardMove.Stay;
+        }
+
         if (picked == WizardSkipValue)
         {
             wizard.Skip(SetupStep.Provider);
@@ -394,17 +518,28 @@ internal sealed partial class InteractiveSession
                 return WizardMove.Stay;
             }
 
-            wizard.RecordProvider(
-                new WizardProviderChoice(
-                    preset.Id,
-                    Custom: false,
-                    Region: null,
-                    Endpoint: null,
-                    ProviderApiFamilies.Name(preset.DefaultFamily),
-                    preset.PlacementFor(preset.DefaultFamily),
-                    preset.ModelsUrl
-                )
+            WizardProviderChoice choice = new(
+                preset.Id,
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ProviderApiFamilies.Name(preset.DefaultFamily),
+                preset.PlacementFor(preset.DefaultFamily),
+                preset.ModelsUrl
             );
+            if (wizard.IsProviderConfigured(choice.Id))
+            {
+                WizardProviderChoice? renamed = await AskProviderRenameAsync(wizard, preset, ct)
+                    .ConfigureAwait(false);
+                if (renamed is null)
+                {
+                    return WizardMove.Abort;
+                }
+
+                choice = renamed;
+            }
+
+            RecordProviderChoice(wizard, choice);
             return WizardMove.Advance;
         }
 
@@ -415,8 +550,75 @@ internal sealed partial class InteractiveSession
             return WizardMove.Abort;
         }
 
-        wizard.RecordProvider(custom);
+        RecordProviderChoice(wizard, custom);
         return WizardMove.Advance;
+    }
+
+    /// <summary>Records the picked provider; when the list already holds a finished run, that run
+    /// is sealed first so the new answers start clean. A cancelled add never seals anything.</summary>
+    private static void RecordProviderChoice(SetupWizardModel wizard, WizardProviderChoice choice)
+    {
+        if (wizard.Provider is not null)
+        {
+            wizard.SealProvider();
+        }
+
+        wizard.RecordProvider(choice);
+    }
+
+    /// <summary>A duplicate preset name asks for another entry name; the new entry keeps the
+    /// preset's URL, family and placement through <see cref="WizardProviderChoice.PresetId"/>.</summary>
+    private async Task<WizardProviderChoice?> AskProviderRenameAsync(
+        SetupWizardModel wizard,
+        ProviderPreset preset,
+        CancellationToken ct
+    )
+    {
+        while (true)
+        {
+            string? name = await PromptAsync(
+                    $"Provider '{preset.Id}' is already configured — name this entry instead "
+                        + "(no spaces or '/'; must not shadow a preset)",
+                    ct
+                )
+                .ConfigureAwait(false);
+            if (name is null)
+            {
+                return null;
+            }
+
+            name = name.Trim();
+            if (name.Length == 0)
+            {
+                return null;
+            }
+
+            if (
+                name.Any(char.IsWhiteSpace)
+                || name.Contains('/')
+                || ProviderPresets.Find(name) is not null
+                || wizard.IsProviderConfigured(name)
+            )
+            {
+                Notify(
+                    $"the name '{name}' is refused: it must be non-empty, without spaces or '/', "
+                        + "and not name a preset or a provider already collected — the step asks again",
+                    NoticeLevel.Warning
+                );
+                continue;
+            }
+
+            return new WizardProviderChoice(
+                name,
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ProviderApiFamilies.Name(preset.DefaultFamily),
+                preset.PlacementFor(preset.DefaultFamily),
+                preset.ModelsUrl,
+                PresetId: preset.Id
+            );
+        }
     }
 
     /// <summary>The custom path's collection: id, endpoint, family (default openai-chat),
@@ -445,11 +647,13 @@ internal sealed partial class InteractiveSession
                 || id.Any(char.IsWhiteSpace)
                 || id.Contains('/')
                 || ProviderPresets.Find(id) is not null
+                || wizard.IsProviderConfigured(id)
             )
             {
                 Notify(
-                    $"the id '{id}' is refused: it must be non-empty, without spaces or '/', and "
-                        + "not name a built-in preset — the custom path asks again",
+                    $"the id '{id}' is refused: it must be non-empty, without spaces or '/', not "
+                        + "name a built-in preset, and not repeat a provider already collected — "
+                        + "the custom path asks again",
                     NoticeLevel.Warning
                 );
                 continue;
@@ -649,7 +853,7 @@ internal sealed partial class InteractiveSession
         {
             // The custom path has no standard variable: a typed key, a stored name or a reference.
         }
-        else if (ProviderPresets.Find(provider.Id) is { } preset)
+        else if (ProviderPresets.Find(provider.PresetKey) is { } preset)
         {
             string variable = preset.KeyVariable;
             string? value = _environment(variable);
@@ -1185,7 +1389,11 @@ internal sealed partial class InteractiveSession
             return WizardMove.Stay;
         }
 
-        if (_settings.Profiles.ContainsKey(name) || wizard.DecisionProfile?.ProfileName == name)
+        if (
+            _settings.Profiles.ContainsKey(name)
+            || wizard.DecisionProfile?.ProfileName == name
+            || wizard.AllProviderRuns.Any(run => run.ChatProfile?.Name == name)
+        )
         {
             Notify(
                 $"profile '{name}' is already configured; a confirmed summary replaces it",

@@ -139,6 +139,8 @@ public sealed class SetupWizardEntryMenuTests
         await host.WaitForFrameAsync("connection test failed");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         host.Console.SendEnter(); // skip the test for now
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done — this entry adds one provider
 
         string summary = await host.WaitForScrollbackAsync("skipped:");
         Assert.Contains("provider: deepseek", summary, StringComparison.Ordinal);

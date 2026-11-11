@@ -295,6 +295,95 @@ public sealed class SetupWizardCommitTests : IDisposable
     }
 
     [PosixFact]
+    public void Two_providers_are_written_in_one_commit_with_a_reused_reference()
+    {
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "openai",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "openai-chat",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("env:OPENAI_API_KEY"));
+        model.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
+        model.RecordChatProfile(
+            new WizardProfileChoice("chat-main", "gpt-5", ReasoningLevel: null)
+        );
+        model.MarkProviderReady();
+        model.SealProvider();
+
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "anthropic",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "anthropic-messages",
+                Placement: CredentialPlacement.XApiKey,
+                ModelsUrl: null
+            )
+        );
+        // The second provider reuses the first provider's environment reference: no second key.
+        model.RecordCredential(new WizardCredentialChoice("env:OPENAI_API_KEY"));
+        model.RecordModel(new WizardModelChoice("claude-sonnet-5-5", "anthropic-messages"));
+        model.RecordChatProfile(
+            new WizardProfileChoice("chat-alt", "claude-sonnet-5-5", ReasoningLevel: null)
+        );
+
+        Commit(model);
+
+        Assert.False(File.Exists(_temp.File("auth.json")));
+        using JsonDocument providers = JsonDocument.Parse(File.ReadAllText(ProviderStorePath));
+        JsonElement[] entries =
+        [
+            .. providers.RootElement.GetProperty("providers").EnumerateArray(),
+        ];
+        Assert.Equal(
+            ["anthropic", "openai"],
+            entries.Select(entry => entry.GetProperty("name").GetString()!)
+        );
+        Assert.All(
+            entries,
+            entry =>
+                Assert.Equal(
+                    "env:OPENAI_API_KEY",
+                    entry.GetProperty("credentialReference").GetString()
+                )
+        );
+
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));
+        JsonElement profiles = settings.RootElement.GetProperty("profiles");
+        Assert.Equal(
+            "openai",
+            profiles.GetProperty("chat-main").GetProperty("provider").GetString()
+        );
+        Assert.Equal(
+            "anthropic",
+            profiles.GetProperty("chat-alt").GetProperty("provider").GetString()
+        );
+        Assert.Equal(
+            "chat-alt",
+            settings.RootElement.GetProperty("usages").GetProperty("chat").GetString()
+        );
+
+        string summary = string.Join("\n", SetupWizardSummary.Render(model));
+        Assert.Contains("provider: openai", summary, StringComparison.Ordinal);
+        Assert.Contains("provider: anthropic", summary, StringComparison.Ordinal);
+        Assert.Contains(
+            "credential: env:OPENAI_API_KEY (written to providers.json (reused reference))",
+            summary,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("chat profile: chat-main", summary, StringComparison.Ordinal);
+        Assert.Contains("chat profile: chat-alt", summary, StringComparison.Ordinal);
+    }
+
+    [PosixFact]
     public void A_failure_after_the_auth_stage_leaves_every_file_byte_identical()
     {
         // B-5: the credential used to be saved before the entry and "restored" in memory only, so
