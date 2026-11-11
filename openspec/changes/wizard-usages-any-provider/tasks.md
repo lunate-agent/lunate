@@ -47,6 +47,10 @@
   pickers — the fast step reusing the chat profile, the fast step taking another configured
   provider's model and running its check, and the decision step's inline row returning to the same
   picker before the check and the one commit.
+- [x] 4.6 `SetupWizardUsageRoutesTests`: both checks on an already-configured provider resolve that
+  entry's stored key and redact it from a failure detail (`The_fast_check_redacts_…`,
+  `The_decision_check_redacts_…`), so the new provider-aware path keeps the credential safety the
+  own-provider path had.
 
 ## 5. Verification and close-out
 

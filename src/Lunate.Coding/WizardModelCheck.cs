@@ -179,8 +179,10 @@ internal static class WizardModelCheck
     {
         ModelInfo checkModel = DecisionModelFor(model, catalog);
         ProviderEntry entry = model.Entry;
+        string? credential = credentialOverride;
         try
         {
+            credential = CheckCredential(entry, auth, environment, credentialOverride);
             // The same resolution the session's decision usage takes, over the entry this walk is
             // about to store: a native profile builds the System One transport, an adapter one
             // the provider's chat client that the decision layer wraps.
@@ -204,7 +206,7 @@ internal static class WizardModelCheck
                 environment,
                 factory,
                 context ?? RequestContext.Ephemeral(),
-                credentialOverride: credentialOverride
+                credentialOverride: credential
             );
             await DecisionEngine
                 .EvaluateAsync(
@@ -225,7 +227,7 @@ internal static class WizardModelCheck
         {
             return new WizardCheckResult(
                 WizardProgress.Failed,
-                Redact(exception.Message, credentialOverride)
+                Redact(exception.Message, credential)
             );
         }
     }
@@ -295,8 +297,10 @@ internal static class WizardModelCheck
         WizardModelChoice choice = model.Model;
         ProviderEntry entry = model.Entry;
         RequestContext identity = context ?? RequestContext.Ephemeral();
+        string? credential = credentialOverride;
         try
         {
+            credential = CheckCredential(entry, auth, environment, credentialOverride);
             // The check resolves the staged profile through the same provider entry and family
             // path the first session uses. A custom provider's model is not in the built-in
             // catalog, so its ModelFor result supplies the endpoint and wire id; a preset model
@@ -347,7 +351,7 @@ internal static class WizardModelCheck
                 environment,
                 factory,
                 identity,
-                credentialOverride: credentialOverride
+                credentialOverride: credential
             );
             await client
                 .GetResponseAsync(
@@ -366,7 +370,7 @@ internal static class WizardModelCheck
         {
             return new WizardCheckResult(
                 WizardProgress.Failed,
-                Redact(exception.Message, credentialOverride)
+                Redact(exception.Message, credential)
             );
         }
     }
@@ -392,6 +396,53 @@ internal static class WizardModelCheck
             context,
             ct
         );
+
+    /// <summary>
+    /// The key the check's client will send, so a failure detail can redact exactly that value: the
+    /// caller's held key when there is one, otherwise the entry's own credential reference resolved
+    /// the way <see cref="DecisionUsageModels.CreateUsageClient"/> resolves it — a preset's
+    /// environment variable or alias first, then the auth store; an <c>env:</c> reference names its
+    /// variable; any other reference leaves this host no key to send. A configured provider's ref
+    /// carries no credential, so without this the stored key would escape redaction.
+    /// </summary>
+    private static string? CheckCredential(
+        ProviderEntry entry,
+        AuthStore auth,
+        Func<string, string?> environment,
+        string? credentialOverride
+    )
+    {
+        if (credentialOverride is { Length: > 0 } held)
+        {
+            return held;
+        }
+
+        string reference = entry.CredentialReference;
+        if (reference.StartsWith("auth:", StringComparison.Ordinal))
+        {
+            string keyName = reference["auth:".Length..];
+            ProviderPreset? preset = ProviderPresets.Find(entry.Kind);
+            string? environmentKey = preset is null
+                ? null
+                : environment(preset.KeyVariable)
+                    ?? (preset.KeyVariableAlias is { } alias ? environment(alias) : null);
+            if (!string.IsNullOrWhiteSpace(environmentKey))
+            {
+                return environmentKey;
+            }
+
+            string? storedKey = auth.TryGet(keyName);
+            return string.IsNullOrWhiteSpace(storedKey) ? null : storedKey;
+        }
+
+        if (reference.StartsWith("env:", StringComparison.Ordinal))
+        {
+            string? environmentKey = environment(reference["env:".Length..]);
+            return string.IsNullOrWhiteSpace(environmentKey) ? null : environmentKey;
+        }
+
+        return null;
+    }
 
     private static string Redact(string reason, string? credential) =>
         credential is { Length: > 0 }

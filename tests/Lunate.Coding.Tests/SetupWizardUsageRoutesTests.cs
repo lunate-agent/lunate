@@ -254,6 +254,72 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
         Assert.Contains(entries, entry => entry.Name == "opencode-go");
     }
 
+    /// <summary>A configured provider's fast check resolves its stored key but the ref carries no
+    /// credential: a failure that echoes the key must still redact it.</summary>
+    [Fact]
+    public async Task The_fast_check_redacts_the_stored_key_of_a_configured_provider()
+    {
+        AuthStore auth = AuthStore.Load(_temp.File("auth.json"), NoEnvironment);
+        auth.Set("anthropic", "anthropic-secret");
+        auth.Save();
+        ProviderEntry anthropic = Entry("anthropic", "auth:anthropic");
+        WizardModelRef model = new(
+            WizardUsageOptions.CarriedProvider(anthropic),
+            Credential: null,
+            anthropic,
+            new WizardModelChoice("claude-sonnet-5-5", "anthropic-messages")
+        );
+
+        WizardCheckResult check = await WizardModelCheck.RunForAsync(
+            model,
+            ModelCatalog.Load(null),
+            new RejectingFactory(),
+            auth,
+            NoEnvironment,
+            credentialOverride: null,
+            context: null,
+            TestContext.Current.CancellationToken
+        );
+
+        string detail = check.Detail ?? string.Empty;
+        Assert.Equal(WizardProgress.Failed, check.Outcome);
+        Assert.DoesNotContain("anthropic-secret", detail, StringComparison.Ordinal);
+        Assert.Contains("[redacted]", detail, StringComparison.Ordinal);
+    }
+
+    /// <summary>The decision check resolves a configured provider's stored key the same way: a
+    /// failure that echoes it must redact it too.</summary>
+    [Fact]
+    public async Task The_decision_check_redacts_the_stored_key_of_a_configured_provider()
+    {
+        AuthStore auth = AuthStore.Load(_temp.File("auth.json"), NoEnvironment);
+        auth.Set("anthropic", "anthropic-secret");
+        auth.Save();
+        ProviderEntry anthropic = Entry("anthropic", "auth:anthropic");
+        WizardModelRef model = new(
+            WizardUsageOptions.CarriedProvider(anthropic),
+            Credential: null,
+            anthropic,
+            new WizardModelChoice("claude-sonnet-5-5", "anthropic-messages")
+        );
+
+        WizardCheckResult check = await WizardModelCheck.RunDecisionForAsync(
+            model,
+            ModelCatalog.Load(null),
+            new RejectingFactory(),
+            auth,
+            NoEnvironment,
+            credentialOverride: null,
+            context: null,
+            TestContext.Current.CancellationToken
+        );
+
+        string detail = check.Detail ?? string.Empty;
+        Assert.Equal(WizardProgress.Failed, check.Outcome);
+        Assert.DoesNotContain("anthropic-secret", detail, StringComparison.Ordinal);
+        Assert.Contains("[redacted]", detail, StringComparison.Ordinal);
+    }
+
     private static IReadOnlyList<string> Labels(
         SetupWizardModel wizard,
         IReadOnlyList<ProviderEntry> configured,
@@ -338,6 +404,18 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
             Created.Add((model, apiKey));
             return client;
         }
+    }
+
+    /// <summary>A factory whose client creation refuses with the key it was handed, so a failure
+    /// detail can only be safe when the check redacts that key.</summary>
+    private sealed class RejectingFactory : IChatClientFactory
+    {
+        public IChatClient Create(ModelInfo model) => throw Rejected(apiKey: null);
+
+        public IChatClient Create(ModelInfo model, string? apiKey) => throw Rejected(apiKey);
+
+        private static InvalidOperationException Rejected(string? apiKey) =>
+            new($"provider rejected key {apiKey}");
     }
 
     /// <summary>The System One transport for the inline decision check; a chat request would be a

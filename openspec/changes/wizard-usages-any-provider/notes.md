@@ -80,3 +80,15 @@ checkout at `2649040c`.
   was never approached (runs take about 0.8 s). The test is unchanged on this branch, so a failure
   there is inherited rather than caused here. Recorded on the pull request with the measurements.
 
+## Review round 3 (head `cd57d01d` returned)
+
+- **Resolved-key redaction.** The provider-aware checks passed only `model.Credential?.Key` as the
+  value to redact, and that is null for an already-configured provider whose entry names the
+  reference. Both checks now resolve the key the client will actually send — typed override first,
+  then the entry's `auth:`/`env:` reference exactly as `DecisionUsageModels.CreateUsageClient`
+  resolves it — and pass that same value to `CreateUsageClient` and to `Redact`.
+- **Proof.** `The_fast_check_redacts_the_stored_key_of_a_configured_provider` and
+  `The_decision_check_redacts_the_stored_key_of_a_configured_provider` failed before the fix with
+  `provider rejected key anthropic-secret` in `Detail`, and pass after it. The archive was reverted
+  and is re-applied as the branch's final commit.
+
