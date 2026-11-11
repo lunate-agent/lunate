@@ -67,6 +67,6 @@ The factory registers it with `context.RegisterStatusWidget(new UiShowcaseUsageW
 
 ## See also
 
-- UI capabilities by mode: [`docs/spec/extensibility.md`](../../spec/extensibility.md#ui-by-mode)
+- UI capabilities by mode: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#ui-by-mode)
 - Tool-result renderers: [tool-result-renderers.md](tool-result-renderers.md)
 - Culture-invariant formatting: [`AGENTS.md`](../../../AGENTS.md)

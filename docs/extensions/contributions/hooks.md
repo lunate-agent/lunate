@@ -8,7 +8,7 @@ context.Register(new PermissionGateToolCallingHandler(context.Id, context.Settin
 ```
 
 The full catalogue — when each hook fires, what it may change and its failure policy — is in
-[`docs/spec/extensibility.md`](../../spec/extensibility.md#hook-catalogue). This page is the
+[`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#hook-catalogue). This page is the
 author-facing index and the rules that are easy to get wrong.
 
 ## The API
@@ -130,6 +130,6 @@ every failure returns the original output unchanged. Full file:
 
 ## See also
 
-- The hook catalogue and failure policies: [`docs/spec/extensibility.md`](../../spec/extensibility.md#hook-catalogue)
+- The hook catalogue and failure policies: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#hook-catalogue)
 - Testing hooks through the real host: [testing.md](../testing.md)
 - The `IFileChangedHandler` contract: [file-changes.md](file-changes.md)

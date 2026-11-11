@@ -82,5 +82,5 @@ every call (destructive-capable), `merge` follows the write policy.
 3. Keep the tests: they create real temp repositories and prove the start/merge/clean/list
    behaviours end to end without live APIs.
 
-See `docs/spec/extensibility.md` § Workspaces and repository identity for the workspace contract and
+See `docs/dev/spec/extensibility.md` § Workspaces and repository identity for the workspace contract and
 `docs/guide.md` for T-51.

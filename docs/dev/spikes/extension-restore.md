@@ -3,8 +3,8 @@
 - Date: 2026-10-24
 - Branch: `spike/extension-restore` (off `main` at `2956e572`)
 - Status: spike complete; recommendations are proposals, not an accepted design
-- Relates to: [ADR-0017](../../adr/0017-extensibility-architecture.md), the draft
-  [addendum](../../adr/0017-addendum-extensions.md), the packaged-install follow-up
+- Relates to: [ADR-0017](../../../adr/0017-extensibility-architecture.md), the draft
+  [addendum](../../../adr/0017-addendum-extensions.md), the packaged-install follow-up
 - Probe: `/tmp/extspike` on the spike machine (not committed); all numbers below come from it
 
 ## Question

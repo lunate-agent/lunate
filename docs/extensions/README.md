@@ -13,7 +13,7 @@ The tool namespace remains `Lunate.Agent` for source compatibility; using that n
 require a project reference to the `Lunate.Agent` assembly.
 
 This section is the authoring guide. The normative contract is
-[`docs/spec/extensibility.md`](../spec/extensibility.md); when this guide and the spec disagree,
+[`docs/dev/spec/extensibility.md`](../dev/spec/extensibility.md); when this guide and the spec disagree,
 the spec wins.
 
 | Page | Contents |
@@ -26,7 +26,7 @@ the spec wins.
 | [testing.md](testing.md) | The test kit, fixtures, and the missing-primitive rule |
 | [troubleshooting.md](troubleshooting.md) | `/extensions` states and the failures you can hit |
 | [Remote extensions](../extensions-remote.md) | Out-of-process manifest, wire and conformance runner |
-| [Contract and hook catalogue](../spec/extensibility.md) | The normative behaviour |
+| [Contract and hook catalogue](../dev/spec/extensibility.md) | The normative behaviour |
 | [Extension template](../../templates/extension/README.md) | A working starting project |
 | [Reference extensions](../../samples/extensions/) | The fitness suite that runs in CI |
 | [Supported extensions](../../extensions/) | The first-party tier users install and rely on |
@@ -192,4 +192,4 @@ see [troubleshooting.md](troubleshooting.md).
 - The contribution you want to add: [contributions/](contributions/README.md).
 - When it loads, and how project trust behaves: [lifecycle-and-trust.md](lifecycle-and-trust.md).
 - How to test it without live APIs: [testing.md](testing.md).
-- The normative semantics, hook catalogue and fitness suite: [`docs/spec/extensibility.md`](../spec/extensibility.md).
+- The normative semantics, hook catalogue and fitness suite: [`docs/dev/spec/extensibility.md`](../dev/spec/extensibility.md).

@@ -142,6 +142,6 @@ attaches `{"path", "diagnostics": […]}` this way.
 
 ## See also
 
-- Tool exposure and the core tool model: [`docs/spec/extensibility.md`](../../spec/extensibility.md#tool-model)
+- Tool exposure and the core tool model: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#tool-model)
 - Test a tool through the real harness: [testing.md](../testing.md)
 - The approval and hook order: [hooks.md](hooks.md)

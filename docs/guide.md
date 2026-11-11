@@ -22,7 +22,7 @@ Three consequences follow, and they decide priorities:
   activation rule. `Lunate.Coding` references that adapter only to supply the built-in factory list;
   the adapter and backend stay within the extension-abstractions dependency boundary (ADR-0026).
   Issue #237 may publish `Lunate.Extensibility.Abstractions` as stable only after this positioning
-  sentence is restored. The [surface audit](eval/roslyn-surface-audit.md) records the pre-migration
+  sentence is restored. The [surface audit](dev/eval/roslyn-surface-audit.md) records the pre-migration
   state as of 2026-10-28.
 - **Any configured model can serve a decision.** The user chooses the model; Lunate checks the
   response contract, retries one malformed response, and ensures decisions can only tighten the
@@ -87,8 +87,8 @@ lunate/
   openspec/changes/            # proposals, deltas, tasks (archive/ for done)
   adr/                         # durable architectural decisions (0001-...)
   docs/guide.md                # this guide
-  docs/spikes/                 # spike code and reports (S-1 to S-4)
-  docs/eval/                   # eval write-ups (T-35)
+  docs/dev/spikes/             # spike code and reports (S-1 to S-4)
+  docs/dev/eval/               # eval write-ups (T-35)
   scripts/verify.sh            # + verify.ps1: build, tests, publish, budgets, API and format checks
   scripts/perf.sh              # startup and memory budgets
   src/Lunate.Ai/               # IChatClient setup, model catalog, record and replay clients
@@ -139,7 +139,7 @@ Stick to .NET 10, Microsoft.Extensions.AI and a few well-known packages. No Nati
 
 **Spikes (task T-03)**
 
-Each spike is throwaway code in `docs/spikes/S-x/` with a short report and an ADR.
+Each spike is throwaway code in `docs/dev/spikes/S-x/` with a short report and an ADR.
 
 | Spike | Question | Result |
 | --- | --- | --- |
@@ -527,7 +527,7 @@ System-prompt directives are recorded as prompt sections on a new session and re
 
 `/copy` (also `Ctrl+X`) writes the last completed answer to the clipboard. Over ssh (`SSH_CONNECTION` or `SSH_TTY`) it sends the OSC 52 sequence and starts no local tool; locally it runs the platform tool first (`pbcopy`, `wl-copy`/`xclip`/`xsel`, `clip.exe`/`Set-Clipboard` under WSL, the Win32 clipboard API on Windows — never `clip.exe`) and falls back to the sequence. The notice distinguishes evidence from intent — `copied 1,842 characters via pbcopy` versus `sent 1,842 characters to the terminal clipboard (OSC 52)` — names tmux's `set-clipboard on` when `TMUX` is set, and says the terminal may truncate a copy above 100 KB; the text is never cut by Lunate. A cancelled or failed turn is not an answer, so the previous completed one is copied, and with no completed turn the command says so and writes nothing.
 
-`/export html|jsonl [path] [--force]` writes the session. JSONL is the session file byte for byte with only the credential redaction applied; HTML is one self-contained document (inline CSS, no JavaScript, a `default-src 'none'` CSP, thinking in a collapsed `<details>`, every value escaped into text). Without a path the file is `~/.lunate/exports/<yyyy-MM-dd>-<session name or id>.<ext>` — never the current directory, where an export would be committed — and a path argument overrides it. An existing file is refused without `--force`, and every credential Lunate knows (auth store keys, provider environment variables, extension secrets, MCP environment values) is replaced with `[redacted:<name>]` by exact value only. The command prints the absolute path, the entry count and one line saying the file may contain file contents and command output and should be reviewed before sharing. Neither command exists in print or ACP mode. [`spec/export.md`](spec/export.md) owns the full contract.
+`/export html|jsonl [path] [--force]` writes the session. JSONL is the session file byte for byte with only the credential redaction applied; HTML is one self-contained document (inline CSS, no JavaScript, a `default-src 'none'` CSP, thinking in a collapsed `<details>`, every value escaped into text). Without a path the file is `~/.lunate/exports/<yyyy-MM-dd>-<session name or id>.<ext>` — never the current directory, where an export would be committed — and a path argument overrides it. An existing file is refused without `--force`, and every credential Lunate knows (auth store keys, provider environment variables, extension secrets, MCP environment values) is replaced with `[redacted:<name>]` by exact value only. The command prints the absolute path, the entry count and one line saying the file may contain file contents and command output and should be reviewed before sharing. Neither command exists in print or ACP mode. [`dev/spec/export.md`](dev/spec/export.md) owns the full contract.
 
 The session is a tree, and four commands expose it: `/tree` opens the session's whole tree in the transcript viewer — every branch in file order, indented by depth, the active path marked `*` and the rest `-`, `j`/`k` and `/` filter over it — and `Enter` puts the picked user message back in the editor without sending it; `/fork <entry>` writes a new session file holding the picked entry's chain up to that entry (any branch's, not only the active one), its header naming the source (`origin`, `branched`); `/clone` writes a new file holding every entry; `/rewind <entry> [summary] [confirm]` moves the active leaf in place by appending one `activeLeaf` entry, and with `summary` first reports the estimated input tokens and that one model call will be made, then writes the branch summary on the destination path once confirmed. Fork, clone and rewind refuse while a turn is running — a run's pending tool calls belong to a path — while `/tree` only reads and stays available.
 
@@ -539,7 +539,7 @@ The session is a tree, and four commands expose it: `/tree` opens the session's 
 
 **Extensions**
 
-An extension is an assembly implementing the `Lunate.Extensibility.Abstractions` contract — hooks, tools, services, commands — and it compiles only against that assembly, never against `Lunate.Agent` internals (ADR-0017; the full model is in `docs/spec/extensibility.md`). The contract carries the core tool types (`ToolContext`, `ToolResult`), so a tool handler is written against the same tool model the core uses. Lunate loads extensions at runtime, like Pi:
+An extension is an assembly implementing the `Lunate.Extensibility.Abstractions` contract — hooks, tools, services, commands — and it compiles only against that assembly, never against `Lunate.Agent` internals (ADR-0017; the full model is in `docs/dev/spec/extensibility.md`). The contract carries the core tool types (`ToolContext`, `ToolResult`), so a tool handler is written against the same tool model the core uses. Lunate loads extensions at runtime, like Pi:
 
 - From `~/.lunate/extensions/` (global) and `.lunate/extensions/` (per project), each in its own collectible `AssemblyLoadContext`; the contract assemblies, Microsoft.Extensions.AI abstractions and System.Text.Json are shared.
 - Each extension has an `extension.json` (id, version, apiVersion range, entry assembly, declared tools/commands/hooks/services, settings schema). Manifests are read at startup; assemblies load on first use, so startup budgets hold.
@@ -869,10 +869,10 @@ One row per card. Each card becomes one OpenSpec change (see Building it with Op
 | T-31 | 6 | `cs_find_references`, `cs_outline`, `cs_rename` | T-25 | Fixture tests; eval comparison row |
 | T-32 | 4 | Distribution: release workflow, install scripts, Homebrew, Scoop, winget, `dotnet tool` | T-02, T-17 | Fresh install works on Windows, macOS and Linux with one command |
 | T-33 | 4 | Terminal capability detection and fallbacks; manual terminal matrix check | T-18, T-19 | Every tier-1 terminal checked and noted in the card |
-| T-35 | 5 | Head-to-head C# eval: Lunate vs Claude Code with the C# LSP plugin vs OpenCode with its C# tooling; same tasks and model where possible; pass rate, steps, tokens, edit tiers, time; failure categories per run (load/restore/SDK failures, symbol-position errors, wrong edits, other) | T-17, T-25, T-26 | One results row per tool in eval/results.csv, a short write-up in docs/eval/, and a conclusion — if Lunate is not clearly better on C# tasks, the guide moves the positioning to .NET-native extensibility and the daily-driver experience instead of C# intelligence; covers the cs_rename comparison scenario |
+| T-35 | 5 | Head-to-head C# eval: Lunate vs Claude Code with the C# LSP plugin vs OpenCode with its C# tooling; same tasks and model where possible; pass rate, steps, tokens, edit tiers, time; failure categories per run (load/restore/SDK failures, symbol-position errors, wrong edits, other) | T-17, T-25, T-26 | One results row per tool in eval/results.csv, a short write-up in docs/dev/eval/, and a conclusion — if Lunate is not clearly better on C# tasks, the guide moves the positioning to .NET-native extensibility and the daily-driver experience instead of C# intelligence; covers the cs_rename comparison scenario |
 | T-53 | 4 | `@path` completion: file index honoring `.gitignore` (built lazily, bounded memory), performance budget on large repositories; `Tab` completion for `@paths` in the input line | T-22 | Completing `@paths` in a large repo stays within the startup and latency budgets and respects ignores |
 
-**Extensibility series (replaces the former T-24 and T-34).** The core ships primitives and is subagent-ready; features ship as extensions, proven by the fitness suite (`docs/spec/extensibility.md`, ADR-0017).
+**Extensibility series (replaces the former T-24 and T-34).** The core ships primitives and is subagent-ready; features ship as extensions, proven by the fitness suite (`docs/dev/spec/extensibility.md`, ADR-0017).
 
 | Card | Phase | Scope | Depends on | Done when |
 | --- | --- | --- | --- | --- |
@@ -924,7 +924,7 @@ The repo already carries the harness this guide describes: the OpenSpec CLI with
 | `.agents/skills/` | Every other skill, one source for all harnesses: `grill-me`, `architectural-decision-records`, `c4-diagrams`, `gherkin-authoring`, `glossary`, `openspec-git-discipline`, `spec-as-source` (opt-in), `test-driven-development`, `acceptance-test-authoring`, `adversarial-authoring` |
 | `openspec/` | `config.yaml` (schema, rules, project context), `schemas/intent-driven/`, `specs/` (current truth), `changes/` (proposals, deltas, tasks) |
 | `adr/` | Durable architectural decisions; immutable once accepted |
-| `docs/guide.md`, `docs/spikes/`, `docs/eval/` | This guide, spike reports, eval write-ups |
+| `docs/guide.md`, `docs/dev/spikes/`, `docs/dev/eval/` | This guide, spike reports, eval write-ups |
 | `scripts/verify.sh` / `.ps1` | The one command that decides "done" |
 
 OpenCode reads `AGENTS.md` natively; there is no separate editor-specific memory file.

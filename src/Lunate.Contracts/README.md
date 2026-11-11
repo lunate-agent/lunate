@@ -41,4 +41,4 @@ way [the template](https://github.com/lunate-agent/lunate/tree/main/templates/ex
 
 `docs/extensions/` — the [package reference](https://github.com/lunate-agent/lunate/blob/main/docs/extensions/packages.md),
 the [manifest](https://github.com/lunate-agent/lunate/blob/main/docs/extensions/manifest.md) and the
-[contract catalogue](https://github.com/lunate-agent/lunate/blob/main/docs/spec/extensibility.md).
+[contract catalogue](https://github.com/lunate-agent/lunate/blob/main/docs/dev/spec/extensibility.md).

@@ -229,7 +229,7 @@ jobs:
         # run on the same commit. Pull requests always use [1, 2, 3, 4].
         shard: ${{ fromJSON(inputs.verify_shard_count == '1' && '[1]' || inputs.verify_shard_count == '2' && '[1, 2]' || inputs.verify_shard_count == '3' && '[1, 2, 3]' || '[1, 2, 3, 4]') }}
         include:
-          # budget_ms: calibrated in spike S-3 (docs/spikes/S-3/report.md, ADR 0005
+          # budget_ms: calibrated in spike S-3 (docs/dev/spikes/S-3/report.md, ADR 0005
           # accepted 2026-10-04) — runner startup median + ~50% headroom, rounded up to 50 ms.
           # Re-calibrate when a runner image or baseline shifts. The local default
           # in scripts/perf.sh stays 150 ms.

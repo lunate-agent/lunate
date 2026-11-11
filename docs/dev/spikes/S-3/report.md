@@ -13,7 +13,7 @@
   350 ms**; local default stays **150 ms**. Raw medians:
   [`evidence/ci-medians.txt`](evidence/ci-medians.txt),
   [`evidence/run-list.json`](evidence/run-list.json).
-- ADR draft: [`adr/0005-budget-calibration.md`](../../../adr/0005-budget-calibration.md)
+- ADR draft: [`adr/0005-budget-calibration.md`](../../../../adr/0005-budget-calibration.md)
   (accepted 2026-10-04).
 
 ## Measurements

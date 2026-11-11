@@ -83,6 +83,6 @@ Full file:
 
 ## See also
 
-- Skills discovery, trust and index budget: [`docs/spec/extensibility.md`](../../spec/extensibility.md#contract-and-loading)
+- Skills discovery, trust and index budget: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#contract-and-loading)
 - The skills a session loads: [`skills.md`](../../../docs/skills.md)
 - Settings that change budgets: [settings-and-secrets.md](settings-and-secrets.md)

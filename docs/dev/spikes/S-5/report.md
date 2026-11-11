@@ -12,7 +12,7 @@
   single-file ReadyToRun binaries; one shared xunit test list run 50× per
   variant; a 10,000-delta burst; an adversarial-reviewer readability pass.
 - Outcome: **recommend B (System.Reactive), reject B+ (ReactiveUI)** — see
-  [ADR 0007](../../../adr/0007-live-area-concurrency.md), **accepted
+  [ADR 0007](../../../../adr/0007-live-area-concurrency.md), **accepted
   2026-10-04** (conditions of adoption in the ADR). B's whole-process startup delta is **+10 ms**
   (baseline 24 ms → 34 ms) and its time-based tests are materially simpler to
   drive than A's; B+ costs 2.6× A's code, duplicates state and hit a
@@ -269,5 +269,5 @@ are the simplest (`TestScheduler` in both directions), and its plumbing is the
 smallest. B+ is rejected on code, duplication, dependency churn and packaging
 risk. Full rationale and the conditions for adoption (pins, scheduler seam,
 T-18/T-19 test requirements, the open packaging crash) are in
-[`adr/0007-live-area-concurrency.md`](../../../adr/0007-live-area-concurrency.md),
+[`adr/0007-live-area-concurrency.md`](../../../../adr/0007-live-area-concurrency.md),
 status **accepted (2026-10-04)**.

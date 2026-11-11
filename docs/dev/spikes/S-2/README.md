@@ -8,5 +8,5 @@ Bash), and if not, what is the fallback?
 - Manual mintty check on Windows: done 2026-10-04 — `Console.ReadKey` works
   directly in mintty on Git for Windows 2.52.0 (pseudo console on by default);
   fails with `MSYS=disable_pcon`. Evidence in `evidence/manual-*.txt`.
-- ADR draft: [`adr/0004-mintty-input-support.md`](../../../adr/0004-mintty-input-support.md)
+- ADR draft: [`adr/0004-mintty-input-support.md`](../../../../adr/0004-mintty-input-support.md)
   (proposed; fail-soft diagnostic and Windows Terminal fallback included).

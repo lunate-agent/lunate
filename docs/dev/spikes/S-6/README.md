@@ -4,7 +4,7 @@ Throwaway evaluation of [XenoAtom.Terminal.UI](https://github.com/XenoAtom/XenoA
 3.10.0 (inline `Terminal.Live` + `PromptEditor` + Markdig `MarkdownControl`)
 as a replacement for Lunate's own live area and input line, keeping
 scrollback-first inline output. Findings live in [`report.md`](report.md) and
-[`../../../adr/0019-xenoatom-terminal-ui.md`](../../../adr/0019-xenoatom-terminal-ui.md).
+[`../../../adr/0019-xenoatom-terminal-ui.md`](../../../../adr/0019-xenoatom-terminal-ui.md).
 
 - `S6.Harness/` — the S-5 scenario rebuilt on XenoAtom.Terminal.UI
   (`Terminal.Write` finished blocks, `Terminal.Live` live area, `PromptEditor`

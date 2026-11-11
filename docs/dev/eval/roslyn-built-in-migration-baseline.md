@@ -2,7 +2,7 @@
 
 This is the frozen pre-migration comparison point for issue #293. Product code and composition were
 unchanged while it was captured. The exact five tool results are also frozen in
-[`tests/fixtures/roslyn-built-in-migration/results.json`](../../tests/fixtures/roslyn-built-in-migration/results.json).
+[`tests/fixtures/roslyn-built-in-migration/results.json`](../../../tests/fixtures/roslyn-built-in-migration/results.json).
 
 ## Identity
 

@@ -25,4 +25,4 @@ Lunate itself is MIT (see [LICENSE](../LICENSE)). This page records the NuGet de
 Notes:
 
 - The transitive closure of these packages may include further Microsoft (MIT) and System (MIT) assemblies; this table records direct references.
-- Spikes under `docs/spikes/` pin their own packages for evaluation only; their licences are recorded in the spike reports.
+- Spikes under `docs/dev/spikes/` pin their own packages for evaluation only; their licences are recorded in the spike reports.

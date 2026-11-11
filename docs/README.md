@@ -21,9 +21,9 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Plan and status | [`guide.md`](guide.md) | The implementation plan, phases and roadmap |
 | Documentation architecture (proposed) | [`dev/information-architecture.md`](dev/information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and slice plan, awaiting sign-off |
 | Architecture overview | [`architecture.md`](architecture.md) | Component map, model pipeline, one run and the event path, as diagrams |
-| Extensibility spec | [`spec/extensibility.md`](spec/extensibility.md) | Contract and hooks, tool model, services, UI by mode, fitness suite (under ADR-0017) |
-| Export contract | [`spec/export.md`](spec/export.md) | `/export` and `/copy`: destination, credential redaction, the HTML document's CSP and escaping guarantees |
-| Diagnostic bundle | [`spec/diagnostics.md`](spec/diagnostics.md) | `/debug`: destination, sections, the event window, and what the bundle never carries |
+| Extensibility spec | [`dev/spec/extensibility.md`](dev/spec/extensibility.md) | Contract and hooks, tool model, services, UI by mode, fitness suite (under ADR-0017) |
+| Export contract | [`dev/spec/export.md`](dev/spec/export.md) | `/export` and `/copy`: destination, credential redaction, the HTML document's CSP and escaping guarantees |
+| Diagnostic bundle | [`dev/spec/diagnostics.md`](dev/spec/diagnostics.md) | `/debug`: destination, sections, the event window, and what the bundle never carries |
 | Extension authoring | [`extensions/`](extensions/README.md) | Quickstart, manifest reference, single-file headers, per-surface API and constraints, lifecycle and trust, testing, troubleshooting |
 | Installing packages | [`extensions/packages.md`](extensions/packages.md) | The bundle manifest, dependency resolution and its lock, the install record, both scopes, upgrade and uninstall, offline and private feeds, trust after install |
 | Remote extensions | [`extensions-remote.md`](extensions-remote.md) | The out-of-process manifest and wire reference for extension authors (schema: [`schemas/extensions-remote.schema.json`](../schemas/extensions-remote.schema.json)) |
@@ -32,8 +32,8 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Behaviour source of truth | [`../openspec/specs/`](../openspec/specs/) | Current behaviour, one folder per capability |
 | In-flight proposals | [`../openspec/changes/`](../openspec/changes/) | Proposals, deltas, designs and tasks being implemented |
 | Decisions with context | [`../adr/`](../adr/) | Durable architectural decisions, immutable once accepted |
-| Evidence | [`spikes/`](spikes/) | Spike code and reports that back an ADR |
-| Evaluation and audits | [`eval/`](eval/) | Head-to-head results and surface audits that back a positioning claim |
+| Evidence | [`dev/spikes/`](dev/spikes/) | Spike code and reports that back an ADR |
+| Evaluation and audits | [`dev/eval/`](dev/eval/) | Head-to-head results and surface audits that back a positioning claim |
 
 ## Writing guideline
 

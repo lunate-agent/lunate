@@ -6,7 +6,7 @@ and the three modes Lunate runs in. Configuration lives in [configuration](confi
 things a project or the user owns — project instructions, skills, MCP servers, the theme and the key
 remaps — have a page each in [AGENTS.md](agents-md.md), [skills](skills.md),
 [MCP servers](mcp-servers.md) and [themes and keys](themes-and-keys.md); export and debug contracts
-in [`spec/export.md`](spec/export.md) and [`spec/diagnostics.md`](spec/diagnostics.md).
+in [`dev/spec/export.md`](dev/spec/export.md) and [`dev/spec/diagnostics.md`](dev/spec/diagnostics.md).
 
 ## Type, complete, send
 
@@ -120,7 +120,7 @@ result carried hostile markup. `/export jsonl` writes the session file byte for 
 to `~/.lunate/exports/<date>-<name>.<ext>` (never the current directory, where an export would be
 committed), refuse an existing file without `--force`, redact every credential Lunate knows as
 `[redacted:<name>]`, and print the absolute path plus a reminder that the file may contain file
-contents and command output. [`spec/export.md`](spec/export.md) owns the full contract.
+contents and command output. [`dev/spec/export.md`](dev/spec/export.md) owns the full contract.
 
 ## A second model can decide when it is worth it
 
@@ -191,7 +191,7 @@ has the full flow, the measurements and the platform limits.
 - [Themes and keys](themes-and-keys.md) — the colour depth and the key remaps `/settings` persists
 - [Run tool calls in a container](execution-environments.md) — the container mode, its settings and
   what stays on the host
-- [Export contract](spec/export.md) — what `/copy` and `/export` guarantee
+- [Export contract](dev/spec/export.md) — what `/copy` and `/export` guarantee
 - [The Roslyn MCP server](mcp-roslyn.md) — the C# tools from another MCP host
 - [Security and safety](security.md) — the trust model behind the prompt, and what each layer does
 - [Security policy](../SECURITY.md) — how to report a vulnerability
