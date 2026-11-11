@@ -56,15 +56,6 @@ internal sealed partial class SetupWizardModel
     public bool IsLeftAtDefault(SetupStep step) =>
         IsQuick && DetailedOnlySteps.Contains(step) && !HasAnswer(step);
 
-    private bool HasAnswer(SetupStep step) =>
-        step switch
-        {
-            SetupStep.FastProfile => FastProfile,
-            SetupStep.DecisionProfile => DecisionProfile is not null,
-            SetupStep.Decisions => Decisions is not null,
-            _ => true,
-        };
-
     /// <summary>
     /// The next step after <paramref name="step"/> for the current mode: Quick skips the
     /// detailed-only steps it has not answered; Detailed walks the entire list.

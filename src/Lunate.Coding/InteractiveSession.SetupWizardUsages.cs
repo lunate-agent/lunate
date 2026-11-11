@@ -58,6 +58,11 @@ internal sealed partial class InteractiveSession
                 return WizardMove.Abort;
             }
 
+            if (VerbOf(answered) is { } verb)
+            {
+                return verb;
+            }
+
             if (answered == WizardSkipValue)
             {
                 wizard.RecordFastUsage(null, skipped: true);
@@ -131,6 +136,11 @@ internal sealed partial class InteractiveSession
             return WizardMove.Abort;
         }
 
+        if (VerbOf(answered) is { } verb)
+        {
+            return verb;
+        }
+
         // A picked model carries no thinking level: the step never asks for one, so the profile
         // stores the model and its family only.
         var usage = new WizardUsageChoice(
@@ -185,6 +195,11 @@ internal sealed partial class InteractiveSession
             return WizardMove.Abort;
         }
 
+        if (VerbOf(after) is { } afterVerb)
+        {
+            return afterVerb;
+        }
+
         if (after == "again")
         {
             return WizardMove.Stay;
@@ -232,6 +247,11 @@ internal sealed partial class InteractiveSession
             if (answered is null)
             {
                 return WizardMove.Abort;
+            }
+
+            if (VerbOf(answered) is { } verb)
+            {
+                return verb;
             }
 
             if (answered == WizardSkipValue)
@@ -302,6 +322,11 @@ internal sealed partial class InteractiveSession
             return WizardMove.Abort;
         }
 
+        if (VerbOf(answered) is { } verb)
+        {
+            return verb;
+        }
+
         if (answered == "skip")
         {
             wizard.RecordDecisionCheck(new WizardCheckResult(WizardProgress.Skipped));
@@ -348,6 +373,11 @@ internal sealed partial class InteractiveSession
         if (after is null)
         {
             return WizardMove.Abort;
+        }
+
+        if (VerbOf(after) is { } afterVerb)
+        {
+            return afterVerb;
         }
 
         return after == "again" ? WizardMove.Stay : WizardMove.Advance;

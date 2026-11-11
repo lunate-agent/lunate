@@ -378,7 +378,7 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
-        await host.WaitForFrameAsync("> approval gate off — screen staged actions");
+        await host.WaitForFrameAsync("> approval gate (decisions.approvals) — off (default)");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
@@ -386,7 +386,11 @@ public sealed class SetupWizardEntryMenuTests
         await host.WaitForFrameAsync("> shadow");
         host.Advance(500);
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+
+        // The menu returned with the chosen value visible; Up reaches Done, the only exit.
+        await host.WaitForFrameAsync("approval gate (decisions.approvals) — shadow");
+        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        await host.WaitForFrameAsync("> Done");
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
@@ -430,7 +434,11 @@ public sealed class SetupWizardEntryMenuTests
 
         await host.WaitForFrameAsync("> Edit the decisions layer");
         host.Console.SendEnter();
-        await PickRowAsync(host, "Decisions settings", "approval gate off — screen staged actions");
+        await PickRowAsync(
+            host,
+            "Decisions settings",
+            "approval gate (decisions.approvals) — off (default)"
+        );
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
@@ -438,27 +446,28 @@ public sealed class SetupWizardEntryMenuTests
         host.Advance(500);
         host.Console.SendEnter();
 
-        // The list must come back after the first answer; before the fix the walk went straight
+        // The menu must come back after the first answer; before the fix the walk went straight
         // to the summary and this frame never appeared. It must also show the value the switch
         // now holds, not the value it had when the step was entered.
-        await host.WaitForFrameAsync("> Done — leave the decisions settings");
-        await host.WaitForFrameAsync("approval gate shadow — screen staged actions");
+        await host.WaitForFrameAsync("approval gate (decisions.approvals) — shadow");
         await PickRowAsync(
             host,
             "Decisions settings",
-            "decide tool off — offer the decide tool when a decision profile resolves"
+            "decide tool (decisions.tool) — off (default)"
         );
-        await host.WaitForFrameAsync("decisions.tool");
+        await host.WaitForFrameAsync("Offers the decide tool to the model");
         host.Advance(500);
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         await host.WaitForFrameAsync("> on");
-        host.Advance(500);
         host.Console.SendEnter();
 
-        await host.WaitForFrameAsync("> Done — leave the decisions settings");
-        await host.WaitForFrameAsync(
-            "decide tool on — offer the decide tool when a decision profile resolves"
-        );
+        await host.WaitForFrameAsync("decide tool (decisions.tool) — on");
+        for (var up = 0; up < 4; up++)
+        {
+            host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        }
+
+        await host.WaitForFrameAsync("> Done");
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
@@ -502,7 +511,11 @@ public sealed class SetupWizardEntryMenuTests
 
         await host.WaitForFrameAsync("> Edit the decisions layer");
         host.Console.SendEnter();
-        await PickRowAsync(host, "Decisions settings", "approval gate off — screen staged actions");
+        await PickRowAsync(
+            host,
+            "Decisions settings",
+            "approval gate (decisions.approvals) — off (default)"
+        );
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
         host.Console.SendEscape();
