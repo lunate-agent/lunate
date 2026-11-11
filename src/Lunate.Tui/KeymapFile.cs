@@ -42,7 +42,14 @@ internal static class KeymapFile
     {
         if (!File.Exists(path))
         {
-            return KeymapOutcome.Applied([]);
+            // A path that exists but is not a file — a directory, typically — was selected on
+            // purpose (the default file, $LUNATE_KEYMAP or --keymap), so reporting it as no keymap
+            // would leave the user believing a file applies when none can be read from it.
+            return Path.Exists(path)
+                ? KeymapOutcome.Failed(
+                    $"keymap: {path} is not a file, so no binding can be read from it"
+                )
+                : KeymapOutcome.Applied([]);
         }
 
         string json;

@@ -282,6 +282,27 @@ public sealed class KeymapFileTests
     }
 
     [Fact]
+    public void A_directory_in_place_of_the_file_fails_the_load()
+    {
+        try
+        {
+            using var dir = new TempDir();
+            string path = dir.File("keymap.json");
+            Directory.CreateDirectory(path);
+
+            KeymapOutcome outcome = KeymapFile.Apply(path);
+
+            Assert.NotNull(outcome.Error);
+            Assert.Contains("is not a file", outcome.Error!, StringComparison.Ordinal);
+            AssertCatalogueUnchanged();
+        }
+        finally
+        {
+            Restore();
+        }
+    }
+
+    [Fact]
     public void A_rebound_key_reaches_its_intent_through_the_real_key_reader()
     {
         try
