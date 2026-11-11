@@ -162,10 +162,12 @@ committed `summary.json` and `summary.md`. `--resume` reuses a completed Lunate 
 
 The orchestrator passes the run's remaining budget to each Lunate invocation as `--max-cost`, runs
 mini-swe-agent on the same subset and models with its own cost limit, and takes every resolved count
-from `swebench.harness.run_evaluation`. When an instance's spend cannot be priced, the run stops and
-the summary reports that instance as unpriced and the run total as unknown — never the cap or a
-number above it. The committed `eval/swebench/summary.json` and `summary.md` are the evidence; the
-per-instance patches and trajectories stay under the ignored `eval/runs/`.
+from `swebench.harness.run_evaluation`. When an instance's spend cannot be priced in either arm,
+the run stops and the summary reports that instance as unpriced and the run total as unknown —
+never the cap or a number above it. A mini-swe-agent trajectory whose `instance_cost` is missing or
+non-positive is unpriced, not zero spend. The committed `eval/swebench/summary.json` and
+`summary.md` are the evidence; the per-instance patches and trajectories stay under the ignored
+`eval/runs/`.
 
 On an arm64 host running the official `linux/amd64` images under QEMU, export
 `DOTNET_EnableWriteXorExecute=0`; the adapter sets invariant globalization itself because the

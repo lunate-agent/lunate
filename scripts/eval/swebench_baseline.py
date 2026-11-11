@@ -63,6 +63,15 @@ def baseline_command(definition: dict, instance_id: str, model: dict, trajectory
     return command
 
 
+def baseline_spend(info: dict) -> float | None:
+    """The baseline's own cost, or None when it carries no positive price."""
+    stats = info.get("model_stats") or {}
+    spend = stats.get("instance_cost")
+    if isinstance(spend, (int, float)) and spend > 0:
+        return float(spend)
+    return None
+
+
 def baseline_counts(work_root: Path, run_id: str) -> dict | None:
     summaries = sorted(work_root.glob(f"*.{run_id}.json"), key=lambda path: path.stat().st_mtime)
     if not summaries:
@@ -104,8 +113,7 @@ def run_baseline_instance(
     if trajectory.is_file():
         info = json.loads(trajectory.read_text(encoding="utf-8")).get("info") or {}
     stats = info.get("model_stats") or {}
-    spend = stats.get("instance_cost")
-    spend = float(spend) if isinstance(spend, (int, float)) and spend > 0 else 0.0
+    spend = baseline_spend(info)
     exit_status = info.get("exit_status")
     submission = info.get("submission") or ""
     run_id = f"baseline-{model['tier']}-{safe(instance_id)}"

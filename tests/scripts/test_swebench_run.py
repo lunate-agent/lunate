@@ -17,7 +17,8 @@ from swebench_run_support import (  # noqa: E402
     summarize_arm,
     trajectory_totals,
 )
-from swebench_baseline import baseline_command  # noqa: E402
+import swebench_baseline  # noqa: E402
+from swebench_baseline import baseline_command, run_baseline_instance  # noqa: E402
 import swebench_run  # noqa: E402
 
 EVAL = REPOSITORY / "eval" / "swebench"
@@ -154,6 +155,76 @@ class SwebenchRunSpendTests(unittest.TestCase):
         }
 
         self.assertIsNone(priced_spend({"output": 1}, totals))
+
+
+class SwebenchRunBaselineSpendTests(unittest.TestCase):
+    def baseline_definition(self) -> dict:
+        return {
+            "dataset": "SWE-bench/SWE-bench_Verified",
+            "split": "test",
+            "instanceTimeoutSeconds": 60,
+            "_docker": "docker",
+            "_eval_python": sys.executable,
+            "_mini_extra": "mini-extra",
+            "baseline": {
+                "models": {"opencode-go/deepseek-v4.1-flash": "openai/deepseek-v4.1-flash"},
+                "stepLimit": 50,
+                "costLimitUsd": 3,
+            },
+        }
+
+    def run_baseline_with_cost(self, cost: object) -> dict:
+        import subprocess
+        from unittest import mock
+
+        model = {"tier": "budget", "id": "opencode-go/deepseek-v4.1-flash"}
+        with tempfile.TemporaryDirectory() as directory:
+            work = Path(directory) / "work"
+            trajectory = work / "baseline" / "budget-alpha__one-1.traj.json"
+            trajectory.parent.mkdir(parents=True)
+            trajectory.write_text(
+                json.dumps(
+                    {
+                        "info": {
+                            "model_stats": {"instance_cost": cost, "api_calls": 3},
+                            "exit_status": "Submitted",
+                            "submission": "diff --git a/x b/x\n",
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+            with mock.patch.object(
+                swebench_baseline, "run_command", return_value=completed
+            ), mock.patch.object(
+                swebench_baseline,
+                "baseline_counts",
+                return_value={
+                    "resolved": 1,
+                    "resolvedIds": ["alpha__one-1"],
+                },
+            ):
+                return run_baseline_instance(
+                    self.baseline_definition(), "alpha__one-1", model, work, 10.0
+                )
+
+    def test_a_zero_baseline_cost_is_unpriced_not_zero(self) -> None:
+        row = self.run_baseline_with_cost(0)
+
+        self.assertIsNone(row["spendUsd"])
+        self.assertTrue(row["resolved"])
+
+    def test_a_missing_baseline_cost_is_unpriced_not_zero(self) -> None:
+        row = self.run_baseline_with_cost(None)
+
+        self.assertIsNone(row["spendUsd"])
+        self.assertTrue(row["resolved"])
+
+    def test_a_positive_baseline_cost_is_reported(self) -> None:
+        row = self.run_baseline_with_cost(0.0423)
+
+        self.assertAlmostEqual(0.0423, row["spendUsd"])
 
 
 class SwebenchRunSummaryTests(unittest.TestCase):
@@ -422,6 +493,32 @@ class SwebenchRunCapTests(unittest.TestCase):
         self.assertIsNone(arm["totalSpendUsd"])
         self.assertTrue(arm["capReached"])
         self.assertEqual([1, 1], [len(item["instances"]) for item in arm["arms"]])
+
+    def test_an_unpriced_baseline_instance_stops_the_baseline_arm(self) -> None:
+        from unittest import mock
+
+        calls: list[tuple[str, str]] = []
+
+        def runner(definition, instance_id, model, work_root, remaining):
+            calls.append((instance_id, model["tier"]))
+            return {
+                "instanceId": instance_id,
+                "resolved": False,
+                "spendUsd": None,
+                "failure": None,
+            }
+
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(swebench_run, "run_baseline_instance", side_effect=runner):
+                arm = swebench_run.run_arm(
+                    self.definition(), ["alpha__one-1", "beta__two-2"], "baseline", Path(directory)
+                )
+
+        self.assertEqual(
+            {("alpha__one-1", "budget"), ("alpha__one-1", "frontier")}, set(calls)
+        )
+        self.assertIsNone(arm["totalSpendUsd"])
+        self.assertTrue(arm["capReached"])
 
     def test_the_cap_stops_before_the_next_instance(self) -> None:
         from unittest import mock
