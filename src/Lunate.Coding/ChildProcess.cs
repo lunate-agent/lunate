@@ -8,7 +8,7 @@ namespace Lunate.Coding;
 /// must never own the terminal: its stdin is at end-of-file and it runs in its own session with no
 /// controlling terminal, so it cannot open <c>/dev/tty</c> and reconfigure Lunate's raw mode.
 /// </summary>
-internal abstract class ChildProcess : IDisposable
+internal abstract class ChildProcess : IExecutionProcess
 {
     /// <summary>The child's process id, for the tree kill.</summary>
     public abstract int Id { get; }
@@ -25,6 +25,9 @@ internal abstract class ChildProcess : IDisposable
 
     /// <summary>Kills the whole process tree and reaps the child.</summary>
     public abstract Task KillTreeAsync();
+
+    /// <summary>The local environment's cancel hook: the existing tree kill.</summary>
+    public ValueTask CancelAsync() => new(KillTreeAsync());
 
     public abstract void Dispose();
 
