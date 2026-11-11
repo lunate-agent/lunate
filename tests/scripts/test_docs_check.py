@@ -1,5 +1,8 @@
+import json
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -25,6 +28,40 @@ class DocsCheckTests(unittest.TestCase):
         result = self.run_checker("--check")
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_a_heading_inside_a_fenced_block_is_not_an_anchor(self) -> None:
+        manifest = {
+            "navigation": [
+                {
+                    "title": "Get started",
+                    "items": [
+                        {"title": "Start", "path": "start.md"},
+                        {"title": "Next", "path": "next.md"},
+                    ],
+                }
+            ],
+            "redirects": [],
+            "proseOnly": [],
+        }
+        files = {
+            "docs/docs.json": json.dumps(manifest),
+            "docs/start.md": "# Start\n\n[next](next.md#ghost-anchor)\n\n"
+            "<!-- snippet: src/example.txt -->\n",
+            "docs/next.md": '# Next\n\n```bash\necho "\n## ghost-anchor\n"\n```\n\n'
+            "<!-- snippet: src/example.txt -->\n",
+            "src/example.txt": "example\n",
+        }
+        with tempfile.TemporaryDirectory(
+            prefix="docs-check-anchors.", dir=os.environ.get("TMPDIR") or None
+        ) as tmp:
+            for relative, text in files.items():
+                path = Path(tmp) / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8", newline="")
+            result = self.run_checker("--root", tmp)
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("missing anchor 'next.md#ghost-anchor'", result.stderr)
 
     def test_an_unknown_argument_is_a_usage_error(self) -> None:
         result = self.run_checker("--nonsense")

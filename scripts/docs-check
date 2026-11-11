@@ -263,7 +263,7 @@ def slugify(text):
 def anchors_of(text):
     anchors = set()
     counts = {}
-    for line in text.splitlines():
+    for line in without_fences(text).splitlines():
         match = HEADING.match(line)
         if match:
             base = slugify(match.group(2))
@@ -723,6 +723,20 @@ def self_test():
     expect(
         "broken anchor",
         changed(base(), **{"docs/start.md": "# Start\n\n[next](next.md#absent)\n\n<!-- snippet: src/example.txt -->\n"}),
+        True,
+        "missing anchor",
+    )
+    expect(
+        "heading inside a fenced block is not an anchor",
+        changed(
+            base(),
+            **{
+                "docs/start.md": "# Start\n\n[next](next.md#ghost-anchor)\n\n"
+                "<!-- snippet: src/example.txt -->\n",
+                "docs/next.md": '# Next\n\n```bash\necho "\n## ghost-anchor\n"\n```\n\n'
+                "<!-- snippet: src/example.txt -->\n",
+            },
+        ),
         True,
         "missing anchor",
     )
