@@ -198,8 +198,7 @@ internal static partial class SetupCommand
         SetupWizardCommit.Commit(
             wizard,
             new SetupWizardCommit.CommitPaths(settingsPath, providerPath),
-            () => auth,
-            () => providers.Entries
+            () => auth
         );
         foreach (string written in WrittenLines(wizard))
         {

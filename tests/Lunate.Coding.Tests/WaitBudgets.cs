@@ -225,6 +225,28 @@ internal static class WaitBudgets
     public static readonly TimeSpan DiagnosticsPoll = TimeSpan.FromMilliseconds(50);
 
     /// <summary>
+    /// How long a cross-process store test lets the contending child run before asserting it is
+    /// still waiting. The child has reached the writer, and a store that serializes only threads
+    /// would land its write inside this window, so the window is the proof rather than a ceiling:
+    /// a fast machine spends it the same way.
+    /// </summary>
+    public static readonly TimeSpan StoreClaimContention = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>
+    /// The wait a store test hands a writer while the test itself holds the claim: short enough
+    /// that the refusal is observed at once. The writer's own bounded wait is the behaviour under
+    /// test, so this is an input rather than a ceiling on the test.
+    /// </summary>
+    public static readonly TimeSpan StoreClaimRefusal = TimeSpan.FromMilliseconds(50);
+
+    /// <summary>
+    /// The claim a store test acquires for itself before contending a second process against it.
+    /// It is released as soon as the child has been seen waiting, so it only has to outlast the
+    /// child's start — a safety margin, not the wait under test.
+    /// </summary>
+    public static readonly TimeSpan StoreClaimHold = TimeSpan.FromSeconds(5);
+
+    /// <summary>
     /// The bash project-change scan's git invocations: the scan window a test arms the
     /// <c>BashChangeTracker</c> or the tool with (each git call of a scan runs under it). The product
     /// default stays two seconds — a bash call's epilogue should not lengthen for a rare miss the

@@ -8,6 +8,16 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Settings and provider-store writes survive a second process.** Both stores held only an
+  in-process lock, so two Lunate processes that each read first could each replace the file and the
+  later one silently dropped the earlier change. Each read-modify-write now takes an owner-only
+  `settings.lock` / `providers.lock` claim beside the file, waits a bounded time and merges, or
+  refuses without writing (#584). The setup wizard's commit takes the same two claims before it
+  seeds its staged bodies, so its three-file replace merges with another process's change instead
+  of replacing it.
+
 ## [0.3.0] - 2026-11-09
 
 The 0.3.0 quality release: a fresh install gets one guided setup path, a configured install gets a re-runnable entry menu, each model can route to its own native API family, and the decision layer's native System One transport lands behind the existing seam. The release also carries every rc.1 review fix, the rc.2 proof pass, the rc.3 proof pass, and the docs/spec agreement work the milestone asked for. The rc sections below record every change; highlights of the line:
