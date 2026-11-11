@@ -1,9 +1,9 @@
 # Environment variables
 
 This page answers which environment variables Lunate reads and what each one changes, and the short
-answer is: the state root, one override per settings key, one credential variable per provider, and
-the terminal facts it detects. Everything else is a settings key — the generated
-[settings reference](configuration.md) owns those.
+answer is: the state root, the programs and packages it finds, one override per settings key, one
+credential variable per provider, the terminal facts it detects, and where a copy goes. Everything
+else is a settings key — the generated [settings reference](configuration.md) owns those.
 
 Lunate reads the **process environment only**. No `.env` file, settings file, `AGENTS.md` or project
 file can supply any variable on this page.
@@ -14,6 +14,7 @@ file can supply any variable on this page.
 | --- | --- |
 | `LUNATE_HOME` | The state root — sessions, extensions, cache, the trust store, credential store and recordings. Must be an absolute path; a root inside the workspace is refused, because such a repository could write the trust records that govern it. |
 | `HOME` | The profile the default `~/.lunate` is resolved against on POSIX. Windows resolves the profile through the shell, so `HOME` alone does not move the state root there. |
+| `USERPROFILE` | The Windows profile the default state root follows. `LUNATE_HOME` is the portable way to move the root on either platform. |
 
 `lunate --version` and the welcome header both print the active state root when `LUNATE_HOME` is set,
 so a redirected run is never invisible.
@@ -79,6 +80,31 @@ A provider entry in `~/.lunate/providers.json` may instead reference any variabl
 These variables are also the credential values withheld from tool children: the bash tool and an
 MCP server do not inherit them, and an MCP server's own `env` map or `toolEnvironment.passthrough`
 has to name a variable to admit it.
+
+## Find the programs, packages and clipboard Lunate uses
+
+These are platform variables, not Lunate settings: Lunate reads them to find a program or a package,
+or to decide where a copy goes.
+
+| Variable | Effect |
+| --- | --- |
+| `PATH` | Where Lunate looks for the shell (`bash`, `git`, `pwsh`, `powershell`, `cmd.exe`), the `Ctrl+G` editor and the platform clipboard tool, and where a tool child finds its own commands. |
+| `PATHEXT` | Windows only: the extensions tried when a bare editor or child command is looked up on `PATH`; the default is `.COM;.EXE;.BAT;.CMD`. |
+| `ProgramFiles`, `ProgramFiles(x86)` | Windows only: the install roots probed for Git Bash and PowerShell 7 before `PATH` is used. |
+| `LOCALAPPDATA` | Windows only: the per-user install root probed for Git Bash, and a base name every scrubbed extension host receives. |
+| `NUGET_PACKAGES` | The global packages folder for extension restore and single-file load; unset means `~/.nuget/packages`. A `globalPackagesFolder` set only in a `nuget.config` chain is not read for the load, so a machine that moved the folder must set this variable. |
+| `VISUAL`, `EDITOR` | The `Ctrl+G` and `/editor` program: `VISUAL` first, then `EDITOR`, then `vi` on POSIX and `notepad` on Windows. Arguments are split on whitespace, never through a shell. |
+| `SSH_CONNECTION`, `SSH_TTY` | Set either one: `/copy` sends only the OSC 52 sequence and starts no local clipboard tool. |
+| `TMUX` | Set: the copy notice names tmux's `set-clipboard on` setting. |
+| `WSL_DISTRO_NAME`, `WSL_INTEROP` | Set either one under WSL: the clipboard path uses `clip.exe`/`Set-Clipboard` instead of the Linux tools. |
+
+An MCP server, a code-mode sample and the remote extension host use the `Scrubbed` policy: they
+receive only the base names `PATH`, `PATHEXT`, `HOME`, `USERPROFILE`, `SystemRoot`, `ComSpec`,
+`TEMP`, `TMP`, `TMPDIR`, `APPDATA`, `LOCALAPPDATA` and `LANG`, each when Lunate holds it, plus the
+names their own `env` or `envPassthrough` declares. The bash tool child uses `Inherited` instead:
+your whole environment minus the credentials above, then the names
+[`toolEnvironment.passthrough`](configuration.md) re-admits. [Remote
+extensions](extensions-remote.md) owns the manifest.
 
 ## Let Lunate detect your terminal
 
