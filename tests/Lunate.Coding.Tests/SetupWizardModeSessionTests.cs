@@ -47,7 +47,7 @@ public sealed class SetupWizardModeSessionTests
         // Quick ends at the chat profile: no thinking question, fast/decision/decisions steps.
         await host.WaitForFrameAsync("Add another provider?");
         host.Console.SendEnter(); // Done: one provider, on to the summary
-        string summary = await host.WaitForScrollbackAsync("Left at default:");
+        string summary = await host.WaitForScrollbackAsync("left at default / unchanged");
         Assert.DoesNotContain("Thinking level for", host.Frames, StringComparison.Ordinal);
         Assert.DoesNotContain("Also use profile", host.Frames, StringComparison.Ordinal);
         Assert.DoesNotContain(
@@ -154,15 +154,18 @@ public sealed class SetupWizardModeSessionTests
         host.Console.SendEnter(); // accept the defaults
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("setup mode: detailed", summary, StringComparison.Ordinal);
-        Assert.Contains(
-            "chat profile: chat-main (thinking high)",
-            summary,
-            StringComparison.Ordinal
+        string flatSummary = string.Join(
+            " ",
+            summary.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())
         );
-        Assert.Contains("fast usage: chat-main", summary, StringComparison.Ordinal);
-        Assert.Contains("decision profile: decisions (adapter)", summary, StringComparison.Ordinal);
-        Assert.DoesNotContain("Left at default:", summary, StringComparison.Ordinal);
+        Assert.Contains("setup mode: detailed", summary, StringComparison.Ordinal);
+        Assert.Contains("profile chat-main", flatSummary, StringComparison.Ordinal);
+        Assert.Contains("reasoning level: high", flatSummary, StringComparison.Ordinal);
+        Assert.Contains("usage fast", flatSummary, StringComparison.Ordinal);
+        Assert.Contains("profile decisions", flatSummary, StringComparison.Ordinal);
+        // A detailed walk asked every step, so it names no Quick-only default.
+        Assert.DoesNotContain("custom API family", flatSummary, StringComparison.Ordinal);
+        Assert.DoesNotContain("thinking level:", flatSummary, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();

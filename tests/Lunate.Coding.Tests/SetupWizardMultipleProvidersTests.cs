@@ -56,10 +56,11 @@ public sealed class SetupWizardMultipleProvidersTests
         host.Console.SendEnter(); // Done is the default
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("provider: openai", summary, StringComparison.Ordinal);
-        Assert.Contains("provider: anthropic", summary, StringComparison.Ordinal);
-        Assert.Contains("entry providers.json", summary, StringComparison.Ordinal);
-        Assert.Equal(2, Count(summary, "credential: env:OPENAI_API_KEY", StringComparison.Ordinal));
+        Assert.Contains("provider openai", summary, StringComparison.Ordinal);
+        Assert.Contains("provider anthropic", summary, StringComparison.Ordinal);
+        Assert.Contains("providers.json", summary, StringComparison.Ordinal);
+        Assert.Equal(2, Count(summary, "credential reference", StringComparison.Ordinal));
+        Assert.Equal(2, Count(summary, "env:OPENAI_API_KEY", StringComparison.Ordinal));
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -135,7 +136,7 @@ public sealed class SetupWizardMultipleProvidersTests
         host.Console.SendEnter(); // Done
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("provider: deepseek-work", summary, StringComparison.Ordinal);
+        Assert.Contains("provider deepseek-work", summary, StringComparison.Ordinal);
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("setup written");

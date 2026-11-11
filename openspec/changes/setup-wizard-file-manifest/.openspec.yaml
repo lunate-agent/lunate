@@ -1,0 +1,4 @@
+schema: intent-driven
+created: 2026-11-08
+goal: Give the setup wizard a file manifest before the write and a short receipt
+  after it, naming every setting's file at phone width.
