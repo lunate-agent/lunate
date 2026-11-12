@@ -8,7 +8,7 @@ access, and Lunate serving the loop.
 
 Point the editor's ACP configuration at `lunate --acp`. The editor starts the process and speaks
 ACP on its stdin and stdout. Zed and JetBrains both drive agents this way; the command is the same
-one you run in a terminal, so `--model`, `--extra-tools`, `--env` and the other per-run flags of the
+one you run in a terminal, so `--model`, `--extra-tools` and the other per-run flags of the
 [CLI reference](cli.md) apply — `--no-extensions` included, which leaves the editor without
 extension tools.
 
