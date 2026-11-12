@@ -16,7 +16,11 @@ public sealed class AgentThinkingLevelTests
     [Fact]
     public async Task A_budget_model_carries_extended_thinking_and_a_max_tokens_above_the_budget()
     {
-        (_, ScriptedChatClient client) = await RunAsync(style: "budget", ThinkingLevel.High);
+        (_, ScriptedChatClient client) = await RunAsync(
+            style: "budget",
+            ThinkingLevel.High,
+            provider: "anthropic"
+        );
 
         ChatOptions options = client.Requests[0].Options!;
         Assert.NotNull(options.RawRepresentationFactory);
@@ -56,13 +60,14 @@ public sealed class AgentThinkingLevelTests
 
     private static async Task<(AgentHarness Harness, ScriptedChatClient Client)> RunAsync(
         string? style,
-        ThinkingLevel level
+        ThinkingLevel level,
+        string provider = "openai"
     )
     {
         var client = new ScriptedChatClient().Enqueue(LoopScripts.Stop());
         var options = new AgentHarnessOptions
         {
-            ModelCatalog = TestCatalog.WithReasoning(style),
+            ModelCatalog = TestCatalog.WithReasoningFor(provider, style),
             ModelId = TestCatalog.ModelId,
             ThinkingLevel = level,
         };
