@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Refuse a pull request that edits CHANGELOG.md and is not the release pull request.
+
+Every other pull request writes its release-note line in changes/<pr-number>.md; only the release
+pull request assembles the changelog (scripts/changelog-assemble --write). A release pull request is
+recognised by its branch (release/<version>) or its title (starting chore(release)), which keeps the
+assembler from being blocked by the check it exists to satisfy.
+
+Usage:
+    changelog-guard --paths-file <file> --pull-request <number> [--branch <ref>] [--title <text>]
+    changelog-guard --self-test
+
+The paths file is `git diff --name-status -M` output: a status, then one path (two for a rename).
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+CHANGELOG = "CHANGELOG.md"
+RELEASE_BRANCH = "release/"
+RELEASE_TITLE = "chore(release)"
+
+
+def changed_paths(paths_file: Path) -> list[str]:
+    paths: list[str] = []
+    for line in paths_file.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        paths.extend(field for field in fields[1:] if field)
+    return paths
+
+
+def decide(paths: list[str], pull_request: int, branch: str, title: str) -> str | None:
+    """Return the failure message, or None when the pull request may edit the changelog."""
+    if CHANGELOG not in paths:
+        return None
+    if branch.startswith(RELEASE_BRANCH) or title.startswith(RELEASE_TITLE):
+        return None
+    return (
+        f"{CHANGELOG} was edited, but this is not the release pull request. "
+        f"Write the line in changes/{pull_request}.md instead; only the release pull request "
+        f"(branch {RELEASE_BRANCH}<version> or a title starting {RELEASE_TITLE}) runs "
+        "scripts/changelog-assemble --write."
+    )
+
+
+def self_test() -> int:
+    cases = [
+        ("a fragment-only pull request passes", [], 1234, "wt/issue-1234", "feat: x", None),
+        (
+            "the changelog names the fragment path",
+            [CHANGELOG],
+            1234,
+            "wt/issue-1234",
+            "feat: x",
+            "changes/1234.md",
+        ),
+        ("a release branch may edit", [CHANGELOG], 1234, "release/0.4.0", "feat: x", None),
+        ("a release title may edit", [CHANGELOG], 1234, "wt/issue-1", "chore(release): 0.4.0", None),
+        (
+            "a rename out of the changelog is caught",
+            ["old.md", CHANGELOG],
+            1234,
+            "wt/issue-1234",
+            "docs: x",
+            "changes/1234.md",
+        ),
+        ("unrelated prose passes", ["docs/guide.md"], 1234, "wt/issue-1234", "docs: x", None),
+    ]
+    failures = 0
+    for name, paths, number, branch, title, expected in cases:
+        message = decide(paths, number, branch, title)
+        if expected is None and message is not None:
+            print(f"self-test: FAIL: {name}: expected a pass, got: {message}", file=sys.stderr)
+            failures += 1
+        elif expected is not None and (message is None or expected not in message):
+            print(
+                f"self-test: FAIL: {name}: expected a failure naming '{expected}', got: {message}",
+                file=sys.stderr,
+            )
+            failures += 1
+    if failures:
+        print(f"self-test: FAIL: {failures} of {len(cases)} checks failed", file=sys.stderr)
+        return 1
+    print(f"changelog-guard: self-test passed ({len(cases)} checks)")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Refuse a non-release pull request that edits CHANGELOG.md."
+    )
+    parser.add_argument("--paths-file", type=Path, help="git diff --name-status output")
+    parser.add_argument("--pull-request", type=int, help="the pull request number")
+    parser.add_argument("--branch", default="", help="the head branch name")
+    parser.add_argument("--title", default="", help="the pull request title")
+    parser.add_argument("--self-test", action="store_true", help="run the decision's test cases")
+    arguments = parser.parse_args()
+
+    if arguments.self_test:
+        return self_test()
+    if arguments.paths_file is None or arguments.pull_request is None:
+        parser.error("--paths-file and --pull-request are required (or pass --self-test)")
+    if not arguments.paths_file.is_file():
+        print(f"changelog-guard: {arguments.paths_file} does not exist", file=sys.stderr)
+        return 2
+
+    message = decide(
+        changed_paths(arguments.paths_file),
+        arguments.pull_request,
+        arguments.branch,
+        arguments.title,
+    )
+    if message is None:
+        print("changelog-guard: the changelog rule holds")
+        return 0
+    print(f"changelog-guard: {message}", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

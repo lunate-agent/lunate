@@ -18,7 +18,7 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `SHA256SUMS` | `<hash>  <filename>` lines covering every other asset |
 
 - Installers: [`install.sh`](../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/lunate-agent/lunate/main/...`), not from the release assets.
-- Channel artifacts live in [`packaging/`](../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 3). The guard in [`scripts/check-channel-manifests.py`](../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
+- Channel artifacts live in [`packaging/`](../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 4). The guard in [`scripts/check-channel-manifests.py`](../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
 - Every package version is derived from the tag in one place, [`scripts/release-versions.sh`](../scripts/release-versions.sh): an RC tag publishes `-rc.<n>` for every package (the contracts too), and only a final tag publishes the stable API version and the `-preview.<n>` previews. [`scripts/pack-dry-run.sh`](../scripts/pack-dry-run.sh) proves that derivation on every pull request, and the release workflow computes the same values from the tag before it packs or pushes anything.
 - The extension package is the distribution channel for extensions: the same tag that publishes the tool pushes it to nuget.org, so `lunate install <package-id>` installs the version the tag names. It is attached to the release as well, so a machine without feed access can point a `nuget.config` at the downloaded folder.
 - Release asset names, the installer platform map and the `LUNATE_INSTALL_*` environment seams are pinned in the distribution spec (`openspec/specs/distribution/spec.md` after archive).
@@ -63,7 +63,23 @@ gh workflow run release.yml --ref main -f version=v0.2.0
 gh run list --workflow release.yml --limit 1
 ```
 
-### 1. Tag the release
+### 1. Assemble the changelog (release pull request)
+
+Only the release pull request edits `CHANGELOG.md`. Cut it from `main` on `release/<version>` (or
+title it `chore(release): <version>`), then fold the fragments into the unreleased section:
+
+```sh
+python3 scripts/changelog-assemble --write
+python3 scripts/changelog-assemble --check
+```
+
+`--write` places every `changes/<pr-number>.md` under its heading in ascending pull-request order
+and leaves text written before the fragments existed where it is. Promote `## [Unreleased]` to
+`## [<version>] - <date>`, delete the consumed fragments, and commit the result. The Release
+workflow runs `--check` on the tag, so a fragment that merged after this pull request fails the tag
+by name instead of shipping unassembled notes.
+
+### 2. Tag the release
 
 The Release workflow fails the tag when it does not match `<Version>` in `Directory.Build.props`.
 
@@ -74,7 +90,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-### 2. Verify the release assets
+### 3. Verify the release assets
 
 Wait for the Release workflow, then verify all six release assets are attached — the three archives, `SHA256SUMS`, the tool `.nupkg` and the extension `.nupkg` — and that the checksums verify.
 
@@ -85,7 +101,7 @@ cd /tmp/lunate-release
 sha256sum -c SHA256SUMS   # macOS: shasum -a 256 -c SHA256SUMS
 ```
 
-### 3. Fill the sha placeholders
+### 4. Fill the sha placeholders
 
 Read the three archive hashes and replace the placeholders, then commit on `main`.
 
@@ -103,7 +119,7 @@ git commit -m "chore: fill 0.1.0 release hashes"
 git push
 ```
 
-### 4. Homebrew tap
+### 5. Homebrew tap
 
 The tap repo `lunate-agent/homebrew-tap` hosts a copy of the formula (recreate it if it does not exist yet).
 
@@ -122,7 +138,7 @@ brew install lunate-agent/tap/lunate
 lunate --version
 ```
 
-### 5. Scoop bucket
+### 6. Scoop bucket
 
 The bucket repo `lunate-agent/scoop-bucket` hosts a copy of the manifest; `checkver`/`autoupdate` then track future releases automatically.
 
@@ -139,7 +155,7 @@ scoop bucket add lunate https://github.com/lunate-agent/scoop-bucket
 scoop install lunate
 ```
 
-### 6. winget
+### 7. winget
 
 Check the identifier is free (pre-release name check; also look under `manifests/w/wdaniel1993/` in `microsoft/winget-pkgs`), then submit with WingetCreate, which validates and opens the PR.
 
@@ -152,7 +168,7 @@ wingetcreate submit --token <github-token>
 
 The `packaging/winget/` manifests are the reference for the answers (`Identifier: wdaniel1993.lunate`, portable nested `lunate.exe` with command alias `lunate`). `winget validate packaging\winget` checks them locally.
 
-### 7. NuGet
+### 8. NuGet
 
 Publishing is passwordless. A Trusted Publishing policy on nuget.org names
 `lunate-agent/lunate`, the `release.yml` workflow and the `production` environment; the
@@ -192,8 +208,9 @@ and a version number is never reused for different bytes.
 
 ## Later releases
 
+- Assemble the changelog in the release pull request (`scripts/changelog-assemble --write`), promote the unreleased section and delete the consumed fragments (step 1).
 - Tag the new version; the gate, publish, pack and attach jobs do the rest.
-- Fill the three sha values again (step 3) and update the tap copy (step 4); the tag pushes both `.nupkg` files itself (step 7).
+- Fill the three sha values again (step 4) and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
 - Run the release smoke against the tag (see *Release smoke*) before calling the release done.
 - The Scoop bucket autoupdates itself; winget needs a new `wingetcreate update wdaniel1993.lunate --version <v> --urls <zip-url>` submission.
 - Future work: automate the placeholder rewrite and the tap/bucket updates from the release workflow (a follow-up change); until then the steps above stay manual.

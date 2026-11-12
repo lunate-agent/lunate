@@ -58,12 +58,13 @@ To install your built tool locally instead of publishing it, pack it and install
 <path-to-the-nupkg> lunate`.
 
 A docs-only or proposal-only pull request runs `bash scripts/verify.sh --profile docs` instead:
+A docs-only or proposal-only pull request runs `bash scripts/verify.sh --profile docs` instead:
 markdownlint, `openspec validate --all --strict`, `scripts/docs-sync --check`,
 `scripts/docs-check --check` and `scripts/no-docs-references.sh` (which fails if anything under
 `docs/` becomes a build input or a test's subject). `scripts/ci-plan.sh` picks the profile from the
-PR's changed paths, deny-by-default: only `docs/`, `adr/`, `openspec/` and root-level `*.md` qualify,
-and a change to the workflows, a rename out of those trees or anything else means the full gate. The
-default `--profile full` is the whole gate above, unchanged.
+PR's changed paths, deny-by-default: only `docs/`, `adr/`, `openspec/`, root-level `*.md` and
+`changes/*.md` qualify, and a change to the workflows, a rename out of those trees or anything else
+means the full gate. The default `--profile full` is the whole gate above, unchanged.
 
 Useful narrower commands while working:
 
@@ -199,6 +200,14 @@ what lands, where to look first, and the verification you ran. Keep commits smal
 (`feat`, `fix`, `docs`, `test`, `chore`). Public API changes belong in
 `PublicAPI.Unshipped.txt`, no new NuGet package arrives without an ADR, and a failing golden session
 test means the session format changed: stop and report instead of editing the golden file.
+
+Every pull request that has a release-note line writes it in `changes/<pr-number>.md` and never edits
+`CHANGELOG.md`: put the line under `### Added`, `### Changed` or `### Fixed`, as a bullet ending with
+`(#<pr-number>)`. A fragment is prose, so such a pull request gets the docs profile. The release
+pull request — branch `release/<version>` or a title starting `chore(release)` — is the only one
+that edits the changelog: it runs `scripts/changelog-assemble --write`, commits the result and
+deletes the consumed fragments. `ci-ok` fails any other pull request that edits `CHANGELOG.md` and
+names the fragment path to use.
 
 ## Trust in scripted runs
 

@@ -100,6 +100,12 @@ request, skipped outside one, and anything else fails the aggregate with a named
 runs `--check` when the pull request's diff includes `CHANGELOG.md` — that is exactly the release
 pull request that ran `--write` — so the assembler is verified by the run that uses it.
 
+The job is inert while `changes/README.md` is absent from the pull request's base (`git cat-file -e
+"origin/<base>:changes/README.md"`). That is one pull request — this one — which is the last direct
+edit of `CHANGELOG.md`; refusing it with nowhere else to write the line would block the change that
+makes the rule live. From the next pull request onward the base carries the directory and the guard
+runs.
+
 `release.yml` runs `--check` in the gate job before publishing. A fragment merged after the release
 pull request was cut therefore fails the tag by name instead of shipping unassembled notes.
 

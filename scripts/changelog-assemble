@@ -1,0 +1,302 @@
+#!/usr/bin/env python3
+"""Assemble the unreleased section of CHANGELOG.md from changes/<pull-request>.md fragments.
+
+A pull request writes its release-note line in its own fragment and never edits the changelog; the
+release pull request runs this script's --write and commits the result. The generated entries live
+inside a marker pair at the top of their heading, so text a person wrote in the same section keeps
+its place and is never rewritten.
+
+Usage:
+    changelog-assemble --check      # fail when CHANGELOG.md is not what the fragments produce
+    changelog-assemble --write      # rewrite the unreleased section from the fragments
+    changelog-assemble --root DIR   # run against another tree (the tests use this)
+"""
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+HEADINGS = ("### Added", "### Changed", "### Fixed")
+START = "<!-- changelog-fragments:start -->"
+END = "<!-- changelog-fragments:end -->"
+UNRELEASED = "## [Unreleased]"
+FRAGMENT_NAME = re.compile(r"^([0-9]+)\.md$")
+REFERENCE = re.compile(r"\(#([0-9]+)\)\.?$")
+
+
+def display(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def parse_fragment(path: Path, number: int, root: Path) -> tuple[str | None, list[str], list[str]]:
+    """Return (heading, entries, errors) for one fragment; heading is None when it is unusable."""
+    where = display(path, root)
+    errors: list[str] = []
+    lines = path.read_text(encoding="utf-8").splitlines()
+
+    index = 0
+    while index < len(lines) and not lines[index].strip():
+        index += 1
+    if index == len(lines):
+        return None, [], [f"{where}: the fragment is empty; expected a heading and a bullet"]
+
+    heading = lines[index].strip()
+    if heading not in HEADINGS:
+        errors.append(
+            f"{where}: unknown heading '{heading}'; expected one of {', '.join(HEADINGS)}"
+        )
+
+    entries: list[str] = []
+    current: list[str] | None = None
+    for line in lines[index + 1 :]:
+        if not line.strip():
+            continue
+        if line.startswith("- "):
+            current = [line.rstrip()]
+            entries.append("\n".join(current))
+            continue
+        if line.startswith((" ", "\t")) and current is not None:
+            current.append(line.rstrip())
+            entries[-1] = "\n".join(current)
+            continue
+        errors.append(f"{where}: text outside the heading and its bullets: '{line.strip()}'")
+
+    if not entries:
+        errors.append(f"{where}: no bullet; expected '- description (#{number}).'")
+
+    for entry in entries:
+        reference = REFERENCE.search(entry)
+        if reference is None:
+            errors.append(
+                f"{where}: a bullet does not end with the pull-request reference (#{number})."
+            )
+        elif int(reference.group(1)) != number:
+            errors.append(
+                f"{where}: a bullet ends with (#{reference.group(1)}), "
+                f"but the fragment is for pull request {number}"
+            )
+
+    return heading, entries, errors
+
+
+def load_fragments(root: Path) -> tuple[list[tuple[int, str, list[str]]], list[str]]:
+    """Return ([(number, heading, entries)], errors) for every valid fragment in the tree."""
+    directory = root / "changes"
+    if not directory.is_dir():
+        return [], []
+
+    errors: list[str] = []
+    by_number: dict[int, Path] = {}
+    for path in sorted(directory.glob("*.md")):
+        if path.name == "README.md":
+            continue
+        match = FRAGMENT_NAME.match(path.name)
+        if match is None:
+            errors.append(
+                f"{display(path, root)}: not a fragment; name it changes/<pull-request-number>.md"
+            )
+            continue
+        number = int(match.group(1))
+        if number in by_number:
+            errors.append(
+                f"two fragments for pull request {number}: "
+                f"{display(by_number[number], root)} and {display(path, root)}"
+            )
+            continue
+        by_number[number] = path
+
+    fragments = []
+    for number, path in sorted(by_number.items()):
+        heading, entries, fragment_errors = parse_fragment(path, number, root)
+        errors.extend(fragment_errors)
+        if heading in HEADINGS and entries and not fragment_errors:
+            fragments.append((number, heading, entries))
+    return fragments, errors
+
+
+def trim(lines: list[str]) -> list[str]:
+    start, end = 0, len(lines)
+    while start < end and not lines[start].strip():
+        start += 1
+    while end > start and not lines[end - 1].strip():
+        end -= 1
+    return lines[start:end]
+
+
+def strip_markers(body: list[str], where: str, errors: list[str]) -> list[str]:
+    kept: list[str] = []
+    inside = False
+    for line in body:
+        if line.strip() == START:
+            if inside:
+                errors.append(f"{where}: a start marker appears twice before its end marker")
+            inside = True
+            continue
+        if line.strip() == END:
+            if not inside:
+                errors.append(f"{where}: an end marker has no matching start marker")
+            inside = False
+            continue
+        if not inside:
+            kept.append(line)
+    if inside:
+        errors.append(f"{where}: a start marker has no matching end marker")
+    return kept
+
+
+def split_blocks(body: list[str]) -> tuple[list[str], list[list[str]]]:
+    """Split the section body into preamble lines and [heading, body lines] blocks."""
+    preamble: list[str] = []
+    blocks: list[list[str]] = []
+    for line in body:
+        if line.startswith("### "):
+            blocks.append([line.rstrip(), []])
+        elif blocks:
+            blocks[-1][1].append(line)
+        else:
+            preamble.append(line)
+    return trim(preamble), blocks
+
+
+def assemble(text: str, fragments: list[tuple[int, str, list[str]]]) -> tuple[str, list[str]]:
+    """Return (rewritten changelog, errors)."""
+    errors: list[str] = []
+    lines = text.splitlines()
+    unreleased = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
+    )
+    if unreleased is None:
+        return text, [f"CHANGELOG.md: no '{UNRELEASED}' section"]
+
+    end = len(lines)
+    for index in range(unreleased + 1, len(lines)):
+        if lines[index].startswith("## "):
+            end = index
+            break
+
+    preamble, blocks = split_blocks(lines[unreleased + 1 : end])
+
+    generated: dict[str, list[str]] = {heading: [] for heading in HEADINGS}
+    for _, heading, entries in sorted(fragments, key=lambda fragment: fragment[0]):
+        generated[heading].extend(entries)
+
+    legacy: dict[str, list[str]] = {}
+    kept_bodies: list[list[str]] = []
+    for heading, body in blocks:
+        kept = trim(strip_markers(body, f"CHANGELOG.md ({heading})", errors))
+        kept_bodies.append(kept)
+        if heading in HEADINGS:
+            legacy[heading] = kept
+
+    if errors:
+        return text, errors
+
+    accepted: list[list[str]] = []
+    for heading in HEADINGS:
+        entries = generated[heading]
+        previous = legacy.get(heading, [])
+        if not entries and not previous:
+            continue
+        body = []
+        if entries:
+            body.append(START)
+            for position, entry in enumerate(entries):
+                if position:
+                    body.append("")
+                body.extend(entry.splitlines())
+            body.append(END)
+            if previous:
+                body.append("")
+        body.extend(previous)
+        accepted.append([heading, body])
+
+    result: list[list[str]] = []
+    inserted = False
+    for (heading, _), kept in zip(blocks, kept_bodies):
+        if heading in HEADINGS:
+            if not inserted:
+                result.extend(accepted)
+                inserted = True
+        else:
+            result.append([heading, kept])
+    if not inserted:
+        result.extend(accepted)
+
+    new_body: list[str] = list(preamble)
+    for heading, body in result:
+        if new_body:
+            new_body.append("")
+        new_body.append(heading)
+        if body:
+            new_body.append("")
+            new_body.extend(body)
+
+    rebuilt = lines[: unreleased + 1]
+    if new_body:
+        rebuilt += [""] + new_body
+    tail = lines[end:]
+    if tail:
+        rebuilt += [""] + tail
+    return "\n".join(rebuilt) + "\n", []
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Assemble CHANGELOG.md's unreleased section from changes/<number>.md fragments."
+    )
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--check", action="store_true", help="fail when the changelog is stale")
+    mode.add_argument("--write", action="store_true", help="rewrite the unreleased section")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent,
+        help="repository root (default: the script's parent directory)",
+    )
+    arguments = parser.parse_args()
+    root = arguments.root.resolve()
+    changelog = root / "CHANGELOG.md"
+    if not changelog.is_file():
+        print(f"changelog-assemble: {display(changelog, root)} does not exist", file=sys.stderr)
+        return 1
+
+    fragments, errors = load_fragments(root)
+    current = changelog.read_text(encoding="utf-8")
+    expected, assembly_errors = assemble(current, fragments)
+    errors.extend(assembly_errors)
+    if errors:
+        for error in errors:
+            print(f"changelog-assemble: {error}", file=sys.stderr)
+        return 1
+
+    if arguments.write:
+        if expected != current:
+            with open(changelog, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(expected)
+        print("changelog-assemble: wrote CHANGELOG.md")
+        return 0
+
+    if expected == current:
+        print("changelog-assemble: up to date")
+        return 0
+
+    for number, _, entries in fragments:
+        if entries[0] not in current:
+            print(
+                f"changelog-assemble: changes/{number}.md is missing from CHANGELOG.md",
+                file=sys.stderr,
+            )
+    print(
+        "changelog-assemble: CHANGELOG.md does not match the fragments; "
+        "run scripts/changelog-assemble --write",
+        file=sys.stderr,
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

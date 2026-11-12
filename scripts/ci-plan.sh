@@ -7,7 +7,8 @@
 # and the guard that nothing under docs/ became a build input or a test's subject.
 #
 # The allow-list is deny-by-default. Only prose paths qualify:
-#   docs/**, adr/**, openspec/** (proposals, specs, archives), root-level *.md (incl. CHANGELOG.md).
+#   docs/**, adr/**, openspec/** (proposals, specs, archives), root-level *.md (incl. CHANGELOG.md)
+#   and changes/*.md (one changelog fragment per pull request).
 # Anything else -- a source file, a test, a project, the templates, and any .github/workflows change
 # -- means `full`. A rename is read as both of its paths, so a rename out of the docs tree (or into
 # it, which deletes a code path) is `full`; a deletion in the tree is `docs`, a deletion outside it
@@ -34,6 +35,14 @@ allowed() {
     done
     # Root-level Markdown only: a *.md inside a code folder is a folder's README, not a page.
     case "$path" in
+        changes/*.md)
+            # A changelog fragment is one level under changes/ and is prose. A script planted in
+            # that folder is not, so the extension is part of the allow-list.
+            case "${path#changes/}" in
+                */*) return 1 ;;
+                *) return 0 ;;
+            esac
+            ;;
         */*) return 1 ;;
         *.md) return 0 ;;
     esac
@@ -160,7 +169,12 @@ _self_test_cases() {
     _expect "$scratch" "the embedded system prompt" "full" \
         'M\tsrc/Lunate.Coding/system-prompt.md\n' || return 1
 
-    echo "self-test: 13/13"
+    # 12. A changelog fragment is prose, but only its own Markdown: a script planted in changes/
+    #     still gets the full gate.
+    _expect "$scratch" "a changelog fragment" "docs" 'A\tchanges/794.md\n' || return 1
+    _expect "$scratch" "a non-Markdown file under changes" "full" 'A\tchanges/run.sh\n' || return 1
+
+    echo "self-test: 16/16"
 }
 
 paths_file=""

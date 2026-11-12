@@ -8,6 +8,15 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+### Added
+
+<!-- changelog-fragments:start -->
+- **Per-PR changelog fragments.** Each pull request writes `changes/<number>.md` and never edits
+  `CHANGELOG.md`; `scripts/changelog-assemble` folds the fragments into the unreleased section in
+  pull-request order, the release pull request runs it, and `ci-ok` refuses a changelog edit from
+  any other pull request (#794).
+<!-- changelog-fragments:end -->
+
 ### Fixed
 
 - **Settings and provider-store writes survive a second process.** Both stores held only an

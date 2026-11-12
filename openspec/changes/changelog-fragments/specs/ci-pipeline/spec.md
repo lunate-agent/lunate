@@ -8,11 +8,22 @@ A pull request SHALL record each release-note line in its own fragment at `chang
 
 `changes/README.md` SHALL state the rule: a pull request writes its fragment and never the changelog.
 
+The gate SHALL be inert while `changes/README.md` does not exist on the pull request's base branch,
+because the pull request that introduces the directory is the last direct changelog edit and would
+otherwise be refused with nowhere else to write the line. Once the directory is on the base, the
+rule is live for every later pull request.
+
 #### Scenario: A fragment-only pull request passes
 
 - **GIVEN** a pull request whose only prose change is `changes/1234.md`
 - **WHEN** the gate runs
 - **THEN** the changelog guard passes, and the fragment-only change selects the documentation profile
+
+#### Scenario: The pull request that introduces the directory is not blocked
+
+- **GIVEN** a pull request whose base does not yet contain `changes/README.md`, and which edits `CHANGELOG.md` to seed the generated region
+- **WHEN** the changelog gate runs
+- **THEN** it reports the rule as inert and succeeds, so the change that makes the rule live can merge
 
 #### Scenario: A non-release pull request that edits the changelog fails
 
