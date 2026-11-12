@@ -92,4 +92,4 @@ file:
 
 - Named lookup and core handles: [services.md](services.md)
 - Session lifecycle and unload: [lifecycle-and-trust.md](../lifecycle-and-trust.md)
-- The `IBackgroundService` contract: [`docs/spec/extensibility.md`](../../spec/extensibility.md#services-for-long-lived-integrations)
+- The `IBackgroundService` contract: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#services-for-long-lived-integrations)

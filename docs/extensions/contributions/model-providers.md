@@ -103,5 +103,5 @@ in that case. The `model-router` sample's `ask` tool is the reference:
 ## See also
 
 - Routing and middleware: [model-middleware.md](model-middleware.md), [virtual-models.md](virtual-models.md)
-- The model registry contract: [`docs/spec/extensibility.md`](../../spec/extensibility.md#services-for-long-lived-integrations)
+- The model registry contract: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#services-for-long-lived-integrations)
 - Secrets: [settings-and-secrets.md](settings-and-secrets.md)

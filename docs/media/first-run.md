@@ -103,5 +103,5 @@ Run each step in one terminal. Ellipses are timing, not commands.
 - A real account email, organisation id, cost line or token count.
 
 After recording, export the GIF to `docs/media/first-run.gif` and check the file size. Add the
-image to `README.md` and `docs/first-run.md` only in the change that records it, so neither page
+image to `README.md` and `docs/quickstart.md` only in the change that records it, so neither page
 points at a missing file before the capture exists.

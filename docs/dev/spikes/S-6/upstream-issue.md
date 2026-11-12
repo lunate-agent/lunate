@@ -17,7 +17,7 @@ and output capture.
 The one decisive blocker for us: **deterministic tests** — a virtual clock
 and byte-stable frame/golden capture — are only reachable through internals.
 Our test suite drives `TerminalApp.Tick` and the golden-screen helpers via
-reflection today (spike harness: [S-6 report](../report.md)), which is
+reflection today (spike harness: [S-6 report](report.md)), which is
 version-fragile in a fast-moving library.
 
 Request: a public, documented deterministic test surface, for example:

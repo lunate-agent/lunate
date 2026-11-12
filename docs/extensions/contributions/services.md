@@ -127,7 +127,7 @@ lease.Value.Refresh();
 
 The service name must be declared and registered by the same extension. A registered but undeclared
 service refuses the load; a declared but unregistered service is logged and dropped. The contract
-and lifecycle are also summarized in [the extensibility spec](../../spec/extensibility.md#workspaces-and-repository-identity).
+and lifecycle are also summarized in [the extensibility spec](../../dev/spec/extensibility.md#workspaces-and-repository-identity).
 
 ## Example
 
@@ -146,6 +146,6 @@ The service itself implements `IBackgroundService` and does its work in memory f
 
 ## See also
 
-- Service registry and core capabilities: [`docs/spec/extensibility.md`](../../spec/extensibility.md#services-for-long-lived-integrations)
+- Service registry and core capabilities: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#services-for-long-lived-integrations)
 - Start and stop semantics: [background-services.md](background-services.md)
 - The file-change bus: [file-changes.md](file-changes.md)

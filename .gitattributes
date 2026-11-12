@@ -33,7 +33,7 @@ tests/fixtures/edit-corpus/** -text
 
 # Recorded terminal evidence: the escape sequences and the CRLF pairs are exactly what the terminal
 # emitted. Rewriting them would be editing the evidence.
-docs/spikes/**/evidence/*.ansi -text
+docs/dev/spikes/**/evidence/*.ansi -text
 
 # Binaries must never be converted or diffed as text.
 *.png binary

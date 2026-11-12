@@ -61,7 +61,8 @@ may cover priced usage alone.
 
 ## Related
 
-- [First run](first-run.md) — choosing a provider, `lunate auth` and the setup wizard
+- [Quickstart](quickstart.md) — install, the setup wizard and the first task
+- [Models and providers](models-and-providers.md) — choosing a provider, `lunate auth` and profiles
 - [Run tool calls in a container](execution-environments.md) — the flags, the flow and the limits
 - [Use the terminal](usage.md) — approvals, run limits and the modes
 - [Configuration reference](configuration.md) — `maxCost`, `maxTime`, `approval` and every key

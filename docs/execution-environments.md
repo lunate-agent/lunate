@@ -190,7 +190,7 @@ its CI run is linked.
 ## Evidence and limits
 
 The evidence is the S-7 spike ([report and raw output in PR #647](https://github.com/lunate-agent/lunate/pull/647),
-landing under `docs/spikes/S-7/`). One run: macOS 26.3.1 arm64, Podman 6.1.0, an Apple-VM
+landing under `docs/dev/spikes/S-7/`). One run: macOS 26.3.1 arm64, Podman 6.1.0, an Apple-VM
 `podman machine` with 4 vCPU and 4 GiB, image `mcr.microsoft.com/dotnet/sdk:10.0` (Ubuntu 24.04,
 aarch64). It drove the real `BashTool`, `ReadTool` and `WriteTool`, not a reimplementation.
 
@@ -204,7 +204,7 @@ behaviour.
 
 - [Run Lunate safely](security.md) — how approval, the bash guard, verified edits, the file-change
   bus and the container boundary compose.
-- [Configuration reference](configuration.md) — every settings key, generated from the schema.
+- [Settings reference](settings.md) — every settings key, generated from the schema.
 - [Usage](usage.md) — approvals, tool blocks and the modes.
 - [S-7 report](https://github.com/lunate-agent/lunate/pull/647) — the measured evidence and raw
-  output, landing under `docs/spikes/S-7/`.
+  output, landing under `docs/dev/spikes/S-7/`.

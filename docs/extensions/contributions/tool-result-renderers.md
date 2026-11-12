@@ -70,6 +70,6 @@ Full file:
 
 ## See also
 
-- UI capabilities by mode: [`docs/spec/extensibility.md`](../../spec/extensibility.md#ui-by-mode)
+- UI capabilities by mode: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#ui-by-mode)
 - Status widgets: [status-widgets.md](status-widgets.md)
 - Tools whose results are rendered: [tools.md](tools.md)

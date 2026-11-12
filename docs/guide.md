@@ -22,7 +22,7 @@ Three consequences follow, and they decide priorities:
   activation rule. `Lunate.Coding` references that adapter only to supply the built-in factory list;
   the adapter and backend stay within the extension-abstractions dependency boundary (ADR-0026).
   Issue #237 may publish `Lunate.Extensibility.Abstractions` as stable only after this positioning
-  sentence is restored. The [surface audit](eval/roslyn-surface-audit.md) records the pre-migration
+  sentence is restored. The [surface audit](dev/eval/roslyn-surface-audit.md) records the pre-migration
   state as of 2026-10-28.
 - **Any configured model can serve a decision.** The user chooses the model; Lunate checks the
   response contract, retries one malformed response, and ensures decisions can only tighten the
@@ -87,8 +87,8 @@ lunate/
   openspec/changes/            # proposals, deltas, tasks (archive/ for done)
   adr/                         # durable architectural decisions (0001-...)
   docs/guide.md                # this guide
-  docs/spikes/                 # spike code and reports (S-1 to S-4)
-  docs/eval/                   # eval write-ups (T-35)
+  docs/dev/spikes/             # spike code and reports (S-1 to S-4)
+  docs/dev/eval/               # eval write-ups (T-35)
   scripts/verify.sh            # + verify.ps1: build, tests, publish, budgets, API and format checks
   scripts/perf.sh              # startup and memory budgets
   src/Lunate.Ai/               # IChatClient setup, model catalog, record and replay clients
@@ -139,7 +139,7 @@ Stick to .NET 10, Microsoft.Extensions.AI and a few well-known packages. No Nati
 
 **Spikes (task T-03)**
 
-Each spike is throwaway code in `docs/spikes/S-x/` with a short report and an ADR.
+Each spike is throwaway code in `docs/dev/spikes/S-x/` with a short report and an ADR.
 
 | Spike | Question | Result |
 | --- | --- | --- |
@@ -473,9 +473,9 @@ secrets; header values may be literals or references. Header templates are limit
 migrate idempotently, without copying secrets; environment credentials retain precedence. Project
 settings may reference existing user providers/profiles and lower limits, but cannot define endpoints
 or credential references. Provider `region` is metadata, not a routing or residency policy. See
-[first run](first-run.md) for setup and examples. For a custom wire API, `lunate auth login --custom`
+[models and providers](models-and-providers.md) for setup and examples. For a custom wire API, `lunate auth login --custom`
 accepts `--api-family`, `--credential-placement` and `--models-url`; omitted family keeps the existing
-`openai-chat` default. The generated [configuration reference](configuration.md) lists every settings
+`openai-chat` default. The generated [settings reference](settings.md) lists every settings
 key with its type, default, scope and allowed values, and is the page `--check` keeps from going stale.
 
 Profiles bind a name to a provider and catalog model with validated reasoning, output, temperature,
@@ -504,7 +504,7 @@ that profile by name; `openrouter` serves Jev 1.14 (box questions with an image)
 pay-as-you-go balance, not the Go plan. Jev Router is an
 ordinary chat model: a chat profile points at it like any other OpenRouter model and does not set
 `apiFamily`, so it never takes the decision transport. See
-[`configuration.md`](configuration.md#system-one-decision-profiles) for the presets, alias refusal,
+[`decisions.md`](decisions.md#system-one-decision-profiles) for the presets, alias refusal,
 cost reporting and the 32k per-question budget.
 
 The top-level `verify` setting selects how staged writes are verified: `block` (default) prevents a
@@ -527,7 +527,7 @@ System-prompt directives are recorded as prompt sections on a new session and re
 
 `/copy` (also `Ctrl+X`) writes the last completed answer to the clipboard. Over ssh (`SSH_CONNECTION` or `SSH_TTY`) it sends the OSC 52 sequence and starts no local tool; locally it runs the platform tool first (`pbcopy`, `wl-copy`/`xclip`/`xsel`, `clip.exe`/`Set-Clipboard` under WSL, the Win32 clipboard API on Windows — never `clip.exe`) and falls back to the sequence. The notice distinguishes evidence from intent — `copied 1,842 characters via pbcopy` versus `sent 1,842 characters to the terminal clipboard (OSC 52)` — names tmux's `set-clipboard on` when `TMUX` is set, and says the terminal may truncate a copy above 100 KB; the text is never cut by Lunate. A cancelled or failed turn is not an answer, so the previous completed one is copied, and with no completed turn the command says so and writes nothing.
 
-`/export html|jsonl [path] [--force]` writes the session. JSONL is the session file byte for byte with only the credential redaction applied; HTML is one self-contained document (inline CSS, no JavaScript, a `default-src 'none'` CSP, thinking in a collapsed `<details>`, every value escaped into text). Without a path the file is `~/.lunate/exports/<yyyy-MM-dd>-<session name or id>.<ext>` — never the current directory, where an export would be committed — and a path argument overrides it. An existing file is refused without `--force`, and every credential Lunate knows (auth store keys, provider environment variables, extension secrets, MCP environment values) is replaced with `[redacted:<name>]` by exact value only. The command prints the absolute path, the entry count and one line saying the file may contain file contents and command output and should be reviewed before sharing. Neither command exists in print or ACP mode. [`spec/export.md`](spec/export.md) owns the full contract.
+`/export html|jsonl [path] [--force]` writes the session. JSONL is the session file byte for byte with only the credential redaction applied; HTML is one self-contained document (inline CSS, no JavaScript, a `default-src 'none'` CSP, thinking in a collapsed `<details>`, every value escaped into text). Without a path the file is `~/.lunate/exports/<yyyy-MM-dd>-<session name or id>.<ext>` — never the current directory, where an export would be committed — and a path argument overrides it. An existing file is refused without `--force`, and every credential Lunate knows (auth store keys, provider environment variables, extension secrets, MCP environment values) is replaced with `[redacted:<name>]` by exact value only. The command prints the absolute path, the entry count and one line saying the file may contain file contents and command output and should be reviewed before sharing. Neither command exists in print or ACP mode. [`dev/spec/export.md`](dev/spec/export.md) owns the full contract.
 
 The session is a tree, and four commands expose it: `/tree` opens the session's whole tree in the transcript viewer — every branch in file order, indented by depth, the active path marked `*` and the rest `-`, `j`/`k` and `/` filter over it — and `Enter` puts the picked user message back in the editor without sending it; `/fork <entry>` writes a new session file holding the picked entry's chain up to that entry (any branch's, not only the active one), its header naming the source (`origin`, `branched`); `/clone` writes a new file holding every entry; `/rewind <entry> [summary] [confirm]` moves the active leaf in place by appending one `activeLeaf` entry, and with `summary` first reports the estimated input tokens and that one model call will be made, then writes the branch summary on the destination path once confirmed. Fork, clone and rewind refuse while a turn is running — a run's pending tool calls belong to a path — while `/tree` only reads and stays available.
 
@@ -539,7 +539,7 @@ The session is a tree, and four commands expose it: `/tree` opens the session's 
 
 **Extensions**
 
-An extension is an assembly implementing the `Lunate.Extensibility.Abstractions` contract — hooks, tools, services, commands — and it compiles only against that assembly, never against `Lunate.Agent` internals (ADR-0017; the full model is in `docs/spec/extensibility.md`). The contract carries the core tool types (`ToolContext`, `ToolResult`), so a tool handler is written against the same tool model the core uses. Lunate loads extensions at runtime, like Pi:
+An extension is an assembly implementing the `Lunate.Extensibility.Abstractions` contract — hooks, tools, services, commands — and it compiles only against that assembly, never against `Lunate.Agent` internals (ADR-0017; the full model is in `docs/dev/spec/extensibility.md`). The contract carries the core tool types (`ToolContext`, `ToolResult`), so a tool handler is written against the same tool model the core uses. Lunate loads extensions at runtime, like Pi:
 
 - From `~/.lunate/extensions/` (global) and `.lunate/extensions/` (per project), each in its own collectible `AssemblyLoadContext`; the contract assemblies, Microsoft.Extensions.AI abstractions and System.Text.Json are shared.
 - Each extension has an `extension.json` (id, version, apiVersion range, entry assembly, declared tools/commands/hooks/services, settings schema). Manifests are read at startup; assemblies load on first use, so startup budgets hold.
@@ -637,35 +637,7 @@ Both box rules are drawn at every width; autocomplete descriptions keep their 60
 - `Autocomplete`: the filtered rows above the box with the selected row marked, descriptions below the width breakpoint and muted file directories; the registry and keys are described above.
 - `SelectList`: model and session pickers inside the live area.
 
-**Key bindings (one meaning each)**
-
-<!-- keys:start -->
-| Key | Action |
-| --- | --- |
-| `Enter` | Send; with the autocomplete list open, accept the selected item first (an exact token sends instead); in bash mode, run the line through the `bash` tool; while a turn runs, queue the line as a follow-up (the footer shows `N queued`). Never steers or interrupts a turn |
-| `Alt+Enter` / `Shift+Enter` / `Ctrl+J` / `Ctrl+Enter` | New line in every state (the alternatives are for terminals that report extended keys or send the control byte); the autocomplete triggers re-run afterwards. Never submits or queues |
-| `Esc` | Close the autocomplete list first; in bash mode, leave without running and restore the line with its prefix; otherwise interrupt the running turn, whose queued follow-ups then run next; with nothing running, leave the queue alone |
-| `Ctrl+C` | Interrupt the running turn (a queued follow-up then runs next); with the prompt idle it clears the input, and on an empty idle prompt a second press within 2 s quits |
-| `Ctrl+D` | Quit on a second press within 800 ms, only from an empty idle prompt — never mid-turn |
-| `Ctrl+L` | Force a full redraw of the prompt area, keeping the input and the conversation |
-| `Ctrl+P` | Unbound: nothing happens. It is deliberately left free (the model picker is `Alt+P`), and the guide lists it so a reader does not have to guess |
-| `Alt+P` | Model picker and search; typing filters the catalog, Backspace edits the filter, Esc clears it before closing |
-| `Ctrl+R` | History search: typing narrows, `Ctrl+R`/`Down` moves to the next match, `Enter` places it in the input, `Esc` cancels |
-| `Ctrl+S` | Stash the draft, or restore it when the prompt is empty |
-| `Ctrl+G` | Open the draft in your editor: `$VISUAL`, else `$EDITOR`, else `vi` on POSIX and `notepad` on Windows — arguments are split on whitespace, with no shell and no quoting. A zero exit replaces the draft with the file's text and puts the cursor at its end; the program must wait for the file (`code --wait`), or the draft is read before the edit lands. Some terminals and tmux configurations swallow `Ctrl+G` (it is `BEL`, `0x07`); there `/editor` runs the same round-trip, on the draft the command leaves — an empty one |
-| `Ctrl+_` | Undo the last input edit |
-| `?` | On an empty idle prompt, open the key-help overlay: the bindings that apply here, grouped by state; `j`/`k` move, `/` filters, `Tab` shows every binding, `Esc` or `?` closes without touching the draft. In an approval prompt it shows that panel's key legend — `y` approves, `n` denies, `a` approves for the session, `Space` activates the selection, Enter and Esc deny — and decides nothing. With text in the prompt it is a literal character |
-| `y` / `n` / `a` | Answer a pending approval: approve, deny, or approve for the whole session. The panel owns these letters, so nothing else sees them while a question is open |
-| `Ctrl+O` | Transcript viewer: the session transcript with full tool output and diffs; `q`, `Esc` or `Ctrl+O` closes. Refused while an approval or picker is open |
-| `Ctrl+X` | Copy the last answer to the clipboard; the notice says whether a platform tool confirmed the write or the OSC 52 sequence was sent, and names tmux's `set-clipboard on` when it applies |
-| `Tab` | Accept the selected autocomplete item; otherwise nothing |
-| `Up` / `Down` | Move the autocomplete selection; with the list closed, history (bash mode recalls its own command stream). With queued follow-ups, `Up` takes the whole queue back into the editor instead |
-| `Ctrl+A` / `Ctrl+E` | Move to the start / end of the line |
-| `Ctrl+K` / `Ctrl+U` | Kill from the cursor to the end / to the start of the line |
-| `Ctrl+W` / `Alt+D` / `Ctrl+Delete` | Kill the word before / after the cursor (`Ctrl+Delete` is the Alt-free form of `Alt+D`) |
-| `Ctrl+Y` | Yank the most recent kill |
-| `Alt+B` / `Alt+F` / `Ctrl+Left` / `Ctrl+Right` | Move back / forward by word (`Ctrl+Left`/`Ctrl+Right` are the Alt-free forms) |
-<!-- keys:end -->
+Key bindings are in the [key bindings reference](keybindings.md).
 
 **Themes and remaps**
 
@@ -869,10 +841,10 @@ One row per card. Each card becomes one OpenSpec change (see Building it with Op
 | T-31 | 6 | `cs_find_references`, `cs_outline`, `cs_rename` | T-25 | Fixture tests; eval comparison row |
 | T-32 | 4 | Distribution: release workflow, install scripts, Homebrew, Scoop, winget, `dotnet tool` | T-02, T-17 | Fresh install works on Windows, macOS and Linux with one command |
 | T-33 | 4 | Terminal capability detection and fallbacks; manual terminal matrix check | T-18, T-19 | Every tier-1 terminal checked and noted in the card |
-| T-35 | 5 | Head-to-head C# eval: Lunate vs Claude Code with the C# LSP plugin vs OpenCode with its C# tooling; same tasks and model where possible; pass rate, steps, tokens, edit tiers, time; failure categories per run (load/restore/SDK failures, symbol-position errors, wrong edits, other) | T-17, T-25, T-26 | One results row per tool in eval/results.csv, a short write-up in docs/eval/, and a conclusion — if Lunate is not clearly better on C# tasks, the guide moves the positioning to .NET-native extensibility and the daily-driver experience instead of C# intelligence; covers the cs_rename comparison scenario |
+| T-35 | 5 | Head-to-head C# eval: Lunate vs Claude Code with the C# LSP plugin vs OpenCode with its C# tooling; same tasks and model where possible; pass rate, steps, tokens, edit tiers, time; failure categories per run (load/restore/SDK failures, symbol-position errors, wrong edits, other) | T-17, T-25, T-26 | One results row per tool in eval/results.csv, a short write-up in docs/dev/eval/, and a conclusion — if Lunate is not clearly better on C# tasks, the guide moves the positioning to .NET-native extensibility and the daily-driver experience instead of C# intelligence; covers the cs_rename comparison scenario |
 | T-53 | 4 | `@path` completion: file index honoring `.gitignore` (built lazily, bounded memory), performance budget on large repositories; `Tab` completion for `@paths` in the input line | T-22 | Completing `@paths` in a large repo stays within the startup and latency budgets and respects ignores |
 
-**Extensibility series (replaces the former T-24 and T-34).** The core ships primitives and is subagent-ready; features ship as extensions, proven by the fitness suite (`docs/spec/extensibility.md`, ADR-0017).
+**Extensibility series (replaces the former T-24 and T-34).** The core ships primitives and is subagent-ready; features ship as extensions, proven by the fitness suite (`docs/dev/spec/extensibility.md`, ADR-0017).
 
 | Card | Phase | Scope | Depends on | Done when |
 | --- | --- | --- | --- | --- |
@@ -924,7 +896,7 @@ The repo already carries the harness this guide describes: the OpenSpec CLI with
 | `.agents/skills/` | Every other skill, one source for all harnesses: `grill-me`, `architectural-decision-records`, `c4-diagrams`, `gherkin-authoring`, `glossary`, `openspec-git-discipline`, `spec-as-source` (opt-in), `test-driven-development`, `acceptance-test-authoring`, `adversarial-authoring` |
 | `openspec/` | `config.yaml` (schema, rules, project context), `schemas/intent-driven/`, `specs/` (current truth), `changes/` (proposals, deltas, tasks) |
 | `adr/` | Durable architectural decisions; immutable once accepted |
-| `docs/guide.md`, `docs/spikes/`, `docs/eval/` | This guide, spike reports, eval write-ups |
+| `docs/guide.md`, `docs/dev/spikes/`, `docs/dev/eval/` | This guide, spike reports, eval write-ups |
 | `scripts/verify.sh` / `.ps1` | The one command that decides "done" |
 
 OpenCode reads `AGENTS.md` natively; there is no separate editor-specific memory file.

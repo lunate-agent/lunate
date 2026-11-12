@@ -8,5 +8,5 @@ CI runner), and what budgets follow from them with documented headroom?
   local default stays 150 ms.
 - Evidence: `evidence/` (raw `gh run view` medians, run list, local hyperfine
   JSON).
-- ADR draft: [`adr/0005-budget-calibration.md`](../../../adr/0005-budget-calibration.md)
+- ADR draft: [`adr/0005-budget-calibration.md`](../../../../adr/0005-budget-calibration.md)
   (proposed; includes the repeatable re-calibration procedure).

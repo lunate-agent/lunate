@@ -90,5 +90,5 @@ and
 
 ## See also
 
-- The bus contract and per-workspace delivery: [`docs/spec/extensibility.md`](../../spec/extensibility.md#file-change-bus)
+- The bus contract and per-workspace delivery: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#file-change-bus)
 - Background services for watchers and servers: [background-services.md](background-services.md)

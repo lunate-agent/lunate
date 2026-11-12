@@ -27,7 +27,7 @@ agent and at home in polyglot repositories.
   diagnostics tool is a compile check after an edit, and an edit is verified against the compiler,
   not the model's guess. On the published head-to-head C# suite Lunate finished 6/6 at **~5× fewer
   tokens** than the heavy harnesses on the same tasks; the write-up is candid about what that suite
-  shows ([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
+  shows ([`docs/dev/eval/t35-head-to-head.md`](docs/dev/eval/t35-head-to-head.md)).
 - **Yours to extend in C#.** Start from **one `.cs` file** — a header declares its tools and the
   NuGet packages it needs, you approve it once, and it compiles into the running session — and grow
   it into a NuGet package you install by id ([`docs/extensions/`](docs/extensions/README.md) owns the
@@ -71,7 +71,7 @@ and writes nothing until you confirm the summary — `Esc` leaves without changi
 interrupts the running turn, `/quit` leaves. For a script or CI, `lunate -p "summarise what changed
 on this branch"` prints one prompt's final answer and `--json` emits every event as one JSON line.
 
-Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
+Next: [Quickstart](docs/quickstart.md) · [Models and providers](docs/models-and-providers.md) ·
 [Customize](docs/configuration.md) · [Automate](openspec/specs/print-mode/spec.md)
 
 <details>
@@ -84,17 +84,17 @@ Next: [Usage](docs/usage.md) · [Models and providers](docs/first-run.md) ·
 - **Full transcripts** — finished tool calls commit as one line; `ctrl+o` opens every block with
   its whole output and diff ([usage](docs/usage.md#tool-calls-commit-as-one-line)).
 - **Narrow terminals** — one layout that keeps every choice on screen down to 40 columns
-  ([usage](docs/usage.md#it-fits-a-narrow-terminal)).
+  ([terminal setup](docs/terminal-setup.md#fit-a-narrow-terminal)).
 - **C# tools** — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` with no
   plugin to install ([usage](docs/usage.md#c-the-compiler-agrees-with)); `lunate mcp roslyn` serves
   the read-only versions to any MCP host ([`docs/mcp-roslyn.md`](docs/mcp-roslyn.md)).
 - **Reasoning you can watch** — `/thinking low|medium|high` streams live and collapses to one line
   ([usage](docs/usage.md#you-can-watch-it-think)).
 - **A second model for approvals and routing** — a decision layer that can only tighten an approval,
-  never grant one ([usage](docs/usage.md#a-second-model-can-decide-when-it-is-worth-it)).
+  never grant one ([decisions](docs/decisions.md)).
 - **Copy and export** — `/copy` works over ssh via OSC 52; `/export html` writes a hardened,
   credential-redacted document, `/export jsonl` the session file
-  ([contract](docs/spec/export.md)).
+  ([copy, export and debug](docs/export-copy-debug.md)).
 - **Sessions that fork** — `/fork` continues under a new id, `/clone` restarts from an earlier
   turn ([usage](docs/usage.md#fork-a-session-without-losing-the-tail)).
 - **Long sessions** — tool results spill to a file and old turns are masked without losing the
@@ -144,7 +144,7 @@ sources register the same way.
   and the test kit
 - Authoring guide: [`docs/extensions/`](docs/extensions/README.md) — quickstart, manifest reference,
   one page per contribution, lifecycle and trust, testing and troubleshooting
-- Contract and hook catalogue: [`docs/spec/extensibility.md`](docs/spec/extensibility.md)
+- Contract and hook catalogue: [`docs/dev/spec/extensibility.md`](docs/dev/spec/extensibility.md)
 - Reference extensions that run in CI: [`samples/extensions/`](samples/extensions/)
 - Supported extensions (`Lunate.Extensions.*`): [`extensions/`](extensions/)
 
@@ -182,14 +182,15 @@ Three targets, each built and verified in CI on every commit, plus a performance
 
 Terminals: Windows Terminal, conhost, VS Code's integrated terminal, Git Bash, macOS Terminal.app,
 iTerm2, Ghostty, WezTerm, Kitty, Alacritty, the common Linux terminals, and tmux/screen over SSH —
-the full matrix is in the [guide](docs/guide.md); pipes, CI and `TERM=dumb` are print mode.
+the full matrix is in [terminal setup](docs/terminal-setup.md); pipes, CI and `TERM=dumb` are print
+mode.
 
 ## Acknowledgements
 
 Lunate stands on two lightweight agents that came first — **Pi** and **Tau** — for the shape of the
 loop, the tool set and the idea that an agent's harness should be small enough to read. The
 head-to-head suite that calibrates the claims above runs Pi and Tau beside Lunate
-([`docs/eval/t35-head-to-head.md`](docs/eval/t35-head-to-head.md)).
+([`docs/dev/eval/t35-head-to-head.md`](docs/dev/eval/t35-head-to-head.md)).
 
 ## Contributing
 

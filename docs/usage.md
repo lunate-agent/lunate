@@ -1,12 +1,13 @@
 # Usage
 
 What the interactive session does turn by turn: typing and completing a prompt, what a turn commits
-to the scrollback, how tools and approvals appear, sessions and exports, thinking and decisions —
-and the three modes Lunate runs in. Configuration lives in [configuration](configuration.md); the
-things a project or the user owns — project instructions, skills, MCP servers, the theme and the key
-remaps — have a page each in [AGENTS.md](agents-md.md), [skills](skills.md),
-[MCP servers](mcp-servers.md) and [themes and keys](themes-and-keys.md); export and debug contracts
-in [`spec/export.md`](spec/export.md) and [`spec/diagnostics.md`](spec/diagnostics.md).
+to the scrollback, how tools and approvals appear, sessions and thinking — and the three modes
+Lunate runs in. Configuration lives in [configuration](configuration.md) and the generated
+[settings reference](settings.md); the things a project or the user owns — project instructions,
+skills, MCP servers, the theme and the key remaps — have a page each in
+[AGENTS.md](agents-md.md), [skills](skills.md), [MCP servers](mcp-servers.md) and
+[themes and keys](themes-and-keys.md); copy, export and debug have their own
+[page](export-copy-debug.md) and the optional decision layer is [Decisions](decisions.md).
 
 ## Type, complete, send
 
@@ -38,16 +39,6 @@ question stays visible above the answer. While the turn runs, the activity line 
 elapsed seconds.
 
 ![Two turns with the user echo, the tool block and the activity line](media/features/turns.gif)
-
-## It fits a narrow terminal
-
-Below 60 columns the layout switches to its compact band: tool headers drop the argument summary
-(`✓ read · 13 lines`), the footer shrinks to the model and the context percent, the input box keeps
-both rules, and the autocomplete list keeps only the names. The full
-layout returns from 100 columns; the guide's
-[Narrow terminals](guide.md#terminal-ui-lunatetui) section has the per-band rules.
-
-![A committed turn, the input box and the slash-command list at 40 columns](media/features/narrow.gif)
 
 ## Edits you approve, with the diff
 
@@ -104,33 +95,6 @@ reasoning on: it streams live in the live area in its own colour and collapses t
 
 ![Reasoning streaming and collapsing to a thought line](media/features/thinking.gif)
 
-## Take the answer with you
-
-`/copy` (or `Ctrl+X`) puts the last answer on the clipboard without selecting a wrapped line by
-hand, and it works where the session runs: over ssh it writes the OSC 52 sequence — a local
-`pbcopy` there would fill a clipboard you cannot see — and locally it runs the platform tool first,
-falling back to the same sequence. The notice says only what happened:
-`copied 1,842 characters via pbcopy` when a tool proved the write,
-`sent 1,842 characters to the terminal clipboard (OSC 52)` when it did not, with tmux's
-`set-clipboard on` requirement and the terminal's 100 KB payload limit named in the same line.
-
-`/export html` writes one self-contained document — inline CSS, no JavaScript, a
-`default-src 'none'` CSP, thinking collapsed in `<details>` — that is safe to open even when a tool
-result carried hostile markup. `/export jsonl` writes the session file byte for byte. Both default
-to `~/.lunate/exports/<date>-<name>.<ext>` (never the current directory, where an export would be
-committed), refuse an existing file without `--force`, redact every credential Lunate knows as
-`[redacted:<name>]`, and print the absolute path plus a reminder that the file may contain file
-contents and command output. [`spec/export.md`](spec/export.md) owns the full contract.
-
-## A second model can decide when it is worth it
-
-`decisions` in `settings.json` names one profile and opts into any of four consumers: approvals
-(`off`, `shadow`, `enforce`, with a threshold for how sure a deny must be), routing (`off`, `shadow`,
-`enforce` over two or more profiles), the information-only decide tool, and display-only suggestions
-beside a question's top option. A decision can only tighten an approval, never grant one; without a
-profile the layer stays off. The same gate runs in the TUI, print mode and ACP, and the
-[configuration reference](configuration.md) lists every key.
-
 ## Fork a session without losing the tail
 
 `/fork` writes a new session file that continues the current one under a new id; `/clone` starts a
@@ -183,15 +147,21 @@ has the full flow, the measurements and the platform limits.
 
 ## Related
 
-- [First run](first-run.md) — choosing a provider, `lunate auth`, the setup wizard
-- [Configuration](configuration.md) — every settings key, generated from the schema
+- [Quickstart](quickstart.md) — install, the setup wizard and the first task
+- [Models and providers](models-and-providers.md) — choosing a provider, credential, model and profile
+- [Decisions](decisions.md) — the optional second model for approvals, routing and questions
+- [Copy, export and debug](export-copy-debug.md) — taking an answer, the session or a bundle out
+- [Set up your terminal](terminal-setup.md) — supported terminals, shells and the narrow layout
+- [Configuration](configuration.md) — decision profiles, provider entries and the rest of the file
+- [Settings reference](settings.md) — every settings key, generated from the schema
+- [Keybindings reference](keybindings.md) — every prompt binding, generated from the catalog
 - [AGENTS.md](agents-md.md) — project rules from the root down to the launch directory
 - [Skills](skills.md) — `SKILL.md` bundles a project or the user ships
 - [MCP servers](mcp-servers.md) — the servers a session starts from configuration
 - [Themes and keys](themes-and-keys.md) — the colour depth and the key remaps `/settings` persists
 - [Run tool calls in a container](execution-environments.md) — the container mode, its settings and
   what stays on the host
-- [Export contract](spec/export.md) — what `/copy` and `/export` guarantee
+- [Export contract](dev/spec/export.md) — what `/copy` and `/export` guarantee
 - [The Roslyn MCP server](mcp-roslyn.md) — the C# tools from another MCP host
 - [Security and safety](security.md) — the trust model behind the prompt, and what each layer does
 - [Security policy](../SECURITY.md) — how to report a vulnerability

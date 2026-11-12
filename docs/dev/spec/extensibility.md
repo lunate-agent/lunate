@@ -1,6 +1,6 @@
 # Extensibility architecture
 
-Status: working spec under ADR-0017. The durable decisions live in `adr/0017-extensibility-architecture.md`; this document is the detail the cards build against. Behavioural requirements that are already testable live in the OpenSpec specs ([`agent-events`](../openspec/specs/agent-events/spec.md), [`agent-tools`](../openspec/specs/agent-tools/spec.md), [`agent-sessions`](../openspec/specs/agent-sessions/spec.md)) and are referenced by name, not duplicated.
+Status: working spec under ADR-0017. The durable decisions live in `adr/0017-extensibility-architecture.md`; this document is the detail the cards build against. Behavioural requirements that are already testable live in the OpenSpec specs ([`agent-events`](../../../openspec/specs/agent-events/spec.md), [`agent-tools`](../../../openspec/specs/agent-tools/spec.md), [`agent-sessions`](../../../openspec/specs/agent-sessions/spec.md)) and are referenced by name, not duplicated.
 
 ## Principles
 
@@ -69,7 +69,7 @@ Rules:
 
 ## Tool model
 
-The byte-level contract is owned by [`agent-tools`](../openspec/specs/agent-tools/spec.md) and is extended by the `add-extension-formats` change; the summary:
+The byte-level contract is owned by [`agent-tools`](../../../openspec/specs/agent-tools/spec.md) and is extended by the `add-extension-formats` change; the summary:
 
 - **Exposure**: `Direct` (model + programmatic, default), `ModelOnly` (model only), `Programmatic` (scripts only, never declared), `Deferred` (discoverable, not declared upfront), `Hidden` (internal). The registry declares only what the model should see; nested/programmatic execution respects the same gate.
 - **Namespaces**: name, description, instructions — grouping for discovery and prompt rendering (MCP servers namespace their tools).
@@ -122,7 +122,7 @@ Every run — child runs included — has a workspace: `WorktreeRoot`, `RepoRoot
 - Every hook payload/result and service call round-trips through `System.Text.Json`; the wire conformance suite covers the catalogue exhaustively (a new DTO without a wire entry fails by name).
 - Command invocations cross the same wire (`command/invoke`, protocol version 2) as a wire DTO owned by the remote package — never a serialisation of the public `CommandInvocation`/`CommandResult` — with `$/cancelRequest` as the one cancel path and `commands: true` in `initialize` as the capability the listing follows. The conformance runner and the `node-remote` sample prove it.
 - All hooks are async with cancellation and a per-handler timeout.
-- `Lunate.Extensibility.Remote` (T-52) hosts an extension declaring a manifest `runtime` as a child process speaking newline-delimited JSON-RPC 2.0 over stdio. Manifest and wire reference for authors, with the generated JSON Schema and the conformance runner: [`docs/extensions-remote.md`](../extensions-remote.md). The reference extension is the `node-remote` sample in the fitness suite.
+- `Lunate.Extensibility.Remote` (T-52) hosts an extension declaring a manifest `runtime` as a child process speaking newline-delimited JSON-RPC 2.0 over stdio. Manifest and wire reference for authors, with the generated JSON Schema and the conformance runner: [`docs/extensions-remote.md`](../../extensions-remote.md). The reference extension is the `node-remote` sample in the fitness suite.
 - The process boundary is runtime isolation (dependencies, language, crash containment), not a permission boundary; in-process trust and the trust prompt (now stating the extension runs with the user's privileges) are unchanged (ADR-0017).
 
 ## Trust, performance, testing
@@ -137,7 +137,7 @@ The fitness suite is one sample per core capability: each proves the platform an
 own rule (below) keeps samples honest about what the core is missing.
 
 Three of them are no longer samples: the promoted extensions live in
-[`extensions/`](../../extensions/) — the first-party supported tier, with product-page readmes —
+[`extensions/`](../../../extensions/) — the first-party supported tier, with product-page readmes —
 and the surfaces they exercise are `subagents` (one tool through `ToolContext.Subagents`),
 `lsp-diagnostics` (a background service and a `ToolResultReady` hook) and `permission-gate`
 (a `ToolCalling` hook with block semantics).

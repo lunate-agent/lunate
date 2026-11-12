@@ -12,7 +12,7 @@
   2.52.0, because the MSYS2 runtime hands native console apps a pseudo console
   (ConPTY). With pseudo-console support disabled (`MSYS=disable_pcon`) the
   historical failure returns. See [Manual results](#manual-results-windows-11-git-for-windows-2520).
-- ADR draft: [`adr/0004-mintty-input-support.md`](../../../adr/0004-mintty-input-support.md)
+- ADR draft: [`adr/0004-mintty-input-support.md`](../../../../adr/0004-mintty-input-support.md)
   (accepted 2026-10-04).
 
 ## What was built
@@ -178,7 +178,7 @@ condition (`GetConsoleMode` fails on stdin / `Console.IsInputRedirected` while
 `MSYSTEM` is set) and print "this terminal cannot deliver raw keys; use
 Windows Terminal, or re-enable pseudo-console support" instead of crashing with
 an unhandled exception. **Windows Terminal** stays the no-caveat path. The
-proposed decision is in [ADR 0004](../../../adr/0004-mintty-input-support.md).
+proposed decision is in [ADR 0004](../../../../adr/0004-mintty-input-support.md).
 
 ## Surprises
 

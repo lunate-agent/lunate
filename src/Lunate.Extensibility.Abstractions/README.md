@@ -41,6 +41,6 @@ is ignored at load with one warning. Keep the reference compile-only (`PrivateAs
 ## Documentation
 
 `docs/extensions/` — the [extension reference](https://github.com/lunate-agent/lunate/blob/main/docs/extensions/README.md),
-the [hook catalogue](https://github.com/lunate-agent/lunate/blob/main/docs/spec/extensibility.md) and
+the [hook catalogue](https://github.com/lunate-agent/lunate/blob/main/docs/dev/spec/extensibility.md) and
 the [sample](https://github.com/lunate-agent/lunate/tree/hello-extensions) extensions under
 `samples/extensions/`.

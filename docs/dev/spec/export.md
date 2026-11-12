@@ -3,7 +3,7 @@
 `/export` turns a session file into something a person can read, attach to an issue or hand to a
 reviewer. This page owns the rules that make that artifact safe and predictable: the destination,
 the credential redaction, the HTML document's guarantees, and where the commands exist. The
-behaviour itself is specified in [`openspec/specs/tui/spec.md`](../../openspec/specs/tui/spec.md);
+behaviour itself is specified in [`openspec/specs/tui/spec.md`](../../../openspec/specs/tui/spec.md);
 `docs/guide.md` owns the user-facing walkthrough.
 
 ## Forms

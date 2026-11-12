@@ -16,7 +16,7 @@
   [Recommendation](#recommendation)). Single-file works only when the MSBuild
   *build host* is left on disk next to the binary (or all content is
   self-extracted).
-- ADR draft: [`adr/0006-roslyn-placement.md`](../../../adr/0006-roslyn-placement.md)
+- ADR draft: [`adr/0006-roslyn-placement.md`](../../../../adr/0006-roslyn-placement.md)
   (accepted 2026-10-04).
 
 ## Environment

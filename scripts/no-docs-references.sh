@@ -14,7 +14,7 @@
 #   3. a File/Directory call on the same line as a docs path, root or no root.
 #
 # The allowances are the test files named in ALLOWED_DOCS_READERS below, each with the read it
-# owns: GuideKeyTableTests (issue #267) checks docs/guide.md's key cells against Lunate.Tui's
+# owns: GuideKeyTableTests (issue #267) checks docs/keybindings.md's key cells against Lunate.Tui's
 # KeyBindingCatalog, and DocsConfigExamplesTests loads every fenced settings/providers/auth example
 # through the store that reads the real file, so a documented example cannot rot. Name the test
 # here and print the allowance -- never quietly bypass the shape checks above.
@@ -37,8 +37,8 @@ ROOT_MARKERS='lunate\.sln|FindRepositoryRoot|RepositoryRoot'
 FILESYSTEM_CALL='(File|Directory)\.[A-Za-z]+\([^;]*"docs[/"\\]'
 
 # The tests allowed to read the docs tree, repository-relative. Issue #267's card asks the
-# guide's key table to be checked against the key binding catalog; that check reads
-# docs/guide.md and is the guide's page-level guard inside `dotnet test`, where the docs-sync
+# keybindings table to be checked against the key binding catalog; that check reads
+# docs/keybindings.md and is the reference page's guard inside `dotnet test`, where the docs-sync
 # region check does not run (it is a docs-profile step, not a full-matrix one).
 ALLOWED_DOCS_READERS=(
   tests/Lunate.Tui.Tests/GuideKeyTableTests.cs
@@ -284,7 +284,7 @@ _self_test_cases() {
   case_dir="${scratch}/allowed-reader"
   mkdir -p "$case_dir/src/App" "$case_dir/tests/Lunate.Tui.Tests" "$case_dir/docs"
   printf '<Project>\n</Project>\n' >"$case_dir/src/App/App.csproj"
-  printf 'public sealed class GuideKeyTableTests\n{\n    string M() => File.ReadAllText(Path.Combine(TestPaths.RepositoryRoot, "docs", "guide.md"));\n}\n' \
+  printf 'public sealed class GuideKeyTableTests\n{\n    string M() => File.ReadAllText(Path.Combine(TestPaths.RepositoryRoot, "docs", "keybindings.md"));\n}\n' \
     >"$case_dir/tests/Lunate.Tui.Tests/GuideKeyTableTests.cs"
   if ! out="$(check_tree "$case_dir" 2>&1)"; then
     printf 'self-test: the allowlisted drift test must pass, said: %s\n' "$out" >&2

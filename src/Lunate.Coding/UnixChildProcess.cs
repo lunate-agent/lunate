@@ -75,7 +75,10 @@ internal sealed class UnixChildProcess : ChildProcess
 
     public override StreamWriter? StandardInput => _stdin;
 
-    public static UnixChildProcess Spawn(ProcessRunRequest request)
+    public static UnixChildProcess Spawn(
+        ProcessRunRequest request,
+        IReadOnlyList<string>? passthrough = null
+    )
     {
         AnonymousPipeServerStream? stdoutPipe = null;
         AnonymousPipeServerStream? stderrPipe = null;
@@ -174,7 +177,7 @@ internal sealed class UnixChildProcess : ChildProcess
                     );
 
                     string[] argv = [request.FileName, .. request.Arguments];
-                    string[] envp = BuildEnvp(request);
+                    string[] envp = BuildEnvp(request, passthrough);
                     string executable = ResolveExecutable(request.FileName);
 
                     // argv/envp are built as raw NUL-terminated UTF-8 pointer arrays. Managed
@@ -324,8 +327,13 @@ internal sealed class UnixChildProcess : ChildProcess
         _stdinPipe?.Dispose();
     }
 
-    private static string[] BuildEnvp(ProcessRunRequest request) =>
-        BuildEnvironment(request).Select(entry => $"{entry.Key}={entry.Value}").ToArray();
+    private static string[] BuildEnvp(
+        ProcessRunRequest request,
+        IReadOnlyList<string>? passthrough
+    ) =>
+        BuildEnvironment(request, passthrough)
+            .Select(entry => $"{entry.Key}={entry.Value}")
+            .ToArray();
 
     /// <summary>Allocates a NUL-terminated array of UTF-8 string pointers, plus a trailing NULL.</summary>
     private static IntPtr AllocArgv(IReadOnlyList<string> values)
