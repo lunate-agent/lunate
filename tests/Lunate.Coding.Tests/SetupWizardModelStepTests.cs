@@ -83,7 +83,9 @@ public sealed class SetupWizardModelStepTests
     /// Regression: a confirmed wizard pick's continuation runs off-thread and opens the next step's
     /// picker. The dismissal used to complete the pick first, so a dismissal still running when that
     /// continuation landed cleared the newer picker and cancelled its pick — the walk aborted on a
-    /// step the user never saw (the "Model id" frame never arrived on the Linux shard).
+    /// step the user never saw (the "Model id" frame never arrived on the Linux shard). The owner
+    /// now applies completion, dismissal and the continuation's open as ordered messages, so the
+    /// walk cannot proceed until the dismissal has been applied.
     /// </summary>
     [PosixFact]
     public async Task A_confirmed_pick_does_not_abort_the_step_its_continuation_opens()
@@ -93,11 +95,6 @@ public sealed class SetupWizardModelStepTests
             interactiveConsole: true,
             discoveryTransport: Response(500, "{}")
         );
-        // Hold every dismissal so the just-completed pick's continuation has ample time to open
-        // the next picker before the dismissal clears anything. With the ordering fixed the pick
-        // is not completed yet, so nothing can open until the dismissal returns and the walk
-        // proceeds to the model id.
-        host.Session.PickerDismissalSeam = () => Task.Delay(150);
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
