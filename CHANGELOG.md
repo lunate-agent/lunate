@@ -15,6 +15,11 @@ Notable changes to Lunate, one section per release. The format follows
   `CHANGELOG.md`; `scripts/changelog-assemble` folds the fragments into the unreleased section in
   pull-request order, the release pull request runs it, and `ci-ok` refuses a changelog edit from
   any other pull request (#794).
+
+- **A documentation checker and navigation manifest.** `scripts/docs-check` keeps every relative
+  link, `#anchor`, redirect stub and `docs/docs.json` navigation entry honest, and its self-test plus
+  Python suite pin the failure paths; it runs in the docs and platform verify profiles and the
+  always-on tree checks (#749).
 <!-- changelog-fragments:end -->
 
 ### Fixed

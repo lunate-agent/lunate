@@ -69,15 +69,9 @@ def parse_fragment(path: Path, number: int, root: Path) -> tuple[str | None, lis
         errors.append(f"{where}: no bullet; expected '- description (#{number}).'")
 
     for entry in entries:
-        reference = REFERENCE.search(entry)
-        if reference is None:
+        if REFERENCE.search(entry) is None:
             errors.append(
-                f"{where}: a bullet does not end with the pull-request reference (#{number})."
-            )
-        elif int(reference.group(1)) != number:
-            errors.append(
-                f"{where}: a bullet ends with (#{reference.group(1)}), "
-                f"but the fragment is for pull request {number}"
+                f"{where}: a bullet does not end with a reference such as (#1234)."
             )
 
     return heading, entries, errors

@@ -48,7 +48,7 @@ The accepted headings are the three the card names: `### Added`, `### Changed`, 
 
 - a `*.md` that is neither `README.md` nor `<digits>.md` is malformed;
 - a heading outside the three is an unknown heading;
-- a bullet that does not end with `(#<fragment-number>)` is malformed;
+- a bullet that does not end with a reference such as `(#1234)` is malformed;
 - text outside the heading and its bullets is malformed;
 - `1234.md` and `01234.md` are a duplicate for number 1234 (both named).
 

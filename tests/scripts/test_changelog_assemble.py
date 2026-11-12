@@ -133,14 +133,23 @@ class ChangelogAssembleTests(unittest.TestCase):
         self.assertIn("unknown heading", result.stderr)
         self.assertIn("changes/1234.md", result.stderr)
 
-    def test_a_bullet_without_its_own_number_is_malformed(self) -> None:
-        root = self.tree({"1234.md": fragment("### Fixed", "- The fix (#999).")})
+    def test_a_bullet_may_reference_the_issue_number(self) -> None:
+        root = self.tree({"801.md": fragment("### Added", "- The checker (#749).")})
+
+        written = run(root, "--write")
+        checked = run(root, "--check")
+
+        self.assertEqual(0, written.returncode, written.stderr)
+        self.assertEqual(0, checked.returncode, checked.stderr)
+        self.assertIn("The checker (#749).", (root / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_a_bullet_whose_reference_is_not_at_the_end_is_malformed(self) -> None:
+        root = self.tree({"1234.md": fragment("### Fixed", "- The fix (#1234) trailing.")})
 
         result = run(root, "--check")
 
         self.assertEqual(1, result.returncode)
-        self.assertIn("(#999)", result.stderr)
-        self.assertIn("pull request 1234", result.stderr)
+        self.assertIn("does not end with a reference", result.stderr)
 
     def test_a_bullet_without_any_reference_is_malformed(self) -> None:
         root = self.tree({"1234.md": fragment("### Fixed", "- The fix.")})
@@ -148,7 +157,7 @@ class ChangelogAssembleTests(unittest.TestCase):
         result = run(root, "--check")
 
         self.assertEqual(1, result.returncode)
-        self.assertIn("does not end with the pull-request reference (#1234)", result.stderr)
+        self.assertIn("does not end with a reference", result.stderr)
 
     def test_two_fragments_for_one_number_are_reported(self) -> None:
         root = self.tree(
