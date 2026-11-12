@@ -370,7 +370,7 @@ internal static class WizardModelCheck
         {
             return new WizardCheckResult(
                 WizardProgress.Failed,
-                Redact(exception.Message, credential)
+                FailureDetail(choice, Redact(exception.Message, credential))
             );
         }
     }
@@ -448,4 +448,15 @@ internal static class WizardModelCheck
         credential is { Length: > 0 }
             ? reason.Replace(credential, "[redacted]", StringComparison.Ordinal)
             : reason;
+
+    /// <summary>
+    /// The chat model check's failure detail: the model id, the API family it was sent on and the
+    /// HTTP status or response shape the request came back with. One recorded string, printed
+    /// unchanged by the wizard's notice and by the summary both entry points print, so a failure
+    /// that names a model without the family it was checked on cannot reach a user (#585 N-5).
+    /// </summary>
+    private static string FailureDetail(WizardModelChoice choice, string reason) =>
+        reason.Length > 0
+            ? $"{choice.ModelId} on family {choice.ApiFamily}: {reason}"
+            : $"{choice.ModelId} on family {choice.ApiFamily}: the request was refused";
 }

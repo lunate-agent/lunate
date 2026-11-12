@@ -37,7 +37,8 @@ the wizard opens instead of the prompt:
   (which runs the provider, credential, connection-test and model steps without leaving the usage
   step). The model check runs after the selection, states its cost first, and a skip stays marked
   unverified. A `systemone` model is labelled native Jev, any other adapter model is labelled
-  adapter.
+  adapter. The decision profile is written as the `decisions` profile, so a chat profile with that
+  name skips the decision step instead of being replaced by it.
 - **Another provider** — after a provider's steps, the provider list returns with **Add another
   provider…** and **Done**. Adding walks the provider, credential, test, model and profile steps
   again; **Done** continues to the decisions layer. Each provider keeps its own credential, and a

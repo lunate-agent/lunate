@@ -101,7 +101,18 @@ internal sealed record WizardProviderRun(
 /// stored under). The key value never echoes, logs, or reaches
 /// <c>providers.json</c>/<c>settings.json</c>.
 /// </summary>
-internal sealed record WizardCredentialChoice(string Reference, string? Key = null);
+internal sealed record WizardCredentialChoice(string Reference, string? Key = null)
+{
+    /// <summary>
+    /// The answer's text. A positional record's generated <c>ToString()</c> prints every property,
+    /// so a typed key would ride along into any log line, notice or diagnostic that renders the
+    /// answer. It names the reference and only the key's presence instead.
+    /// </summary>
+    public override string ToString() =>
+        Key is null
+            ? $"WizardCredentialChoice {{ Reference = {Reference} }}"
+            : $"WizardCredentialChoice {{ Reference = {Reference}, Key = [redacted] }}";
+}
 
 /// <summary>
 /// The model step's answer: the model id (from discovery's listing, or typed manually when
@@ -223,6 +234,11 @@ internal sealed partial class SetupWizardModel
     /// <summary>The provider runs already collected and left behind by **Add another provider…**;
     /// the active run stays in the properties below until then.</summary>
     private readonly List<WizardProviderRun> _providers = [];
+
+    /// <summary>The name the decision profile is written under. The wizard owns it — the profile
+    /// entry and the <c>decisions.profile</c> binding must agree — so a chat profile the walk names
+    /// the same is refused a decision profile rather than replaced by one.</summary>
+    internal const string DecisionProfileName = "decisions";
 
     /// <summary>The steps whose answer was carried in from the current configuration: an entry
     /// run's prefill. Carried values drive the later steps and show in the summary, but they are

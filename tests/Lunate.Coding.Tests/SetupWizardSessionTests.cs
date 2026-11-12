@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Lunate.Ai;
 using Lunate.Tui;
 
@@ -211,6 +212,70 @@ public sealed class SetupWizardSessionTests
         await run;
     }
 
+    [PosixFact]
+    public async Task A_chat_profile_named_decisions_is_not_replaced_by_the_decision_profile()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            freshInstall: true,
+            discoveryTransport: new RecordingHandler(
+                (_, _) => Task.FromResult(Response(200, DiscoveryBody))
+            )
+        );
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await WalkToFastStepAsync(host, "decisions");
+        await host.WaitForFrameAsync("fast usage");
+        host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
+
+        // The decision profile writes the fixed name `decisions`; a chat profile already carrying
+        // that name would be replaced at commit time, leaving `usages.chat` pointing at a decision
+        // profile (#585 N-5). The step names the clash and offers no decision profile at all. The
+        // next step's path header replaces the one-line notice, so the journal is the record.
+        await host.WaitUntilAsync(() =>
+            host.Notices.Entries.Any(entry =>
+                entry.Change == NoticeSlotChange.Posted
+                && entry.Text.StartsWith(
+                    "the chat profile in this walk is named 'decisions'",
+                    StringComparison.Ordinal
+                )
+            )
+        );
+        Assert.DoesNotContain("Decision profile (", host.Frames, StringComparison.Ordinal);
+
+        await host.WaitForFrameAsync("Decisions settings");
+        host.Console.SendEnter(); // accept the defaults (nothing written for the layer)
+
+        string summary = Flatten(await host.WaitForScrollbackAsync("confirm these values"));
+        Assert.Contains("profile decisions", summary, StringComparison.Ordinal);
+        Assert.Contains("decision profile:", summary, StringComparison.Ordinal);
+        Assert.Contains("skipped", summary, StringComparison.Ordinal);
+
+        await host.WaitForFrameAsync("Write this configuration?");
+        host.Console.SendEnter();
+        // The write's own notice is the frame after the summary: the transcript line that used to
+        // carry `model:` here is no longer the last frame once the files are saved.
+        await host.WaitForFrameAsync("setup written");
+        host.Console.Complete();
+        await run;
+
+        using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath(host)));
+        JsonElement root = settings.RootElement;
+        Assert.Equal(
+            "gpt-3.5-turbo",
+            root.GetProperty("profiles").GetProperty("decisions").GetProperty("model").GetString()
+        );
+        Assert.Equal("decisions", root.GetProperty("usages").GetProperty("chat").GetString());
+        Assert.False(
+            root.TryGetProperty("decisions", out JsonElement layer)
+                && layer.TryGetProperty("profile", out _),
+            "the skipped decision step writes no decisions.profile"
+        );
+    }
+
     private static InteractiveSessionHost ConfiguredHost()
     {
         var host = new InteractiveSessionHost(interactiveConsole: true, freshInstall: true);
@@ -242,6 +307,28 @@ public sealed class SetupWizardSessionTests
 
     private static async Task WalkToSummary(InteractiveSessionHost host)
     {
+        await WalkToFastStepAsync(host, "chat-main");
+
+        await host.WaitForFrameAsync("fast usage");
+        host.Console.SendEnter(); // skip
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
+
+        await host.WaitForFrameAsync("Decision profile");
+        host.Console.SendEnter(); // skip
+
+        await host.WaitForFrameAsync("Decisions settings");
+        host.Console.SendEnter(); // accept the defaults (nothing written for the layer)
+
+        // gpt-3.5-turbo declares no reasoning style in the listing or the catalog, so the walk
+        // never asks the thinking question (spec: Thinking offers only supported levels).
+        Assert.DoesNotContain("Thinking level for", host.Frames, StringComparison.Ordinal);
+    }
+
+    /// <summary>Walks provider, credential, connection test, model, model check and the chat
+    /// profile name — everything up to the fast-usage question.</summary>
+    private static async Task WalkToFastStepAsync(InteractiveSessionHost host, string profile)
+    {
         await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // the first preset row (openai)
 
@@ -263,22 +350,15 @@ public sealed class SetupWizardSessionTests
         host.Console.SendEnter(); // the default row skips: the model stays unverified but staged
 
         await host.WaitForFrameAsync("Profile name");
-        host.Console.SendText("chat-main");
+        host.Console.SendText(profile);
         host.Console.SendEnter();
 
         await host.WaitForFrameAsync("fast usage");
-        host.Console.SendEnter(); // skip
-        await host.WaitForFrameAsync("Add another provider?");
-        host.Console.SendEnter(); // Done
-
-        await host.WaitForFrameAsync("Decision profile");
-        host.Console.SendEnter(); // skip
-
-        await host.WaitForFrameAsync("Decisions settings");
-        host.Console.SendEnter(); // accept the defaults (nothing written for the layer)
-
-        // gpt-3.5-turbo declares no reasoning style in the listing or the catalog, so the walk
-        // never asks the thinking question (spec: Thinking offers only supported levels).
-        Assert.DoesNotContain("Thinking level for", host.Frames, StringComparison.Ordinal);
     }
+
+    private static string Flatten(string text) =>
+        string.Join(
+            " ",
+            text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())
+        );
 }

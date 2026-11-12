@@ -314,6 +314,23 @@ public sealed class SetupWizardModelTests
         Assert.Empty(model.SkippedSteps);
     }
 
+    [PosixFact]
+    public void A_typed_key_never_reaches_a_credential_answers_text()
+    {
+        const string TypedKey = "sk-wizard-answer-please-never-echo";
+
+        string reference = new WizardCredentialChoice("env:OPENAI_API_KEY").ToString()!;
+        string typed = new WizardCredentialChoice("openai", Key: TypedKey).ToString()!;
+
+        // The positional record generates a ToString() over every property, so without an
+        // override the key would ride along into any log line, notice or diagnostic (#585 N-5).
+        Assert.Contains("env:OPENAI_API_KEY", reference, StringComparison.Ordinal);
+        Assert.DoesNotContain("[redacted]", reference, StringComparison.Ordinal);
+        Assert.Contains("openai", typed, StringComparison.Ordinal);
+        Assert.Contains("[redacted]", typed, StringComparison.Ordinal);
+        Assert.DoesNotContain(TypedKey, typed, StringComparison.Ordinal);
+    }
+
     private static SetupWizardModel FullyAnswered()
     {
         var model = new SetupWizardModel();

@@ -126,8 +126,10 @@ public sealed class WrappedLiveAreaTests
         host.Advance(500); // close the key window before Enter
         host.Console.SendEnter();
 
-        // Every typed key is a repaint. The navigation header is the status line that must not be
-        // painted once per keystroke; the check's result is committed once, in the summary.
+        await host.WaitForNoticeAsync("model check passed: gpt-3.5-turbo (openai-chat)");
+        Assert.Equal(1, ModelCheckNotices(host));
+
+        // Every typed key is a repaint: the status line must not be posted again per keystroke.
         await host.WaitForFrameAsync("Profile name");
         foreach (char key in "chat-main")
         {
@@ -137,14 +139,7 @@ public sealed class WrappedLiveAreaTests
 
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
-        host.Console.SendEnter(); // skip
-        await host.WaitForFrameAsync("Add another provider?");
-        host.Console.SendEnter(); // Done
-        await host.WaitForFrameAsync("Decision profile");
-        host.Console.SendEnter(); // skip
-        await host.WaitForFrameAsync("Decisions settings");
-        host.Console.SendEnter(); // defaults
-        await host.WaitForFrameAsync("Write this configuration?");
+        Assert.Equal(1, ModelCheckNotices(host));
 
         var screen = new TerminalScreen(width);
         foreach (string write in host.Console.Writes)
@@ -152,10 +147,8 @@ public sealed class WrappedLiveAreaTests
             screen.Feed(write);
         }
 
-        IReadOnlyList<string> lines = screen.Lines;
-        Assert.Equal(1, Occurrences(string.Join("\n", lines), "model check: passed"));
         Assert.All(
-            lines,
+            screen.Lines,
             line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
         );
 
@@ -273,6 +266,12 @@ public sealed class WrappedLiveAreaTests
 
         await host.WaitForFrameAsync("Write this configuration?");
     }
+
+    private static int ModelCheckNotices(InteractiveSessionHost host) =>
+        host.Notices.Entries.Count(entry =>
+            entry.Change == NoticeSlotChange.Posted
+            && entry.Text.StartsWith("model check passed", StringComparison.Ordinal)
+        );
 
     private static int Occurrences(string haystack, string needle)
     {
