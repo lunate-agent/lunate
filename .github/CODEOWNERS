@@ -1,0 +1,13 @@
+# The files that can change what runs: the decisions themselves, the repository's own machinery (the
+# workflows, and with them what CI enforces), the instructions every agent in this repository
+# follows, and the skills those instructions load. A change here asks @wdaniel1993 for review; once
+# the `protect-default` ruleset turns on "require review from code owners", that review is required
+# before the change can merge. The file alone is inert.
+#
+# The patterns are root-anchored, so each names the top-level path only. Everything else stays on the
+# model review: there is deliberately no `*` fallback.
+
+/adr/ @wdaniel1993
+/.github/ @wdaniel1993
+/AGENTS.md @wdaniel1993
+/.agents/ @wdaniel1993
