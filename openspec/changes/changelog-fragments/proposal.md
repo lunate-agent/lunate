@@ -18,8 +18,9 @@ conflict is the file's shape, not a worker's mistake.
 - `ci-ok` fails when a pull request other than a release pull request edits `CHANGELOG.md`. The
   fragment-only pull requests pass. The gate names `changes/<pr-number>.md`.
 - Migration lands in the same pull request: today's unreleased entries stay where they are and are
-  not reordered; fragments describe the work that is still open. The first release consumes the
-  fragments and nothing else.
+  not reordered; fragments describe the work that is still open. This pull request ships
+  fragment-only so it stays releasable while the rule is already live on the lane; the first release
+  consumes the fragments and creates the generated region.
 - `CONTRIBUTING.md` gains the fragment rule in the pull-request section, the release runbook gains
   the assembly step, and `docs/README.md` points at the fragment rule. `AGENTS.md` is protected, so
   its exact proposed edit is quoted in `design.md` for maintainer approval instead of applied.
@@ -41,7 +42,7 @@ None.
 ## Impact
 
 `changes/`, `scripts/changelog-assemble`, `scripts/changelog-guard`, `scripts/ci-plan.sh`,
-`scripts/ci-ok.sh`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `CHANGELOG.md` (its
-unreleased section gains the generated marker region), `CONTRIBUTING.md`, `docs/README.md`,
-`docs/distribution.md`, `.markdownlint-cli2.yaml`, and the Python test suites under `tests/scripts/`.
+`scripts/ci-ok.sh`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `CONTRIBUTING.md`,
+`docs/README.md`, `docs/distribution.md`, `.markdownlint-cli2.yaml`, and the Python test suites under
+`tests/scripts/`. `CHANGELOG.md` is left to the first release pull request, which runs the assembler.
 No new package, public API, runtime behaviour or store format.

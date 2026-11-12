@@ -15,8 +15,9 @@
 - [x] 2.2 `tests/scripts/test_changelog_assemble.py`: the missing fragment, malformed fragment, two
       fragments for one number, unknown heading, number order, idempotence, untouched legacy content
       and untouched released history.
-- [x] 2.3 Run `--write` on the repository so the current unreleased entry keeps its place and the
-      marker region exists; `--check` passes and a second `--write` changes nothing.
+- [x] 2.3 Prove the assembler on a copy of the tree: `--check` fails naming the missing fragment,
+      `--write` inserts the marker region and passes, and a second `--write` changes nothing. The
+      repository's `CHANGELOG.md` is left unedited so this pull request ships fragment-only.
 
 ## 3. The gate
 

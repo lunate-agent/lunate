@@ -7,8 +7,10 @@
 GitHub will not enqueue it. The repository already separates prose from code (`scripts/ci-plan.sh`),
 has a single aggregate check (`scripts/ci-ok.sh`) and a family of small Python/busybox-style scripts
 with self-tests. It also already sees fragments in the wild: sibling pull requests add
-`changes/<number>.md` while this change is being written, and the lane's `changelog_fragments.py`
-is inert only because the directory does not exist on `main` yet.
+`changes/<number>.md` while this change is being written. #801 merged `changes/801.md` before this
+pull request, so the lane's `changelog_fragments.py`, which activates on the `changes/` directory
+existing on `main`, is already live; this pull request therefore ships fragment-only and leaves
+`CHANGELOG.md` to the first release pull request.
 
 In-force ADRs reviewed: 0011 (CSharpier, markdownlint, documentation map) constrains the Markdown
 lint and the documentation map; 0008 (release publish flags) is untouched — no build or release
@@ -101,10 +103,11 @@ runs `--check` when the pull request's diff includes `CHANGELOG.md` — that is 
 pull request that ran `--write` — so the assembler is verified by the run that uses it.
 
 The job is inert while `changes/README.md` is absent from the pull request's base (`git cat-file -e
-"origin/<base>:changes/README.md"`). That is one pull request — this one — which is the last direct
-edit of `CHANGELOG.md`; refusing it with nowhere else to write the line would block the change that
-makes the rule live. From the next pull request onward the base carries the directory and the guard
-runs.
+"origin/<base>:changes/README.md"`). A pull request that introduces the directory may need to seed
+the generated region, and refusing it with nowhere else to write the line would block the change
+that makes the rule live. This pull request does not use that exception — it ships fragment-only —
+but the branch stays as the transition safeguard. From the next pull request onward the base
+carries `changes/README.md` and the guard runs.
 
 `release.yml` runs `--check` in the gate job before publishing. A fragment merged after the release
 pull request was cut therefore fails the tag by name instead of shipping unassembled notes.
@@ -149,25 +152,30 @@ bullet inserted in `## Rules` after the "A failing golden session test …" bull
   them, and the released text itself is untouched either way.
 - **The changelog gate is external to the profile** → it is a separate job in `ci-ok`'s `needs` and
   `ci-ok.sh` fails closed on an unreadable result, with self-test cases for both.
-- **The lane's `changelog_fragments.py` is outside this repository** → the repository side matches
-  the lane's documented signals (`release/<version>` branch, `chore(release)` title); the PR records
-  that the lane itself was not inspected here.
+- **The lane's `changelog_fragments.py` is outside this repository** → it was inspected here: it
+  activates on the `changes/` directory existing on `main` and exempts a `release/<version>` branch
+  or a `chore(release)` title. Because #801 merged `changes/801.md` first, that switch is already
+  live, so this pull request must not edit `CHANGELOG.md`; it ships fragment-only and the first
+  release pull request assembles. The lane's release/merge execution itself is still outside this
+  repository.
 - **An open pull request that edited `CHANGELOG.md` before this lands** → it conflicts with this
   change anyway; it keeps its existing fragment if it has one and removes the hand edit.
 
 ## Migration Plan
 
-1. Land `changes/README.md`, this change's own `changes/794.md`, the assembler, the guard and the
-   marker region in the current unreleased section.
-2. Existing unreleased text stays exactly as written and keeps its place below the generated region;
-   the released sections are not touched.
+1. Land `changes/README.md`, this change's own `changes/794.md`, the assembler and the guard, and
+   leave `CHANGELOG.md` unedited so this pull request is fragment-only and the lane can release it.
+2. Existing unreleased text stays exactly as written; the first release pull request inserts the
+   generated region above it and never touches the released sections.
 3. Open pull requests already carry their own fragments; a new one adds `changes/<number>.md`.
 4. The first release pull request runs `--write`, promotes the unreleased heading to the version and
    leaves a fresh empty `## [Unreleased]` above it, then deletes the consumed fragments, so the next
    release starts from an empty unreleased section.
-5. Rollback is a revert of the files in this change plus the marker region; fragments are inert text.
+5. Rollback is a revert of the files in this change; fragments are inert text and no changelog region
+   was added.
 
 ## Open Questions
 
-None. The lane-side release/merge behaviour is not in this repository and is reported as such on the
+None. The lane's rule was inspected (it activates on the `changes/` directory and exempts the release
+signals), but its release/merge execution is outside this repository and is reported as such on the
 pull request.
