@@ -203,7 +203,8 @@ test means the session format changed: stop and report instead of editing the go
 
 Every pull request that has a release-note line writes it in `changes/<pr-number>.md` and never edits
 `CHANGELOG.md`: put the line under `### Added`, `### Changed` or `### Fixed`, as a bullet ending with
-`(#<pr-number>)`. A fragment is prose, so such a pull request gets the docs profile. The release
+one or more references, `(#<pr-number>)` or `(#681, #682)`. A fragment is prose, so such a pull request
+gets the docs profile. The release
 pull request — branch `release/<version>` or a title starting `chore(release)` — is the only one
 that edits the changelog: it runs `scripts/changelog-assemble --write`, commits the result and
 deletes the consumed fragments. `ci-ok` fails any other pull request that edits `CHANGELOG.md` and

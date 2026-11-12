@@ -12,6 +12,8 @@ Usage:
     changelog-assemble --root DIR   # run against another tree (the tests use this)
 """
 
+from __future__ import annotations
+
 import argparse
 import re
 import sys
@@ -22,7 +24,9 @@ START = "<!-- changelog-fragments:start -->"
 END = "<!-- changelog-fragments:end -->"
 UNRELEASED = "## [Unreleased]"
 FRAGMENT_NAME = re.compile(r"^([0-9]+)\.md$")
-REFERENCE = re.compile(r"\(#([0-9]+)\)\.?$")
+# A bullet ends with one or more pull-request references, the changelog's own shape:
+# `(#1234).` for one pull request, `(#681, #682).` for a change that landed under several.
+REFERENCE = re.compile(r"\(#[0-9]+(?:, #[0-9]+)*\)\.?$")
 
 
 def display(path: Path, root: Path) -> str:
@@ -71,7 +75,8 @@ def parse_fragment(path: Path, number: int, root: Path) -> tuple[str | None, lis
     for entry in entries:
         if REFERENCE.search(entry) is None:
             errors.append(
-                f"{where}: a bullet does not end with a reference such as (#1234)."
+                f"{where}: a bullet does not end with a reference such as "
+                f"(#{number}) or (#{number}, #1235)."
             )
 
     return heading, entries, errors

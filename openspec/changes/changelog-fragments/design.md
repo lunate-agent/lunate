@@ -54,7 +54,18 @@ The accepted headings are the three the card names: `### Added`, `### Changed`, 
 - text outside the heading and its bullets is malformed;
 - `1234.md` and `01234.md` are a duplicate for number 1234 (both named).
 
-Exact filenames plus exact headings are what make the assembler's output a function of the tree.
+Exact filenames plus exact headings are what make the assembler's output a function of the tree. The
+reference at the end is one or more pull-request numbers — `(#1234)`, or `(#681, #682)` for a line
+that names several — the shape the released notes already use.
+
+Two fragments merged before this grammar existed. #799 ends a bullet `(#681, #682).`, and #800 is a
+whole `## [Unreleased]` section. The grammar accepts the reference list, because a bullet naming
+several pull requests is the changelog's own convention and no single number would be honest for it;
+the `## [Unreleased]` heading stays malformed, because a fragment is one entry destined for a
+changelog heading, not a section of its own, so `changes/800.md` was brought to the fragment shape
+without changing its text. The repository's own fragments are what the first release consumes, so
+`test_the_repository_tree_assembles` proves `--write` and `--check` on a copy of this tree rather
+than only on a synthetic one.
 
 ### The generated region uses one marker pair per heading
 
@@ -160,6 +171,15 @@ bullet inserted in `## Rules` after the "A failing golden session test …" bull
   repository.
 - **An open pull request that edited `CHANGELOG.md` before this lands** → it conflicts with this
   change anyway; it keeps its existing fragment if it has one and removes the hand edit.
+- **A fragment merged before the grammar existed does not parse** → both were found and settled here:
+  the grammar grew the multi-reference bullet (`changes/799.md`) and the one fragment that carried a
+  `## [Unreleased]` heading was brought to the fragment shape (`changes/800.md`); the assembler runs
+  over a copy of this repository's own fragments in the test suite, so the first release's step 1 is
+  executed before the tag, not at the tag.
+- **The stock macOS `/usr/bin/python3` is 3.9** → both scripts and their suites carry
+  `from __future__ import annotations` and avoid 3.10-only APIs (`Path.write_text(newline=)`), as the
+  neighbouring scripts already do; no workflow pins a Python version, so this is the gate's own
+  interpreter.
 
 ## Migration Plan
 

@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,12 +30,18 @@ def fragment(heading: str, *bullets: str) -> str:
     return "\n".join([heading, "", *bullets]) + "\n"
 
 
+def write(path: Path, text: str) -> None:
+    """Write UTF-8 with LF on every platform, without needing Python 3.10's write_text."""
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
 def make_tree(fragments: dict[str, str], changelog: str = CHANGELOG) -> Path:
     root = Path(tempfile.mkdtemp())
     (root / "changes").mkdir()
     for name, text in fragments.items():
-        (root / "changes" / name).write_text(text, encoding="utf-8", newline="\n")
-    (root / "CHANGELOG.md").write_text(changelog, encoding="utf-8", newline="\n")
+        write(root / "changes" / name, text)
+    write(root / "CHANGELOG.md", changelog)
     return root
 
 
@@ -50,8 +59,6 @@ class ChangelogAssembleTests(unittest.TestCase):
         self.trees: list[Path] = []
 
     def tearDown(self) -> None:
-        import shutil
-
         for tree in self.trees:
             shutil.rmtree(tree, ignore_errors=True)
 
@@ -143,7 +150,17 @@ class ChangelogAssembleTests(unittest.TestCase):
         self.assertEqual(0, checked.returncode, checked.stderr)
         self.assertIn("The checker (#749).", (root / "CHANGELOG.md").read_text(encoding="utf-8"))
 
-    def test_a_bullet_whose_reference_is_not_at_the_end_is_malformed(self) -> None:
+    def test_a_bullet_may_reference_several_pull_requests(self) -> None:
+        root = self.tree({"799.md": fragment("### Added", "- The wizard (#681, #682).")})
+
+        written = run(root, "--write")
+        checked = run(root, "--check")
+
+        self.assertEqual(0, written.returncode, written.stderr)
+        self.assertEqual(0, checked.returncode, checked.stderr)
+        self.assertIn("The wizard (#681, #682).", (root / "CHANGELOG.md").read_text())
+
+
         root = self.tree({"1234.md": fragment("### Fixed", "- The fix (#1234) trailing.")})
 
         result = run(root, "--check")
@@ -225,6 +242,28 @@ class ChangelogAssembleTests(unittest.TestCase):
         text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
         self.assertNotIn("The fix (#1234).", text)
         self.assertNotIn("<!-- changelog-fragments:start -->", text)
+
+    def test_the_repository_tree_assembles(self) -> None:
+        """The fragments this repository actually carries are grammatical and assemble."""
+        root = self.tree({})
+        shutil.copyfile(REPOSITORY_ROOT / "CHANGELOG.md", root / "CHANGELOG.md")
+        fragments = sorted((REPOSITORY_ROOT / "changes").glob("*.md"))
+        for path in fragments:
+            shutil.copyfile(path, root / "changes" / path.name)
+        self.assertTrue(fragments, "the repository has no fragments to assemble")
+
+        written = run(root, "--write")
+        checked = run(root, "--check")
+
+        self.assertEqual(0, written.returncode, written.stderr)
+        self.assertEqual(0, checked.returncode, written.stderr + checked.stderr)
+        assembled = (root / "CHANGELOG.md").read_bytes()
+        self.assertEqual(
+            (REPOSITORY_ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("## [0.3.0]")[1],
+            assembled.decode("utf-8").split("## [0.3.0]")[1],
+        )
+        run(root, "--write")
+        self.assertEqual(assembled, (root / "CHANGELOG.md").read_bytes())
 
 
 if __name__ == "__main__":

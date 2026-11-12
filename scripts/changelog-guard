@@ -13,6 +13,8 @@ Usage:
 The paths file is `git diff --name-status -M` output: a status, then one path (two for a rename).
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 from pathlib import Path
