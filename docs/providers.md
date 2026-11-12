@@ -4,7 +4,7 @@ This page answers where a model comes from and how to point Lunate at a differen
 answer is: pick one of twelve presets, or define a provider entry with its own endpoint, then name the
 model in a profile. Credentials, profiles and the first-run wizard are covered where they change
 behaviour — [Environment variables](environment-variables.md) owns the credential variables and
-[First run](first-run.md) owns the wizard.
+[Quickstart](quickstart.md) owns the wizard.
 
 ## Start from a preset
 
@@ -80,7 +80,7 @@ Google's `key`. Templates cannot read credentials; invalid placeholders and plac
 when the provider loads.
 
 Every key of that block — `baseUrl`, `baseUrls`, `catalogName`, `credentialPlacement`, `headers`,
-`model`, `modelsUrl`, `region` — is in the generated [settings reference](configuration.md) with its
+`model`, `modelsUrl`, `region` — is in the generated [settings reference](settings.md) with its
 type, default and scope.
 
 ## Add a named provider entry
@@ -122,7 +122,7 @@ redirecting a user's credentials to its own server.
 
 ## Point at a custom OpenAI-compatible endpoint
 
-For Ollama, vLLM, LM Studio or any other OpenAI-compatible server, [First run](first-run.md#a-custom-openai-compatible-endpoint)
+For Ollama, vLLM, LM Studio or any other OpenAI-compatible server, [Models and providers](models-and-providers.md#a-custom-openai-compatible-endpoint)
 has the `lunate auth login --custom` flow and the flags a script passes instead. The entry it writes
 is the `providers.<id>` block above: `baseUrls` keyed by family, `credentialPlacement`, an optional
 `modelsUrl`, and the key in `auth.json` rather than in `providers.json`.
@@ -141,7 +141,7 @@ optional `reasoning` declares the model's reasoning style:
 
 Absent means no reasoning support. A profile in `settings.json` may narrow this further per use with
 `reasoningLevel` and `reasoningBudget`; every profile key is in the generated
-[configuration reference](configuration.md).
+[settings reference](settings.md).
 
 Three catalogues merge in this order, and the user file wins by id: the embedded snapshot, the
 managed cache `~/.lunate/models.catalog.json`, and your own `~/.lunate/models.json`. A schema-1
@@ -170,9 +170,9 @@ over the key stored in the file. `lunate auth list` shows which source is in use
 
 ## Related
 
-- [First run](first-run.md) — the wizard, `/auth`, profiles and the usages that bind them
+- [Quickstart](quickstart.md) — the wizard, `/auth`, profiles and the usages that bind them
 - [Environment variables](environment-variables.md) — the credential variable for each preset
-- [Settings reference](configuration.md) — every provider and profile key, generated from the schema
-- [Decisions](configuration.md#system-one-decision-profiles) — the optional second model, its
+- [Settings reference](settings.md) — every provider and profile key, generated from the schema
+- [Decisions](decisions.md) — the optional second model, its
   System One transport and the presets that serve it
 - [CLI reference](cli.md) — `--model`, `--discover` and `--update-catalog`

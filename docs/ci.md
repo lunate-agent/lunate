@@ -91,7 +91,7 @@ workspace under test, and prints in `lunate --version` so a log shows which root
 
 - [Print mode](print.md) — the run, its approval mapping and its exit codes
 - [JSON events](json-events.md) — what to keep when the run happens in a job
-- [First run](first-run.md) — the same setup wizard with a person at the terminal
+- [Quickstart](quickstart.md) — the same setup wizard with a person at the terminal
 - [Run tool calls in a container](execution-environments.md) — the confinement an unattended run wants
 - [Environment variables](environment-variables.md) — `LUNATE_HOME`, `CI` and the credential variables
 - [CLI reference](cli.md) — every flag these commands accept

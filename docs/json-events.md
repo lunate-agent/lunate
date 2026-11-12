@@ -78,10 +78,14 @@ above is a version difference, not a free-form extension.
 
 ## Recognise the end of a run
 
-Exactly one `run_finished` or `run_error` ends the stream, and nothing follows it. `run_finished`
-carries the stop reason, and the process exit code follows it: `0` for `stop`, `2` for `length` and
-`step_limit`, `3` for `cost_limit`, `4` for `time_limit`, `130` for `cancelled`. A limit that ended a
-run also has its own event carrying the limit and the value reached.
+Exactly one `run_finished` or `run_error` ends the stream, and nothing follows it. That is the
+**top-level** run's terminal event — the one whose line has no `parentRunId`. A subagent's events are
+forwarded onto the same stream carrying their own `runId` and a `parentRunId`, so a child
+`run_finished` is not the end: the parent keeps emitting until its own terminal event arrives.
+`run_finished` carries the stop reason of the run it belongs to, and the process exit code follows
+the top-level one: `0` for `stop`, `2` for `length` and `step_limit`, `3` for `cost_limit`, `4` for
+`time_limit`, `130` for `cancelled`. A limit that ended a run also has its own event carrying the
+limit and the value reached.
 [Print mode](print.md#read-the-exit-code) owns the code table a script branches on.
 
 ## Related

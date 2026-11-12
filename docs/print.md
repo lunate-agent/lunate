@@ -82,7 +82,7 @@ exceed two dollars without saying so.
   not `$0`; `--allow-unpriced` permits it when the limit may cover priced usage alone.
 
 `maxCost` and `maxTime` in `settings.json` set the same limits for every run; the flags win for one
-invocation. [Configuration](configuration.md) has the keys.
+invocation. [Settings reference](settings.md) has the keys.
 
 ## Take the event stream instead of the answer
 

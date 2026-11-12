@@ -22,7 +22,7 @@ A bare `lunate` starts the interactive session. Every other mode is a flag or a 
 | `lunate -p --json "<prompt>"` | the same run as one JSON object per event | [JSON events](json-events.md) |
 | `lunate --acp` | the Agent Client Protocol over stdio for an editor | [ACP](acp.md) |
 | `lunate setup [flags]` | the setup wizard, scriptable end to end | [CI and unattended runs](ci.md) |
-| `lunate auth <list\|login\|logout\|status>` | providers, credentials and which source each one uses | [First run](first-run.md) |
+| `lunate auth <list\|login\|logout\|status>` | providers, credentials and which source each one uses | [Models and providers](models-and-providers.md) |
 | `lunate trust [--yes [--digest <sha>]] [--json] [--clear]` | this repository's trust records and pending decisions | [CI and unattended runs](ci.md) |
 | `lunate extensions [--json]` | discovered extensions with scope, state, load time and contributions | [Extension authoring](extensions/README.md) |
 | `lunate extensions build <id\|path> [--json]` | build one single-file extension without a session | [Single-file extensions](extensions/single-file.md) |
@@ -38,7 +38,7 @@ A bare `lunate` starts the interactive session. Every other mode is a flag or a 
 | `lunate --help` | this list | |
 
 `lunate auth login --custom` takes the same endpoint answers the wizard asks for; its flag set is in
-[First run](first-run.md#a-custom-openai-compatible-endpoint).
+[Models and providers](models-and-providers.md#a-custom-openai-compatible-endpoint).
 
 ## Options
 
