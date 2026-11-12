@@ -28,6 +28,6 @@
 
 ## 4. Verify and archive
 
-- [ ] 4.1 Run the focused test classes, CSharpier and a Release build; confirm `git status` clean.
-- [ ] 4.2 Run `openspec validate --all --strict` and `bash scripts/check-openspec-skills.sh`.
+- [x] 4.1 Run the focused test classes, CSharpier and a Release build; confirm `git status` clean.
+- [x] 4.2 Run `openspec validate --all --strict` and `bash scripts/check-openspec-skills.sh`.
 - [ ] 4.3 Sync the delta into `openspec/specs/ai-layer/spec.md` and archive as the final commit.
