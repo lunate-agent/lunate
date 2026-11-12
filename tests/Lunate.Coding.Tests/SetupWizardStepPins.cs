@@ -346,7 +346,11 @@ public sealed class SetupWizardStepPins
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // skip
 
-        await PickRowAsync(host, "Decisions settings", "routing (decisions.routing)");
+        await PickRowAsync(
+            host,
+            "Decisions settings",
+            "routing unset — choose a profile per request"
+        );
         await host.WaitForFrameAsync("Routing (decisions.routing)");
         // The question's arm window drops keys until it expires; the virtual scheduler's clock
         // is what measures it, so advance past the window before the first answer key.
@@ -388,7 +392,7 @@ public sealed class SetupWizardStepPins
         }
 
         // The menu returned with the routing row showing the change; Up twice reaches Done.
-        await host.WaitForFrameAsync("routing (decisions.routing) — shadow");
+        await host.WaitForFrameAsync("routing shadow — choose a profile per request");
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         await host.WaitForFrameAsync("> Done");

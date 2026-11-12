@@ -257,7 +257,10 @@ public sealed class SetupWizardModelTests
 
     private static SetupWizardModel FullyAnswered()
     {
+        // The fixture is a fully answered detailed walk: Quick's last walked step is the chat
+        // profile, so only a detailed walk reaches the decisions settings the assertions name.
         var model = new SetupWizardModel();
+        model.RecordMode(SetupWizardMode.Detailed);
         model.Enter(SetupStep.Provider);
         model.RecordProvider(
             new WizardProviderChoice(

@@ -388,6 +388,11 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         Assert.Equal(1, handler.RequestCount);
         Assert.Equal(sessionId, handler.SessionHeader);
 
+        // Esc in the decisions menu returns to the step that opened it; a second Esc at the
+        // decision-profile question ends the run with nothing written (spec: The walk is
+        // navigable).
+        host.Console.SendEscape();
+        await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEscape();
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
         host.Console.Complete();

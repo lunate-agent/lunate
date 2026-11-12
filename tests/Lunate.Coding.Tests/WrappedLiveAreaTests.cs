@@ -86,12 +86,12 @@ public sealed class WrappedLiveAreaTests
 
     /// <summary>
     /// The reported symptom (#679): a status line repeated down the scrollback during the walk.
-    /// The model-check notice is the same one-slot text the decision check posts, and the walk
-    /// repaints it on every profile-name key. At a fixed 40 columns — the width the renderer and
-    /// the terminal both use — the line is painted once, never once per repaint.
+    /// The walk's path header is the one-slot text it repaints on every profile-name key (as the
+    /// model-check notice was before the header existed). At a fixed 40 columns — the width the
+    /// renderer and the terminal both use — the line is painted once, never once per repaint.
     /// </summary>
     [Fact]
-    public async Task The_model_check_status_line_paints_once_while_the_walk_repaints_at_40_columns()
+    public async Task The_step_header_paints_once_while_the_walk_repaints_at_40_columns()
     {
         const int width = 40;
         var factory = new FakeChatClientFactory(
@@ -143,7 +143,10 @@ public sealed class WrappedLiveAreaTests
         }
 
         IReadOnlyList<string> lines = screen.Lines;
-        Assert.Equal(1, Occurrences(string.Join("\n", lines), "model check passed"));
+        // The one-slot text the walk repaints on every profile-name key is now its path header
+        // (spec: The walk is navigable), not the model check's notice: the same line under the
+        // same repaints, and it too is painted once, never once per repaint (#679).
+        Assert.Equal(1, Occurrences(string.Join("\n", lines), "Review 3/4"));
         Assert.All(
             lines,
             line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")

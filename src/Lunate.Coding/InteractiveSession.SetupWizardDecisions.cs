@@ -16,14 +16,13 @@ internal sealed partial class InteractiveSession
     private async Task<WizardMove> DecisionsStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         var draft = new DecisionDraft();
-        string? revisit = "done";
         while (true)
         {
             List<string> labels = ["Done — leave the decisions settings"];
             List<string> values = ["done"];
             foreach (string row in DecisionRows)
             {
-                labels.Add($"{DecisionRowLabel(row)} — {draft.Describe(row)}");
+                labels.Add(draft.RowLabel(row));
                 values.Add(row);
             }
 
@@ -33,7 +32,7 @@ internal sealed partial class InteractiveSession
                     values,
                     PickerKind.WizardChoice,
                     ct,
-                    revisit,
+                    "done",
                     menu: true
                 )
                 .ConfigureAwait(false);
@@ -60,7 +59,6 @@ internal sealed partial class InteractiveSession
                         + "Done or add a profile first",
                     NoticeLevel.Warning
                 );
-                revisit = picked;
                 continue;
             }
 
@@ -70,22 +68,11 @@ internal sealed partial class InteractiveSession
             {
                 return moved;
             }
-
-            revisit = picked;
         }
     }
 
     /// <summary>The decisions menu's action rows, in render order.</summary>
     private static readonly string[] DecisionRows = ["approvals", "routing", "questions", "tool"];
-
-    private static string DecisionRowLabel(string row) =>
-        row switch
-        {
-            "approvals" => "approval gate (decisions.approvals)",
-            "routing" => "routing (decisions.routing)",
-            "questions" => "questions (decisions.questions)",
-            _ => "decide tool (decisions.tool)",
-        };
 
     /// <summary>Runs one menu action. Returns null to return to the menu, or the move that leaves
     /// it (a picker's Back/Forward, or an abort).</summary>
@@ -107,7 +94,7 @@ internal sealed partial class InteractiveSession
                         ct
                     )
                     .ConfigureAwait(false);
-                if (approvals == "\0")
+                if (approvals == WizardAbortValue)
                 {
                     return WizardMove.Abort;
                 }
@@ -125,7 +112,7 @@ internal sealed partial class InteractiveSession
                         ct
                     )
                     .ConfigureAwait(false);
-                if (routing == "\0")
+                if (routing == WizardAbortValue)
                 {
                     return WizardMove.Abort;
                 }
@@ -230,7 +217,7 @@ internal sealed partial class InteractiveSession
             default:
             {
                 string? tool = await ToolSwitchAsync(ct).ConfigureAwait(false);
-                if (tool == "\0")
+                if (tool == WizardAbortValue)
                 {
                     return WizardMove.Abort;
                 }
@@ -258,15 +245,15 @@ internal sealed partial class InteractiveSession
         public Dictionary<string, string> RoutingDescriptions { get; } =
             new(StringComparer.Ordinal);
 
-        public string Describe(string row) =>
+        /// <summary>The row's label: the setting, the value it holds now and its one explanatory
+        /// line (spec: The full walk), so a returned menu shows the change on its own row.</summary>
+        public string RowLabel(string row) =>
             row switch
             {
-                "approvals" => Approvals ?? "off (default)",
-                "routing" => Routing is { } routing
-                    ? $"{routing} — {string.Join(", ", RoutingProfiles)}"
-                    : "unset (default)",
-                "questions" => Questions ?? "off (default)",
-                _ => Tool ?? "off (default)",
+                "approvals" => $"approval gate {Approvals ?? "off"} — screen staged actions",
+                "routing" => $"routing {Routing ?? "unset"} — choose a profile per request",
+                "questions" => $"questions {Questions ?? "off"} — probability marker on top option; user still chooses",
+                _ => $"decide tool {Tool ?? "off"} — offer the decide tool when a decision profile resolves",
             };
 
         public WizardDecisionsChoice? ToChoice() =>
@@ -307,7 +294,8 @@ internal sealed partial class InteractiveSession
     }
 
     /// <summary>One mode switch: the exact literals with the defaults; keeping the default writes
-    /// nothing. The coach returns a literal, null for the unwritten default, or "\0" for Esc.</summary>
+    /// nothing. The coach returns a literal, null for the unwritten default, or the abort
+    /// sentinel for Esc.</summary>
     private async Task<string?> ModeSwitchAsync(
         string title,
         string description,

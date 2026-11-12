@@ -50,16 +50,21 @@ public sealed class SetupWizardNavigationTests
         await host.WaitForFrameAsync("Decisions settings");
 
         // Change one answer: the approval gate.
-        await PickRowAsync(host, "approval gate (decisions.approvals)");
+        await PickRowAsync(host, "approval gate off — screen staged actions");
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         await AnswerSwitchAsync(host, "> shadow");
-        await host.WaitForFrameAsync("approval gate (decisions.approvals) — shadow");
+        await host.WaitForFrameAsync("approval gate shadow — screen staged actions");
 
         // Change a second answer: the decide tool. Both changes stay visible on the same menu.
-        await PickRowAsync(host, "decide tool (decisions.tool)");
+        await PickRowAsync(
+            host,
+            "decide tool off — offer the decide tool when a decision profile resolves"
+        );
         await host.WaitForFrameAsync("Offers the decide tool to the model");
         await AnswerSwitchAsync(host, "> on");
-        await host.WaitForFrameAsync("decide tool (decisions.tool) — on");
+        await host.WaitForFrameAsync(
+            "decide tool on — offer the decide tool when a decision profile resolves"
+        );
 
         // Only Done leaves the menu.
         for (var up = 0; up < 4; up++)
@@ -127,8 +132,8 @@ public sealed class SetupWizardNavigationTests
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
-        await host.WaitForFrameAsync("Select provider");
-        host.Console.SendEnter();
+        await host.ChooseDetailedModeAsync();
+        host.Console.SendEnter(); // openai
         await host.WaitForFrameAsync("Credential for openai");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("API key for openai");
@@ -169,7 +174,7 @@ public sealed class SetupWizardNavigationTests
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
         await WalkToDecisionsAsync(host);
-        await PickRowAsync(host, "routing (decisions.routing)");
+        await PickRowAsync(host, "routing unset — choose a profile per request");
         await host.WaitForFrameAsync("Routing (decisions.routing)");
         await AnswerSwitchAsync(host, "> shadow");
 
@@ -196,7 +201,7 @@ public sealed class SetupWizardNavigationTests
             host.Console.SendEnter();
         }
 
-        await host.WaitForFrameAsync("routing (decisions.routing) — shadow — chat-main, ops");
+        await host.WaitForFrameAsync("routing shadow — choose a profile per request");
 
         // Done leaves the menu; Up twice from the routing row reaches it.
         host.Console.Send(Key(KeyKind.Up));
@@ -260,7 +265,7 @@ public sealed class SetupWizardNavigationTests
 
     private static async Task WalkToSummaryAsync(InteractiveSessionHost host)
     {
-        await host.WaitForFrameAsync("Select provider");
+        await host.ChooseDetailedModeAsync();
         host.Console.SendEnter(); // openai
 
         await host.WaitForFrameAsync("Credential for openai");
@@ -295,8 +300,8 @@ public sealed class SetupWizardNavigationTests
     /// <summary>The same walk, stopped on the decisions menu.</summary>
     private static async Task WalkToDecisionsAsync(InteractiveSessionHost host)
     {
-        await host.WaitForFrameAsync("Select provider");
-        host.Console.SendEnter();
+        await host.ChooseDetailedModeAsync();
+        host.Console.SendEnter(); // openai
         await host.WaitForFrameAsync("Credential for openai");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("API key for openai");

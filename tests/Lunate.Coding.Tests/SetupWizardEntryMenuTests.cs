@@ -378,7 +378,7 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
-        await host.WaitForFrameAsync("> approval gate (decisions.approvals) — off (default)");
+        await host.WaitForFrameAsync("> approval gate off — screen staged actions");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
@@ -388,7 +388,7 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
 
         // The menu returned with the chosen value visible; Up reaches Done, the only exit.
-        await host.WaitForFrameAsync("approval gate (decisions.approvals) — shadow");
+        await host.WaitForFrameAsync("approval gate shadow — screen staged actions");
         host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
         await host.WaitForFrameAsync("> Done");
         host.Console.SendEnter();
