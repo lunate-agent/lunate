@@ -939,9 +939,8 @@ internal sealed partial class InteractiveSession
         }
 
         Notify(
-            $"the model check failed for {choice.ModelId} ({choice.ApiFamily}): "
-                + $"{check.Detail ?? "the request was refused"}. You can go back to the model "
-                + "step or leave the model unverified",
+            $"the model check failed: {check.Detail ?? "the request was refused"}. You can go "
+                + "back to the model step or leave the model unverified",
             NoticeLevel.Warning
         );
         string? after = await PickAsync(

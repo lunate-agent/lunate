@@ -1,4 +1,5 @@
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Lunate.Ai;
@@ -487,18 +488,85 @@ public sealed class SetupCommandTests : IDisposable
         Assert.DoesNotContain(Secret, summary + errors.ToString(), StringComparison.Ordinal);
     }
 
+    [PosixFact]
+    public void An_unknown_thinking_level_is_refused_with_the_values_the_usage_line_lists()
+    {
+        (int exit, string _, string errors) = Run(
+            [
+                "setup",
+                "--provider",
+                "openrouter",
+                "--model",
+                "deep/deepseek-chat",
+                "--profile",
+                "main",
+                "--credential",
+                "env:OPENROUTER_API_KEY",
+                "--thinking",
+                "loud",
+                "--no-test",
+            ],
+            stdinIsTerminal: false
+        );
+
+        // `off` is an accepted level (it writes no level), so the usage line the refusal prints
+        // has to list it alongside the three levels it already named (#585 N-5).
+        Assert.Equal(2, exit);
+        Assert.Contains("use off, low, medium or high", errors, StringComparison.Ordinal);
+        Assert.Contains("--thinking <off|low|medium|high>", errors, StringComparison.Ordinal);
+    }
+
+    [PosixFact]
+    public void A_failed_model_check_names_the_model_the_family_and_the_status()
+    {
+        (int exit, string output, string errors) = Run(
+            [
+                "setup",
+                "--provider",
+                "local",
+                "--endpoint",
+                "https://local.example.test/v1",
+                "--api-family",
+                "anthropic-messages",
+                "--credential",
+                "env:LOCAL_API_KEY",
+                "--model",
+                "claude-test",
+                "--profile",
+                "main",
+            ],
+            stdinIsTerminal: false,
+            discovery: Discovery(),
+            environment: name => name == "LOCAL_API_KEY" ? Secret : null,
+            client: new RejectingChatClient()
+        );
+
+        // The failure detail is the one record both entry points print, so a run that trusted the
+        // summary could not tell a wrong model from a wrong family or from an unreadable answer
+        // without the three facts in it (#585 N-5).
+        Assert.Equal(0, exit);
+        Assert.Contains(
+            "model check: failed (claude-test on family anthropic-messages: HTTP 400 Bad Request) "
+                + "— the model stays unverified",
+            output,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(Secret, output + errors, StringComparison.Ordinal);
+    }
+
     private (int Exit, string Output, string Errors) Run(
         string[] args,
         bool stdinIsTerminal,
         string? input = null,
         HttpMessageHandler? discovery = null,
-        Func<string, string?>? environment = null
+        Func<string, string?>? environment = null,
+        IChatClient? client = null
     )
     {
         using var output = new StringWriter();
         using var errors = new StringWriter();
         var factory = new FakeChatClientFactory(
-            new ScriptedChatClient().Enqueue(Scripts.Text("OK"))
+            client ?? new ScriptedChatClient().Enqueue(Scripts.Text("OK"))
         );
         int exit = Cli.Run(
             args,
@@ -530,4 +598,28 @@ public sealed class SetupCommandTests : IDisposable
                     }
                 )
         );
+
+    /// <summary>A chat client the provider rejects: the wrong-model or wrong-family case.</summary>
+    private sealed class RejectingChatClient : IChatClient
+    {
+        public Task<ChatResponse> GetResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            CancellationToken cancellationToken = default
+        ) => Task.FromException<ChatResponse>(new HttpRequestException("HTTP 400 Bad Request"));
+
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatOptions? options = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default
+        )
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose() { }
+    }
 }
