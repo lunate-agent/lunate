@@ -36,6 +36,6 @@ last one does.
 
 ## 4. Spec and docs
 
-- [ ] 4.1 Archive the change so `openspec/specs/setup-wizard/spec.md` carries the new requirement.
+- [x] 4.1 Archive the change so `openspec/specs/setup-wizard/spec.md` carries the new requirement.
 - [x] 4.2 No document outside `openspec/` states the wizard's key handling today; nothing else
       changes.
