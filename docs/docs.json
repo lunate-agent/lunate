@@ -43,6 +43,27 @@
       ]
     },
     {
+      "title": "Customize",
+      "items": [
+        {
+          "title": "Project instructions",
+          "path": "agents-md.md"
+        },
+        {
+          "title": "Skills",
+          "path": "skills.md"
+        },
+        {
+          "title": "MCP servers",
+          "path": "mcp-servers.md"
+        },
+        {
+          "title": "Themes and keys",
+          "path": "themes-and-keys.md"
+        }
+      ]
+    },
+    {
       "title": "Build on it",
       "items": [
         {
@@ -314,6 +335,22 @@
     {
       "path": "terminal-setup.md",
       "reason": "Prose-only; the terminal matrix and shell tables have no unattended command to run."
+    },
+    {
+      "path": "agents-md.md",
+      "reason": "Prose-only; an AGENTS.md example is a project file, not a command the checker can run."
+    },
+    {
+      "path": "skills.md",
+      "reason": "Prose-only; a skill is a directory of files, not a command the checker can run."
+    },
+    {
+      "path": "mcp-servers.md",
+      "reason": "Prose-only; its host configuration is a JSON file the checker cannot run unattended."
+    },
+    {
+      "path": "themes-and-keys.md",
+      "reason": "Prose-only; themes and keybindings are interactive settings, so no command runs unattended."
     }
   ]
 }

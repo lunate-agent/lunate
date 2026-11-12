@@ -30,6 +30,9 @@ jobs:
       - name: Check the generated docs regions
         run: python3 scripts/docs-sync --check
 
+      - name: Check the documentation tree
+        run: python3 scripts/docs-check --check
+
   archive-only:
     name: archive-only
     runs-on: ubuntu-latest

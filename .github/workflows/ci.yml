@@ -72,6 +72,7 @@ jobs:
           bash scripts/ci-ok.sh --self-test
           bash scripts/ci-powershell-paths.sh --self-test
           python3 scripts/docs-sync --self-test
+          python3 scripts/docs-check --self-test
           bash scripts/no-docs-references.sh --self-test
           bash scripts/no-wip-commits.sh --self-test
 
