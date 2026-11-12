@@ -6,8 +6,15 @@ namespace Lunate.Ai.Tests;
 
 public sealed class ReasoningParametersTests
 {
-    private static ModelInfo Model(string? style) =>
-        new("test-model", "openai", null, 1, true, AuthRef: null, Reasoning: style);
+    private static ModelInfo Model(
+        string? style,
+        string provider = "openai",
+        string? family = null
+    ) =>
+        new("test-model", provider, null, 1, true, AuthRef: null, Reasoning: style)
+        {
+            ApiFamily = family,
+        };
 
     [Theory]
     [InlineData("effort")]
@@ -68,7 +75,7 @@ public sealed class ReasoningParametersTests
     {
         ChatOptions options = new();
 
-        ReasoningParameters.Apply(options, Model("budget"), level);
+        ReasoningParameters.Apply(options, Model("budget", provider: "anthropic"), level);
 
         MessageCreateParams parameters = Assert.IsType<MessageCreateParams>(
             options.RawRepresentationFactory!(null!)
@@ -87,7 +94,11 @@ public sealed class ReasoningParametersTests
     {
         ChatOptions options = new() { MaxOutputTokens = 1_000 };
 
-        ReasoningParameters.Apply(options, Model("budget"), ThinkingLevel.High);
+        ReasoningParameters.Apply(
+            options,
+            Model("budget", provider: "anthropic"),
+            ThinkingLevel.High
+        );
 
         Assert.True(options.MaxOutputTokens > 32_768);
     }
@@ -97,10 +108,86 @@ public sealed class ReasoningParametersTests
     {
         ChatOptions options = new() { MaxOutputTokens = 100_000 };
 
-        ReasoningParameters.Apply(options, Model("budget"), ThinkingLevel.High);
+        ReasoningParameters.Apply(
+            options,
+            Model("budget", provider: "anthropic"),
+            ThinkingLevel.High
+        );
 
         Assert.Equal(100_000, options.MaxOutputTokens);
     }
+
+    [Theory]
+    [InlineData("openai", null)]
+    [InlineData("custom", "openai-chat")]
+    [InlineData("custom", "openai-responses")]
+    [InlineData("custom", "google")]
+    public void A_model_declared_budget_on_a_non_anthropic_family_sends_effort(
+        string provider,
+        string? family
+    )
+    {
+        ChatOptions options = new();
+
+        ReasoningParameters.Apply(options, Model("budget", provider, family), ThinkingLevel.High);
+
+        Assert.Equal(ReasoningEffort.High, options.Reasoning?.Effort);
+        Assert.Null(options.RawRepresentationFactory);
+        Assert.Null(options.MaxOutputTokens);
+    }
+
+    [Theory]
+    [InlineData("anthropic", null)]
+    [InlineData("custom", "anthropic-messages")]
+    public void A_model_declared_effort_on_the_anthropic_family_sends_a_budget(
+        string provider,
+        string? family
+    )
+    {
+        ChatOptions options = new();
+
+        ReasoningParameters.Apply(options, Model("effort", provider, family), ThinkingLevel.High);
+
+        MessageCreateParams parameters = Assert.IsType<MessageCreateParams>(
+            options.RawRepresentationFactory!(null!)
+        );
+        ThinkingConfigEnabled thinking = Assert.IsType<ThinkingConfigEnabled>(
+            parameters.Thinking!.Value
+        );
+        Assert.Equal(32_768L, thinking.BudgetTokens);
+        Assert.Null(options.Reasoning);
+    }
+
+    [Fact]
+    public void An_unresolvable_family_falls_back_to_the_declared_style()
+    {
+        ChatOptions options = new();
+
+        ReasoningParameters.Apply(
+            options,
+            Model("budget", provider: "no-such-provider"),
+            ThinkingLevel.High
+        );
+
+        MessageCreateParams parameters = Assert.IsType<MessageCreateParams>(
+            options.RawRepresentationFactory!(null!)
+        );
+        Assert.IsType<ThinkingConfigEnabled>(parameters.Thinking!.Value);
+        Assert.Null(options.Reasoning);
+    }
+
+    [Theory]
+    [InlineData("effort", "anthropic", null, ThinkingLevel.High, "thinking budget 32768 tokens")]
+    [InlineData("budget", "openai", null, ThinkingLevel.Medium, "reasoning effort medium")]
+    [InlineData("budget", "custom", "openai-chat", ThinkingLevel.Low, "reasoning effort low")]
+    public void Describe_follows_the_resolved_family(
+        string style,
+        string provider,
+        string? family,
+        ThinkingLevel level,
+        string expected
+    ) =>
+        Assert.Equal(expected, ReasoningParameters.Describe(Model(style, provider, family), level));
 
     [Fact]
     public void Inline_sends_no_provider_parameter()
@@ -130,7 +217,7 @@ public sealed class ReasoningParametersTests
     public void Describe_names_the_budget_a_budget_model_would_send(
         ThinkingLevel level,
         string expected
-    ) => Assert.Equal(expected, ReasoningParameters.Describe(Model("budget"), level));
+    ) => Assert.Equal(expected, ReasoningParameters.Describe(Model("budget", "anthropic"), level));
 
     [Theory]
     [InlineData("effort")]
@@ -165,7 +252,7 @@ public sealed class ReasoningParametersTests
 
             Assert.Equal(
                 "thinking budget 8192 tokens",
-                ReasoningParameters.Describe(Model("budget"), ThinkingLevel.Medium)
+                ReasoningParameters.Describe(Model("budget", "anthropic"), ThinkingLevel.Medium)
             );
         }
         finally
