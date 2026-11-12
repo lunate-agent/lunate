@@ -70,6 +70,14 @@ jobs:
             exit 1
           fi
 
+      - name: Changelog is assembled from the fragments
+        # The release pull request runs --write; this is the tag-time proof that no fragment merged
+        # after it was cut, so a release never ships notes that disagree with its own fragments. A
+        # manual dispatch is a dry run from a normal branch, where fragments are expected to be open.
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: python3 scripts/changelog-assemble --check
+
       - name: Verify
         env:
           BUDGET_MS: 250

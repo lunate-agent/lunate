@@ -3,7 +3,7 @@
 ## 1. Fragments and their rule
 
 - [ ] 1.1 `changes/README.md`: the five-line rule, the accepted headings and the file name.
-- [ ] 1.2 `changes/794.md`: this change's own fragment under `### Added`.
+- [ ] 1.2 `changes/813.md`: this change's own fragment under `### Added`.
 - [ ] 1.3 `.markdownlint-cli2.yaml`: lint `changes/**/*.md` so a fragment is held to the changelog's
       own Markdown rules.
 

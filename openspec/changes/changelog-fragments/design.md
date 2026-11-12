@@ -163,7 +163,7 @@ bullet inserted in `## Rules` after the "A failing golden session test …" bull
 
 ## Migration Plan
 
-1. Land `changes/README.md`, this change's own `changes/794.md`, the assembler and the guard, and
+1. Land `changes/README.md`, this change's own `changes/813.md`, the assembler and the guard, and
    leave `CHANGELOG.md` unedited so this pull request is fragment-only and the lane can release it.
 2. Existing unreleased text stays exactly as written; the first release pull request inserts the
    generated region above it and never touches the released sections.
