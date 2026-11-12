@@ -2,9 +2,9 @@ schema: intent-driven
 
 context: |
   Tech stack: C# / .NET 10 (SDK pinned in global.json), C# 14, xUnit v3.
-  Project: Lunate — a native C# coding agent for the terminal (background: docs/guide.md).
+  Project: Lunate — a native C# coding agent for the terminal (background: docs/dev/guide.md).
   OpenSpec specs under openspec/specs/ are the source of truth for behaviour;
-  docs/guide.md is background material only.
+  docs/dev/guide.md is background material only.
 
   Use senior-dev sub-agent for all src related work and senior-qa for acceptance tests.
   Do not batch the tasks for senior-dev and senior-qa; call them as many times as
