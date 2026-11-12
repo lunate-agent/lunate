@@ -367,6 +367,7 @@ internal sealed partial class InteractiveSession
             WizardForwardValue => WizardMove.Forward,
             _ => null,
         };
+
     private async Task<WizardMove> ProviderStepAsync(SetupWizardModel wizard, CancellationToken ct)
     {
         if (wizard.Provider is not null && wizard.ProviderReady)
@@ -1444,5 +1445,4 @@ internal sealed partial class InteractiveSession
         wizard.RecordChatProfile(new WizardProfileChoice(name, choice.ModelId, level));
         return WizardMove.Advance;
     }
-
 }
