@@ -146,7 +146,11 @@ optional `reasoning` declares the model's reasoning style:
 - `budget` — Anthropic extended thinking.
 - `inline` — the model embeds thinking markers in its text stream.
 
-Absent means no reasoning support. A profile in `settings.json` may narrow this further per use
+Absent means no reasoning support. The declared style is metadata for correctly declared
+entries: the model's resolved API family decides the wire parameter — `anthropic-messages` sends
+the extended-thinking budget and every other chat family sends the reasoning effort — so `effort`
+and `budget` only decide the shape when the family cannot be resolved, while `inline` and an
+absent style always send nothing. A profile in `settings.json` may narrow this further per use
 with `reasoningLevel` and `reasoningBudget`; every profile key is in the generated
 [settings reference](settings.md).
 

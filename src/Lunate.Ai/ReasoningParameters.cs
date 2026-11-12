@@ -5,12 +5,14 @@ using Microsoft.Extensions.AI;
 namespace Lunate.Ai;
 
 /// <summary>
-/// Translates the session thinking level into provider parameters per the model's declared
-/// <see cref="ModelInfo.Reasoning"/> style (design D3 of the reasoning-end-to-end change):
-/// <c>effort</c> maps to the OpenAI-compatible reasoning effort, <c>budget</c> maps to Anthropic
-/// extended thinking with an explicit budget, and <c>inline</c> sends nothing (the model embeds
-/// the thinking text in its stream). <see cref="ThinkingLevel.Off"/> — and a model without a
-/// declared style — sends no reasoning parameters.
+/// Translates the session thinking level into provider parameters from the model's resolved
+/// <see cref="ModelInfo.ApiFamily"/> (design of the reasoning-family-parameters change): the
+/// <c>anthropic-messages</c> family maps to extended thinking with an explicit budget, the
+/// <c>openai-chat</c>, <c>openai-responses</c> and <c>google</c> families map to the
+/// OpenAI-compatible reasoning effort, and <c>inline</c> sends nothing (the model embeds the
+/// thinking text in its stream). The declared <see cref="ModelInfo.Reasoning"/> style is metadata
+/// and fallback: it decides the shape only when no family can be resolved. <see cref="ThinkingLevel.Off"/>
+/// — and a model without a declared style — sends no reasoning parameters.
 /// </summary>
 public static class ReasoningParameters
 {
@@ -35,7 +37,7 @@ public static class ReasoningParameters
             return;
         }
 
-        switch (model.Reasoning)
+        switch (WireStyle(model))
         {
             case EffortStyle:
                 options.Reasoning = new() { Effort = EffortFor(level) };
@@ -44,6 +46,56 @@ public static class ReasoningParameters
                 ApplyBudget(options, model.WireId ?? model.Id, level);
                 break;
         }
+    }
+
+    /// <summary>
+    /// The wire parameter the resolved family sends. The declared style is metadata: an
+    /// <c>inline</c> model embeds its reasoning in the text stream and a model with no declared
+    /// style has no reasoning support, so neither sends a provider parameter. Otherwise the
+    /// resolved family decides — Anthropic Messages takes a thinking budget, the OpenAI-compatible
+    /// and Google families take the reasoning effort — and the declared <c>effort</c>/<c>budget</c>
+    /// style is the fallback only when the family cannot be resolved.
+    /// </summary>
+    private static string? WireStyle(ModelInfo model)
+    {
+        if (model.Reasoning is InlineStyle)
+        {
+            return InlineStyle;
+        }
+
+        if (model.Reasoning is null)
+        {
+            return null;
+        }
+
+        return ResolvedFamily(model) switch
+        {
+            ProviderApiFamily.AnthropicMessages => BudgetStyle,
+            ProviderApiFamily.OpenAiChat
+            or ProviderApiFamily.OpenAiResponses
+            or ProviderApiFamily.Google => EffortStyle,
+            _ => model.Reasoning,
+        };
+    }
+
+    /// <summary>
+    /// The model's API family as the rest of the pipeline resolves it: the declared wire name
+    /// first, then a provider whose preset serves exactly one chat family. Null when neither
+    /// answers, so the declared style stays the fallback. The decision-only <c>systemone</c>
+    /// family is never a chat family here.
+    /// </summary>
+    private static ProviderApiFamily? ResolvedFamily(ModelInfo model)
+    {
+        if (ProviderApiFamilies.TryParse(model.ApiFamily, out ProviderApiFamily declared))
+        {
+            return declared == ProviderApiFamily.SystemOne ? null : declared;
+        }
+
+        return
+            ProviderPresets.Find(model.Provider) is { } preset
+            && preset.ChatFamilies is [ProviderApiFamily only]
+            ? only
+            : null;
     }
 
     private static ReasoningEffort EffortFor(ThinkingLevel level) =>
@@ -63,15 +115,17 @@ public static class ReasoningParameters
         };
 
     /// <summary>
-    /// The active model's mapping for the bare <c>/thinking</c> notice: the effort an effort model
-    /// would send, the token budget a budget model would send, the inline convention, or that the
-    /// model has no reasoning support. <see cref="ThinkingLevel.Off"/> and a model without a
-    /// declared style read as sending nothing. Numbers are formatted culture-invariantly.
+    /// The active model's mapping for the bare <c>/thinking</c> notice: the effort the resolved
+    /// family would send, the token budget it would send, the inline convention, or that the
+    /// model has no reasoning support. It follows the same family-first resolution as
+    /// <see cref="Apply"/>, so the notice never describes a request the pipeline does not send.
+    /// <see cref="ThinkingLevel.Off"/> reads as sending nothing. Numbers are formatted
+    /// culture-invariantly.
     /// </summary>
     public static string Describe(ModelInfo model, ThinkingLevel level)
     {
         ArgumentNullException.ThrowIfNull(model);
-        return model.Reasoning switch
+        return WireStyle(model) switch
         {
             EffortStyle when level != ThinkingLevel.Off => "reasoning effort "
                 + EffortFor(level).ToString().ToLowerInvariant(),
