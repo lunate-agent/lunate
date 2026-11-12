@@ -1,4 +1,4 @@
-# markdownlint-cli2 configuration (see docs/README.md).
+# markdownlint-cli2 configuration (see docs/dev/README.md).
 # Scope: README.md, CONTRIBUTING.md, SECURITY.md, CHANGELOG.md, AGENTS.md,
 # docs/**/*.md, adr/**/*.md, extensions/**/*.md (the supported tier's product
 # pages). openspec/ is tool-managed and intentionally out of scope. samples/

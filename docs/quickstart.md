@@ -22,7 +22,7 @@ irm https://raw.githubusercontent.com/lunate-agent/lunate/main/install.ps1 -OutF
 
 Homebrew (`brew tap lunate-agent/tap`, `brew install lunate`), Scoop and the .NET tool package
 (`dotnet tool install --global lunate`) install the same binary. The
-[distribution runbook](distribution.md) owns the release assets and channel operations.
+[distribution runbook](dev/distribution.md) owns the release assets and channel operations.
 
 ## Start in a repository
 

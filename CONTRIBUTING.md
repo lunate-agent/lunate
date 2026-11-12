@@ -14,7 +14,7 @@ repository actually runs on, and this page is the path from a fresh clone to a m
 - [Node.js](https://nodejs.org/) — runs the documentation lint through a pinned `npx`
 - [hyperfine](https://github.com/sharkdp/hyperfine) — measures the startup budget
 - `jq` — reads the performance and memory samples (`scripts/perf.sh`, `scripts/memory.sh`)
-- [GitHub CLI](https://cli.github.com/) — only for the release runbook in [`docs/distribution.md`](docs/distribution.md)
+- [GitHub CLI](https://cli.github.com/) — only for the release runbook in [`docs/dev/distribution.md`](docs/dev/distribution.md)
 
 ## Quick start
 
@@ -114,11 +114,11 @@ names both files when it fails. The requirement lives in the `repo-quality` spec
 
 ## Documentation
 
-Start at [`docs/README.md`](docs/README.md) — the map of every document kind and the writing
+Start at [`docs/dev/README.md`](docs/dev/README.md) — the map of every document kind and the writing
 guideline. Key entry points:
 
-- [Guide](docs/guide.md) — what Lunate is, the plan and the roadmap
-- [Architecture](docs/architecture.md) — the component map and the runtime flows
+- [Guide](docs/dev/guide.md) — what Lunate is, the plan and the roadmap
+- [Architecture](docs/dev/architecture.md) — the component map and the runtime flows
 - [Specs](openspec/specs/) — the behaviour source of truth
 - [ADRs](adr/) — decisions with their context
 - [Releases](https://github.com/lunate-agent/lunate/releases)

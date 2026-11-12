@@ -67,7 +67,7 @@ Below 60 columns the layout switches to its compact band: tool headers drop the 
 (`✓ read · 13 lines`), the footer shrinks to the model and the context percent, the input box keeps
 both rules, and the autocomplete list keeps only the names. The full
 layout returns from 100 columns; the guide's
-[Narrow terminals](guide.md#terminal-ui-lunatetui) section has the per-band rules.
+[Narrow terminals](dev/guide.md#terminal-ui-lunatetui) section has the per-band rules.
 
 ![A committed turn, the input box and the slash-command list at 40 columns](media/features/narrow.gif)
 

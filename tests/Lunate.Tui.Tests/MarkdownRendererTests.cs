@@ -196,7 +196,7 @@ public sealed class MarkdownRendererTests
     [Fact]
     public void A_bar_label_after_an_arrow_renders_as_the_edges_label()
     {
-        // docs/architecture.md's system map writes `Roslyn -->|"tool model"| Agent`.
+        // docs/dev/architecture.md's system map writes `Roslyn -->|"tool model"| Agent`.
         string markdown = """
             ```mermaid
             flowchart TD

@@ -1,6 +1,6 @@
 # Key bindings
 
-The prompt's bindings, one meaning each; [the guide](guide.md) describes the components and layout
+The prompt's bindings, one meaning each; [the guide](dev/guide.md) describes the components and layout
 they drive.
 
 **Key bindings (one meaning each)**

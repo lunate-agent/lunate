@@ -106,7 +106,7 @@ stays byte-stable. Recording wins when both are set.
 - Provider entries, credentials, the user's own model catalog and profiles:
   [models-and-providers.md](models-and-providers.md). The first-run walk is in
   [quickstart.md](quickstart.md).
-- Environment-variable overrides and `/settings`: [guide.md](guide.md). The key remaps the
+- Environment-variable overrides and `/settings`: [dev/guide.md](dev/guide.md). The key remaps the
   `tui.keys` entries persist: [keybindings.md](keybindings.md).
 - Project instructions: [agents-md.md](agents-md.md). Skills: [skills.md](skills.md). MCP server
   files: [mcp-servers.md](mcp-servers.md). The theme: [themes-and-keys.md](themes-and-keys.md).
