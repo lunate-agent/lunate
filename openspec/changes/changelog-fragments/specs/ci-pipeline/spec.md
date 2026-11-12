@@ -99,7 +99,16 @@ A pull request whose branch is `release/<version>` or whose title starts `chore(
 
 The CI workflow SHALL expose a single aggregate status check (`ci-ok`) that succeeds only when every verification job the selected profile requires has completed successfully and every job that profile does not select was skipped, so renaming, adding, or removing a matrix leg cannot silently drop required coverage. The repository ruleset SHALL require the aggregate check for `main` — a one-time maintainer configuration outside the workflow's control. The aggregate SHALL report a result on every pull request: the workflow SHALL NOT apply path filters to pull-request events. A required job that is skipped or cancelled SHALL NOT count as success, a job that ran although the profile did not select it SHALL fail the aggregate, and a run whose profile cannot be read SHALL fail rather than pass.
 
-Two jobs MAY be conditional on the changed paths: the Windows PowerShell leg and the changelog fragment gate. The PowerShell skip SHALL count as success only when the path decision output says the leg was not required; a skip or cancellation while the decision says it was required SHALL fail the aggregate, and an unreadable decision SHALL fail it. The decision SHALL be produced by a committed script with a self-test, and the leg SHALL also run on every push to `main`, every tag, a nightly schedule and manual dispatch, so the filter cannot hide a regression indefinitely. The changelog gate SHALL run on every non-draft pull request regardless of profile, and SHALL fail when the pull request is not the release pull request and its changed paths include `CHANGELOG.md`; its skip SHALL count as success only outside a pull-request event, and a pull-request run in which it did not succeed SHALL fail the aggregate.
+Two jobs MAY be conditional: the Windows PowerShell leg on the changed paths and the changelog
+fragment gate on the pull-request event. The PowerShell skip SHALL count as success only when the
+path decision output says the leg was not required; a skip or cancellation while the decision says it
+was required SHALL fail the aggregate, and an unreadable decision SHALL fail it. The decision SHALL
+be produced by a committed script with a self-test, and the leg SHALL also run on every push to
+`main`, every tag, a nightly schedule and manual dispatch, so the filter cannot hide a regression
+indefinitely. The changelog gate SHALL run on every non-draft pull request regardless of profile, and
+SHALL fail when the pull request is not the release pull request and its changed paths include
+`CHANGELOG.md`; its skip SHALL count as success only outside a pull-request event, and a pull-request
+run in which it did not succeed SHALL fail the aggregate.
 
 #### Scenario: Aggregate green when every job passes
 
