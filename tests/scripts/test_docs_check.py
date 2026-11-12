@@ -89,6 +89,19 @@ class DocsCheckTests(unittest.TestCase):
                 )
                 self.assertIn("scripts/docs-check --check", text)
 
+    def test_each_checker_file_stays_under_the_size_guidance(self) -> None:
+        # AGENTS.md asks for files under about 300 lines; the checker is split to honour that.
+        files = [CHECKER, *sorted((REPOSITORY_ROOT / "scripts" / "docs_check").glob("*.py"))]
+
+        for path in files:
+            with self.subTest(path=path.relative_to(REPOSITORY_ROOT).as_posix()):
+                lines = path.read_text(encoding="utf-8").splitlines()
+                self.assertLessEqual(
+                    len(lines),
+                    300,
+                    f"{path.relative_to(REPOSITORY_ROOT).as_posix()} has {len(lines)} lines",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()
