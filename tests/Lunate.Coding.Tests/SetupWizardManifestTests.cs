@@ -73,6 +73,27 @@ public sealed class SetupWizardManifestTests
     }
 
     [Fact]
+    public void The_manifest_names_only_the_routing_profiles_the_multi_select_confirmed()
+    {
+        // Three candidates were offered (the walk's chat and decision profiles plus the settings
+        // file's existing 'nightly'); the multi-select confirmed two. The manifest must name what
+        // the commit will write, not every candidate it was offered.
+        SetupWizardModel wizard = RichWalk();
+        wizard.ExistingRoutingProfiles = ["nightly"];
+
+        IReadOnlyList<SetupWrite> writes = SetupWizardManifest.Writes(wizard);
+
+        Assert.Contains(
+            new(SetupFile.Settings, "decisions", "routing profiles", "main, decisions"),
+            writes
+        );
+        Assert.DoesNotContain(
+            writes,
+            write => write.Value.Contains("nightly", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
     public void A_preset_reference_walk_writes_the_provider_file_and_no_key()
     {
         var wizard = new SetupWizardModel();

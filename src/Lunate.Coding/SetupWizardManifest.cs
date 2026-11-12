@@ -277,7 +277,7 @@ internal static partial class SetupWizardManifest
                     SetupFile.Settings,
                     "decisions",
                     "routing profiles",
-                    string.Join(", ", RoutingProfiles(wizard, wizard.DecisionProfile))
+                    string.Join(", ", wizard.ConfirmedRoutingProfiles(choices))
                 )
             );
         }

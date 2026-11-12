@@ -257,33 +257,6 @@ internal static partial class SetupWizardManifest
             ? description
             : null;
 
-    private static IReadOnlyList<string> RoutingProfiles(
-        SetupWizardModel wizard,
-        WizardUsageChoice? decision
-    )
-    {
-        List<string> names = [];
-        if (wizard.ChatProfile is { } chat)
-        {
-            names.Add(chat.Name);
-        }
-
-        if (decision is not null)
-        {
-            names.Add(decision.ProfileName);
-        }
-
-        foreach (string existing in wizard.ExistingRoutingProfiles)
-        {
-            if (!names.Contains(existing, StringComparer.Ordinal))
-            {
-                names.Add(existing);
-            }
-        }
-
-        return names;
-    }
-
     private static IEnumerable<string> Fact(string indent, string label, string value, int width)
     {
         string one = $"{indent}{label}: {value}";

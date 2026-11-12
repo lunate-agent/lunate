@@ -589,11 +589,9 @@ internal static class SetupWizardCommit
         {
             SettingsStore.WriteDecisionsKey("routing", routing, paths.SettingsPath);
             // The profiles the multi-select confirmed, in the order they were offered; the walk's
-            // candidates are only the fallback for a choice staged without them.
-            IReadOnlyList<string> routingProfiles =
-                choices.RoutingProfiles.Count > 0
-                    ? choices.RoutingProfiles
-                    : RoutingProfiles(model, runs, model.DecisionProfile);
+            // candidates are only the fallback for a choice staged without them. The manifest
+            // reads the same resolution, so it names exactly what this writes.
+            IReadOnlyList<string> routingProfiles = model.ConfirmedRoutingProfiles(choices);
             var list = new JsonArray([.. routingProfiles.Select(name => (JsonNode)name)]);
             SettingsStore.WriteDecisionsKey("routingProfiles", list, paths.SettingsPath);
         }
@@ -607,46 +605,5 @@ internal static class SetupWizardCommit
         {
             SettingsStore.WriteDecisionsKey("questions", questions, paths.SettingsPath);
         }
-    }
-
-    /// <summary>The routing bound: the walk's chat and decision profiles, plus this walk's other
-    /// configured profiles the settings already name; empty means routing cannot turn on here.</summary>
-    private static IReadOnlyList<string> RoutingProfiles(
-        SetupWizardModel model,
-        IReadOnlyList<WizardProviderRun> runs,
-        WizardUsageChoice? decision
-    )
-    {
-        List<string> names = [];
-        if (
-            model.ChatProfile is { } carried
-            && !names.Contains(carried.Name, StringComparer.Ordinal)
-        )
-        {
-            names.Add(carried.Name);
-        }
-
-        foreach (WizardProviderRun run in runs)
-        {
-            if (run.ChatProfile is { } chat && !names.Contains(chat.Name, StringComparer.Ordinal))
-            {
-                names.Add(chat.Name);
-            }
-        }
-
-        if (decision is not null)
-        {
-            names.Add(decision.ProfileName);
-        }
-
-        foreach (string existing in model.ExistingRoutingProfiles)
-        {
-            if (!names.Contains(existing, StringComparer.Ordinal))
-            {
-                names.Add(existing);
-            }
-        }
-
-        return names;
     }
 }
