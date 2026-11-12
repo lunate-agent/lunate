@@ -85,4 +85,4 @@ as the parent's; the approval for a child run still reaches the editor.
 - [CLI reference](cli.md) — the flags `--acp` accepts and the ones it refuses
 - [Print mode](print.md) — the other surface with no terminal
 - [Usage](usage.md) — the interactive session, and the same approval model
-- [Extension contract](spec/extensibility.md) — the surfaces an extension may contribute to
+- [Extension contract](dev/spec/extensibility.md) — the surfaces an extension may contribute to

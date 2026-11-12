@@ -68,39 +68,9 @@ guessing.
 
 ## Provider instances and credentials
 
-The twelve built-in provider kinds are templates for adapters and defaults. A user may define
-multiple named provider entries of one kind in `~/.lunate/providers.json`:
-
-<!-- config: providers -->
-```json providers
-{
-  "schemaVersion": 1,
-  "providers": [
-    {
-      "name": "work-anthropic",
-      "kind": "anthropic",
-      "baseUrl": "https://api.anthropic.com",
-      "credentialReference": "auth:work-anthropic",
-      "region": "eu"
-    }
-  ]
-}
-```
-
-`credentialReference` and optional header values are references, never secret values. Supported
-sources are `auth:<key>` and `env:<VARIABLE>`. The credential itself stays in `auth.json` or the
-environment. `region` (`eu`, `us`, or `local`) is
-descriptive metadata only: it does not choose an endpoint or guarantee data residency.
-
-On load, Lunate idempotently migrates legacy stored keys and custom endpoints into matching provider
-entries. An explicit provider entry wins, and migration never copies the secret out of `auth.json`.
-Environment credentials continue to take precedence over stored keys, including in CI. Reachability
-shown by `auth list` is a bounded unauthenticated probe; it sends neither credentials nor optional
-headers.
-
-Project settings may refer to user-defined providers and profiles or lower user limits. They cannot
-define a provider, endpoint, credential reference, or header secret. This prevents a repository from
-redirecting a user's credentials to its own server.
+Named provider entries in `~/.lunate/providers.json` — the file that holds several entries of one
+provider kind — are the reference in
+[Models and providers](providers.md#add-a-named-provider-entry).
 
 ## Profiles and usages
 
@@ -136,34 +106,15 @@ The optional decision profile lives in the same block; [Decisions](decisions.md)
 
 ## Your own model catalog
 
-`~/.lunate/models.json` is your catalog of model entries; a user entry overrides a built-in one with
-the same id, and adding a model never needs a code change. An entry carries `id`, `provider`
-(`openai` for any OpenAI-compatible endpoint, `anthropic`), optional `endpoint`, `contextWindow`,
-`supportsTools` and an `auth` reference naming a key in `lunate auth login`'s `auth.json`. An
-optional `reasoning` declares the model's reasoning style:
-
-- `effort` — OpenAI-compatible reasoning effort.
-- `budget` — Anthropic extended thinking.
-- `inline` — the model embeds thinking markers in its text stream.
-
-Absent means no reasoning support. A profile in `settings.json` may narrow this further per use
-with `reasoningLevel` and `reasoningBudget`; every profile key is in the generated
-[settings reference](settings.md).
-
-For an endpoint that is not in the catalog at all, `lunate --discover <name-or-url>` prints a
-`models.json`-shaped draft of the model's entry to stdout — you review it and copy it into the file;
-nothing is written for you.
+Your own catalogue of model entries in `~/.lunate/models.json`, and the `lunate --discover` and
+`lunate --update-catalog` commands that write and refresh it, are in
+[Models and providers](providers.md#add-a-model-to-your-own-catalog).
 
 ## Where the credential lives
 
-Stored keys live in `~/.lunate/auth.json` under `keys`, schema 1, with owner-only permissions where
-the platform has file modes. `providers.json` and `settings.json` contain only provider/profile
-configuration and credential references, never resolved secret values.
-
-Every preset also has a provider environment variable — `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
-`GROQ_API_KEY` and so on; Google also accepts `GEMINI_API_KEY`. When that variable is set it wins
-over the key stored in the file. `lunate auth list` shows which source is in use, and
-`lunate auth status` answers whether the resolved default provider has a credential at all.
+Stored keys, the provider files and which source a credential comes from are
+[Models and providers](providers.md#where-the-credential-lives) territory; the variables themselves
+are in [Environment variables](environment-variables.md#supply-a-credential).
 
 ## A custom OpenAI-compatible endpoint
 

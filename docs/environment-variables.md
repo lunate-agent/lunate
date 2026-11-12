@@ -3,7 +3,7 @@
 This page answers which environment variables Lunate reads and what each one changes, and the short
 answer is: the state root, the programs and packages it finds, one override per settings key, one
 credential variable per provider, the terminal facts it detects, and where a copy goes. Everything
-else is a settings key — the generated [settings reference](configuration.md) owns those.
+else is a settings key — the generated [settings reference](settings.md) owns those.
 
 Lunate reads the **process environment only**. No `.env` file, settings file, `AGENTS.md` or project
 file can supply any variable on this page.
@@ -103,7 +103,7 @@ receive only the base names `PATH`, `PATHEXT`, `HOME`, `USERPROFILE`, `SystemRoo
 `TEMP`, `TMP`, `TMPDIR`, `APPDATA`, `LOCALAPPDATA` and `LANG`, each when Lunate holds it, plus the
 names their own `env` or `envPassthrough` declares. The bash tool child uses `Inherited` instead:
 your whole environment minus the credentials above, then the names
-[`toolEnvironment.passthrough`](configuration.md) re-admits. [Remote
+[`toolEnvironment.passthrough`](settings.md) re-admits. [Remote
 extensions](extensions-remote.md) owns the manifest.
 
 ## Let Lunate detect your terminal
@@ -139,7 +139,7 @@ extensions](extensions-remote.md) owns the manifest.
 
 ## Related
 
-- [Settings reference](configuration.md) — every settings key these variables override, generated
+- [Settings reference](settings.md) — every settings key these variables override, generated
   from the schema
 - [Models and providers](providers.md) — provider entries and the credential references they carry
 - [CI and unattended runs](ci.md) — the variable a CI run sets first

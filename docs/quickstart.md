@@ -93,26 +93,9 @@ shorter path for a missing credential.
 
 ## Scripted setup
 
-`lunate setup` runs the same walk without a TTY. Every answer is a flag; an absent flag skips its
-step and invents nothing. The connection test and the model check run unless suppressed: `--no-test`
-sends no provider request at all (it skips both), while `--no-model-check` skips only the paid model
-check and keeps the free discovery request. The summary goes to stdout and never contains a
-credential.
-
-<!-- run: no sends a provider request -->
-```bash
-printf '%s\n' "$OPENAI_API_KEY" |
-  lunate setup \
-    --provider openai --credential env:OPENAI_API_KEY \
-    --model gpt-4.1 --profile chat-main --thinking medium
-```
-
-The flag set is `--provider`, `--endpoint`, `--api-family`, `--credential-placement`,
-`--models-url`, `--credential` (an `env:`/`auth:` reference), `--key-stdin`, `--model`, `--profile`,
-`--thinking`, `--fast`, `--as-decision`, `--no-test` (offline: skips the connection test and the
-model check, so no provider request is sent), `--no-model-check` (skips the model check only), and
-`--force`. A run without a terminal exits 2 and names the missing answer when a value needs
-interaction; 0 after a real commit or a no-op; 1 for a store/load failure.
+`lunate setup` runs the same walk from flags without a terminal: one flag per answer, nothing
+invented for an absent one. [CI and unattended runs](ci.md#configure-a-machine-without-a-terminal)
+has the flag set, the exit codes and a working example.
 
 ## If the first run refuses
 
