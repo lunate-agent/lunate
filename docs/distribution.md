@@ -75,9 +75,10 @@ python3 scripts/changelog-assemble --check
 
 `--write` places every `changes/<pr-number>.md` under its heading in ascending pull-request order
 and leaves text written before the fragments existed where it is. Promote `## [Unreleased]` to
-`## [<version>] - <date>`, delete the consumed fragments, and commit the result. The Release
-workflow runs `--check` on the tag, so a fragment that merged after this pull request fails the tag
-by name instead of shipping unassembled notes.
+`## [<version>] - <date>`, remove the generated `changelog-fragments` marker comments from the
+promoted section, leave a fresh empty `## [Unreleased]` above it, delete the consumed fragments, and
+commit the result. The Release workflow runs `--check` on the tag, so a fragment that merged after
+this pull request fails the tag by name instead of shipping unassembled notes.
 
 ### 2. Tag the release
 

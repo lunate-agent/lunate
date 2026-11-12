@@ -188,6 +188,21 @@ class ChangelogAssembleTests(unittest.TestCase):
 
         self.assertEqual(0, run(root, "--check").returncode)
 
+    def test_a_promoted_release_with_no_fragments_passes(self) -> None:
+        promoted = CHANGELOG.replace("## [Unreleased]", "## [0.4.0] - 2026-11-12")
+        root = self.tree({}, promoted)
+
+        self.assertEqual(0, run(root, "--check").returncode)
+
+    def test_fragments_without_an_unreleased_section_fail(self) -> None:
+        promoted = CHANGELOG.replace("## [Unreleased]", "## [0.4.0] - 2026-11-12")
+        root = self.tree({"1234.md": fragment("### Fixed", "- The fix (#1234).")}, promoted)
+
+        result = run(root, "--check")
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("no '## [Unreleased]' section", result.stderr)
+
     def test_a_consumed_fragment_disappears_from_the_section(self) -> None:
         root = self.tree({"1234.md": fragment("### Fixed", "- The fix (#1234).")})
         run(root, "--write")

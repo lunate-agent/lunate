@@ -163,7 +163,8 @@ bullet inserted in `## Rules` after the "A failing golden session test …" bull
    the released sections are not touched.
 3. Open pull requests already carry their own fragments; a new one adds `changes/<number>.md`.
 4. The first release pull request runs `--write`, promotes the unreleased heading to the version and
-   deletes the consumed fragments, so the next release starts from an empty unreleased section.
+   leaves a fresh empty `## [Unreleased]` above it, then deletes the consumed fragments, so the next
+   release starts from an empty unreleased section.
 5. Rollback is a revert of the files in this change plus the marker region; fragments are inert text.
 
 ## Open Questions

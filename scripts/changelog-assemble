@@ -170,7 +170,11 @@ def assemble(text: str, fragments: list[tuple[int, str, list[str]]]) -> tuple[st
         (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
     )
     if unreleased is None:
-        return text, [f"CHANGELOG.md: no '{UNRELEASED}' section"]
+        if fragments:
+            return text, [
+                f"CHANGELOG.md: no '{UNRELEASED}' section to assemble the fragments into"
+            ]
+        return text, []
 
     end = len(lines)
     for index in range(unreleased + 1, len(lines)):
