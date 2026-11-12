@@ -22,9 +22,16 @@ public sealed class SetupWizardCommitClaimTests
     private const string ProviderPathVariable = "LUNATE_WIZARD_PROVIDER_PATH";
     private const string AuthPathVariable = "LUNATE_WIZARD_AUTH_PATH";
     private const string ReadyPathVariable = "LUNATE_WIZARD_READY_PATH";
+    private const string RefusalPathVariable = "LUNATE_WIZARD_REFUSAL_PATH";
 
     private const string SettingsChild = nameof(A_wizard_commit_waits_for_the_settings_claim);
     private const string ProviderChild = nameof(A_wizard_commit_waits_for_the_provider_claim);
+    private const string NormalWriterChild = nameof(
+        A_provider_entry_saved_by_a_normal_writer_during_the_walk_survives_the_commit
+    );
+    private const string UnclaimableChild = nameof(
+        An_unclaimable_wizard_commit_refuses_without_writing
+    );
 
     [Fact]
     public async Task A_wizard_commit_waits_for_the_settings_claim()
@@ -183,6 +190,129 @@ public sealed class SetupWizardCommitClaimTests
     }
 
     /// <summary>
+    /// The other process uses the ordinary provider-store writer, not a raw claim: its entry is in
+    /// the target before the commit reads it, so the commit must merge rather than replace it.
+    /// </summary>
+    [Fact]
+    public async Task A_provider_entry_saved_by_a_normal_writer_during_the_walk_survives_the_commit()
+    {
+        if (TestChildProcess.IsChild(NormalWriterChild))
+        {
+            string childProviderPath = Required(ProviderPathVariable);
+            string childAuthPath = Required(AuthPathVariable);
+            ProviderStore store = ProviderStore.Load(
+                childProviderPath,
+                AuthStore.Load(childAuthPath),
+                []
+            );
+            ProviderStore.Save(
+                childProviderPath,
+                [
+                    .. store.Entries,
+                    new ProviderEntry(
+                        "concurrent",
+                        "openai",
+                        new Uri("https://concurrent.example/v1"),
+                        "auth:concurrent"
+                    ),
+                ]
+            );
+            return;
+        }
+
+        using var temp = new TempDirectory();
+        string settingsPath = temp.File("settings.json");
+        string providerPath = temp.File("providers.json");
+        string authPath = temp.File("auth.json");
+        ProviderStore.Save(providerPath, [SeedProvider()]);
+
+        (int exitCode, string output) = await Spawn(
+            NormalWriterChild,
+            settingsPath,
+            providerPath,
+            authPath,
+            temp.File("unused.ready")
+        );
+        Assert.True(exitCode == 0, $"the child process failed:\n{output}");
+
+        SetupWizardCommit.Commit(
+            PresetWalk("walk-secret"),
+            new SetupWizardCommit.CommitPaths(settingsPath, providerPath),
+            () => AuthStore.Load(authPath)
+        );
+
+        AuthStore auth = AuthStore.Load(authPath);
+        string[] names =
+        [
+            .. ProviderStore.Load(providerPath, auth, []).Entries.Select(entry => entry.Name),
+        ];
+        Assert.Contains("concurrent", names);
+        Assert.Contains("openai", names);
+        Assert.Contains("seed", names);
+    }
+
+    [Fact]
+    public async Task An_unclaimable_wizard_commit_refuses_without_writing()
+    {
+        if (TestChildProcess.IsChild(UnclaimableChild))
+        {
+            string childRefusalPath = Required(RefusalPathVariable);
+            try
+            {
+                Commit(
+                    Required(SettingsPathVariable),
+                    Required(ProviderPathVariable),
+                    Required(AuthPathVariable),
+                    WaitBudgets.StoreClaimRefusal
+                );
+                File.WriteAllText(childRefusalPath, "the commit did not refuse");
+            }
+            catch (InvalidOperationException childRefusal)
+            {
+                File.WriteAllText(childRefusalPath, childRefusal.Message);
+            }
+
+            return;
+        }
+
+        using var temp = new TempDirectory();
+        string settingsPath = temp.File("settings.json");
+        string providerPath = temp.File("providers.json");
+        string authPath = temp.File("auth.json");
+        string refusalPath = temp.File("refusal");
+        File.WriteAllText(settingsPath, """{"schemaVersion": 2, "favorites": ["child"]}""" + "\n");
+        ProviderStore.Save(providerPath, [SeedProvider()]);
+        byte[] settingsBefore = File.ReadAllBytes(settingsPath);
+        byte[] providersBefore = File.ReadAllBytes(providerPath);
+
+        using FileLock held = FileLock.Acquire(
+            Path.ChangeExtension(settingsPath, ".lock"),
+            WaitBudgets.StoreClaimHold
+        );
+        (int exitCode, string output) = await TestChildProcess.RunAsync(
+            typeof(SetupWizardCommitClaimTests),
+            UnclaimableChild,
+            new Dictionary<string, string?>
+            {
+                [SettingsPathVariable] = settingsPath,
+                [ProviderPathVariable] = providerPath,
+                [AuthPathVariable] = authPath,
+                [RefusalPathVariable] = refusalPath,
+            }
+        );
+        Assert.True(exitCode == 0, $"the child process failed:\n{output}");
+
+        string refusal = File.ReadAllText(refusalPath);
+        Assert.Contains(settingsPath, refusal, StringComparison.Ordinal);
+        Assert.Contains("settings.lock", refusal, StringComparison.Ordinal);
+        Assert.Contains("nothing was changed", refusal, StringComparison.Ordinal);
+        Assert.Equal(settingsBefore, File.ReadAllBytes(settingsPath));
+        Assert.Equal(providersBefore, File.ReadAllBytes(providerPath));
+        Assert.False(File.Exists(authPath), "the commit wrote the credential");
+        Assert.Empty(Directory.GetDirectories(temp.Root, ".setup-*"));
+    }
+
+    /// <summary>
     /// The commit merges the provider entry into the store as the commit finds it: the staged copy
     /// is seeded under the claim, so an entry saved while the walk was being answered survives.
     /// </summary>
@@ -216,11 +346,17 @@ public sealed class SetupWizardCommitClaimTests
         Assert.Contains("openai", names);
     }
 
-    private static void Commit(string settingsPath, string providerPath, string authPath) =>
+    private static void Commit(
+        string settingsPath,
+        string providerPath,
+        string authPath,
+        TimeSpan? claimTimeout = null
+    ) =>
         SetupWizardCommit.Commit(
             PresetWalk("child-secret"),
             new SetupWizardCommit.CommitPaths(settingsPath, providerPath),
-            () => AuthStore.Load(authPath)
+            () => AuthStore.Load(authPath),
+            claimTimeout
         );
 
     private static SetupWizardModel PresetWalk(string secret)
@@ -247,6 +383,10 @@ public sealed class SetupWizardCommitClaimTests
 
     private static ProviderEntry SeedProvider() =>
         new("seed", "openai", new Uri("https://seed.example/v1"), "auth:seed");
+
+    private static string Required(string name) =>
+        Environment.GetEnvironmentVariable(name)
+        ?? throw new InvalidOperationException($"the child needs {name}");
 
     private static Task<(int ExitCode, string Output)> Spawn(
         string child,

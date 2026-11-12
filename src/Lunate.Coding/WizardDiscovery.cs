@@ -88,7 +88,7 @@ internal static class WizardDiscovery
                 .ConfigureAwait(false)
             : await DiscoverCommand
                 .RunAsync(
-                    provider.Id,
+                    provider.PresetKey,
                     ModelCatalog.Load(null),
                     handler,
                     ResolveKey,

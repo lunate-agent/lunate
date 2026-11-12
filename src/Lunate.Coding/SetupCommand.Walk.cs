@@ -1,4 +1,3 @@
-using System.Globalization;
 using Lunate.Ai;
 
 namespace Lunate.Coding;
@@ -191,7 +190,11 @@ internal static partial class SetupCommand
 
         if (!wizard.HasStagedWrites)
         {
-            output.WriteLine("written: nothing — every step was skipped");
+            foreach (string line in SetupWizardManifest.RenderReceipt(wizard))
+            {
+                output.WriteLine(line);
+            }
+
             return ExitOk;
         }
 
@@ -200,9 +203,9 @@ internal static partial class SetupCommand
             new SetupWizardCommit.CommitPaths(settingsPath, providerPath),
             () => auth
         );
-        foreach (string written in WrittenLines(wizard))
+        foreach (string line in SetupWizardManifest.RenderReceipt(wizard))
         {
-            output.WriteLine(written);
+            output.WriteLine(line);
         }
 
         return ExitOk;
@@ -566,52 +569,6 @@ internal static partial class SetupCommand
             WizardFailureKind.Rejected => "rejected status",
             _ => "undecipherable response",
         };
-
-    /// <summary>Never a credential: names each store the commit touched, or the bindings it made.</summary>
-    private static IReadOnlyList<string> WrittenLines(SetupWizardModel wizard)
-    {
-        List<string> written = [];
-        if (wizard.Provider is { } provider)
-        {
-            written.Add($"written: provider entry '{provider.Id}'");
-            if (wizard.Credential is { } credential)
-            {
-                written.Add(
-                    credential.Key is not null
-                        ? $"written: the key stored under '{provider.Id}' in auth.json"
-                        : $"written: credential reference {credential.Reference}"
-                );
-            }
-        }
-
-        if (wizard.ChatProfile is { } chat)
-        {
-            written.Add(
-                "written: profile '"
-                    + chat.Name
-                    + "' (model "
-                    + chat.ModelId
-                    + (
-                        chat.ReasoningLevel is { } level
-                            ? string.Format(CultureInfo.InvariantCulture, ", thinking {0}", level)
-                            : string.Empty
-                    )
-                    + ")"
-            );
-            written.Add($"written: usages.chat → {chat.Name}");
-            if (wizard.FastProfile)
-            {
-                written.Add($"written: usages.fast → {chat.Name}");
-            }
-        }
-
-        if (wizard.DecisionProfile is { } decision && wizard.ChatProfile is null)
-        {
-            written.Add($"written: decisions.profile → {decision.ProfileName}");
-        }
-
-        return written;
-    }
 
     /// <summary>The same credential resolution the interactive wizard's check uses: the typed
     /// key, then an env variable, then a stored key. The value is resolved only into the client,

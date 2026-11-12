@@ -865,7 +865,8 @@ internal sealed partial class InteractiveSession
         string titlePrefix,
         List<string> labels,
         List<string> values,
-        int selected
+        int selected,
+        bool menu = false
     )
     {
         lock (_pickerGate)
@@ -875,6 +876,7 @@ internal sealed partial class InteractiveSession
             _pickerLabels = labels;
             _pickerValues = values;
             _pickerFilter = string.Empty;
+            _pickerMenu = menu;
             PickerOpenSeam?.Invoke();
             ShowPicker(keepValue: null, fallback: selected);
         }
@@ -914,13 +916,20 @@ internal sealed partial class InteractiveSession
         }
     }
 
-    /// <summary>Whether the open picker filters as text is typed (the model and wizard pickers).</summary>
+    /// <summary>Whether the open picker filters as text is typed: the model pickers always (their
+    /// listing can be long and the search is their documented affordance), the other wizard pickers
+    /// only when the list exceeds <see cref="PickerFilterThreshold"/> rows — a short list keeps bare
+    /// <c>b</c> and <c>f</c> free for the wizard's back and forward verbs (spec: The walk is
+    /// navigable).</summary>
     private bool PickerFiltersOn() =>
-        _pickerKind
-            is PickerKind.Model
-                or PickerKind.WizardModel
-                or PickerKind.WizardProvider
-                or PickerKind.WizardChoice;
+        _pickerKind is PickerKind.Model or PickerKind.WizardModel
+        || (
+            _pickerKind is PickerKind.WizardProvider or PickerKind.WizardChoice
+            && _pickerLabels.Count > PickerFilterThreshold
+        );
+
+    /// <summary>The row count above which a wizard list filters.</summary>
+    internal const int PickerFilterThreshold = 15;
 
     private bool PickerMatches(string label) =>
         !PickerFiltersOn()
@@ -979,6 +988,13 @@ internal sealed partial class InteractiveSession
                     break;
                 }
 
+                if (_pickerMenu)
+                {
+                    // A menu's Esc is local: it returns to the step that opened it.
+                    WizardVerb(WizardBackValue);
+                    break;
+                }
+
                 // A wizard picker dismissed with Esc is the walk leaving the wizard: nothing is
                 // written. Capture the pick first: a stale dismissal must cancel the pick it
                 // dismissed, not one a continuation opened for the next step.
@@ -996,7 +1012,18 @@ internal sealed partial class InteractiveSession
                 }
 
                 break;
+            case KeyKind.Left when plain:
+                WizardVerb(WizardBackValue);
+                break;
+            case KeyKind.Right when plain:
+                WizardVerb(WizardForwardValue);
+                break;
             case KeyKind.Character when plain && key.Text is { Length: > 0 } text:
+                if (WizardVerbFor(text))
+                {
+                    break;
+                }
+
                 if (PickerFiltersOn())
                 {
                     AppendPickerFilter(text);
@@ -1063,6 +1090,45 @@ internal sealed partial class InteractiveSession
     }
 
     /// <summary>
+    /// The wizard's bare-letter verbs: <c>b</c> goes back and <c>f</c> goes forward where a letter
+    /// cannot be a filter — in a menu, or in a question whose list is short enough not to filter.
+    /// Returns whether the key was the verb.
+    /// </summary>
+    private bool WizardVerbFor(string text)
+    {
+        if (_wizardPick is not { Task.IsCompleted: false } || PickerFiltersOn())
+        {
+            return false;
+        }
+
+        if (text is not ("b" or "f"))
+        {
+            return false;
+        }
+
+        WizardVerb(text == "b" ? WizardBackValue : WizardForwardValue);
+        return true;
+    }
+
+    /// <summary>Completes a pending wizard pick with a navigation verb and closes the picker. A
+    /// non-wizard picker ignores the verbs.</summary>
+    private void WizardVerb(string value)
+    {
+        if (_wizardPick is not { Task.IsCompleted: false } pick || _picker is not { } dismissing)
+        {
+            return;
+        }
+
+        // Capture the pick and the picker before dismissing: completing the pick can open the
+        // next step's picker before this dismissal returns, and that newer pick is not ours.
+        DismissPicker(dismissing);
+        if (pick.Task.IsCompleted is false)
+        {
+            pick.TrySetResult(value);
+        }
+    }
+
+    /// <summary>
     /// Clears <paramref name="picker"/> when it is still the open one. It is not when a completed
     /// wizard pick's continuation ran off-thread and opened the next step's picker; that newer
     /// picker is the walk's, so this dismissal must leave it (and its pending pick) alone. The
@@ -1083,6 +1149,7 @@ internal sealed partial class InteractiveSession
             _pickerValues = [];
             _pickerVisibleValues = [];
             _pickerFilter = string.Empty;
+            _pickerMenu = false;
             _live.SetPicker(null);
         }
     }

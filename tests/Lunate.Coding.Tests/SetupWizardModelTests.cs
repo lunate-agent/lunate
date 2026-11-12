@@ -136,9 +136,205 @@ public sealed class SetupWizardModelTests
         Assert.Null(model.Decisions);
     }
 
+    [PosixFact]
+    public void The_path_groups_the_ten_steps_into_four_stages()
+    {
+        Assert.Equal(SetupStage.Provider, SetupWizardModel.StageOf(SetupStep.Provider));
+        Assert.Equal(SetupStage.Provider, SetupWizardModel.StageOf(SetupStep.ConnectionTest));
+        Assert.Equal(SetupStage.Model, SetupWizardModel.StageOf(SetupStep.Model));
+        Assert.Equal(SetupStage.Model, SetupWizardModel.StageOf(SetupStep.ModelCheck));
+        Assert.Equal(SetupStage.Profile, SetupWizardModel.StageOf(SetupStep.ChatProfile));
+        Assert.Equal(SetupStage.Profile, SetupWizardModel.StageOf(SetupStep.Decisions));
+        Assert.Equal(SetupStage.Review, SetupWizardModel.StageOf(SetupStep.Summary));
+
+        var model = new SetupWizardModel();
+        model.Enter(SetupStep.ConnectionTest);
+        Assert.Equal(1, model.StagePosition);
+        Assert.Contains(
+            "Provider › Model › Profile › Review",
+            model.HeaderLine,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("1/4", model.HeaderLine, StringComparison.Ordinal);
+
+        model.Enter(SetupStep.Model);
+        Assert.Equal(2, model.StagePosition);
+        Assert.Contains("2/4", model.HeaderLine, StringComparison.Ordinal);
+
+        model.Enter(SetupStep.Decisions);
+        Assert.Equal(3, model.StagePosition);
+
+        model.Enter(SetupStep.Summary);
+        Assert.Equal(4, model.StagePosition);
+    }
+
+    [PosixFact]
+    public void An_answer_is_a_staged_value_or_an_explicit_skip()
+    {
+        var model = new SetupWizardModel();
+
+        Assert.False(model.HasAnswer(SetupStep.Provider));
+        model.Enter(SetupStep.Provider);
+        model.Skip(SetupStep.Provider);
+        Assert.True(model.HasAnswer(SetupStep.Provider));
+
+        Assert.False(model.HasAnswer(SetupStep.ConnectionTest));
+        model.RecordConnectionTest(new WizardCheckResult(WizardProgress.Skipped));
+        Assert.True(model.HasAnswer(SetupStep.ConnectionTest));
+
+        Assert.False(model.HasAnswer(SetupStep.Model));
+        model.RecordModel(new WizardModelChoice("gpt-5", "openai-chat"));
+        Assert.True(model.HasAnswer(SetupStep.Model));
+        Assert.False(model.HasAnswer(SetupStep.Summary));
+    }
+
+    [PosixFact]
+    public void Forward_stops_at_the_first_unanswered_step()
+    {
+        SetupWizardModel model = FullyAnswered();
+
+        // The decisions answer is the only one the fully-answered fixture leaves out.
+        Assert.False(model.HasAnswer(SetupStep.Decisions));
+        Assert.Equal(SetupStep.Decisions, model.FirstUnansweredAfter(SetupStep.Provider));
+        Assert.Contains(
+            SetupStep.ChatProfile,
+            model.ReplayedSteps(SetupStep.Provider, SetupStep.Decisions)
+        );
+        Assert.DoesNotContain(
+            SetupStep.Provider,
+            model.ReplayedSteps(SetupStep.Provider, SetupStep.Decisions)
+        );
+
+        model.RecordDecisions(
+            new WizardDecisionsChoice(null, null, null, [], new Dictionary<string, string>())
+        );
+        Assert.Equal(SetupStep.Summary, model.FirstUnansweredAfter(SetupStep.Provider));
+    }
+
+    [PosixFact]
+    public void A_change_clears_the_answers_forward_may_not_skip_into()
+    {
+        SetupWizardModel model = FullyAnswered();
+
+        model.Enter(SetupStep.Provider);
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "anthropic",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "anthropic-messages",
+                Placement: CredentialPlacement.XApiKey,
+                ModelsUrl: null
+            )
+        );
+
+        // The credential and everything behind it were cleared, so Forward stops there instead of
+        // replaying an answer the change invalidated.
+        Assert.False(model.HasAnswer(SetupStep.Credential));
+        Assert.Equal(SetupStep.Credential, model.FirstUnansweredAfter(SetupStep.Provider));
+    }
+
+    [PosixFact]
+    public void End_of_walk_navigation_is_clamped_to_the_entrys_range()
+    {
+        var model = new SetupWizardModel();
+        model.Enter(SetupStep.Provider);
+        Assert.Equal(SetupStep.Provider, model.PreviousStep());
+        model.Enter(SetupStep.Decisions);
+        Assert.Equal(SetupStep.Summary, model.NextStep());
+
+        var entry = new SetupWizardModel();
+        entry.Begin(WizardEntry.AddProfile);
+        Assert.Equal(SetupStep.Model, entry.Step);
+        Assert.Equal(SetupStep.Model, entry.PreviousStep());
+
+        var provider = new SetupWizardModel();
+        provider.Begin(WizardEntry.AddProvider);
+        provider.Enter(SetupStep.ConnectionTest);
+        Assert.Equal(SetupStep.Summary, provider.NextStep());
+    }
+
+    [PosixFact]
+    public void Sealing_a_provider_keeps_its_answers_and_starts_the_next_run()
+    {
+        SetupWizardModel model = FullyAnswered();
+        model.MarkProviderReady();
+        Assert.True(model.ProviderReady);
+        Assert.Single(model.AllProviderRuns);
+
+        model.SealProvider();
+        Assert.True(model.HasStagedWrites);
+        Assert.Null(model.Provider);
+        Assert.Null(model.Credential);
+        Assert.Null(model.Model);
+        Assert.False(model.ProviderReady);
+        Assert.Equal("openai", Assert.Single(model.AllProviderRuns).Provider.Id);
+
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "anthropic",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "anthropic-messages",
+                Placement: CredentialPlacement.XApiKey,
+                ModelsUrl: null
+            )
+        );
+        model.RecordCredential(new WizardCredentialChoice("env:OPENAI_API_KEY"));
+
+        Assert.Equal(["openai", "anthropic"], model.AllProviderRuns.Select(run => run.Provider.Id));
+        Assert.Equal(["openai", "anthropic"], model.ProviderIds);
+        Assert.True(model.IsProviderConfigured("openai"));
+        Assert.False(model.IsProviderConfigured("deepseek"));
+    }
+
+    [PosixFact]
+    public void A_sealed_run_keeps_its_own_skipped_steps()
+    {
+        var model = new SetupWizardModel();
+        model.RecordProvider(
+            new WizardProviderChoice(
+                "openai",
+                Custom: false,
+                Region: null,
+                Endpoint: null,
+                ApiFamily: "openai-chat",
+                Placement: CredentialPlacement.Bearer,
+                ModelsUrl: null
+            )
+        );
+        model.Skip(SetupStep.ModelCheck);
+        model.MarkProviderReady();
+        model.SealProvider();
+
+        WizardProviderRun first = Assert.Single(model.AllProviderRuns);
+        Assert.Equal([SetupStep.ModelCheck], first.Skipped);
+        Assert.Empty(model.SkippedSteps);
+    }
+
+    [PosixFact]
+    public void A_typed_key_never_reaches_a_credential_answers_text()
+    {
+        const string TypedKey = "sk-wizard-answer-please-never-echo";
+
+        string reference = new WizardCredentialChoice("env:OPENAI_API_KEY").ToString()!;
+        string typed = new WizardCredentialChoice("openai", Key: TypedKey).ToString()!;
+
+        // The positional record generates a ToString() over every property, so without an
+        // override the key would ride along into any log line, notice or diagnostic (#585 N-5).
+        Assert.Contains("env:OPENAI_API_KEY", reference, StringComparison.Ordinal);
+        Assert.DoesNotContain("[redacted]", reference, StringComparison.Ordinal);
+        Assert.Contains("openai", typed, StringComparison.Ordinal);
+        Assert.Contains("[redacted]", typed, StringComparison.Ordinal);
+        Assert.DoesNotContain(TypedKey, typed, StringComparison.Ordinal);
+    }
+
     private static SetupWizardModel FullyAnswered()
     {
         var model = new SetupWizardModel();
+        model.RecordMode(SetupWizardMode.Detailed);
         model.Enter(SetupStep.Provider);
         model.RecordProvider(
             new WizardProviderChoice(

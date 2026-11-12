@@ -88,6 +88,8 @@ public sealed class SetupWizardCredentialTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter();
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
@@ -97,6 +99,7 @@ public sealed class SetupWizardCredentialTests
         // The switch line is read from the notice journal: the walk posts its commit notice after
         // it, and the slot paints one line per frame.
         await host.WaitForNoticeAsync("model: gpt-3.5-turbo");
+        await host.WaitForScrollbackAsync("setup written");
         host.Console.Complete();
         await run;
 
