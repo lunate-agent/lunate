@@ -39,5 +39,5 @@ it. The archive commit stays last (design D1-D4).
 - [x] 5.2 Release build of `Lunate.Coding` and the focused `Lunate.Coding.Tests` classes green
 - [x] 5.3 `openspec validate setup-wizard-nit-fixes --type change --strict`, then
       `openspec validate --all --strict` and `bash scripts/check-openspec-skills.sh`
-- [ ] 5.4 Docs where behaviour is described (`docs/quickstart.md`) still match; archive as the last
+- [x] 5.4 Docs where behaviour is described (`docs/quickstart.md`) still match; archive as the last
       commit (`openspec archive setup-wizard-nit-fixes --yes`)
