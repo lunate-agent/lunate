@@ -4,7 +4,7 @@ Notable changes to Lunate, one section per release. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project aims to use
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Versions are tagged on
 [GitHub Releases](https://github.com/lunate-agent/lunate/releases); the release process itself is in
-[`docs/dev/distribution.md`](docs/dev/distribution.md).
+[`docs/distribution.md`](docs/distribution.md).
 
 ## [Unreleased]
 
