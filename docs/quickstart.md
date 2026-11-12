@@ -95,7 +95,7 @@ shorter path for a missing credential.
 
 `lunate setup` runs the same walk from flags without a terminal: one flag per answer, nothing
 invented for an absent one. [CI and unattended runs](ci.md#configure-a-machine-without-a-terminal)
-has the flag set, the exit codes and a working example.
+has the flag set, the exit codes and the example.
 
 ## If the first run refuses
 
