@@ -18,7 +18,7 @@ context and description and gains the one key — `keys.json` stays the only pla
 An unknown id is refused with the closest ids named, a key an earlier row already answers is refused
 with that row named, and any remap persists so it survives a restart.
 
-The binding ids come from the [key binding table](dev/guide.md#terminal-ui-lunatetui).
+The binding ids come from the [key bindings reference](keybindings.md).
 
 ## Related
 

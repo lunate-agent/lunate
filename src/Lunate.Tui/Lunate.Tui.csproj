@@ -20,7 +20,7 @@
 
     <ItemGroup>
         <!--
-            The keymap is data, not code: the router, the in-app help and docs/dev/guide.md's key table
+            The keymap is data, not code: the router, the in-app help and docs/keybindings.md's key table
             all read this file, and scripts/docs-sync generates the table from it.
         -->
         <EmbeddedResource Include="keys.json" />
