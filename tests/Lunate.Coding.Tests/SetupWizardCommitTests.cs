@@ -372,15 +372,17 @@ public sealed class SetupWizardCommitTests : IDisposable
         );
 
         string summary = string.Join("\n", SetupWizardSummary.Render(model));
-        Assert.Contains("provider: openai", summary, StringComparison.Ordinal);
-        Assert.Contains("provider: anthropic", summary, StringComparison.Ordinal);
+        Assert.Contains("provider openai", summary, StringComparison.Ordinal);
+        Assert.Contains("provider anthropic", summary, StringComparison.Ordinal);
+        // Both entries name the one reused reference and neither writes a key.
         Assert.Contains(
-            "credential: env:OPENAI_API_KEY (written to providers.json (reused reference))",
+            "credential reference: env:OPENAI_API_KEY",
             summary,
             StringComparison.Ordinal
         );
-        Assert.Contains("chat profile: chat-main", summary, StringComparison.Ordinal);
-        Assert.Contains("chat profile: chat-alt", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("auth.json", summary, StringComparison.Ordinal);
+        Assert.Contains("profile chat-main", summary, StringComparison.Ordinal);
+        Assert.Contains("profile chat-alt", summary, StringComparison.Ordinal);
     }
 
     [PosixFact]
