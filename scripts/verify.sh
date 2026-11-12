@@ -324,6 +324,7 @@ docs_profile() {
   step "changelog fragments"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
@@ -442,6 +443,7 @@ platform_checks() {
   step "changelog fragments"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"

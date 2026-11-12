@@ -14,7 +14,9 @@ conflict is the file's shape, not a worker's mistake.
   unreleased section with what the fragments produce, `--write` rewrites that section from them.
   Fragments are ordered by pull-request number, the order the merge queue produces.
 - The release pull request runs `--write` and commits the result. Releases are recognised by branch
-  `release/<version>` or a title starting `chore(release)`.
+  `release/<version>` or a title starting `chore(release)`. The Release workflow refuses a tag whose
+  commit is not on `main`, so that pull request is merged before anything ships, and the release
+  runbook states the lane contract and the command that verifies a release against it.
 - `ci-ok` fails when a pull request other than a release pull request edits `CHANGELOG.md`. The
   fragment-only pull requests pass. The gate names `changes/<pr-number>.md`.
 - Migration lands in the same pull request: today's unreleased entries stay where they are and are
@@ -44,5 +46,5 @@ None.
 `changes/`, `scripts/changelog-assemble`, `scripts/changelog-guard`, `scripts/ci-plan.sh`,
 `scripts/ci-ok.sh`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `CONTRIBUTING.md`,
 `docs/README.md`, `docs/distribution.md`, `.markdownlint-cli2.yaml`, and the Python test suites under
-`tests/scripts/`. `CHANGELOG.md` is left to the first release pull request, which runs the assembler.
+`tests/scripts/` (`test_release_workflow.py` pins the release-side contract). `CHANGELOG.md` is left to the first release pull request, which runs the assembler.
 No new package, public API, runtime behaviour or store format.

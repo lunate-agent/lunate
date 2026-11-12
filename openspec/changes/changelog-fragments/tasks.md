@@ -37,6 +37,8 @@
       only outside a pull-request event, plus self-test cases.
 - [x] 3.5 `scripts/ci-plan.sh`: `changes/*.md` selects the docs profile, with a self-test case.
 - [x] 3.6 `.github/workflows/release.yml`: `scripts/changelog-assemble --check` in the gate job.
+- [x] 3.7 `.github/workflows/release.yml`: refuse a tag whose commit is not on `main`, so the release
+      pull request that assembled the changelog is merged before anything ships.
 
 ## 4. Documentation
 
@@ -45,6 +47,9 @@
       fragments.
 - [x] 4.3 `docs/README.md`: the fragment rule in the map or the guideline, with one home.
 - [x] 4.4 `design.md` carries the exact proposed `AGENTS.md` bullet; `AGENTS.md` itself is unchanged.
+- [x] 4.5 `docs/distribution.md` states the lane contract — the release branch/title signals, the
+      lane's release and merge, and the tag-on-main verification — and `CONTRIBUTING.md` keeps one
+      copy of the docs-profile instruction.
 
 ## 5. Verification and bookkeeping
 
@@ -54,4 +59,6 @@
 - [x] 5.2 `dotnet csharpier check .` and markdownlint stay green (no C# is touched).
 - [x] 5.3 Both scripts and both suites run under the stock macOS `/usr/bin/python3` (3.9):
       `from __future__ import annotations`, and no `Path.write_text(newline=)` in the tests.
-- [x] 5.4 `openspec archive changelog-fragments --yes` as the final commit.
+- [x] 5.4 `tests/scripts/test_release_workflow.py`: the tag-on-main guard, its tag-only event and
+      unswallowable failure, and the documented lane contract.
+- [x] 5.5 `openspec archive changelog-fragments --yes` as the final commit.

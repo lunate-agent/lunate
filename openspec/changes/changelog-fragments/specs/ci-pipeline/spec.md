@@ -81,6 +81,8 @@ A committed script, `scripts/changelog-assemble`, SHALL use only the Python 3 st
 
 A pull request whose branch is `release/<version>` or whose title starts `chore(release)` SHALL be treated as the release pull request: it MAY edit `CHANGELOG.md`, and it SHALL run `scripts/changelog-assemble --write` and commit the result. The changelog guard SHALL exempt exactly those two signals so the assembler is not blocked by the check it exists to satisfy. The first release after the fragments land SHALL consume the fragments and SHALL leave already-released history unchanged.
 
+The Release workflow SHALL fail a tag whose commit is not on `main`, so a release cannot be cut from a release branch the lane has not merged. The release runbook SHALL state the lane contract — the lane recognises the same two signals, releases the release pull request and merges it before the tag — and SHALL name the verification: the tag is an ancestor of `origin/main` and the release exists.
+
 #### Scenario: The release pull request may edit the changelog
 
 - **GIVEN** a pull request on branch `release/0.4.0` that runs `--write` and commits `CHANGELOG.md`
@@ -92,6 +94,18 @@ A pull request whose branch is `release/<version>` or whose title starts `chore(
 - **GIVEN** a pull request titled `chore(release): 0.4.0` on a normal feature branch
 - **WHEN** the changelog guard runs
 - **THEN** it passes
+
+#### Scenario: A tag outside main fails
+
+- **GIVEN** a release tag on a commit that is not an ancestor of `origin/main`
+- **WHEN** the Release workflow's gate runs
+- **THEN** it fails and says to merge the release pull request before tagging
+
+#### Scenario: A merged release pull request may be released
+
+- **GIVEN** the release pull request merged into `main` with the assembled changelog
+- **WHEN** its commit is tagged and the Release workflow runs
+- **THEN** the commit is on `main`, the changelog check passes, and the release is published
 
 ## MODIFIED Requirements
 

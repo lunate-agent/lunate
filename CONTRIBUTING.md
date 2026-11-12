@@ -58,7 +58,6 @@ To install your built tool locally instead of publishing it, pack it and install
 <path-to-the-nupkg> lunate`.
 
 A docs-only or proposal-only pull request runs `bash scripts/verify.sh --profile docs` instead:
-A docs-only or proposal-only pull request runs `bash scripts/verify.sh --profile docs` instead:
 markdownlint, `openspec validate --all --strict`, `scripts/docs-sync --check`,
 `scripts/docs-check --check` and `scripts/no-docs-references.sh` (which fails if anything under
 `docs/` becomes a build input or a test's subject). `scripts/ci-plan.sh` picks the profile from the

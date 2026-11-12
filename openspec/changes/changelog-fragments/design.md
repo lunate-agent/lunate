@@ -121,7 +121,12 @@ but the branch stays as the transition safeguard. From the next pull request onw
 carries `changes/README.md` and the guard runs.
 
 `release.yml` runs `--check` in the gate job before publishing. A fragment merged after the release
-pull request was cut therefore fails the tag by name instead of shipping unassembled notes.
+pull request was cut therefore fails the tag by name instead of shipping unassembled notes. It also
+refuses a tag whose commit is not on `main`, which is the repository's half of the lane contract: the
+lane recognises `release/<version>` and `chore(release)`, releases the release pull request and
+merges it before the tag. `docs/distribution.md` states that contract and the verification — the tag
+is an ancestor of `origin/main` and `gh release view <tag>` finds the release — so acceptance is
+checked after a release instead of assumed.
 
 ```mermaid
 flowchart LR
@@ -168,7 +173,8 @@ bullet inserted in `## Rules` after the "A failing golden session test …" bull
   or a `chore(release)` title. Because #801 merged `changes/801.md` first, that switch is already
   live, so this pull request must not edit `CHANGELOG.md`; it ships fragment-only and the first
   release pull request assembles. The lane's release/merge execution itself is still outside this
-  repository.
+  repository, so the release runbook states the contract and `release.yml` enforces the observable
+  half: a tag whose commit is not on `main` fails.
 - **An open pull request that edited `CHANGELOG.md` before this lands** → it conflicts with this
   change anyway; it keeps its existing fragment if it has one and removes the hand edit.
 - **A fragment merged before the grammar existed does not parse** → both were found and settled here:

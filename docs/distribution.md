@@ -80,9 +80,18 @@ promoted section, leave a fresh empty `## [Unreleased]` above it, delete the con
 commit the result. The Release workflow runs `--check` on the tag, so a fragment that merged after
 this pull request fails the tag by name instead of shipping unassembled notes.
 
+The lane contract makes the release pull request the only exception: a pull request on
+`release/<version>` or titled `chore(release): <version>` is exempt from the changelog rule, and the
+lane releases it and merges it before the tag is cut. The repository proves the observable half —
+`scripts/changelog-guard` exempts exactly those two signals, and the Release workflow refuses a tag
+whose commit is not on `main` as well as a tag whose changelog is not assembled. Verify a release
+against the contract with `git merge-base --is-ancestor <tag> origin/main` and `gh release view
+<tag>`: the tag must be on `main` and the release must exist.
+
 ### 2. Tag the release
 
-The Release workflow fails the tag when it does not match `<Version>` in `Directory.Build.props`.
+The Release workflow fails the tag when it does not match `<Version>` in `Directory.Build.props`,
+and when the tagged commit is not on `main`; the release pull request must be merged first.
 
 ```sh
 git switch main

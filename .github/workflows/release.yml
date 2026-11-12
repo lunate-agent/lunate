@@ -70,6 +70,20 @@ jobs:
             exit 1
           fi
 
+      - name: The release pull request is merged into main
+        # The release pull request assembles the changelog and is merged before the tag; a tag on a
+        # commit outside main would publish notes from an unmerged release branch. This is the
+        # repository-side half of the lane contract documented in docs/distribution.md.
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "release: ${GITHUB_REF_NAME} is not on main. Merge the release pull request before tagging so the tag ships the changelog it assembled." >&2
+            exit 1
+          fi
+
       - name: Changelog is assembled from the fragments
         # The release pull request runs --write; this is the tag-time proof that no fragment merged
         # after it was cut, so a release never ships notes that disagree with its own fragments. A
