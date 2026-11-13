@@ -22,6 +22,11 @@ verdict that depends on when it ran is the same defect class as a gate that fail
   the ready gate passed, red when it failed), the same head shapes with an older ready run rerun that
   re-executes its jobs (green when it passed, red when it failed), the #816 cancelled-leg case, a
   still-running gate and a live draft. It also pins the two pull-request concurrency groups.
+- The live gate is complete only when every leg of the plan's verify matrix has a check run on the
+  head: the shard count comes from the legs that ran, and a missing shard or a missing OS leg fails
+  the aggregate with the leg named, so a matrix that shrank cannot pass on its surviving shards. The
+  self-test ties the OS list to the plan job's own `leg` lines and covers a gate that lost one shard
+  and a gate that lost a whole OS.
 - `merge_group`, push, schedule and manual-dispatch decisions keep the existing path and behaviour.
 
 ## Capabilities

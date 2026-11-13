@@ -187,7 +187,8 @@ touches source, tests, templates or workflows runs the full matrix. The decision
 than the cheap one. The single required `ci-ok` check judges the live head's newest attempt of each
 required job, not the run's trigger payload: rerunning an older or draft run reports the current
 verdict, and draft and ready runs have separate concurrency groups so a draft push cannot cancel the
-ready gate.
+ready gate. A gate that never carried a leg the plan put in its verify matrix is red too, naming the
+missing leg, rather than green on the shards that did run.
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the

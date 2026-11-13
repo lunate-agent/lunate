@@ -6,7 +6,7 @@
 
 The CI workflow SHALL expose a single aggregate status check (`ci-ok`) that succeeds only when every verification job the selected profile requires has completed successfully and every job that profile does not select was skipped, so renaming, adding, or removing a matrix leg cannot silently drop required coverage. The repository ruleset SHALL require the aggregate check for `main` — a one-time maintainer configuration outside the workflow's control. The aggregate SHALL report a result on every pull request: the workflow SHALL NOT apply path filters to pull-request events. A required job that is skipped or cancelled SHALL NOT count as success, a job that ran although the profile did not select it SHALL fail the aggregate, and a run whose profile cannot be read SHALL fail rather than pass.
 
-For a pull request, the aggregate SHALL decide from the pull request's live draft state and the live head commit's check runs read through the GitHub API, not from the triggering run's frozen `draft` payload or its own `needs` results. It SHALL take, for each required job, the newest attempt across all runs on that live head. A run whose newest plan check run was skipped is a draft-payload run and SHALL NOT count; a cancelled attempt SHALL NOT count when any other attempt of that job exists, and SHALL never be a pass when it is the only evidence. While the live gate's required jobs are still queued or running, the aggregate SHALL fail with `gate still running` and SHALL name those jobs; it SHALL NOT report green and SHALL NOT turn this run's payload into a red. Rerunning an older or draft-payload run SHALL therefore yield the live head's verdict: green when the head's ready gate passed, red when it failed. `merge_group`, push, `schedule` and `workflow_dispatch` decisions SHALL keep the existing payload decision.
+For a pull request, the aggregate SHALL decide from the pull request's live draft state and the live head commit's check runs read through the GitHub API, not from the triggering run's frozen `draft` payload or its own `needs` results. It SHALL take, for each required job, the newest attempt across all runs on that live head. A run whose newest plan check run was skipped is a draft-payload run and SHALL NOT count; a cancelled attempt SHALL NOT count when any other attempt of that job exists, and SHALL never be a pass when it is the only evidence. While the live gate's required jobs are still queued or running, the aggregate SHALL fail with `gate still running` and SHALL name those jobs; it SHALL NOT report green and SHALL NOT turn this run's payload into a red. The live head SHALL carry a check run for every leg of the plan's verify matrix: the aggregate SHALL take the matrix's shard count from the legs that ran, and SHALL fail, naming each missing leg, when a shard or a whole OS leg the plan requires has no check run at all, so a missing leg cannot count as another shard's pass. Rerunning an older or draft-payload run SHALL therefore yield the live head's verdict: green when the head's ready gate passed and carried every required leg, red when it failed or a required leg is absent. `merge_group`, push, `schedule` and `workflow_dispatch` decisions SHALL keep the existing payload decision.
 
 Two jobs MAY be conditional: the Windows PowerShell leg on the changed paths and the changelog
 fragment gate on the pull-request event. The PowerShell skip SHALL count as success only when the
@@ -107,6 +107,18 @@ run in which it did not succeed SHALL fail the aggregate.
 - **GIVEN** a live ready pull request whose required jobs include a check run that is queued or in progress
 - **WHEN** the aggregate check runs
 - **THEN** it fails with `gate still running`, names those jobs, and neither reports green nor derives a red from its own payload
+
+#### Scenario: A missing required matrix leg is red
+
+- **GIVEN** a live ready pull request whose gate passed every leg it ran, but one shard of the plan's verify matrix has no check run on the head at all
+- **WHEN** the aggregate check runs
+- **THEN** it fails and names the missing leg instead of completing green on the shards that did run
+
+#### Scenario: A whole missing OS leg is red
+
+- **GIVEN** a live ready pull request whose gate ran the Windows verify shards but no Ubuntu verify leg at all
+- **WHEN** the aggregate check runs
+- **THEN** it fails and names the missing Ubuntu legs, so a matrix that shrank silently cannot pass
 
 #### Scenario: A live draft is red
 

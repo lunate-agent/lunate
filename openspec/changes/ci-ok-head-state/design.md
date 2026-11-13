@@ -84,6 +84,18 @@ branch protection sees and satisfies "newest attempt across all runs on that SHA
 attempt is ignored when another attempt exists and survives only when it is the sole evidence, so it
 can fail closed but cannot override a real verdict.
 
+### A gate is only complete when every matrix leg is on the head
+
+The matrix is the plan's decision, and a check run only exists for a leg that was scheduled. Reading
+the selection as "whatever `verify` runs are there" would therefore let a matrix that lost a shard
+report green on the shards that did run — the same fail-open shape as a skipped required check. Each
+leg's own name carries the matrix's size (`verify (ubuntu-latest, 1/4)`), so the helper takes the
+shard count from the legs that ran, requires every shard `1..N` for each OS the plan covers on a pull
+request, and reports the absent legs by name before `decide()` runs. A leg that is queued or running
+is *present* and is reported as `gate still running` instead. The OS list is a constant in the helper,
+and the self-test ties it to the plan job's `leg` lines in the workflow, so adding, renaming or
+removing a leg in CI fails the self-test instead of silently widening what a pass covers.
+
 ### The existing rules remain the deciding layer
 
 `ci-ok-state` only recovers the inputs the decision already used. It infers the profile and the
@@ -121,6 +133,8 @@ network code, so the self-test reads fixtures under `tests/fixtures/ci-ok/` rath
   and says it refuses to decide from the run's payload.
 - **A newer gate run is still starting.** Pending check runs are named as "gate still running"; the
   job does not green a partial run.
+- **A matrix leg never got a check run.** The live verdict names the missing leg and fails; the shard
+  count comes from the legs that ran, so a shrunken matrix cannot pass on its survivors.
 - **Historical heads lack a job added later.** The live path follows the check runs on that head; the
   self-test fixtures pin the current job shape. This change does not try to reinterpret an old head's
   workflow definition.
@@ -130,6 +144,10 @@ network code, so the self-test reads fixtures under `tests/fixtures/ci-ok/` rath
 ## Test strategy
 
 `scripts/ci-ok.sh --self-test` keeps every existing env-only decision case and adds live-fixture
-cases for #815 green and red, #816 cancelled legs, a still-running gate and a live draft. It also
-evaluates the concurrency expression for a draft and a ready pull request and requires different
-groups. The fixtures are committed under `tests/fixtures/ci-ok/`; no test calls the network.
+cases for #815 green and red, #816 cancelled legs, a still-running gate, a live draft, a gate missing
+one verify shard and a gate missing a whole verify OS. It also evaluates the concurrency expression
+for a draft and a ready pull request, requires different groups, and compares the OS list the live
+decision requires against the plan's own `leg` lines. The fixtures are committed under
+`tests/fixtures/ci-ok/`; no test calls the network. Every fixture gate carries the four ubuntu and
+four windows shards the workflow's plan produces, so a fixture cannot pass by being smaller than a
+real matrix.
