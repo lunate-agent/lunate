@@ -35,11 +35,18 @@
       expecting red.
 - [x] 3.6 `scripts/ci-ok.sh --self-test`: run the production live path over those fixtures and keep
       every existing env-only decision case and the `merge_group` cases.
+- [x] 3.7 `tests/fixtures/ci-ok/rerun-ready-passed-green`: a passed ready gate beside a newer rerun of
+      an older ready run that re-executed its jobs and passed, expecting green.
+- [x] 3.8 `tests/fixtures/ci-ok/rerun-ready-failed-red`: the same shape on a failed head, where the
+      re-execution failed too, expecting red.
+- [x] 3.9 `scripts/ci-ok.sh --self-test`: run those two ready-rerun fixtures as well, so the
+      re-executed ready shape is covered and not only the draft-payload rerun.
 
 ## 4. Documentation and bookkeeping
 
 - [x] 4.1 `openspec/changes/ci-ok-head-state/specs/ci-pipeline/spec.md`: update the aggregate merge
-      gate and run-concurrency requirements with the live-head, pending, #815 and #816 scenarios.
+      gate and run-concurrency requirements with the live-head, pending, ready-rerun, #815 and #816
+      scenarios.
 - [x] 4.2 `changes/<pull-request-number>.md`: the release-note line.
 - [x] 4.3 Run `bash scripts/ci-ok.sh --self-test`, `openspec validate ci-ok-head-state --strict`,
       `dotnet csharpier check .` (no C# change) and the docs lint.

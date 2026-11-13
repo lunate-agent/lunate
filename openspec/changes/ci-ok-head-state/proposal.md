@@ -19,8 +19,9 @@ verdict that depends on when it ran is the same defect class as a gate that fail
 - Draft and ready pull-request runs use separate concurrency groups, so a draft run cannot cancel a
   ready run. Within a group, a newer run of the same obligation still supersedes the older one.
 - `scripts/ci-ok.sh --self-test` gains API-shaped fixtures for the #815 draft-rerun case (green when
-  the ready gate passed, red when it failed), the #816 cancelled-leg case, a still-running gate and
-  a live draft. It also pins the two pull-request concurrency groups.
+  the ready gate passed, red when it failed), the same head shapes with an older ready run rerun that
+  re-executes its jobs (green when it passed, red when it failed), the #816 cancelled-leg case, a
+  still-running gate and a live draft. It also pins the two pull-request concurrency groups.
 - `merge_group`, push, schedule and manual-dispatch decisions keep the existing path and behaviour.
 
 ## Capabilities

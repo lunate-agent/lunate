@@ -90,6 +90,18 @@ run in which it did not succeed SHALL fail the aggregate.
 - **WHEN** the aggregate check runs
 - **THEN** it ignores the cancelled and draft-payload attempts and completes green
 
+#### Scenario: A re-executed ready run is judged by its newest attempt
+
+- **GIVEN** a ready run on the live head whose required jobs passed, and a newer rerun of an older ready run that re-executed its jobs and passed as well
+- **WHEN** the aggregate check runs
+- **THEN** it takes the newest attempt of each required job and completes green
+
+#### Scenario: A failed re-execution of a ready run is red
+
+- **GIVEN** a ready run on the live head whose required jobs failed, and a newer rerun of an older ready run that re-executed its jobs and failed again
+- **WHEN** the aggregate check runs
+- **THEN** it takes the newest attempt of each required job and fails, naming the failed required job
+
 #### Scenario: A ready gate with running jobs says so
 
 - **GIVEN** a live ready pull request whose required jobs include a check run that is queued or in progress
