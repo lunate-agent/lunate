@@ -570,6 +570,13 @@ self_test() {
         "did not succeed" "815-ready-failed-red"
     _self_live_case "cancelled draft legs do not override the ready run (#816)" 0 \
         "the full gate succeeded" "816-cancelled-legs-green"
+    # Rerunning an older *ready* run re-executes its jobs (its plan does not skip), so the newest
+    # attempt of each required job is what decides: the head's ready gate and the rerun both pass,
+    # or both fail.
+    _self_live_case "a passed ready rerun on a passed head is green" 0 \
+        "the full gate succeeded" "rerun-ready-passed-green"
+    _self_live_case "a failed ready rerun on a failed head is red" 1 \
+        "did not succeed" "rerun-ready-failed-red"
     _self_live_case "a ready gate with running jobs names them" 1 \
         "gate still running" "ready-still-running"
     _self_live_case "a live draft is red even when an older run passed" 1 \
