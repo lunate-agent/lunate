@@ -35,6 +35,9 @@ public sealed class InteractiveSessionFirstRunTests
     [PosixFact]
     public async Task Escape_dismisses_the_first_run_offer_without_a_write()
     {
+        if (OperatingSystem.IsMacOS())
+            Assert.Skip("Quarantined on macOS: #817");
+
         using var host = new InteractiveSessionHost(freshInstall: true);
         host.Console.IsInteractive = true;
 
