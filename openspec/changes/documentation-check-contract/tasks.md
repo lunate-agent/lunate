@@ -2,11 +2,10 @@
 
 ## 1. The delta specs
 
-- [x] 1.1 `specs/documentation/spec.md`: one added requirement, "Documentation links, anchors,
+- [x] 1.1 `specs/repo-quality/spec.md`: one added requirement, "Documentation links, anchors,
       redirects and navigation", covering the manifest shape, the navigation rules, link and anchor
       resolution, redirect stubs versus maintainer renames, the runnable markers and `proseOnly`,
-      `--run`, the self-test and the gate wiring, with one scenario per failure class. It creates the
-      `documentation` capability; `repo-quality` is left untouched because #820 rescopes that spec.
+      `--run`, the self-test and the gate wiring, with one scenario per failure class.
 - [x] 1.2 `specs/ci-pipeline/spec.md`: the per-commit verification matrix copied whole from
       `openspec/specs/ci-pipeline/spec.md`, with `scripts/docs-check --check` named in the
       OS-independent set and in the documentation-only push sentence, plus the scenario "A broken
@@ -42,14 +41,12 @@
 - [x] 3.3 `python3 tests/scripts/test_docs_check.py`.
 - [x] 3.4 `python3 scripts/docs-sync --check` and `npx --yes markdownlint-cli2@0.23.3`.
 - [x] 3.5 `git diff --stat origin/main...HEAD`: no page, script, workflow or `docs/docs.json` change
-      other than the change folder, and no change to `openspec/specs/repo-quality/spec.md`, which
-      #820 owns while it is open.
+      other than the change folder.
 
 ## 4. Sync and archive
 
 - [x] 4.1 Sync both delta specs into `openspec/specs/`: `openspec archive` applies the deltas, so
-      the created `documentation` spec — given its real purpose in the archive commit — and the
-      replaced `ci-pipeline` matrix are read back from the main specs after the archive and diffed
-      against the deltas.
+      the appended `repo-quality` requirement and the replaced `ci-pipeline` matrix are read back
+      from the main specs after the archive and diffed against the deltas.
 - [x] 4.2 `openspec archive documentation-check-contract --yes` as the final commit of this branch,
       after `openspec validate --all --strict`.

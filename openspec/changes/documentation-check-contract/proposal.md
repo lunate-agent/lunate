@@ -12,10 +12,8 @@ down before those slices lean on it.
 
 ## What Changes
 
-- `repo-quality` still owns the documentation conventions (lint, templates, the map and writing
-  guideline) without stating what the checker enforces. The check is a property of the documentation
-  tree itself, so it gets its own capability, `documentation`: every relative link and `#anchor` on
-  the user and maintainer pages resolves, every redirect is the four-line stub (or a maintainer
+- `repo-quality` gains one requirement for the documentation check: every relative link and `#anchor`
+  on the user and maintainer pages resolves, every redirect is the four-line stub (or a maintainer
   rename with no stub), `docs/docs.json` lists every user-path page exactly once, and every page
   carries a runnable marker or a `proseOnly` reason.
 - `ci-pipeline`'s per-commit verification matrix names the check in the OS-independent list the single
@@ -28,17 +26,17 @@ down before those slices lean on it.
 
 ### New Capabilities
 
-- `documentation`: the documentation tree's own contract — the `docs/docs.json` manifest, link and
-  anchor resolution, redirect stubs, runnable markers and the `scripts/docs-check` gate.
+None.
 
 ### Modified Capabilities
 
+- `repo-quality`: adds the documentation link, anchor, redirect and navigation check as a repository
+  convention with its scenarios.
 - `ci-pipeline`: names the documentation check in the OS-independent set, the docs profile and the
   documentation-only push, so removing it becomes a spec change rather than a quiet regression.
 
 ## Impact
 
-`openspec/specs/documentation/spec.md` (created by the delta in this change) and
-`openspec/specs/ci-pipeline/spec.md` (through its delta). `repo-quality` is deliberately untouched:
-#820 rescopes that spec in the same window. No source, script, workflow, documentation page or
-`docs/docs.json` change; no new package, public API, runtime behaviour or session format.
+`openspec/specs/repo-quality/spec.md` and `openspec/specs/ci-pipeline/spec.md` (through the deltas in
+this change). No source, script, workflow, documentation page or `docs/docs.json` change; no new
+package, public API, runtime behaviour or session format.

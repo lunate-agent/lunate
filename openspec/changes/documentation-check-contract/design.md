@@ -47,18 +47,14 @@ no container, no dependency and no runtime path of the product.
 
 ## Decisions
 
-### Record what the check enforces in `documentation`, and when it runs in `ci-pipeline`
+### Record the behaviour in the two owning capabilities, not in a new one
 
-The check has two obligations: *what* it enforces is the shape of the documentation tree, and *when*
-it runs is the verification matrix. The first was written into `repo-quality`'s
-"Documentation lint" neighbourhood, and review blocked that: #820 rescopes
-`openspec/specs/repo-quality/spec.md` in the same window, so two pull requests would edit one main
-spec and have to be resequenced by hand. A capability that owns the documentation tree — its
-manifest, its links, its redirects and its examples — is the home this rule needs: `repo-quality`
-keeps the lint, the templates and the documentation map, and every later slice that changes the tree
-changes one spec. The delta is therefore one added requirement in the new `documentation`
-capability; the `ci-pipeline` delta is one modified requirement, copied whole so the archive does
-not lose its scenarios.
+The check has two obligations and they belong to two capabilities: *what* it enforces is a
+documentation convention (`repo-quality`), and *when* it runs is the verification matrix
+(`ci-pipeline`). A new capability (`documentation-gate`) would duplicate both and split the fact
+from its home, which the documentation architecture's first principle forbids. The `repo-quality`
+delta is one added requirement; the `ci-pipeline` delta is one modified requirement, copied whole so
+the archive does not lose its scenarios.
 
 ### Name the check inside the enumeration, rather than in a parallel sentence
 
@@ -88,12 +84,8 @@ both halves so a later slice that adds an `offline` block does not have to amend
 - The matrix requirement already carries one stale clause (`changes/*.md` never reached its prose
   list in #813). This change copies the existing text and touches only what the documentation check
   needs; correcting the fragment clause belongs to #813's card, not here.
-- The new `documentation` capability's purpose cannot come from the delta, so `openspec archive`
-  writes a placeholder that this branch replaces in the same commit, the way `a85cbb22` gave
-  `repo-quality` its real purpose.
-- `repo-quality` no longer states this rule. Its own requirements (the lint, the documentation map)
-  are untouched, and `docs/architecture.md`'s pointer to that spec still resolves, because the
-  *architecture documentation* requirement stays there.
+- The `repo-quality` purpose paragraph stays as it is. A delta cannot rewrite a purpose statement,
+  and the added requirement is where a reader looks for the rule.
 
 ## Related
 
