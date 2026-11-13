@@ -255,6 +255,48 @@ def self_test():
         if not any("exited 3" in problem for problem in run_examples(root, binary)):
             failures.append("run: a failing help block must be reported")
 
+    def cli_case(name, page, help_text, fails, contains):
+        with tempfile.TemporaryDirectory(
+            prefix="docs-check-self-test.", dir=os.environ.get("TMPDIR") or None
+        ) as tmp:
+            root = Path(tmp)
+            files = base()
+            files["docs/docs.json"] = manifest(
+                base_navigation() + [{"title": "CLI", "path": "cli.md"}]
+            )
+            files["docs/cli.md"] = page
+            for relative, text in files.items():
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                write_text(path, text)
+            binary = root / "fake-lunate"
+            write_text(binary, f"#!/bin/sh\nprintf '%s\\n' {help_text!r}\nexit 0\n")
+            binary.chmod(0o755)
+            problems = run_examples(root, binary)
+            joined = "\n".join(problems)
+            if fails and contains not in joined:
+                failures.append(f"cli.md: {name}: expected '{contains}' in:\n{joined}")
+            elif not fails and problems:
+                failures.append(f"cli.md: {name}: expected success, got:\n{joined}")
+
+    help_run = "<!-- run: help -->\n```bash\nlunate --help\n```\n"
+    cli_page = "# CLI\n\nRun `lunate --help` or pass `--json`.\n\n" + help_run
+    cli_case("matching options", cli_page, "lunate --help [--json]", False, "")
+    cli_case(
+        "documented option the help omits",
+        cli_page,
+        "lunate --help",
+        True,
+        "documents '--json', which the --help output does not list",
+    )
+    cli_case(
+        "help option the page omits",
+        "# CLI\n\n" + help_run,
+        "lunate --help [--json]",
+        True,
+        "lists '--json', which the page does not document",
+    )
+
     if failures:
         for failure in failures:
             print(f"docs-check: self-test: {failure}", file=sys.stderr)
