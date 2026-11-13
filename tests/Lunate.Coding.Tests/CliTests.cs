@@ -1034,6 +1034,24 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Run_with_help_lists_the_extension_maintenance_subcommands()
+    {
+        using var writer = new StringWriter();
+
+        var exitCode = Cli.Run(
+            ["--help"],
+            writer,
+            TextWriter.Null,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(0, exitCode);
+        string[] lines = writer.ToString().ReplaceLineEndings("\n").Split('\n');
+        Assert.Contains("  lunate cache prune [--json]", lines);
+        Assert.Contains("  lunate extensions reload <id|path> [--json]", lines);
+    }
+
+    [Fact]
     public void Run_with_an_interactive_prompt_argument_is_a_usage_error()
     {
         using var output = new StringWriter();

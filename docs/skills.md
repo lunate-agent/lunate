@@ -30,4 +30,4 @@ records for scripted runs.
 - [MCP servers](mcp-servers.md) — tools the session starts from configuration
 - [Skill sources in extensions](extensions/contributions/skill-sources.md) — shipping skills inside an
   extension
-- [Configuration](configuration.md) — `skills.indexBudget` and every other key
+- [Settings reference](settings.md) — `skills.indexBudget` and every other key

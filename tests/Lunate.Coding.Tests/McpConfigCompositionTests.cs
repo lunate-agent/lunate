@@ -155,7 +155,8 @@ public sealed class McpConfigCompositionTests
             globalConfig,
             $$"""{ "mcpServers": { "global-srv": {{McpTestServerSupport.EntryJson(globalMarker)}} } }"""
         );
-        string projectConfig = McpComposition.ProjectConfigPath(temp.Root);
+        Workspace worktree = new(temp.Root);
+        string projectConfig = McpComposition.ProjectConfigPath(worktree.WorktreeRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(projectConfig)!);
         File.WriteAllText(
             projectConfig,
@@ -210,11 +211,12 @@ public sealed class McpConfigCompositionTests
             { "mcpServers": { "srv": { "command": "lunate-mcp-command-that-cannot-exist" } } }
             """
         );
-        string projectConfig = McpComposition.ProjectConfigPath(temp.Root);
+        Workspace worktree = new(temp.Root);
+        string projectConfig = McpComposition.ProjectConfigPath(worktree.WorktreeRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(projectConfig)!);
         File.WriteAllText(projectConfig, McpTestServerSupport.ConfigJson("srv"));
         string storePath = temp.File("store");
-        TrustProjectFile(storePath, temp.Root, projectConfig);
+        TrustProjectFile(storePath, worktree, projectConfig);
         var client = new ScriptedChatClient()
             .Enqueue(
                 Scripts.Call("call-1", "srv__echo", Scripts.Args(("text", "from project"))),
@@ -246,6 +248,55 @@ public sealed class McpConfigCompositionTests
         );
         Assert.False(result.GetProperty("isError").GetBoolean());
         Assert.Equal("from project", result.GetProperty("output").GetString());
+    }
+
+    /// <summary>
+    /// The repository-identity half of the trust seam, independent of where the process puts its
+    /// temp directory: a project file in a worktree that carries its own <c>.git</c> is trusted
+    /// under that repository's identity, which is what the composition looks up. A record made
+    /// under the worktree root instead leaves the file refused, so this pins the seam the macOS
+    /// failures came from even where <c>TMPDIR</c> sits outside a repository (as CI's does).
+    /// </summary>
+    [Fact]
+    public async Task A_project_file_inside_a_repository_is_trusted_under_the_repository_identity()
+    {
+        using var temp = new TempDirectory();
+        string worktreeRoot = temp.File("worktree");
+        Directory.CreateDirectory(Path.Combine(worktreeRoot, ".git"));
+        Workspace worktree = new(worktreeRoot);
+        Assert.Equal(
+            Workspace.Canonicalize(Path.Combine(worktreeRoot, ".git")),
+            worktree.GitCommonDir
+        );
+        string marker = temp.File("project-marker.txt");
+        string projectConfig = McpComposition.ProjectConfigPath(worktree.WorktreeRoot);
+        Directory.CreateDirectory(Path.GetDirectoryName(projectConfig)!);
+        File.WriteAllText(projectConfig, McpTestServerSupport.ConfigJson("srv", marker));
+        string storePath = temp.File("store");
+        TrustProjectFile(storePath, worktree, projectConfig);
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+            WorkingDirectory = worktreeRoot,
+            Extensions = new ExtensionSeams
+            {
+                StorePath = storePath,
+                Log = new RecordingExtensionLog(),
+            },
+        };
+
+        (int exitCode, string output, _) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output);
+        Assert.True(
+            File.Exists(marker),
+            "a project file trusted under the repository identity must start its server"
+        );
     }
 
     [Fact]
@@ -295,14 +346,15 @@ public sealed class McpConfigCompositionTests
         using var temp = new TempDirectory();
         string agentsMarker = temp.File("agents-marker.txt");
         string rootMarker = temp.File("root-marker.txt");
-        string agentsConfig = McpComposition.ProjectAgentsConfigPath(temp.Root);
+        Workspace worktree = new(temp.Root);
+        string agentsConfig = McpComposition.ProjectAgentsConfigPath(worktree.WorktreeRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(agentsConfig)!);
         File.WriteAllText(agentsConfig, McpTestServerSupport.ConfigJson("test", agentsMarker));
-        string rootConfig = McpComposition.ProjectRootConfigPath(temp.Root);
+        string rootConfig = McpComposition.ProjectRootConfigPath(worktree.WorktreeRoot);
         File.WriteAllText(rootConfig, McpTestServerSupport.ConfigJson("test", rootMarker));
         string storePath = temp.File("store");
-        TrustProjectFile(storePath, temp.Root, agentsConfig);
-        TrustProjectFile(storePath, temp.Root, rootConfig);
+        TrustProjectFile(storePath, worktree, agentsConfig);
+        TrustProjectFile(storePath, worktree, rootConfig);
         var log = new RecordingExtensionLog();
         var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
         PrintModeOptions options = PrintModeTestSupport.BaseOptions(
@@ -326,7 +378,7 @@ public sealed class McpConfigCompositionTests
             File.Exists(rootMarker),
             "the shadowed root .mcp.json definition must not start"
         );
-        string canonicalRoot = Workspace.Canonicalize(temp.Root);
+        string canonicalRoot = worktree.WorktreeRoot;
         Assert.True(
             log.Contains(
                 $"server 'test' from '{Path.Combine(canonicalRoot, ".agents", "mcp.json")}' replaces the same name from '{Path.Combine(canonicalRoot, ".mcp.json")}'"
@@ -372,7 +424,8 @@ public sealed class McpConfigCompositionTests
         using var temp = new TempDirectory();
         string globalConfig = temp.File("global-mcp.json");
         File.WriteAllText(globalConfig, """{ "mcpServers": {} }""");
-        string projectConfig = McpComposition.ProjectConfigPath(temp.Root);
+        Workspace worktree = new(temp.Root);
+        string projectConfig = McpComposition.ProjectConfigPath(worktree.WorktreeRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(projectConfig)!);
         File.WriteAllText(projectConfig, """{ "mcpServers": { """);
         string storePath = temp.File("store");
@@ -402,7 +455,7 @@ public sealed class McpConfigCompositionTests
         );
         Assert.DoesNotContain(malformed, untrustedErrors, StringComparison.Ordinal);
 
-        TrustProjectFile(storePath, temp.Root, projectConfig);
+        TrustProjectFile(storePath, worktree, projectConfig);
         var trustedClient = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
         PrintModeOptions trusted = PrintModeTestSupport.BaseOptions(
             temp,
@@ -436,14 +489,15 @@ public sealed class McpConfigCompositionTests
             globalConfig,
             $$"""{ "mcpServers": { "global-srv": {{McpTestServerSupport.EntryJson(globalMarker)}} } }"""
         );
-        string projectConfig = McpComposition.ProjectConfigPath(temp.Root);
+        Workspace worktree = new(temp.Root);
+        string projectConfig = McpComposition.ProjectConfigPath(worktree.WorktreeRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(projectConfig)!);
         File.WriteAllText(
             projectConfig,
             $$"""{ "mcpServers": { "project-srv": {{McpTestServerSupport.EntryJson(projectMarker)}} } }"""
         );
         string storePath = temp.File("store");
-        TrustProjectFile(storePath, temp.Root, projectConfig, servers: false);
+        TrustProjectFile(storePath, worktree, projectConfig, servers: false);
         var log = new RecordingExtensionLog();
         var client = new ScriptedChatClient()
             .Enqueue(
@@ -468,13 +522,8 @@ public sealed class McpConfigCompositionTests
         Assert.Equal(0, exitCode);
         Assert.True(File.Exists(globalMarker), "the global server must start");
         Assert.False(File.Exists(projectMarker), "an unapproved project server must not start");
-        string canonicalConfig = Path.Combine(
-            Workspace.Canonicalize(temp.Root),
-            ".lunate",
-            "mcp.json"
-        );
         Assert.True(
-            log.Contains($"server 'project-srv' from project MCP config '{canonicalConfig}'")
+            log.Contains($"server 'project-srv' from project MCP config '{projectConfig}'")
                 && log.Contains("interactive")
                 && log.Contains("'lunate trust'"),
             "the refusal hint must name the server and both approval paths; log:\n"
@@ -487,17 +536,30 @@ public sealed class McpConfigCompositionTests
         Assert.Equal("from global", result.GetProperty("output").GetString());
     }
 
+    /// <summary>
+    /// Records a project file's trust exactly where a session reads it: keyed by the repository
+    /// identity (<see cref="Workspace.GitCommonDir"/> when the worktree sits inside a repository,
+    /// the worktree root otherwise) and naming the file by the canonical path the composition
+    /// reads. A record made under the raw temp path, or under the worktree root while the temp
+    /// directory sits inside a repository, is a record the composition never looks at, so the file
+    /// would be refused as untrusted. That is the environment difference these scenarios used to
+    /// depend on: with <c>TMPDIR</c> outside a repository (CI, <c>/tmp</c>) the worktree root is
+    /// the identity, with <c>TMPDIR</c> inside one (a sandbox pointed into a checkout) it is that
+    /// repository's git common dir.
+    /// <see cref="A_project_file_inside_a_repository_is_trusted_under_the_repository_identity"/>
+    /// pins that half of the seam without relying on where <c>TMPDIR</c> points.
+    /// </summary>
     private static void TrustProjectFile(
         string storePath,
-        string worktreeRoot,
+        Workspace worktree,
         string configPath,
         bool servers = true
     )
     {
         var store = new ExtensionTrustStore(new ExtensionHostOptions { StorePath = storePath });
-        string canonical = Workspace.Canonicalize(worktreeRoot);
+        string identity = worktree.GitCommonDir ?? worktree.WorktreeRoot;
         store.RecordMcpConfigTrusted(
-            canonical,
+            identity,
             configPath,
             McpConfigTrustHash.ComputeFile(configPath),
             DateTimeOffset.UtcNow
@@ -509,8 +571,8 @@ public sealed class McpConfigCompositionTests
             )
             {
                 store.RecordMcpServerTrusted(
-                    canonical,
-                    canonical,
+                    identity,
+                    worktree.WorktreeRoot,
                     definitionHash,
                     DateTimeOffset.UtcNow
                 );
