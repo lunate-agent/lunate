@@ -20,5 +20,5 @@ reads the repository.
 
 - [Skills](skills.md) — reusable instructions a project or the user ships as `SKILL.md`
 - [MCP servers](mcp-servers.md) — tools the session starts from configuration
-- [Configuration](configuration.md) — every settings key, generated from the schema
+- [Settings reference](settings.md) — every settings key, generated from the schema
 - [Usage](usage.md) — the interactive session and its turns

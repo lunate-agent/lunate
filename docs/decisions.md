@@ -137,5 +137,5 @@ marks the cost provider-reported. `/cost` shows the decision line with model, me
 ## Related
 
 - [Models and providers](models-and-providers.md) — profiles, credentials and the chat model
-- [Configuration reference](configuration.md) — the decision keys and their scopes
+- [Settings reference](settings.md) — the decision keys and their scopes
 - [Use the terminal](usage.md) — where approvals and questions appear

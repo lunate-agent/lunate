@@ -12,8 +12,8 @@ Every accepted key, with its type, default, scope and allowed values, is in the 
 ## Decisions
 
 The decision profile, the approval, routing and question consumers, and the System One transport
-are described in [Decisions](decisions.md); the generated table above lists the exact keys,
-defaults and scopes.
+are described in [Decisions](decisions.md); the generated [settings reference](settings.md) lists
+the exact keys, defaults and scopes.
 
 ## Custom provider entry v2
 
