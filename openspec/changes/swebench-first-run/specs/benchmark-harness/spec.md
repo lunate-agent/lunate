@@ -46,13 +46,13 @@ A published run SHALL have exactly one cost cap in US dollars. The orchestrator 
 
 ### Requirement: mini-swe-agent baseline on the same subset
 
-The published run SHALL run the mini-swe-agent baseline on the same pinned subset and the same two models, with its own cost limit, and SHALL submit its patches to the official SWE-bench evaluation. The baseline's resolved counts, spend and failures SHALL be recorded in the same committed summary as the Lunate arm. The summary SHALL name the mini-swe-agent version that produced the numbers.
+The published run SHALL run the mini-swe-agent baseline on the same pinned subset and the same two models, with its own cost limit, and SHALL submit its patches to the official SWE-bench evaluation. The baseline's resolved counts, spend and failures SHALL be recorded in the same committed summary as the Lunate arm. The committed run definition SHALL name the mini-swe-agent version that produced the numbers and any provider-specific routing alias the baseline needed.
 
 #### Scenario: The baseline uses the same instances and models
 
 - **GIVEN** the committed subset and model matrix
 - **WHEN** the baseline arm runs
-- **THEN** it is invoked with the same instance ids and the same exact model ids as the Lunate arm
+- **THEN** it is invoked with the same instance ids and the same two models, and a provider-specific routing alias is recorded in the run definition
 
 #### Scenario: The baseline is scored officially
 

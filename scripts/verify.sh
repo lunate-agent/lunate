@@ -330,6 +330,7 @@ docs_profile() {
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
 
   step "docs are not build inputs"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
@@ -450,6 +451,7 @@ platform_checks() {
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
 
   step "public API"
   if ! check_shipped_api_unchanged; then

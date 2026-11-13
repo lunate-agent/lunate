@@ -84,13 +84,16 @@ the selected official records, so the evaluation sees exactly the instances that
 | `--model <id>` | Exact Lunate model id, passed to `lunate -p --model`. |
 | `--lunate-bin <path>` | Self-contained `linux-x64` single-file Lunate executable. A non-ELF file is refused with the publish command. |
 | `--dataset-file <path>` | Local SWE-bench JSON array or JSONL records; use this for offline and reproducible runs. |
-| `--dataset-name <name>` | Official dataset name when no local file is given (default `princeton-nlp/SWE-bench_Verified`). |
+| `--dataset-name <name>` | Official dataset name when no local file is given (default `SWE-bench/SWE-bench_Verified`). |
 | `--split <split>` | Dataset split (default `test`). |
 | `--output-dir <dir>` | Parent of the run directories (default `eval/runs/swebench`, ignored by git). |
 | `--run-id <id>` | Run directory name (default a UTC timestamp). An existing non-empty directory is refused. |
 | `--evaluate <auto\|always\|never>` | `auto` outside a dry run, `never` inside it. `always` evaluates even when a patch is empty. |
 | `--env <name>` | Provider credential variable to forward by name; repeatable. Without it the known provider variables that are set are forwarded. |
 | `--timeout <seconds>` | Container and official test timeout (default `1800`). |
+| `--max-cost <usd>` | Pass `--max-cost` to Lunate inside the container so one instance cannot spend past this amount. |
+| `--max-time <seconds>` | Pass `--max-time` to Lunate inside the container so one instance cannot run past this wall clock. |
+| `--max-workers <n>` | Official-evaluation workers (default `1`). |
 | `--eval-python <path>` | Interpreter that can import the official `swebench` package (default: this Python). |
 | `--docker <path>` | Docker client (default `docker`). |
 | `--keep` | Keep the instance container for debugging instead of `--rm`. |
@@ -118,6 +121,8 @@ forwarded value with `[REDACTED:<NAME>]`.
 The adapter pins `--platform linux/amd64` and needs a Docker host that can run the official x86_64 images (native or emulated). It does not build
 images: it uses the image named by the dataset, or derives the official
 `swebench/sweb.eval.x86_64.<id with __ -> _1776_>` name for older records, and pulls it when absent.
+It sets `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` because the official images ship no libicu, and
+it keeps crash core dumps out of the patch.
 
 ### ProgramBench is out of scope
 
@@ -126,6 +131,53 @@ binary and documentation rather than a git `/testbed`, and its submission is a `
 of the whole generated codebase evaluated by `programbench eval`; a SWE-bench patch has no place in
 that handoff. A second adapter for ProgramBench, if wanted, is a separate change against the
 official `programbench` CLI.
+
+
+## Published SWE-bench run
+
+The first published run is pinned in `eval/swebench/`:
+
+| File | Contents |
+| --- | --- |
+| `instances.txt` | The fixed five-instance subset: every 100th id in lexicographic order of the 500-instance Verified test split. |
+| `run.json` | The dataset and split, the budget and frontier models, one run cost cap, the timeout, the evaluation worker count and the mini-swe-agent settings. |
+| `litellm-models.json` | The baseline models' token prices, because LiteLLM does not know these new ids. |
+| `mini-swe-agent.yaml` | The `x-opencode-session` header that OpenCode Go requires and LiteLLM does not send. |
+
+Run both arms and write the committed summary:
+
+```bash
+dotnet publish src/Lunate.Coding -c Release -r linux-x64 --self-contained true \
+  -p:PublishSingleFile=true -o artifacts/linux-x64
+export OPENCODE_GO_API_KEY=... OPENROUTER_API_KEY=...
+python3 scripts/eval/swebench_run.py --arm all \
+  --lunate-bin artifacts/linux-x64/lunate --mini-extra mini-extra --run-id <run-id>
+```
+
+The arms can also be run and merged separately (for example when one arm resumes after an
+interruption):
+
+```bash
+python3 scripts/eval/swebench_run.py --arm lunate --lunate-bin artifacts/linux-x64/lunate --run-id <run-id>
+python3 scripts/eval/swebench_run.py --arm baseline --mini-extra mini-extra --run-id <run-id>
+python3 scripts/eval/swebench_run.py --arm merge --run-id <run-id>
+```
+
+The first two write `<run-id>.lunate.json` and `<run-id>.baseline.json`; `merge` writes the
+committed `summary.json` and `summary.md`. `--resume` reuses a completed Lunate instance run.
+
+The orchestrator passes the run's remaining budget to each Lunate invocation as `--max-cost`, runs
+mini-swe-agent on the same subset and models with its own cost limit, and takes every resolved count
+from `swebench.harness.run_evaluation`. When an instance's spend cannot be priced in either arm,
+the run stops and the summary reports that instance as unpriced and the run total as unknown —
+never the cap or a number above it. A mini-swe-agent trajectory whose `instance_cost` is missing or
+non-positive is unpriced, not zero spend. The committed `eval/swebench/summary.json` and
+`summary.md` are the evidence; the per-instance patches and trajectories stay under the ignored
+`eval/runs/`.
+
+On an arm64 host running the official `linux/amd64` images under QEMU, export
+`DOTNET_EnableWriteXorExecute=0`; the adapter sets invariant globalization itself because the
+images have no ICU.
 
 ## Row schema
 
