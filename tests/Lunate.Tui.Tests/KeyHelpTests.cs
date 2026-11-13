@@ -5,7 +5,7 @@ namespace Lunate.Tui.Tests;
 public sealed class KeyHelpTests
 {
     [Fact]
-    public void Descriptions_match_the_guide_style()
+    public void Descriptions_match_the_keybindings_reference_style()
     {
         Assert.Equal(
             "Ctrl+R",

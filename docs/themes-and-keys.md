@@ -18,10 +18,10 @@ context and description and gains the one key — `keys.json` stays the only pla
 An unknown id is refused with the closest ids named, a key an earlier row already answers is refused
 with that row named, and any remap persists so it survives a restart.
 
-The binding ids come from the [key binding table](guide.md#terminal-ui-lunatetui).
+The binding ids come from the [key binding table](keybindings.md).
 
 ## Related
 
-- [Configuration](configuration.md) — the `tui.theme` and `tui.keys` rows in the settings reference
+- [Settings reference](settings.md) — the `tui.theme` and `tui.keys` rows
 - [Usage](usage.md) — the keys the prompt and the transcript use
 - [Run tool calls in a container](execution-environments.md) — the same session inside one container
