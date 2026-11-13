@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -72,8 +73,9 @@ jobs:
 
       - name: The release pull request is merged into main
         # The release pull request assembles the changelog and is merged before the tag; a tag on a
-        # commit outside main would publish notes from an unmerged release branch. This is the
-        # repository-side half of the lane contract documented in docs/distribution.md.
+        # commit outside main would publish notes from an unmerged release branch. The lane's own
+        # release and merge execution is tracked in lunate-lane#21; this is the first of the
+        # repository-side checks that the outcome happened.
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         run: |
@@ -83,6 +85,22 @@ jobs:
             echo "release: ${GITHUB_REF_NAME} is not on main. Merge the release pull request before tagging so the tag ships the changelog it assembled." >&2
             exit 1
           fi
+
+      - name: The tag is a merged release pull request
+        # Being on main is not enough: the tag must come from the release pull request the lane
+        # released and merged, not from a normal commit that happens to carry main's history. The
+        # check reads the pull requests GitHub associates with this commit and fails by name when
+        # the release half did not happen.
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          gh api "repos/${GH_REPO}/commits/${sha}/pulls" > associated-pulls.json
+          python3 scripts/release-contract --tag "${GITHUB_REF_NAME}" --pulls-file associated-pulls.json
 
       - name: Changelog is assembled from the fragments
         # The release pull request runs --write; this is the tag-time proof that no fragment merged
@@ -296,6 +314,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Download release artifacts
         uses: actions/download-artifact@v8
         with:
@@ -331,3 +352,15 @@ jobs:
             gh release create "$tag" "${create[@]}"
           fi
           gh release upload "$tag" dist/* --clobber
+
+      - name: The release exists with its assets
+        # The merge half is checked before the gate; this is the release half: the tag has a
+        # published release with the SHA256SUMS asset every installer resolves. A failed attach is a
+        # failed release, not a tag someone may call done.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release view "${GITHUB_REF_NAME}" --json tagName,isDraft,assets > release.json
+          python3 scripts/release-contract --tag "${GITHUB_REF_NAME}" --release-file release.json

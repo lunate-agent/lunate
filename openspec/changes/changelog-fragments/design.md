@@ -121,12 +121,25 @@ but the branch stays as the transition safeguard. From the next pull request onw
 carries `changes/README.md` and the guard runs.
 
 `release.yml` runs `--check` in the gate job before publishing. A fragment merged after the release
-pull request was cut therefore fails the tag by name instead of shipping unassembled notes. It also
-refuses a tag whose commit is not on `main`, which is the repository's half of the lane contract: the
-lane recognises `release/<version>` and `chore(release)`, releases the release pull request and
-merges it before the tag. `docs/distribution.md` states that contract and the verification — the tag
-is an ancestor of `origin/main` and `gh release view <tag>` finds the release — so acceptance is
-checked after a release instead of assumed.
+pull request was cut therefore fails the tag by name instead of shipping unassembled notes.
+
+### The release contract is verified, not asserted
+
+The runbook cannot be the proof that the lane released and merged the release pull request. Tagging a
+commit that is merely on `main` does not establish that it came from the release pull request, and a
+written lane contract does not establish that the lane executed it. The lane's own release and merge
+execution remains outside this repository and is tracked in lunate-lane#21, so the repository checks
+the outcome instead:
+
+- `scripts/release-contract` decides, from `gh api .../commits/<sha>/pulls`, whether the tagged
+  commit is associated with a merged pull request carrying one of the two release signals;
+- after the assets are attached, the same script reads `gh release view <tag> --json
+  tagName,isDraft,assets` and fails unless the release is published and carries the `SHA256SUMS`
+  asset that every installer resolves.
+
+Both checks live in `release.yml`, so a tag that skipped either the merge or the release fails by
+name. The script's decision cases are in `tests/scripts/test_release_contract.py`; the workflow
+wiring is pinned by `tests/scripts/test_release_workflow.py`.
 
 ```mermaid
 flowchart LR
@@ -173,8 +186,8 @@ bullet inserted in `## Rules` after the "A failing golden session test …" bull
   or a `chore(release)` title. Because #801 merged `changes/801.md` first, that switch is already
   live, so this pull request must not edit `CHANGELOG.md`; it ships fragment-only and the first
   release pull request assembles. The lane's release/merge execution itself is still outside this
-  repository, so the release runbook states the contract and `release.yml` enforces the observable
-  half: a tag whose commit is not on `main` fails.
+  repository (lunate-lane#21), so `scripts/release-contract` verifies the observable outcome at the
+  tag: the commit is a merged release pull request and the published release carries `SHA256SUMS`.
 - **An open pull request that edited `CHANGELOG.md` before this lands** → it conflicts with this
   change anyway; it keeps its existing fragment if it has one and removes the hand edit.
 - **A fragment merged before the grammar existed does not parse** → both were found and settled here:
@@ -203,5 +216,6 @@ bullet inserted in `## Rules` after the "A failing golden session test …" bull
 ## Open Questions
 
 None. The lane's rule was inspected (it activates on the `changes/` directory and exempts the release
-signals), but its release/merge execution is outside this repository and is reported as such on the
-pull request.
+signals), but its release/merge execution is outside this repository and remains tracked in
+lunate-lane#21. `scripts/release-contract` verifies the outcome the lane is required to produce, so a
+release that skips either action fails at the tag rather than being reported as done.

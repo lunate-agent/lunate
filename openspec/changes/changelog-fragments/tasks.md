@@ -39,6 +39,11 @@
 - [x] 3.6 `.github/workflows/release.yml`: `scripts/changelog-assemble --check` in the gate job.
 - [x] 3.7 `.github/workflows/release.yml`: refuse a tag whose commit is not on `main`, so the release
       pull request that assembled the changelog is merged before anything ships.
+- [x] 3.8 `scripts/release-contract`: decide from the commit's associated pull requests whether the
+      tag came from a merged release pull request, and from `gh release view` whether the release is
+      published with its `SHA256SUMS`; `--self-test` covers both halves.
+- [x] 3.9 `.github/workflows/release.yml`: run `scripts/release-contract` on the gate's associated
+      pull requests, and read the published release back after attaching its assets.
 
 ## 4. Documentation
 
@@ -47,9 +52,9 @@
       fragments.
 - [x] 4.3 `docs/README.md`: the fragment rule in the map or the guideline, with one home.
 - [x] 4.4 `design.md` carries the exact proposed `AGENTS.md` bullet; `AGENTS.md` itself is unchanged.
-- [x] 4.5 `docs/distribution.md` states the lane contract — the release branch/title signals, the
-      lane's release and merge, and the tag-on-main verification — and `CONTRIBUTING.md` keeps one
-      copy of the docs-profile instruction.
+- [x] 4.5 `docs/distribution.md` states the release branch/title signals, the lane-side work tracked
+      in lunate-lane#21, and the tag-time verification `scripts/release-contract` performs;
+      `CONTRIBUTING.md` keeps one copy of the docs-profile instruction.
 
 ## 5. Verification and bookkeeping
 
@@ -59,6 +64,10 @@
 - [x] 5.2 `dotnet csharpier check .` and markdownlint stay green (no C# is touched).
 - [x] 5.3 Both scripts and both suites run under the stock macOS `/usr/bin/python3` (3.9):
       `from __future__ import annotations`, and no `Path.write_text(newline=)` in the tests.
-- [x] 5.4 `tests/scripts/test_release_workflow.py`: the tag-on-main guard, its tag-only event and
-      unswallowable failure, and the documented lane contract.
-- [x] 5.5 `openspec archive changelog-fragments --yes` as the final commit.
+- [x] 5.4 `tests/scripts/test_release_workflow.py`: the tag-on-main guard, the merged-release-pull-
+      request and published-release steps, their tag-only events, unswallowable failures, and the
+      documented contract.
+- [x] 5.5 `tests/scripts/test_release_contract.py`: a merged release branch or title passes; an
+      unmerged release pull request, a non-release pull request, a missing association, a draft
+      release and a release without `SHA256SUMS` each fail by name.
+- [x] 5.6 `openspec archive changelog-fragments --yes` as the final commit.

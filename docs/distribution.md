@@ -80,18 +80,21 @@ promoted section, leave a fresh empty `## [Unreleased]` above it, delete the con
 commit the result. The Release workflow runs `--check` on the tag, so a fragment that merged after
 this pull request fails the tag by name instead of shipping unassembled notes.
 
-The lane contract makes the release pull request the only exception: a pull request on
-`release/<version>` or titled `chore(release): <version>` is exempt from the changelog rule, and the
-lane releases it and merges it before the tag is cut. The repository proves the observable half —
-`scripts/changelog-guard` exempts exactly those two signals, and the Release workflow refuses a tag
-whose commit is not on `main` as well as a tag whose changelog is not assembled. Verify a release
-against the contract with `git merge-base --is-ancestor <tag> origin/main` and `gh release view
-<tag>`: the tag must be on `main` and the release must exist.
+The repository verifies the lane contract at the tag instead of trusting this runbook. A pull
+request on `release/<version>` or titled `chore(release): <version>` is exempt from the changelog
+rule and is the only pull request that may assemble the changelog; the lane's own release and merge
+execution is tracked in lunate-lane#21. The Release workflow refuses a tag whose commit is not on
+`main`, and `scripts/release-contract` additionally requires that commit to be associated with a
+merged release pull request before the gate runs. After the assets are attached, the workflow reads
+the release back and fails unless it is published and carries `SHA256SUMS`. Verify a release against
+the same contract with `git merge-base --is-ancestor <tag> origin/main`, `gh api
+repos/lunate-agent/lunate/commits/<sha>/pulls`, and `gh release view <tag>`.
 
 ### 2. Tag the release
 
 The Release workflow fails the tag when it does not match `<Version>` in `Directory.Build.props`,
-and when the tagged commit is not on `main`; the release pull request must be merged first.
+when the tagged commit is not on `main`, or when that commit is not a merged release pull request;
+the release pull request must be merged first.
 
 ```sh
 git switch main

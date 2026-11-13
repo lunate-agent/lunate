@@ -325,6 +325,7 @@ docs_profile() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
@@ -444,6 +445,7 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
