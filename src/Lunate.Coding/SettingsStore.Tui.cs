@@ -149,7 +149,7 @@ public static partial class SettingsStore
             }
 
             // The canonical spelling is what the help overlay prints, so a saved remap reads
-            // back as the same text a guide-table reader sees.
+            // back as the same text a keybindings-reference reader sees.
             canonical.Add(KeyPatternFormatter.Describe(pattern));
         }
 

@@ -137,4 +137,5 @@ fix, including the print-mode error that exits 1.
   the model catalog
 - [Let a second model help decide](decisions.md) — the optional decisions layer
 - [Use the terminal](usage.md) — the interactive session after the first run
-- [Configuration reference](configuration.md) — every settings key and where files live
+- [Configuration](configuration.md) — where files live and how settings scope
+- [Settings reference](settings.md) — every settings key, generated from the schema

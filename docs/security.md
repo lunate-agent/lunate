@@ -117,5 +117,5 @@ the configured `env` values) are removed from that child's environment unless th
 - [Run tool calls in a container](execution-environments.md) — the container flags, the flow and the
   measured limits
 - [Use the terminal](usage.md) — approvals, trust prompts and the modes
-- [Configuration reference](configuration.md) — `approval`, `bashGuard` and every settings key
+- [Settings reference](settings.md) — `approval`, `bashGuard` and every settings key
 - [Lifecycle and trust](extensions/lifecycle-and-trust.md) — the trust decision for repository code
