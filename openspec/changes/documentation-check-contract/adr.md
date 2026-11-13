@@ -6,15 +6,15 @@
 ## Review Summary
 
 ADR review completed for this change. This is a specification correction: it records the
-documentation checker that merged as #801 in the two capabilities that already own the documentation
-conventions and the verification matrix. No boundary, dependency, data format, protocol or public
+documentation checker that merged as #801 in a new `documentation` capability and in the
+verification matrix (`ci-pipeline`). No boundary, dependency, data format, protocol or public
 contract moves, so nothing in it constrains a future architecture choice.
 
 ## In-Force ADRs Reviewed
 
 - `adr/0011-repo-quality-tooling.md` — the documentation map, markdownlint and the gate's quality
-  steps. The change adds the link/anchor/redirect/navigation check to the same gate; the ADR's
-  decisions are unchanged and need no successor.
+  steps. The change adds the link/anchor/redirect/navigation check to the same gate and leaves that
+  ADR's decisions (and its spec, `repo-quality`) unchanged and without a successor.
 - `adr/0003-agent-loop-owns-tool-execution.md` — out of scope: no runtime, tool or event path is
   touched.
 
