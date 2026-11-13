@@ -16,6 +16,7 @@
 #   DRAFT        github.event.pull_request.draft ("true"/"false"; empty off a pull request)
 #   PLAN         needs.plan.result
 #   PROFILE      needs.plan.outputs.profile
+#   MACOS        needs.plan.outputs.macos ("true"/"false"): whether the verify matrix has macOS legs
 #   VERIFY       needs.verify.result
 #   POWERSHELL   needs.verify-powershell.result
 #   PS_REQUIRED  needs.changes.outputs.powershell ("true"/"false")
@@ -28,6 +29,10 @@
 # Exits 0 only when the run that actually happened is the gate the profile selected. Every other
 # outcome -- a draft, a skipped plan, a failed or skipped leg, a leg the profile did not select, an
 # unreadable profile -- exits 1 with a named reason.
+#
+# The macOS verify legs run only where a merge follows (#831): a pull-request run has none and
+# passes without them, while a merge group, a push to main, the nightly and a manual dispatch
+# must have had them. An unreadable decision (MACOS empty) is red.
 #
 # The PowerShell leg is path-filtered: skipped is a pass when `changes` said its paths did not
 # match, and a failure when nothing said so. An unreadable decision (PS_REQUIRED empty) is red, not
@@ -48,9 +53,9 @@ decide() {
     local event="${EVENT_NAME:-}" draft="${DRAFT:-}" plan="${PLAN:-}"
     local profile="${PROFILE:-}" verify="${VERIFY:-}" powershell="${POWERSHELL:-}"
     local ps_required="${PS_REQUIRED:-}" docs="${DOCS:-}" perf="${PERF:-}" platform="${PLATFORM:-}"
-    local fragments="${FRAGMENTS:-}" pull_request="${PR_NUMBER:-}"
+    local fragments="${FRAGMENTS:-}" pull_request="${PR_NUMBER:-}" macos="${MACOS:-}"
 
-    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform changelog=$fragments"
+    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile macos=$macos verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform changelog=$fragments"
 
     if [ "$event" = "pull_request" ] && [ "$draft" != "false" ]; then
         fail "the head is a draft (draft=$draft), so no gate ran; a draft push costs no matrix, but the required check still has to report. Mark the pull request ready for review and this check runs again."
@@ -102,6 +107,18 @@ decide() {
             if [ "$verify" != "success" ] || [ "$perf_gate" != "success" ] || [ "$platform" != "success" ]; then
                 fail "a required job did not succeed (verify=$verify, perf=$perf, platform=$platform)"
             fi
+            # The verify result covers the legs the plan put in the matrix; `macos` says whether
+            # macOS was one of them. A pull request leaves macOS to its merge-queue group (#831).
+            case "$event:$macos" in
+                pull_request:true | pull_request:false) ;;
+                *:true) ;;
+                *:false)
+                    fail "the macOS verify legs did not run on a $event run (macos=false); only a pull request may leave them to the merge queue"
+                    ;;
+                *)
+                    fail "the plan's macOS decision is unreadable (macos='$macos'); refusing to pass on an unknown state"
+                    ;;
+            esac
             case "$ps_required" in
                 true)
                     if [ "$powershell" != "success" ]; then
@@ -150,16 +167,24 @@ PY
 }
 
 _run_from_env() {
-    local fragments="${11:-}"
+    local fragments="${11:-}" macos="${12-default}"
     if [ -z "$fragments" ]; then
         case "$1" in
             pull_request) fragments="success" ;;
             *) fragments="skipped" ;;
         esac
     fi
+    # The plan's decision unless a case names one: no macOS legs on a pull request, macOS legs on
+    # every other event.
+    if [ "$macos" = "default" ]; then
+        case "$1" in
+            pull_request) macos="false" ;;
+            *) macos="true" ;;
+        esac
+    fi
     env EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
         VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
-        FRAGMENTS="$fragments" \
+        FRAGMENTS="$fragments" MACOS="$macos" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
 }
 
@@ -481,6 +506,27 @@ self_test() {
     _self_case "a skipped platform leg on the full profile" 1 "did not succeed" \
         pull_request false success full success success skipped success skipped true
 
+    # The macOS legs (#831): a pull request passes without them; every event a merge follows
+    # requires them.
+    _self_case "a pull-request run without macOS legs passes" 0 "the full gate succeeded" \
+        pull_request false success full success success skipped success success true "" false
+    _self_case "a pull-request run that had macOS legs still passes" 0 "the full gate succeeded" \
+        pull_request false success full success success skipped success success true "" true
+    _self_case "a merge group with its macOS legs passes" 0 "the full gate succeeded" \
+        merge_group "" success full success success skipped skipped success true "" true
+    _self_case "a merge group without macOS legs fails" 1 "macOS verify legs did not run on a merge_group run" \
+        merge_group "" success full success success skipped skipped success true "" false
+    _self_case "a push to main without macOS legs fails" 1 "macOS verify legs did not run on a push run" \
+        push "" success full success success skipped success success true "" false
+    _self_case "a nightly without macOS legs fails" 1 "macOS verify legs did not run on a schedule run" \
+        schedule "" success full success success skipped success success true "" false
+    _self_case "a merge group with an unreadable macOS decision fails" 1 "macOS decision is unreadable" \
+        merge_group "" success full success success skipped skipped success true "" ""
+    _self_case "a pull request with an unreadable macOS decision fails" 1 "macOS decision is unreadable" \
+        pull_request false success full success success skipped success success true "" ""
+    _self_case "a docs gate does not consult the macOS decision" 0 "the docs gate succeeded" \
+        merge_group "" success docs skipped skipped success skipped skipped "" "" ""
+
     # The path-filtered PowerShell leg: skipped is a pass only when the change said so.
     _self_case "a PowerShell leg skipped although the paths required it" 1 "was required by the changed paths" \
         pull_request false success full success skipped skipped success success true
@@ -535,12 +581,20 @@ self_test() {
         plan '^    if:.*draft' 1
     _self_workflow "ci-ok must take every gate leg as a needed job" \
         ci-ok '^    needs: \[plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog\]' 1
-    _self_workflow "the verify matrix must cover every OS leg" \
-        verify 'os: \[ubuntu-latest, macos-latest, windows-latest\]' 1
-    _self_workflow "the verify matrix must run more than two shards per OS" \
-        verify '\[1, 2, 3, 4\]' 1
-    _self_workflow "every OS leg must use the default four-shard count" \
-        verify 'shard_count:.*\|\| 4' 1
+    _self_workflow "the verify matrix must be the plan's leg decision" \
+        verify 'matrix: \$\{\{ fromJSON\(needs\.plan\.outputs\.verify_matrix\) \}\}' 1
+    _self_workflow "the plan must hand ci-ok its macOS decision" \
+        plan 'macos: \$\{\{ steps\.legs\.outputs\.macos \}\}' 1
+    _self_workflow "ci-ok must read the plan's macOS decision" \
+        ci-ok 'MACOS: \$\{\{ needs\.plan\.outputs\.macos \}\}' 1
+    _self_workflow "the legs must cover Ubuntu and Windows on every event" \
+        plan '^          leg (ubuntu|windows)-latest .*"\$\{SHARDS\}"' 1
+    _self_workflow "the macOS legs must be left out of a pull-request run only" \
+        plan '^            pull_request\) macos=false ;;' 1
+    _self_workflow "the macOS legs must run two shards" \
+        plan 'macos_shards=\$\(\(SHARDS < 2 \? SHARDS : 2\)\)' 1
+    _self_workflow "Ubuntu and Windows must use the default four-shard count" \
+        plan "SHARDS: \\\$\\{\\{ inputs\\.verify_shard_count \\|\\| '4' \\}\\}" 1
     _self_workflow "each verify shard must record its wall time" \
         verify 'verify-timing' 1
     _self_workflow "Linux hyperfine must run only on Linux shard 1" \
@@ -548,7 +602,7 @@ self_test() {
     _self_workflow "the verify matrix must run the gate per shard, so no shard can be dropped from the matrix" \
         verify 'scripts/verify\.sh --shard' 1
     _self_workflow "manual dispatch must support the unsharded baseline" \
-        verify 'inputs\.verify_shard_count' 1
+        plan 'inputs\.verify_shard_count' 1
     _self_workflow "the verify leg must run on the full profile only" \
         verify "^    if: needs\.plan\.outputs\.profile == 'full'" 1
     _self_workflow "the OS legs must skip the platform checks, so one Linux job owns them" \
