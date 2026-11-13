@@ -65,6 +65,6 @@ may cover priced usage alone.
 - [Models and providers](models-and-providers.md) — choosing a provider, `lunate auth` and profiles
 - [Run tool calls in a container](execution-environments.md) — the flags, the flow and the limits
 - [Use the terminal](usage.md) — approvals, run limits and the modes
-- [Configuration reference](configuration.md) — `maxCost`, `maxTime`, `approval` and every key
+- [Settings reference](settings.md) — `maxCost`, `maxTime`, `approval` and every key
 - [Run Lunate safely](security.md) — the trust model behind the approval prompts
 - [Extension troubleshooting](extensions/troubleshooting.md) — failures inside an extension

@@ -90,6 +90,20 @@ def self_test():
         True,
         "user-path page is not in navigation",
     )
+    # The S4 move left docs/spikes/ and docs/eval/ empty; a page that reappears there is a page the
+    # checker must report, not a record it silently exempts.
+    for pre_move in ("docs/spikes/", "docs/eval/"):
+        expect(
+            f"a page at the pre-move record path {pre_move} is not exempt",
+            changed(
+                base(),
+                **{
+                    f"{pre_move}S-1/summary.md": "# Summary\n\nA write-up that is not in navigation.\n"
+                },
+            ),
+            True,
+            "user-path page is not in navigation",
+        )
     expect(
         "duplicate navigation path",
         changed(base(), **{"docs/docs.json": manifest([{"title": "G", "items": [{"title": "Start", "path": "start.md"}, {"title": "Again", "path": "start.md"}, {"title": "Next", "path": "next.md"}]}])}),

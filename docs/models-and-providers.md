@@ -200,6 +200,6 @@ remains in `auth.json`; new multi-provider setups should use `providers.json` an
 - [Providers and the model catalog](providers.md) — the presets, the API families and the catalog
   reference
 - [Decisions](decisions.md) — the optional second model for approvals, routing and questions
-- [Configuration reference](configuration.md) — every settings key, its scope and its default
+- [Settings reference](settings.md) — every settings key, its scope and its default
 - [Where thinking resolves from](configuration.md#where-thinking-resolves-from) — the thinking level
   a profile selects
