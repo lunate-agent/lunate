@@ -321,6 +321,12 @@ docs_profile() {
   step "the cheap tree checks also run on main"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_tree_checks.py"
 
+  step "changelog fragments"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
+
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
@@ -434,6 +440,12 @@ platform_checks() {
   # to main too, because a docs-only push skips the matrix and a check cannot fail there.
   step "the cheap tree checks also run on main"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_tree_checks.py"
+
+  step "changelog fragments"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
