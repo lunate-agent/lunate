@@ -2,7 +2,7 @@
 
 This page answers which command and which flag a task needs, and the short answer is
 `lunate --help` for the synopsis and this page for the same options with what each one does. Every
-option here is compared against that command's `--help` output before the docs merge.
+option here is compared with the `--help` output in both directions before the docs merge.
 
 ## Modes and commands
 
