@@ -12,8 +12,9 @@ answers four questions:
 
 Markers: `<!-- snippet: <path> -->` (expanded by scripts/docs-sync), `<!-- config: <kind> -->`
 above a fenced JSON block, and `<!-- run: offline|help|no <reason> -->` above a fenced bash block.
-`--run` executes the `offline` and `help` blocks against a published `lunate` binary; `no` needs a
-one-line reason and is never run. No network command is executed by the checker.
+`--run` executes the `offline` and `help` blocks against a published `lunate` binary and compares
+every option in `docs/cli.md` with the `--help` output of that page's own blocks, in both directions;
+`no` needs a one-line reason and is never run. No network command is executed by the checker.
 
 Usage:
   scripts/docs-check --check

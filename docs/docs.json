@@ -166,15 +166,48 @@
       ]
     },
     {
+      "title": "Automate",
+      "items": [
+        {
+          "title": "Print mode",
+          "path": "print.md"
+        },
+        {
+          "title": "The JSON event stream",
+          "path": "json-events.md"
+        },
+        {
+          "title": "Editors over ACP",
+          "path": "acp.md"
+        },
+        {
+          "title": "CI and unattended runs",
+          "path": "ci.md"
+        }
+      ]
+    },
+    {
       "title": "Reference",
       "items": [
+        {
+          "title": "Command and option reference",
+          "path": "cli.md"
+        },
         {
           "title": "Settings reference",
           "path": "settings.md"
         },
         {
+          "title": "Providers and the model catalog",
+          "path": "providers.md"
+        },
+        {
           "title": "Keybindings reference",
           "path": "keybindings.md"
+        },
+        {
+          "title": "Environment variables",
+          "path": "environment-variables.md"
         },
         {
           "title": "Third-party licences",
@@ -371,6 +404,10 @@
     {
       "path": "themes-and-keys.md",
       "reason": "Prose-only; themes and keybindings are interactive settings, so no command runs unattended."
+    },
+    {
+      "path": "environment-variables.md",
+      "reason": "Reference table; every variable is read by the product, and no unattended command demonstrates one."
     }
   ]
 }
