@@ -227,6 +227,6 @@ remains in `auth.json`; new multi-provider setups should use `providers.json` an
 
 - [Quickstart](quickstart.md) — install, the setup wizard and the first task
 - [Decisions](decisions.md) — the optional second model for approvals, routing and questions
-- [Configuration reference](configuration.md) — every settings key, its scope and its default
+- [Settings reference](settings.md) — every settings key, its scope and its default
 - [Where thinking resolves from](configuration.md#where-thinking-resolves-from) — the thinking level
   a profile selects
