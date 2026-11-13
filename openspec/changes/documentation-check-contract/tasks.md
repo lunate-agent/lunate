@@ -45,5 +45,8 @@
 
 ## 4. Sync and archive
 
-- [ ] 4.1 `openspec sync` of both delta specs into `openspec/specs/`.
-- [ ] 4.2 `openspec archive documentation-check-contract --yes` as the final commit of this branch.
+- [x] 4.1 Sync both delta specs into `openspec/specs/`: `openspec archive` applies the deltas, so
+      the appended `repo-quality` requirement and the replaced `ci-pipeline` matrix are read back
+      from the main specs after the archive and diffed against the deltas.
+- [x] 4.2 `openspec archive documentation-check-contract --yes` as the final commit of this branch,
+      after `openspec validate --all --strict`.

@@ -89,6 +89,8 @@ both halves so a later slice that adds an `offline` block does not have to amend
 
 ## Related
 
-- [Documentation architecture for 0.4.0](../../../docs/dev/information-architecture.md) — S1 and the
-  checker's four layers
-- [Documentation map](../../../docs/README.md) — the same rule in prose
+- `docs/dev/information-architecture.md` — S1 and the checker's four layers; the same contract, for a
+  reader of the plan
+- `docs/README.md` — the same rule in prose, where a contributor meets it
+
+Both are named by path rather than linked so the record survives the archive move unchanged.
