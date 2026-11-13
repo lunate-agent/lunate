@@ -231,7 +231,7 @@ A committed script, `scripts/changelog-assemble`, SHALL use only the Python 3 st
 
 A pull request whose branch is `release/<version>` or whose title starts `chore(release)` SHALL be treated as the release pull request: it MAY edit `CHANGELOG.md`, and it SHALL run `scripts/changelog-assemble --write` and commit the result. The changelog guard SHALL exempt exactly those two signals so the assembler is not blocked by the check it exists to satisfy. The first release after the fragments land SHALL consume the fragments and SHALL leave already-released history unchanged.
 
-The Release workflow SHALL fail a tag whose commit is not on `main`, so a release cannot be cut from a release branch the lane has not merged. The release runbook SHALL state the lane contract — the lane recognises the same two signals, releases the release pull request and merges it before the tag — and SHALL name the verification: the tag is an ancestor of `origin/main` and the release exists.
+The Release workflow SHALL fail a tag whose commit is not on `main` or whose commit is not associated with a merged pull request carrying one of the two release signals, so a release cannot be cut from a release branch the lane has not merged. The lane's own release and merge execution SHALL be tracked in lunate-lane#21. After attaching the assets, the Release workflow SHALL read the published release back and SHALL fail unless it is not a draft and carries its `SHA256SUMS` asset. A committed script SHALL make both decisions and SHALL carry test cases for an unmerged release pull request, a tagged non-release pull request, a draft release and a release without `SHA256SUMS`. The release runbook SHALL name the same verification.
 
 #### Scenario: The release pull request may edit the changelog
 
@@ -251,11 +251,23 @@ The Release workflow SHALL fail a tag whose commit is not on `main`, so a releas
 - **WHEN** the Release workflow's gate runs
 - **THEN** it fails and says to merge the release pull request before tagging
 
+#### Scenario: A tag from a non-release pull request fails
+
+- **GIVEN** a tagged commit whose associated merged pull request has neither a `release/<version>` branch nor a `chore(release)` title
+- **WHEN** the Release workflow's gate runs
+- **THEN** it fails and names the two release signals
+
 #### Scenario: A merged release pull request may be released
 
 - **GIVEN** the release pull request merged into `main` with the assembled changelog
 - **WHEN** its commit is tagged and the Release workflow runs
-- **THEN** the commit is on `main`, the changelog check passes, and the release is published
+- **THEN** the commit is on `main`, is associated with the merged release pull request, the changelog check passes, and the release is published
+
+#### Scenario: A release without its assets fails
+
+- **GIVEN** a tagged release whose GitHub release is still a draft or has no `SHA256SUMS` asset
+- **WHEN** the Release workflow reads the release back
+- **THEN** it fails and names the release as incomplete
 
 ### Requirement: Aggregate merge gate
 
