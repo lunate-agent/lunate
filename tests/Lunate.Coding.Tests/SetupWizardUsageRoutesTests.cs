@@ -199,7 +199,7 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
 
         // The inline provider is in the very same review the walk shows.
         Assert.Contains(
-            "added provider: opencode-go",
+            "provider opencode-go",
             string.Join("\n", SetupWizardSummary.Render(wizard)),
             StringComparison.Ordinal
         );

@@ -139,15 +139,26 @@ public sealed class SetupWizardEntryMenuTests
         await host.WaitForFrameAsync("connection test failed");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         host.Console.SendEnter(); // skip the test for now
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done — this entry adds one provider
 
-        string summary = await host.WaitForScrollbackAsync("skipped:");
-        Assert.Contains("provider: deepseek", summary, StringComparison.Ordinal);
-        Assert.Contains("credential: the key you typed", summary, StringComparison.Ordinal);
-        Assert.Contains(
-            "skipped: model, model check, chat profile, fast usage",
-            summary,
-            StringComparison.Ordinal
-        );
+        string summary = await host.WaitForScrollbackAsync("left at default / unchanged");
+        string flattened = Flatten(summary);
+        Assert.Contains("provider deepseek", flattened, StringComparison.Ordinal);
+        Assert.Contains("credential reference: auth:deepseek", flattened, StringComparison.Ordinal);
+        Assert.Contains("key deepseek", flattened, StringComparison.Ordinal);
+        foreach (
+            string skipped in new[]
+            {
+                "model: skipped",
+                "model check: skipped",
+                "chat profile: skipped",
+                "fast usage: skipped",
+            }
+        )
+        {
+            Assert.Contains(skipped, flattened, StringComparison.Ordinal);
+        }
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter(); // the default row writes
@@ -199,18 +210,13 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter(); // skip
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains(
-            "model: gpt-4o-mini (family openai-chat)",
-            summary,
-            StringComparison.Ordinal
-        );
-        Assert.Contains("credential: auth:openai", summary, StringComparison.Ordinal);
-        Assert.Contains("chat profile: helper", summary, StringComparison.Ordinal);
-        Assert.Contains(
-            "skipped: connection test, fast usage, decision profile, decisions settings",
-            summary,
-            StringComparison.Ordinal
-        );
+        string flattened = Flatten(summary);
+        Assert.Contains("model: gpt-4o-mini", flattened, StringComparison.Ordinal);
+        Assert.Contains("profile helper", flattened, StringComparison.Ordinal);
+        Assert.Contains("provider: openai", flattened, StringComparison.Ordinal);
+        Assert.Contains("credential: unchanged", flattened, StringComparison.Ordinal);
+        Assert.Contains("fast usage: skipped", flattened, StringComparison.Ordinal);
+        Assert.Contains("decision profile: skipped", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -257,9 +263,10 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         host.Console.SendEnter(); // chat-alt
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("model: gpt-4.1 (family openai-chat)", summary, StringComparison.Ordinal);
-        Assert.Contains("chat usage: chat-alt", summary, StringComparison.Ordinal);
-        Assert.Contains("skipped: connection test, model check", summary, StringComparison.Ordinal);
+        string flattened = Flatten(summary);
+        Assert.Contains("usage chat", flattened, StringComparison.Ordinal);
+        Assert.Contains("profile: chat-alt", flattened, StringComparison.Ordinal);
+        Assert.Contains("provider: unchanged", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -378,7 +385,7 @@ public sealed class SetupWizardEntryMenuTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("Decisions settings");
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
-        await host.WaitForFrameAsync("> approval gate off — screen staged actions");
+        await host.WaitForFrameAsync("> approval gate (decisions.approvals) — off (default)");
         host.Console.SendEnter();
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
@@ -386,15 +393,17 @@ public sealed class SetupWizardEntryMenuTests
         await host.WaitForFrameAsync("> shadow");
         host.Advance(500);
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("> Done — leave the decisions settings");
+
+        // The menu returned with the chosen value visible; Up reaches Done, the only exit.
+        await host.WaitForFrameAsync("approval gate (decisions.approvals) — shadow");
+        host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        await host.WaitForFrameAsync("> Done");
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
-        Assert.Contains(
-            "skipped: provider, credential, connection test",
-            summary,
-            StringComparison.Ordinal
-        );
+        string flattened = Flatten(summary);
+        Assert.Contains("approvals: shadow", flattened, StringComparison.Ordinal);
+        Assert.Contains("provider: skipped", flattened, StringComparison.Ordinal);
+        Assert.Contains("credential: skipped", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -430,7 +439,11 @@ public sealed class SetupWizardEntryMenuTests
 
         await host.WaitForFrameAsync("> Edit the decisions layer");
         host.Console.SendEnter();
-        await PickRowAsync(host, "Decisions settings", "approval gate off — screen staged actions");
+        await PickRowAsync(
+            host,
+            "Decisions settings",
+            "approval gate (decisions.approvals) — off (default)"
+        );
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
@@ -438,31 +451,33 @@ public sealed class SetupWizardEntryMenuTests
         host.Advance(500);
         host.Console.SendEnter();
 
-        // The list must come back after the first answer; before the fix the walk went straight
+        // The menu must come back after the first answer; before the fix the walk went straight
         // to the summary and this frame never appeared. It must also show the value the switch
         // now holds, not the value it had when the step was entered.
-        await host.WaitForFrameAsync("> Done — leave the decisions settings");
-        await host.WaitForFrameAsync("approval gate shadow — screen staged actions");
+        await host.WaitForFrameAsync("approval gate (decisions.approvals) — shadow");
         await PickRowAsync(
             host,
             "Decisions settings",
-            "decide tool off — offer the decide tool when a decision profile resolves"
+            "decide tool (decisions.tool) — off (default)"
         );
-        await host.WaitForFrameAsync("decisions.tool");
+        await host.WaitForFrameAsync("Offers the decide tool to the model");
         host.Advance(500);
         host.Console.Send(new KeyEvent(KeyKind.Down, null, false, false, false));
         await host.WaitForFrameAsync("> on");
-        host.Advance(500);
         host.Console.SendEnter();
 
-        await host.WaitForFrameAsync("> Done — leave the decisions settings");
-        await host.WaitForFrameAsync(
-            "decide tool on — offer the decide tool when a decision profile resolves"
-        );
+        await host.WaitForFrameAsync("decide tool (decisions.tool) — on");
+        for (var up = 0; up < 4; up++)
+        {
+            host.Console.Send(new KeyEvent(KeyKind.Up, null, false, false, false));
+        }
+
+        await host.WaitForFrameAsync("> Done");
         host.Console.SendEnter();
         string summary = await host.WaitForScrollbackAsync("confirm these values");
-        Assert.Contains("decisions.approvals: shadow", summary, StringComparison.Ordinal);
-        Assert.Contains("decisions.tool: on", summary, StringComparison.Ordinal);
+        string flattened = Flatten(summary);
+        Assert.Contains("approvals: shadow", flattened, StringComparison.Ordinal);
+        Assert.Contains("tool: on", flattened, StringComparison.Ordinal);
 
         await host.WaitForFrameAsync("Write this configuration?");
         host.Console.SendEnter();
@@ -502,7 +517,11 @@ public sealed class SetupWizardEntryMenuTests
 
         await host.WaitForFrameAsync("> Edit the decisions layer");
         host.Console.SendEnter();
-        await PickRowAsync(host, "Decisions settings", "approval gate off — screen staged actions");
+        await PickRowAsync(
+            host,
+            "Decisions settings",
+            "approval gate (decisions.approvals) — off (default)"
+        );
         await host.WaitForFrameAsync("The approval gate (decisions.approvals)");
         host.Advance(500);
         host.Console.SendEscape();
@@ -625,6 +644,12 @@ public sealed class SetupWizardEntryMenuTests
 
     private static string ProviderPath(InteractiveSessionHost host) =>
         AuthStore.ProviderStoreFilePath(host.Temp.File("auth.json"));
+
+    private static string Flatten(string text) =>
+        string.Join(
+            " ",
+            text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())
+        );
 
     /// <summary>The auth store's bytes when the walk has one to compare, else null: an entry that
     /// writes nothing must also create nothing (auth.json's absence is its pre-run state).</summary>

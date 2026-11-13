@@ -218,11 +218,11 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
 
         string summary = string.Join("\n", SetupWizardSummary.Render(wizard));
 
-        Assert.Contains(
-            "decision check: passed — gpt-5 (adapter)",
-            summary,
-            StringComparison.Ordinal
-        );
+        // The check's result and the model it used: the check line names the outcome, the
+        // decision profile's own group names the model.
+        Assert.Contains("decision check: passed", summary, StringComparison.Ordinal);
+        Assert.Contains("profile decisions", summary, StringComparison.Ordinal);
+        Assert.Contains("model: gpt-5", summary, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -288,6 +288,8 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         host.Console.SendText("chat-deep");
         host.Console.SendEnter();
         await PickRowAsync(host, "fast usage", "Skip");
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
         host.Console.SendText("jev");
         await host.WaitForFrameAsync("> openrouter/typesafe/jev-1.14 (native Jev)");
@@ -308,11 +310,10 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
 
         string summary = await host.WaitForScrollbackAsync("confirm these values");
         await host.WaitForFrameAsync("Write this configuration?");
-        Assert.Contains(
-            "decision check: passed — openrouter/typesafe/jev-1.14 (native)",
-            Flatten(summary),
-            StringComparison.Ordinal
-        );
+        string flat = Flatten(summary);
+        Assert.Contains("decision check: passed", flat, StringComparison.Ordinal);
+        Assert.Contains("model: openrouter/typesafe/jev-1.14", flat, StringComparison.Ordinal);
+        Assert.Contains("api family: systemone", flat, StringComparison.Ordinal);
         Assert.Equal(1, handler.RequestCount);
 
         host.Console.SendEscape(); // abort at the summary: nothing is written
@@ -372,6 +373,8 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         host.Console.SendText("chat-go");
         host.Console.SendEnter();
         await PickRowAsync(host, "fast usage", "Skip");
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
         await host.WaitForFrameAsync("Decision profile (the provider exposes the native Jev");
         // The flat list's row order follows the configured providers, so the native Jev row is
         // found by its own text instead of an assumed offset from Skip.
@@ -388,7 +391,9 @@ public sealed class SetupWizardDecisionCheckTests : IDisposable
         Assert.Equal(1, handler.RequestCount);
         Assert.Equal(sessionId, handler.SessionHeader);
 
-        host.Console.SendEscape();
+        host.Console.SendEscape(); // the menu is local: back to the decision-profile step
+        await host.WaitForFrameAsync("Decision profile");
+        host.Console.SendEscape(); // a question's Esc ends the walk
         await host.WaitUntilAsync(() => !host.Session.IsRunning);
         host.Console.Complete();
         await run;

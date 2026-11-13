@@ -65,12 +65,21 @@ internal sealed class SetupWizardTransaction : IDisposable
     /// the commit itself holds the claims for one non-interactive pass.
     /// </para>
     /// </summary>
-    public static IDisposable ClaimTargets(string settingsPath, string providerStorePath)
+    public static IDisposable ClaimTargets(
+        string settingsPath,
+        string providerStorePath,
+        TimeSpan? claimTimeout = null
+    )
     {
-        FileLock settings = SettingsStore.AcquireWriteLock(settingsPath);
+        FileLock settings = claimTimeout is { } settingsWait
+            ? SettingsStore.AcquireWriteLock(settingsPath, settingsWait)
+            : SettingsStore.AcquireWriteLock(settingsPath);
         try
         {
-            return new TargetClaims([settings, ProviderStore.AcquireLock(providerStorePath)]);
+            FileLock providers = claimTimeout is { } providerWait
+                ? ProviderStore.AcquireLock(providerStorePath, providerWait)
+                : ProviderStore.AcquireLock(providerStorePath);
+            return new TargetClaims([settings, providers]);
         }
         catch
         {

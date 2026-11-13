@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Verify that a release tag came from a merged release pull request and has a published release.
+
+The release pull request is the only one allowed to assemble CHANGELOG.md. At tag time the repository
+proves the outcome instead of trusting the runbook: the tagged commit is associated with a merged
+pull request carrying a release signal (branch `release/<version>` or a title starting
+`chore(release)`), and the tag has a published GitHub release whose `SHA256SUMS` asset exists. The
+lane's own release and merge execution is outside this repository (lunate-lane#21); these checks
+fail a tag where either action did not happen.
+
+Usage:
+    release-contract --tag <tag> --pulls-file <json> [--release-file <json>]
+    release-contract --self-test
+
+The pulls file is the JSON `gh api repos/<repo>/commits/<sha>/pulls` prints; the release file is the
+JSON `gh release view <tag> --json tagName,isDraft,assets` prints.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+RELEASE_BRANCH = re.compile(r"^release/[^/]+$")
+RELEASE_TITLE = "chore(release)"
+SUMS = "SHA256SUMS"
+
+
+def is_release(branch: str, title: str) -> bool:
+    """Whether a pull request carries one of the two release signals."""
+    return bool(RELEASE_BRANCH.match(branch or "")) or (title or "").strip().startswith(RELEASE_TITLE)
+
+
+def merged_release(pulls: list[dict]) -> dict | None:
+    """The first merged release pull request among the commit's associated pull requests."""
+    for pull in pulls:
+        if not isinstance(pull, dict) or not pull.get("merged_at"):
+            continue
+        head = (pull.get("head") or {}).get("ref") or ""
+        if is_release(head, pull.get("title") or ""):
+            return pull
+    return None
+
+
+def check_pulls(tag: str, pulls: object) -> list[str]:
+    """Return the failures that keep `tag` from proving a merged release pull request."""
+    if not isinstance(pulls, list):
+        return [f"release: the pull requests associated with {tag} could not be read"]
+    if merged_release(pulls) is not None:
+        return []
+    numbers = ", ".join(f"#{pull.get('number')}" for pull in pulls if isinstance(pull, dict)) or "none"
+    if not pulls:
+        return [
+            f"release: {tag} has no associated pull request; tag a commit merged from a release "
+            "pull request (branch release/<version> or title chore(release))"
+        ]
+    if not any(isinstance(pull, dict) and pull.get("merged_at") for pull in pulls):
+        return [
+            f"release: the pull request associated with {tag} ({numbers}) is not merged; "
+            "merge the release pull request before tagging"
+        ]
+    return [
+        f"release: {tag} came from {numbers}, which is not a release pull request; "
+        "use branch release/<version> or title chore(release)"
+    ]
+
+
+def check_release(tag: str, release: object) -> list[str]:
+    """Return the failures that keep `tag` from proving a published release."""
+    if not isinstance(release, dict):
+        return [
+            f"release: {tag} has no published GitHub release; the Release workflow must attach its assets"
+        ]
+    if release.get("tagName") not in (None, tag):
+        return [f"release: the release read back is {release.get('tagName')!r}, not {tag}"]
+    if release.get("isDraft"):
+        return [f"release: {tag} is still a draft release; publish it before calling the release done"]
+    names = {asset.get("name") for asset in release.get("assets") or [] if isinstance(asset, dict)}
+    if SUMS not in names:
+        return [f"release: {tag} has no {SUMS} asset; the release did not finish attaching its assets"]
+    return []
+
+
+def self_test() -> int:
+    cases = [
+        ("a merged release branch passes", "v0.4.0", [{"number": 1, "merged_at": "x", "title": "Release", "head": {"ref": "release/0.4.0"}}], []),
+        ("a merged release title passes", "v0.4.0", [{"number": 1, "merged_at": "x", "title": "chore(release): 0.4.0", "head": {"ref": "wt/issue-1"}}], []),
+        ("an unmerged release pull request fails", "v0.4.0", [{"number": 1, "merged_at": None, "title": "chore(release): 0.4.0", "head": {"ref": "wt/issue-1"}}], ["is not merged"]),
+        ("a merged non-release pull request fails", "v0.4.0", [{"number": 1, "merged_at": "x", "title": "Fix x", "head": {"ref": "wt/issue-1"}}], ["is not a release pull request"]),
+        ("no associated pull request fails", "v0.4.0", [], ["has no associated pull request"]),
+        ("an unreadable pull-request list fails", "v0.4.0", None, ["could not be read"]),
+    ]
+    failures = 0
+    for name, tag, pulls, expected in cases:
+        errors = check_pulls(tag, pulls)
+        if expected == [] and errors:
+            print(f"self-test: FAIL: {name}: expected a pass, got: {errors}", file=sys.stderr)
+            failures += 1
+        elif expected and not any(fragment in error for error in errors for fragment in expected):
+            print(f"self-test: FAIL: {name}: expected {expected}, got: {errors}", file=sys.stderr)
+            failures += 1
+
+    releases = [
+        ("a release with its checksums passes", {"tagName": "v0.4.0", "isDraft": False, "assets": [{"name": SUMS}]}, []),
+        ("a draft release fails", {"tagName": "v0.4.0", "isDraft": True, "assets": [{"name": SUMS}]}, ["still a draft"]),
+        ("a release without checksums fails", {"tagName": "v0.4.0", "isDraft": False, "assets": []}, [f"no {SUMS} asset"]),
+        ("a missing release fails", None, ["no published GitHub release"]),
+    ]
+    for name, data, expected in releases:
+        errors = check_release("v0.4.0", data)
+        if expected == [] and errors:
+            print(f"self-test: FAIL: {name}: expected a pass, got: {errors}", file=sys.stderr)
+            failures += 1
+        elif expected and not any(fragment in error for error in errors for fragment in expected):
+            print(f"self-test: FAIL: {name}: expected {expected}, got: {errors}", file=sys.stderr)
+            failures += 1
+
+    if failures:
+        print(f"self-test: FAIL: {failures} checks failed", file=sys.stderr)
+        return 1
+    print(f"release-contract: self-test passed ({len(cases) + len(releases)} checks)")
+    return 0
+
+
+def read_json(path: Path, what: str) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        print(f"release-contract: cannot read the {what} {path}: {error}", file=sys.stderr)
+        return None
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Verify a release tag came from a merged release pull request and has a published release."
+    )
+    parser.add_argument("--tag", help="the release tag, e.g. v0.4.0")
+    parser.add_argument("--pulls-file", type=Path, help="gh api .../commits/<sha>/pulls output")
+    parser.add_argument("--release-file", type=Path, help="gh release view <tag> --json ... output")
+    parser.add_argument("--self-test", action="store_true", help="run the decision's test cases")
+    arguments = parser.parse_args()
+
+    if arguments.self_test:
+        return self_test()
+    if not arguments.tag or (arguments.pulls_file is None and arguments.release_file is None):
+        parser.error("--tag and at least one of --pulls-file or --release-file are required")
+
+    errors: list[str] = []
+    if arguments.pulls_file is not None:
+        errors.extend(check_pulls(arguments.tag, read_json(arguments.pulls_file, "pull requests file")))
+    if arguments.release_file is not None:
+        errors.extend(check_release(arguments.tag, read_json(arguments.release_file, "release file")))
+    if errors:
+        for error in errors:
+            print(error, file=sys.stderr)
+        return 1
+    print(f"release-contract: {arguments.tag} is a merged release pull request with a published release")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

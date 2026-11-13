@@ -31,6 +31,19 @@ internal enum WizardEntry
     EditDecisions,
 }
 
+/// <summary>
+/// The four stages that group the ten steps for the wizard's header (S-8: a visible path, not a
+/// wall of steps). The stages are information, not a second navigation layer — the user still
+/// walks one step at a time.
+/// </summary>
+internal enum SetupStage
+{
+    Provider,
+    Model,
+    Profile,
+    Review,
+}
+
 /// <summary>A check step's progress: pending, passed, failed with its named reason, or skipped.</summary>
 internal enum WizardProgress
 {
@@ -58,7 +71,27 @@ internal sealed record WizardProviderChoice(
     Uri? Endpoint,
     string ApiFamily,
     CredentialPlacement Placement,
-    Uri? ModelsUrl
+    Uri? ModelsUrl,
+    string? PresetId = null
+)
+{
+    /// <summary>The preset whose URL, families and placement the entry rides; a renamed preset
+    /// keeps its preset identity while the entry, key and profiles use <see cref="Id"/>.</summary>
+    internal string PresetKey => PresetId ?? Id;
+}
+
+/// <summary>One collected provider: the answers a provider's steps collected, snapshotted when
+/// the walk starts another provider. The active run stays on the model until then, so a single-run
+/// walk (and every check helper) keeps reading the same properties.</summary>
+internal sealed record WizardProviderRun(
+    WizardProviderChoice Provider,
+    WizardCredentialChoice? Credential,
+    WizardCheckResult? ConnectionTest,
+    WizardModelChoice? Model,
+    WizardCheckResult? ModelCheck,
+    WizardProfileChoice? ChatProfile,
+    bool FastProfile,
+    IReadOnlyList<SetupStep> Skipped
 );
 
 /// <summary>
@@ -68,7 +101,18 @@ internal sealed record WizardProviderChoice(
 /// stored under). The key value never echoes, logs, or reaches
 /// <c>providers.json</c>/<c>settings.json</c>.
 /// </summary>
-internal sealed record WizardCredentialChoice(string Reference, string? Key = null);
+internal sealed record WizardCredentialChoice(string Reference, string? Key = null)
+{
+    /// <summary>
+    /// The answer's text. A positional record's generated <c>ToString()</c> prints every property,
+    /// so a typed key would ride along into any log line, notice or diagnostic that renders the
+    /// answer. It names the reference and only the key's presence instead.
+    /// </summary>
+    public override string ToString() =>
+        Key is null
+            ? $"WizardCredentialChoice {{ Reference = {Reference} }}"
+            : $"WizardCredentialChoice {{ Reference = {Reference}, Key = [redacted] }}";
+}
 
 /// <summary>
 /// The model step's answer: the model id (from discovery's listing, or typed manually when
@@ -173,10 +217,101 @@ internal sealed partial class SetupWizardModel
 
     private readonly HashSet<SetupStep> _skipped = [];
 
+    /// <summary>A step's position in the walk order; the navigation verbs work on it.</summary>
+    internal static int IndexOf(SetupStep step)
+    {
+        for (var index = 0; index < Order.Count; index++)
+        {
+            if (Order[index] == step)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>The provider runs already collected and left behind by **Add another provider…**;
+    /// the active run stays in the properties below until then.</summary>
+    private readonly List<WizardProviderRun> _providers = [];
+
+    /// <summary>The name the decision profile is written under. The wizard owns it — the profile
+    /// entry and the <c>decisions.profile</c> binding must agree — so a chat profile the walk names
+    /// the same is refused a decision profile rather than replaced by one.</summary>
+    internal const string DecisionProfileName = "decisions";
+
     /// <summary>The steps whose answer was carried in from the current configuration: an entry
     /// run's prefill. Carried values drive the later steps and show in the summary, but they are
     /// never staged writes — an entry writes only what it collected (spec: the entry menu).</summary>
     private readonly HashSet<SetupStep> _carried = [];
+
+    /// <summary>Whether the active provider has completed its per-provider steps and the walk is
+    /// back at the provider list; set by the driver, never by a store writer.</summary>
+    public bool ProviderReady { get; private set; }
+
+    /// <summary>Every provider the run has collected: the sealed runs in collection order, then
+    /// the active run when one is set. A single-run walk is a one-element list.</summary>
+    public IReadOnlyList<WizardProviderRun> AllProviderRuns =>
+        Provider is null ? _providers : [.. _providers, ActiveRun()];
+
+    /// <summary>The provider names already collected, for the duplicate-name refusal.</summary>
+    public IReadOnlyList<string> ProviderIds => [.. AllProviderRuns.Select(run => run.Provider.Id)];
+
+    /// <summary>Whether a provider id is already collected in this run.</summary>
+    public bool IsProviderConfigured(string id) => ProviderIds.Contains(id, StringComparer.Ordinal);
+
+    /// <summary>Marks the active provider's per-provider steps complete; the driver re-enters the
+    /// provider list next.</summary>
+    public void MarkProviderReady() => ProviderReady = Provider is not null;
+
+    /// <summary>
+    /// Moves the active provider answers into the collected list and clears them for the next
+    /// provider. Called only when **Add another provider…** is chosen, so **Done** leaves the last
+    /// run active for the decision step and the commit.
+    /// </summary>
+    public void SealProvider()
+    {
+        if (Provider is null)
+        {
+            return;
+        }
+
+        _providers.Add(ActiveRun());
+        Provider = null;
+        Credential = null;
+        ConnectionTest = null;
+        Model = null;
+        ModelCheck = null;
+        ChatProfile = null;
+        FastUsage = null;
+        FastCheck = null;
+        ProviderReady = false;
+        ClearProviderSkips();
+    }
+
+    private WizardProviderRun ActiveRun() =>
+        new(
+            Provider!,
+            Credential,
+            ConnectionTest,
+            Model,
+            ModelCheck,
+            ChatProfile,
+            FastProfile,
+            [.. Order.Where(step => step <= SetupStep.FastProfile && _skipped.Contains(step))]
+        );
+
+    private void ClearProviderSkips()
+    {
+        foreach (SetupStep step in Order)
+        {
+            if (step is >= SetupStep.Provider and <= SetupStep.FastProfile)
+            {
+                _skipped.Remove(step);
+                _carried.Remove(step);
+            }
+        }
+    }
 
     /// <summary>The entry the walk serves; the driver asks it for the walked range.</summary>
     public WizardEntry Entry { get; private set; } = WizardEntry.WalkEverything;
@@ -242,6 +377,94 @@ internal sealed partial class SetupWizardModel
 
     /// <summary>Whether the step was skipped; a skipped step leaves its value untouched.</summary>
     public bool IsSkipped(SetupStep step) => _skipped.Contains(step);
+
+    /// <summary>The stage a step belongs to (spec: The walk is navigable).</summary>
+    internal static SetupStage StageOf(SetupStep step) =>
+        step switch
+        {
+            SetupStep.Provider or SetupStep.Credential or SetupStep.ConnectionTest =>
+                SetupStage.Provider,
+            SetupStep.Model or SetupStep.ModelCheck => SetupStage.Model,
+            SetupStep.ChatProfile
+            or SetupStep.FastProfile
+            or SetupStep.DecisionProfile
+            or SetupStep.Decisions => SetupStage.Profile,
+            _ => SetupStage.Review,
+        };
+
+    /// <summary>The four-stage path, in walk order.</summary>
+    internal const string StagePath = "Provider › Model › Profile › Review";
+
+    /// <summary>The current stage's 1-based position on the path.</summary>
+    internal int StagePosition => (int)StageOf(Step) + 1;
+
+    /// <summary>The wizard's header line: the path, the current stage and its position.</summary>
+    internal string HeaderLine =>
+        FormattableString.Invariant($"setup — {StagePath}   {StagePosition}/4");
+
+    /// <summary>
+    /// Whether the walk has an answer for the step: a staged value, a recorded check result, or an
+    /// explicit skip. Forward replays only these (spec: The walk is navigable).
+    /// </summary>
+    internal bool HasAnswer(SetupStep step) =>
+        step switch
+        {
+            SetupStep.Provider => Provider is not null || _skipped.Contains(step),
+            SetupStep.Credential => Credential is not null || _skipped.Contains(step),
+            SetupStep.ConnectionTest => ConnectionTest is not null,
+            SetupStep.Model => Model is not null || _skipped.Contains(step),
+            SetupStep.ModelCheck => ModelCheck is not null,
+            SetupStep.ChatProfile => ChatProfile is not null || _skipped.Contains(step),
+            SetupStep.FastProfile => FastProfile || _skipped.Contains(step),
+            SetupStep.DecisionProfile => DecisionProfile is not null || _skipped.Contains(step),
+            SetupStep.Decisions => Decisions is not null || _skipped.Contains(step),
+            _ => false,
+        };
+
+    /// <summary>The step after the current one, or the summary after the entry's last step.</summary>
+    internal SetupStep NextStep() =>
+        Step == LastWalked ? SetupStep.Summary : Order[IndexOf(Step) + 1];
+
+    /// <summary>The step before the current one, clamped at the entry's first walked step: a
+    /// scoped entry never jumps before its scope.</summary>
+    internal SetupStep PreviousStep() =>
+        IndexOf(Step) <= IndexOf(FirstWalked) ? FirstWalked : Order[IndexOf(Step) - 1];
+
+    /// <summary>
+    /// The Forward verb's target: the first walked step after <paramref name="step"/> that still
+    /// needs an answer, or the summary when every step after it is answered. Answered steps are not
+    /// skipped into a cleared one — a change clears its dependants, so they count as unanswered.
+    /// </summary>
+    internal SetupStep FirstUnansweredAfter(SetupStep step)
+    {
+        for (int index = IndexOf(step) + 1; index < Order.Count; index++)
+        {
+            SetupStep candidate = Order[index];
+            if (candidate is SetupStep.Summary || candidate > LastWalked)
+            {
+                return SetupStep.Summary;
+            }
+
+            if (!HasAnswer(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return SetupStep.Summary;
+    }
+
+    /// <summary>The walked steps between two steps whose answers Forward replays, in walk order.</summary>
+    internal IReadOnlyList<SetupStep> ReplayedSteps(SetupStep from, SetupStep to) =>
+        [
+            .. Order.Where(step =>
+                IndexOf(step) > IndexOf(from)
+                && IndexOf(step) < IndexOf(to)
+                && step is not SetupStep.Summary
+                && step <= LastWalked
+                && HasAnswer(step)
+            ),
+        ];
 
     /// <summary>The skipped steps, in walk order, for the summary.</summary>
     public IReadOnlyList<SetupStep> SkippedSteps =>
@@ -379,6 +602,7 @@ internal sealed partial class SetupWizardModel
         }
 
         Provider = choice;
+        ProviderReady = false;
         Credential = null;
         ConnectionTest = null;
         Model = null;
@@ -511,7 +735,8 @@ internal sealed partial class SetupWizardModel
     /// the summary confirms). Carried values are not staged writes — the stores already have them.
     /// </summary>
     public bool HasStagedWrites =>
-        (Provider is not null && !IsCarried(SetupStep.Provider))
+        _providers.Count > 0
+        || (Provider is not null && !IsCarried(SetupStep.Provider))
         || (Credential is not null && !IsCarried(SetupStep.Credential))
         || (Model is not null && !IsCarried(SetupStep.Model))
         || (ChatProfile is not null && !IsCarried(SetupStep.ChatProfile))

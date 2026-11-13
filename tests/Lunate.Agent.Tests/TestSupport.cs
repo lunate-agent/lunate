@@ -31,14 +31,25 @@ internal static class TestCatalog
     }
 
     /// <summary>A catalog declaring the given reasoning style (null declares none) for each model id.</summary>
-    internal static ModelCatalog WithReasoning(string? style, params string[] modelIds)
+    internal static ModelCatalog WithReasoning(string? style, params string[] modelIds) =>
+        WithReasoningFor("openai", style, modelIds);
+
+    /// <summary>
+    /// A catalog declaring the given reasoning style (null declares none) on models of the given
+    /// provider, so a test can exercise the wire shape the resolved API family selects.
+    /// </summary>
+    internal static ModelCatalog WithReasoningFor(
+        string provider,
+        string? style,
+        params string[] modelIds
+    )
     {
         string[] ids = modelIds.Length == 0 ? [ModelId] : modelIds;
         string reasoning = style is null ? "" : string.Concat(",\"reasoning\":\"", style, "\"");
         string models = string.Join(
             ",",
             ids.Select(modelId =>
-                $$"""{"id":"{{modelId}}","provider":"openai","contextWindow":1000,"supportsTools":true{{reasoning}}}"""
+                $$"""{"id":"{{modelId}}","provider":"{{provider}}","contextWindow":1000,"supportsTools":true{{reasoning}}}"""
             )
         );
         string path = Path.Combine(Path.GetTempPath(), $"lunate-models-{Guid.NewGuid():N}.json");

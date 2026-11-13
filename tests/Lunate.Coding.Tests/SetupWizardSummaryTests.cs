@@ -3,16 +3,15 @@ using Lunate.Ai;
 namespace Lunate.Coding.Tests;
 
 /// <summary>
-/// The summary's content (spec: The full walk, step 9): every collected value — region, the
-/// model-check result, the decision profile's kind, the routing descriptions — and every skipped
-/// step is named, and a model check that was skipped or failed labels the model unverified even
-/// when discovery passed.
+/// The summary's content (spec: The full walk, step 9; The file manifest and the receipt): every
+/// collected value is grouped under the file it lands in, the model check that was skipped or
+/// failed labels the model unverified, and every skipped step is named in the unchanged block.
 /// </summary>
 [Trait("Category", "SetupWizardSummary")]
 public sealed class SetupWizardSummaryTests
 {
     [Fact]
-    public void A_walked_configuration_renders_every_collected_value()
+    public void A_walked_configuration_renders_every_collected_value_under_its_file()
     {
         var wizard = new SetupWizardModel();
         wizard.RecordProvider(
@@ -51,33 +50,33 @@ public sealed class SetupWizardSummaryTests
         IReadOnlyList<string> lines = SetupWizardSummary.Render(wizard);
         string text = string.Join("\n", lines);
 
-        Assert.Contains("provider: local", text, StringComparison.Ordinal);
-        Assert.Contains("region eu-central", text, StringComparison.Ordinal);
-        Assert.Contains("family anthropic-messages", text, StringComparison.Ordinal);
-        Assert.Contains("placement x-api-key", text, StringComparison.Ordinal);
+        Assert.Contains("providers.json", text, StringComparison.Ordinal);
+        Assert.Contains("provider local", text, StringComparison.Ordinal);
+        Assert.Contains("region: eu-central", text, StringComparison.Ordinal);
+        Assert.Contains("base URL (anthropic-messages):", text, StringComparison.Ordinal);
         Assert.Contains(
-            "models URL https://local.example.test/v1/models",
+            "credential placement (anthropic-messages):",
             text,
             StringComparison.Ordinal
         );
-        Assert.Contains("credential: env:LOCAL_API_KEY", text, StringComparison.Ordinal);
+        Assert.Contains("x-api-key", text, StringComparison.Ordinal);
+        Assert.Contains("credential reference: env:LOCAL_API_KEY", text, StringComparison.Ordinal);
         Assert.Contains("connection test: passed", text, StringComparison.Ordinal);
-        Assert.Contains(
-            "model: claude-sonnet-5-5 (family anthropic-messages)",
-            text,
-            StringComparison.Ordinal
-        );
+        Assert.Contains("settings.json", text, StringComparison.Ordinal);
+        Assert.Contains("profile main", text, StringComparison.Ordinal);
+        Assert.Contains("model: claude-sonnet-5-5", text, StringComparison.Ordinal);
         Assert.Contains(
             "model check: failed (HTTP 404) — the model stays unverified",
             text,
             StringComparison.Ordinal
         );
-        Assert.Contains("chat profile: main (thinking high)", text, StringComparison.Ordinal);
-        Assert.Contains("fast usage: main", text, StringComparison.Ordinal);
-        Assert.Contains("decision profile: decisions (adapter", text, StringComparison.Ordinal);
-        Assert.Contains("decisions.approvals: shadow", text, StringComparison.Ordinal);
+        Assert.Contains("reasoning level: high", text, StringComparison.Ordinal);
+        Assert.Contains("usage fast", text, StringComparison.Ordinal);
+        Assert.Contains("profile decisions", text, StringComparison.Ordinal);
+        Assert.Contains("decisions", text, StringComparison.Ordinal);
+        Assert.Contains("approvals: shadow", text, StringComparison.Ordinal);
         Assert.Contains(
-            "routing description (main): everyday work, not audits; an example.",
+            "description: everyday work, not audits; an example.",
             text,
             StringComparison.Ordinal
         );
@@ -126,14 +125,44 @@ public sealed class SetupWizardSummaryTests
         wizard.Skip(SetupStep.DecisionProfile);
 
         string text = string.Join("\n", SetupWizardSummary.Render(wizard));
-
-        Assert.Contains(
-            "skipped: credential, model, fast usage, decision profile",
-            text,
-            StringComparison.Ordinal
+        string flattened = string.Join(
+            " ",
+            text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Trim())
         );
-        Assert.DoesNotContain("provider:", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("model: ", text, StringComparison.Ordinal);
+
+        Assert.Contains("left at default / unchanged", text, StringComparison.Ordinal);
+        Assert.Contains("credential:", flattened, StringComparison.Ordinal);
+        Assert.Contains("skipped", flattened, StringComparison.Ordinal);
+        Assert.Contains("fast usage:", flattened, StringComparison.Ordinal);
+        Assert.Contains("decision profile:", flattened, StringComparison.Ordinal);
+        Assert.DoesNotContain("provider openai", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("key ", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_typed_custom_entry_names_the_settings_and_auth_files()
+    {
+        var wizard = new SetupWizardModel();
+        wizard.RecordProvider(
+            new WizardProviderChoice(
+                "homelab",
+                Custom: true,
+                Region: null,
+                new Uri("http://localhost:8080/v1"),
+                "openai-chat",
+                CredentialPlacement.Bearer,
+                null
+            )
+        );
+        wizard.RecordCredential(new WizardCredentialChoice("homelab", Key: "typed-secret"));
+        wizard.RecordModel(new WizardModelChoice("local-model", "openai-chat"));
+
+        string text = string.Join("\n", SetupWizardSummary.Render(wizard));
+
+        Assert.Contains("settings.json", text, StringComparison.Ordinal);
+        Assert.Contains("auth.json", text, StringComparison.Ordinal);
+        Assert.Contains("key homelab", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("typed-secret", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -165,10 +194,8 @@ public sealed class SetupWizardSummaryTests
 
         string text = string.Join("\n", SetupWizardSummary.Render(wizard));
 
-        Assert.Contains(
-            "decision profile: decisions (native, pinned openrouter/typesafe/jev-1.14)",
-            text,
-            StringComparison.Ordinal
-        );
+        Assert.Contains("profile decisions", text, StringComparison.Ordinal);
+        Assert.Contains("api family: systemone", text, StringComparison.Ordinal);
+        Assert.Contains("model: openrouter/typesafe/jev-1.14", text, StringComparison.Ordinal);
     }
 }

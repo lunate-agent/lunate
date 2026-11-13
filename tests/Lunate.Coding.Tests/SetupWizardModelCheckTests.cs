@@ -79,7 +79,7 @@ public sealed class SetupWizardModelCheckTests
         host.Console.SendEnter();
         await host.WaitForFrameAsync("After the failed model check");
         Assert.Contains(
-            "the model check failed for gpt-3.5-turbo (openai-chat): HTTP 404",
+            "the model check failed: gpt-3.5-turbo on family openai-chat: HTTP 404",
             host.Frames,
             StringComparison.Ordinal
         );

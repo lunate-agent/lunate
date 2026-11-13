@@ -50,6 +50,28 @@ namespace Lunate.Coding.Tests;
 internal static class WaitBudgets
 {
     /// <summary>
+    /// The wall interval between condition observations when a wait is not stepping the fake clock.
+    /// It is an interval, never a ceiling: a condition that holds exits on the observation that
+    /// sees it, and the budget named by the wait is what bounds a genuine hang.
+    /// </summary>
+    public static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(1);
+
+    /// <summary>
+    /// One live-area frame of simulated time, the step a clock-stepping wait advances. It is not a
+    /// wait ceiling: it is the unit in which the fake clock moves, so a condition that paints a
+    /// frame is observed once per frame rather than once per wall poll.
+    /// </summary>
+    public static readonly TimeSpan SimulatedFrameStep = TimeSpan.FromMilliseconds(33);
+
+    /// <summary>
+    /// How many <see cref="SimulatedFrameStep"/> frames a clock-stepping wait advances per real
+    /// millisecond. The 1 ms poll this helper grew up with advanced one frame per poll; keeping
+    /// that rate makes simulated time follow wall time instead of the number of polls, so a slow
+    /// runner catches up in one burst and sees the same frames a fast one would have seen.
+    /// </summary>
+    public const double SimulatedFrameStepsPerRealMillisecond = 33;
+
+    /// <summary>
     /// A wait that spans a turn boundary: the run finishes (the session and its history are
     /// written), the follow-up queue drains, and the next turn starts. The writes alone queue behind
     /// the rest of the runner, on every leg and by more than the tight in-process window allows.

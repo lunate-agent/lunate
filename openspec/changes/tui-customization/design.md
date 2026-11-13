@@ -80,3 +80,22 @@ The maintainer approved these additions, each binding on the apply:
 ## Deviations
 
 Filled by the apply run: every departure from this design, with the reason, before archive.
+
+- The keymap file lives at `~/.lunate/keymap.json` exactly as pinned, but the path is the
+  Lunate home store (`~/.lunate`, moved wholesale by `LUNATE_HOME`), not the raw user profile:
+  every other state file — sessions, settings, trust — follows the store, and the sandbox rule
+  (a test or portable run pointed at `LUNATE_HOME` must not read the user's real configuration)
+  has to hold for a file this session applies at startup. `$LUNATE_KEYMAP` and `--keymap` are
+  unaffected. (Keymap, section 1, task 1.1.)
+- "Fails the load" is implemented as the whole user file being discarded: the session starts
+  with the shipped catalogue and one warning line naming why, never a partially applied file or
+  a refused start. The next sentence ("a keymap it could not apply") pins that the binding
+  resolving is all-or-nothing; "the session does not start" is the file, not the process, and a
+  session-start refusal would be untestable at this change's tests' boundary.
+- Application order: the persisted `/settings tui.keys` remaps apply first (as today), then the
+  user file; a file entry beats a persisted remap on the same binding id. The design does not
+  state the order; the file is the more explicit, more deliberate choice, so its entries stand.
+- A conflict line names the consuming pair per contested key and context (the design's one
+  line, `<a> and <b> both answer Enter in context Idle; <a> wins`); when the winner's keys take
+  several keys in several contexts, the loser's line appears per key, and a loser that loses its
+  last key is disabled rather than refused.

@@ -29,8 +29,10 @@ Homebrew (`brew tap lunate-agent/tap`, `brew install lunate`), Scoop and the .NE
 Lunate's first run is the setup wizard. It has two depths on one walk: **Quick** (the default) asks
 provider, credential, connection test, model, model check and chat profile; **Detailed** asks every
 setting as well — a custom provider's fields, thinking level, fast/decision profiles and the
-decisions layer. Nothing is written until the summary is confirmed. Re-run it at any time with
-`/setup` in a session or `lunate setup` from a shell.
+decisions layer. Either depth can collect several providers in one run, each with its own
+credential, connection test, model, model check and chat profile, before the fast/decision
+profiles, the decisions layer and the summary. Nothing is written until the summary is confirmed.
+Re-run it at any time with `/setup` in a session or `lunate setup` from a shell.
 
 ![The setup wizard walking provider, credential, connection test, model check and summary](media/setup-wizard.gif)
 
@@ -59,13 +61,23 @@ the wizard opens instead of the prompt:
   (which runs the provider, credential, connection-test and model steps without leaving the usage
   step). The model check runs after the selection, states its cost first, and a skip stays marked
   unverified. A `systemone` model is labelled native Jev, any other adapter model is labelled
-  adapter.
+  adapter. The decision profile is written as the `decisions` profile, so a chat profile with that
+  name skips the decision step instead of being replaced by it.
+- **Another provider** — after a provider's steps, the provider list returns with **Add another
+  provider…** and **Done**. Adding walks the provider, credential, test, model and profile steps
+  again; **Done** continues to the decisions layer. Each provider keeps its own credential, and a
+  later one may reuse an `env:`/`auth:` reference instead of storing a second key. A name already
+  collected asks for a different name, so the first entry is never overwritten.
 - **Decisions** — Detailed only; each switch is shown with the value it holds now and one explanatory
   line; the list stays open after each change and refreshes every row, and **Done — leave the
   decisions settings** leaves it.
-- **Summary** — every collected value, the connection/model-check results, and the skipped steps. A
-  Quick summary adds a **Left at default** block naming every setting Quick did not ask, the default
-  it left, and the command that changes it later (`/setup` or `/settings`).
+- **Summary** — a manifest grouped by the file it will write (`providers.json`, `auth.json`,
+  `settings.json`), one fact per line, with the connection/model-check results and a **Left at
+  default / unchanged** block naming what the walk skipped and the command that changes it later
+  (`/setup`, `/settings`, `lunate auth login`). A Quick walk's block names every setting Quick did
+  not ask, the default it left, and that command. After the write, a short receipt names each
+  touched file, the change-later commands and returns to the session. Both surfaces stay readable
+  at 40 columns and never print a secret.
 
 Quick never hides a default: a setting it skips appears in that block. `Esc` at any prompt ends the
 run with nothing written. The full walk is the only path that writes several stores; the entry menu
@@ -96,8 +108,8 @@ shorter path for a missing credential.
 `lunate setup` runs the same walk without a TTY. Every answer is a flag; an absent flag skips its
 step and invents nothing. The connection test and the model check run unless suppressed: `--no-test`
 sends no provider request at all (it skips both), while `--no-model-check` skips only the paid model
-check and keeps the free discovery request. The summary goes to stdout and never contains a
-credential.
+check and keeps the free discovery request. The file manifest and the post-write receipt go to
+stdout and never contain a credential.
 
 <!-- run: no sends a provider request -->
 ```bash
