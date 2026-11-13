@@ -76,6 +76,12 @@ internal static class CliHelp
             "                                 machine-readable array (exit 1 when an extension"
         );
         output.WriteLine("                                 fails to load)");
+        output.WriteLine("  lunate extensions reload <id|path> [--json]");
+        output.WriteLine("                                 rebuild and reload one extension");
+        output.WriteLine("  lunate cache prune [--json]");
+        output.WriteLine(
+            "                                 remove extension builds nothing declares any more"
+        );
         output.WriteLine("  lunate trust [--yes [--digest <sha>]] [--json] [--clear]");
         output.WriteLine(
             "                                 show this repository's trust records and pending"
