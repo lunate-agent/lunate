@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""Turn a pull request's live head into the inputs ci-ok.sh decides from.
+
+ci-ok.sh fetches the pull request and the all-attempts check runs for its live head through the
+GitHub API; this file turns those two JSON documents into shell assignments. It has no network code,
+so the same decision is exercised by `scripts/ci-ok.sh --self-test` from fixtures.
+
+A "gate run" is a check-suite whose newest non-cancelled `plan` check run did not skip: a suite whose
+plan skipped is a draft-payload run and never gated, and a suite whose plan was cancelled was
+superseded before it could. Within each gate run, and across all of them, the newest non-cancelled
+attempt of each required job names that job's current state. A cancelled attempt therefore cannot
+override an older completed one, and a rerun of a draft payload cannot turn a ready verdict red.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shlex
+import sys
+from typing import Optional
+
+PENDING = {"queued", "in_progress", "waiting", "pending", "requested"}
+FAILED = {"failure", "timed_out", "action_required", "startup_failure"}
+SINGLE_JOBS = {"plan", "changes", "changelog", "platform", "verify-docs"}
+OPTIONAL_DEFAULT = {"platform": "skipped", "verify-docs": "skipped", "verify-powershell": "skipped"}
+
+
+def job_kind(name: str) -> str:
+    if name in SINGLE_JOBS:
+        return name
+    if name == "verify-powershell (windows)":
+        return "verify-powershell"
+    if name.startswith("verify ("):
+        return "verify"
+    if name.startswith("perf ("):
+        return "perf"
+    return ""
+
+
+def load_runs(path: str) -> list[dict]:
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    if isinstance(data, dict):
+        return list(data.get("check_runs") or [])
+    runs: list[dict] = []
+    if isinstance(data, list):
+        for page in data:
+            if not isinstance(page, dict):
+                continue
+            if isinstance(page.get("check_runs"), list):
+                runs.extend(page["check_runs"])
+            elif page.get("name") is not None:
+                runs.append(page)
+    return runs
+
+
+def group_key(run: dict) -> str:
+    suite = run.get("check_suite")
+    if isinstance(suite, dict) and suite.get("id") is not None:
+        return "suite:{0}".format(suite["id"])
+    match = re.search(r"/runs/(\d+)", str(run.get("details_url") or ""))
+    if match:
+        return "run:{0}".format(match.group(1))
+    return "unknown"
+
+
+def sort_key(run: dict) -> tuple[str, int]:
+    return (
+        str(run.get("started_at") or run.get("completed_at") or ""),
+        int(run.get("id") or 0),
+    )
+
+
+def conclusion(run: Optional[dict]) -> str:
+    return str(run.get("conclusion") or "") if run else ""
+
+
+def is_pending(run: dict) -> bool:
+    return run.get("status") != "completed" or not run.get("conclusion")
+
+
+def newest(runs: list[dict]) -> Optional[dict]:
+    return max(runs, key=sort_key) if runs else None
+
+
+def select_check_runs(runs: list[dict]) -> dict[str, dict]:
+    groups: dict[str, list[dict]] = {}
+    for run in runs:
+        if not job_kind(str(run.get("name") or "")):
+            continue
+        groups.setdefault(group_key(run), []).append(run)
+
+    gate_runs: list[dict] = []
+    for items in groups.values():
+        plans = [
+            run
+            for run in items
+            if job_kind(str(run.get("name") or "")) == "plan"
+            and run.get("conclusion") != "cancelled"
+        ]
+        plan = newest(plans)
+        if plan is None:
+            continue
+        # A skipped plan is a draft-payload run: the gate never ran in that suite.
+        if plan.get("status") == "completed" and plan.get("conclusion") == "skipped":
+            continue
+        gate_runs.extend(items)
+
+    selected: dict[str, dict] = {}
+    cancelled: dict[str, dict] = {}
+    for run in gate_runs:
+        name = str(run.get("name") or "")
+        target = cancelled if run.get("conclusion") == "cancelled" else selected
+        if name not in target or sort_key(run) > sort_key(target[name]):
+            target[name] = run
+    # A cancelled attempt does not count when a completed or pending attempt exists; it only
+    # survives when it is the sole evidence, so the gate cannot pass on it.
+    for name, run in cancelled.items():
+        selected.setdefault(name, run)
+    return selected
+
+
+def pending_names(selected: dict[str, dict]) -> str:
+    pending = [run for run in selected.values() if is_pending(run)]
+    pending.sort(
+        key=lambda run: (
+            str(run.get("name") or ""),
+            str(run.get("status") or "pending"),
+        )
+    )
+    return ", ".join(
+        "{0} ({1})".format(run.get("name"), run.get("status") or "pending")
+        for run in pending
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--pr-json", required=True)
+    parser.add_argument("--check-runs-json", required=True)
+    arguments = parser.parse_args()
+
+    with open(arguments.pr_json, encoding="utf-8") as handle:
+        pull_request = json.load(handle)
+    selected = select_check_runs(load_runs(arguments.check_runs_json))
+
+    def of_kind(kind: str) -> list[dict]:
+        return [
+            run
+            for name, run in selected.items()
+            if job_kind(name) == kind
+        ]
+
+    def single(kind: str) -> str:
+        return conclusion(newest(of_kind(kind))) or OPTIONAL_DEFAULT.get(kind, "")
+
+    def aggregate(kind: str) -> str:
+        values = [conclusion(run) for run in of_kind(kind)]
+        if not values:
+            return "skipped"
+        if any(value in FAILED for value in values):
+            return "failure"
+        if "success" in values:
+            return "success"
+        if all(value == "skipped" for value in values):
+            return "skipped"
+        return values[0]
+
+    def live(kind: str) -> bool:
+        return any(conclusion(run) not in ("", "skipped") for run in of_kind(kind))
+
+    plan = single("plan")
+    changes = single("changes")
+    fragments = single("changelog")
+    platform = single("platform")
+    docs = single("verify-docs")
+    powershell = single("verify-powershell")
+    perf = aggregate("perf")
+    verify = aggregate("verify")
+
+    full_signal = any(
+        live(kind) for kind in ("platform", "verify", "perf", "verify-powershell")
+    )
+    docs_signal = live("verify-docs")
+    if full_signal and docs_signal:
+        # The existing decision rejects a full run that also ran the docs leg.
+        profile = "full"
+    elif docs_signal:
+        profile = "docs"
+    elif full_signal:
+        profile = "full"
+    else:
+        profile = ""
+
+    if profile == "full":
+        if powershell == "success":
+            ps_required = "true"
+        elif powershell == "skipped":
+            # The job only runs when the path decision says true, so a skip after a successful
+            # changes job means the paths did not require it.
+            ps_required = "false" if changes == "success" else ""
+        elif powershell in FAILED:
+            ps_required = "true"
+        else:
+            ps_required = ""
+    else:
+        ps_required = "false"
+
+    macos = "true" if any("macos" in name for name in selected) else "false"
+
+    values = {
+        "DRAFT": "true" if pull_request.get("draft") else "false",
+        "PLAN": plan,
+        "PROFILE": profile,
+        "MACOS": macos,
+        "VERIFY": verify,
+        "POWERSHELL": powershell,
+        "PS_REQUIRED": ps_required,
+        "DOCS": docs,
+        "PERF": perf,
+        "PLATFORM": platform,
+        "FRAGMENTS": fragments,
+        "GATE_RUNNING": pending_names(selected),
+    }
+    for key, value in values.items():
+        print("{0}={1}".format(key, shlex.quote(value)))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

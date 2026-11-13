@@ -7,11 +7,22 @@
 # context, so the aggregate now always runs and reports a named failure while the head is a draft,
 # while `plan` keeps the draft gate -- a draft push still costs no matrix.
 #
+# A pull-request verdict comes from the live head, not from this run's payload: ci-ok.sh reads the
+# pull request (for its current draft state and head SHA) and that head's check runs through the
+# GitHub API, then judges the newest attempt of each required job. A draft-payload run never gated
+# and a cancelled attempt does not count, so rerunning an old run cannot turn a ready green red
+# (#815) and a cancelled draft run cannot override the ready run (#816). While the live gate's
+# required jobs are still queued or running, it fails with "gate still running" instead of deciding
+# from this run's stale `needs` values.
+#
 # Usage:
 #   ci-ok.sh            # decide from the environment (the CI step's env block)
 #   ci-ok.sh --self-test
 #
-# Reads, all from the environment:
+# A pull request reads through the API (GITHUB_REPOSITORY, PR_NUMBER and GH_TOKEN), or from fixture
+# files when CI_OK_PR_JSON and CI_OK_CHECK_RUNS_JSON are set (the self-test does this). Every other
+# event keeps the payload decision:
+#
 #   EVENT_NAME   github.event_name
 #   DRAFT        github.event.pull_request.draft ("true"/"false"; empty off a pull request)
 #   PLAN         needs.plan.result
@@ -145,6 +156,62 @@ decide() {
     echo "ci-ok: the $profile gate succeeded"
 }
 
+# Fetch the live pull request and its live head's check runs. The fixture variables exist so the
+# self-test can exercise the same path without the network; in CI, `gh api` reads the API with the
+# job's GITHUB_TOKEN.
+_live_state() {
+    local pr_json="${CI_OK_PR_JSON:-}" runs_json="${CI_OK_CHECK_RUNS_JSON:-}" tmp=""
+    if [ -z "$pr_json" ] || [ -z "$runs_json" ]; then
+        command -v gh >/dev/null 2>&1 || fail "gh is not installed; cannot read the head's live state"
+        [ -n "${GITHUB_REPOSITORY:-}" ] || fail "GITHUB_REPOSITORY is not set; cannot read the head's live state"
+        [ -n "${PR_NUMBER:-}" ] || fail "PR_NUMBER is not set; cannot read the head's live state"
+        tmp="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/ci-ok.XXXXXX")"
+        if ! gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" >"${tmp}/pr.json"; then
+            rm -rf "$tmp"
+            fail "could not read pull request #${PR_NUMBER} from the API; refusing to decide from this run's payload"
+        fi
+        local head_sha
+        head_sha="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["head"]["sha"])' "${tmp}/pr.json" 2>/dev/null)" || head_sha=""
+        if [ -z "$head_sha" ]; then
+            rm -rf "$tmp"
+            fail "could not read the pull request's head SHA from the API"
+        fi
+        if ! gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/commits/${head_sha}/check-runs?per_page=100&filter=all" \
+            >"${tmp}/check-runs.json"; then
+            rm -rf "$tmp"
+            fail "could not read the check runs for head ${head_sha}; refusing to decide from this run's payload"
+        fi
+        pr_json="${tmp}/pr.json"
+        runs_json="${tmp}/check-runs.json"
+    fi
+
+    local state status=0
+    state="$(python3 "${SCRIPT_DIR}/ci-ok-state" --pr-json "$pr_json" --check-runs-json "$runs_json")" || status=$?
+    [ -n "$tmp" ] && rm -rf "$tmp"
+    if [ "$status" -ne 0 ]; then
+        fail "could not read the head's live state (ci-ok-state exit ${status})"
+    fi
+    printf '%s\n' "$state"
+}
+
+# The pull-request path: the live state replaces every payload-derived value, then the same decision
+# rules run. A live draft still reports red -- the draft has not been reviewed -- while a live ready
+# head with running jobs says so by name.
+_decide_live() {
+    local state
+    state="$(_live_state)"
+    eval "$state"
+    echo "ci-ok: live draft=$DRAFT plan=$PLAN profile=$PROFILE macos=$MACOS verify=$VERIFY verify-powershell=$POWERSHELL ps-required=$PS_REQUIRED verify-docs=$DOCS perf=$PERF platform=$PLATFORM changelog=$FRAGMENTS"
+    if [ "$DRAFT" = "true" ]; then
+        decide
+    fi
+    if [ -n "${GATE_RUNNING:-}" ]; then
+        fail "gate still running: ${GATE_RUNNING}; wait for those jobs to finish, then rerun ci-ok"
+    fi
+    decide
+}
+
 # One job's block from the workflow, at the two-space indent of a job key under `jobs:`.
 _job_block() {
     python3 - "$WORKFLOW" "$1" <<'PY'
@@ -182,7 +249,7 @@ _run_from_env() {
             *) macos="true" ;;
         esac
     fi
-    env EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
+    env CI_OK_FROM_ENV=1 EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
         VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
         FRAGMENTS="$fragments" MACOS="$macos" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
@@ -193,6 +260,36 @@ _self_case() {
     shift 3
     local out status=0
     if out="$(_run_from_env "$@" 2>&1)"; then
+        status=0
+    else
+        status=$?
+    fi
+    CASES=$((CASES + 1))
+    if [ "$status" -ne "$expected" ]; then
+        echo "self-test: FAIL: ${name}: expected exit ${expected}, got ${status}" >&2
+        printf '%s\n' "$out" | sed 's/^/    /' >&2
+        FAILURES=$((FAILURES + 1))
+        return 0
+    fi
+    case "$out" in
+        *"$needle"*) ;;
+        *)
+            echo "self-test: FAIL: ${name}: output does not mention '${needle}'" >&2
+            printf '%s\n' "$out" | sed 's/^/    /' >&2
+            FAILURES=$((FAILURES + 1))
+            ;;
+    esac
+}
+
+# A live-head fixture case: the pull request and all-attempts check runs are JSON under
+# tests/fixtures/ci-ok/<name>/, and the same production path decides them.
+_self_live_case() {
+    local name="$1" expected="$2" needle="$3" fixture="$4"
+    local out status=0
+    if out="$(env EVENT_NAME=pull_request PR_NUMBER=1234 \
+        CI_OK_PR_JSON="${CI_OK_FIXTURES}/${fixture}/pr.json" \
+        CI_OK_CHECK_RUNS_JSON="${CI_OK_FIXTURES}/${fixture}/check-runs.json" \
+        bash "${SCRIPT_DIR}/ci-ok.sh" 2>&1)"; then
         status=0
     else
         status=$?
@@ -239,16 +336,18 @@ import sys
 
 workflow_path, scenario = sys.argv[1:]
 scenarios = {
-    "push-main": ("push", "refs/heads/main"),
-    "push-tag": ("push", "refs/tags/v1.2.3"),
-    "pull_request": ("pull_request", "refs/pull/42/merge"),
-    "merge_group": ("merge_group", "refs/heads/gh-readonly-queue/main/pr-42-abc"),
-    "schedule": ("schedule", "refs/heads/main"),
-    "workflow_dispatch": ("workflow_dispatch", "refs/heads/main"),
+    "push-main": ("push", "refs/heads/main", False),
+    "push-tag": ("push", "refs/tags/v1.2.3", False),
+    "pull_request": ("pull_request", "refs/pull/42/merge", False),
+    "pull_request-draft": ("pull_request", "refs/pull/42/merge", True),
+    "pull_request-ready": ("pull_request", "refs/pull/42/merge", False),
+    "merge_group": ("merge_group", "refs/heads/gh-readonly-queue/main/pr-42-abc", False),
+    "schedule": ("schedule", "refs/heads/main", False),
+    "workflow_dispatch": ("workflow_dispatch", "refs/heads/main", False),
 }
 if scenario not in scenarios:
     sys.exit(f"unknown scenario: {scenario}")
-event, ref = scenarios[scenario]
+event, ref, draft = scenarios[scenario]
 
 with open(workflow_path, encoding="utf-8") as handle:
     lines = [line.rstrip("\r\n") for line in handle]
@@ -286,6 +385,11 @@ def evaluate_group(expr):
     expr = re.sub(
         r"\$\{\{\s*github\.event_name == '([^']*)' && '([^']*)' \|\| ''\s*\}\}",
         lambda match: match.group(2) if event == match.group(1) else "",
+        expr,
+    )
+    expr = re.sub(
+        r"\$\{\{\s*github\.event_name == '([^']*)' && github\.event\.pull_request\.draft(?: == true)? && '([^']*)' \|\| ''\s*\}\}",
+        lambda match: match.group(2) if event == match.group(1) and draft else "",
         expr,
     )
     if "${{" in expr:
@@ -455,6 +559,21 @@ _self_push_trigger() {
 self_test() {
     CASES=0
     FAILURES=0
+    local CI_OK_FIXTURES="${REPO_ROOT}/tests/fixtures/ci-ok"
+
+    # The live-head decision (#830): the payload of the run that woke ci-ok never decides a pull
+    # request. A rerun of a draft payload sees the ready run that actually gated, a cancelled run
+    # does not override it, a running gate says so by name, and a live draft stays red.
+    _self_live_case "a draft-payload rerun on a passed head is green (#815)" 0 \
+        "the full gate succeeded" "815-draft-rerun-green"
+    _self_live_case "a draft-payload rerun on a failed head is red (#815)" 1 \
+        "did not succeed" "815-ready-failed-red"
+    _self_live_case "cancelled draft legs do not override the ready run (#816)" 0 \
+        "the full gate succeeded" "816-cancelled-legs-green"
+    _self_live_case "a ready gate with running jobs names them" 1 \
+        "gate still running" "ready-still-running"
+    _self_live_case "a live draft is red even when an older run passed" 1 \
+        "the head is a draft (draft=true)" "live-draft-red"
 
     # The required context must never be skipped on a head that can be merged.
     _self_case "a draft pull request fails instead of skipping" 1 "draft" \
@@ -640,6 +759,10 @@ self_test() {
         "ci-refs/heads/main" false
     _self_concurrency "ci: a pull request supersedes its own older run" "$WORKFLOW" pull_request \
         "ci-refs/pull/42/merge" true
+    _self_concurrency "ci: a draft pull request has its own group" "$WORKFLOW" pull_request-draft \
+        "ci-refs/pull/42/merge-draft" true
+    _self_concurrency "ci: a ready pull request uses the ready group" "$WORKFLOW" pull_request-ready \
+        "ci-refs/pull/42/merge" true
     _self_concurrency "ci: a merge group is never cancelled" "$WORKFLOW" merge_group \
         "ci-refs/heads/gh-readonly-queue/main/pr-42-abc" false
     _self_concurrency "ci: the nightly has its own group and cancels nothing" "$WORKFLOW" schedule \
@@ -675,4 +798,14 @@ if [ "${1:-}" = "--self-test" ]; then
     exit $?
 fi
 
-decide
+# The old env-only cases exercise the decision rules directly; production pull requests go through
+# the live API path.
+if [ "${CI_OK_FROM_ENV:-}" = "1" ]; then
+    decide
+    exit
+fi
+
+case "${EVENT_NAME:-}" in
+    pull_request) _decide_live ;;
+    *) decide ;;
+esac
