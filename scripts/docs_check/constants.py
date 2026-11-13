@@ -7,13 +7,11 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = Path("docs") / "docs.json"
 ROOT_DOCUMENTS = ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CHANGELOG.md", "AGENTS.md")
 RECORD_PREFIXES = (
-    "docs/spikes/",
-    "docs/eval/",
     "docs/dev/spikes/",
     "docs/dev/eval/",
 )
 MAINTAINER_FILES = {"README.md", "architecture.md", "distribution.md", "guide.md"}
-MAINTAINER_PREFIXES = ("spec/", "media/", "dev/")
+MAINTAINER_PREFIXES = ("media/", "dev/")
 SETTINGS_SCHEMA = Path("src/Lunate.Coding/settings-schema.json")
 CONFIG_KINDS = ("settings", "mcp", "providers", "extension", "auth")
 
