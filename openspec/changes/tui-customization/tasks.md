@@ -5,13 +5,13 @@ change archives only when the last part lands.
 
 ## 1. Keymap
 
-- [ ] 1.1 Load `~/.lunate/keymap.json`, overlaying `keys.json` by binding id; `$LUNATE_KEYMAP` and
+- [x] 1.1 Load `~/.lunate/keymap.json`, overlaying `keys.json` by binding id; `$LUNATE_KEYMAP` and
       `--keymap <path>` select the file.
-- [ ] 1.2 Refuse an unknown binding id with the id and up to three nearest catalogue ids; refuse a
+- [x] 1.2 Refuse an unknown binding id with the id and up to three nearest catalogue ids; refuse a
       user binding that invents an id; allow an empty `keys` array to disable a binding.
-- [ ] 1.3 Resolve conflicts: user file beats the catalogue with one startup line naming both ids; two
+- [x] 1.3 Resolve conflicts: user file beats the catalogue with one startup line naming both ids; two
       user bindings in conflict fail the load.
-- [ ] 1.4 Tests: overlay, unknown id, invented id, disable, catalogue conflict, user-user conflict,
+- [x] 1.4 Tests: overlay, unknown id, invented id, disable, catalogue conflict, user-user conflict,
       and one test that a rebound key reaches its intent through the real key reader.
 
 ## 2. Themes

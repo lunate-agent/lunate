@@ -12,13 +12,13 @@ namespace Lunate.Coding;
 
 internal sealed partial class InteractiveSession
 {
-    /// <summary>Step 9: every collected value — provider, region, credential source, endpoint,
-    /// family, placement, models URL, test results, model, profiles, decision kind, decisions —
-    /// and every skipped step, one per line.</summary>
+    /// <summary>Step 9: the file manifest — every collected provider, credential, profile, usage
+    /// and decisions value under the file it will reach, the check results, and the settings the
+    /// walk left unchanged. Nothing is written before the confirm.</summary>
     private void RenderSummary(SetupWizardModel wizard)
     {
         List<string> lines = ["setup — confirm these values (nothing has been written yet):"];
-        lines.AddRange(SetupWizardSummary.Render(wizard));
+        lines.AddRange(SetupWizardSummary.Render(wizard, _console.Size.Columns));
 
         _live.WriteScrollback(console =>
         {
@@ -29,7 +29,10 @@ internal sealed partial class InteractiveSession
         });
     }
 
-    private async Task<bool> ConfirmAsync(string question, CancellationToken ct)
+    /// <summary>The summary's confirm: Enter writes, Esc cancels, and Back re-opens the walk at its
+    /// last step so a wrong answer can be changed instead of restarting (spec: The walk is
+    /// navigable).</summary>
+    private async Task<WizardMove> ConfirmAsync(string question, CancellationToken ct)
     {
         string? answered = await PickAsync(
                 question,
@@ -40,7 +43,12 @@ internal sealed partial class InteractiveSession
                 "write"
             )
             .ConfigureAwait(false);
-        return answered == "write";
+        return answered switch
+        {
+            "write" or WizardForwardValue => WizardMove.Advance,
+            WizardBackValue => WizardMove.Back,
+            _ => WizardMove.Abort,
+        };
     }
 
     private void CommitWizard(SetupWizardModel wizard)
@@ -136,7 +144,8 @@ internal sealed partial class InteractiveSession
         List<string> values,
         PickerKind kind,
         CancellationToken ct,
-        string? selected = null
+        string? selected = null,
+        bool menu = false
     )
     {
         var pending = new TaskCompletionSource<string?>(
@@ -147,7 +156,7 @@ internal sealed partial class InteractiveSession
             pending.TrySetCanceled(ct)
         );
         int current = values.IndexOf(selected ?? string.Empty);
-        OpenPicker(kind, titlePrefix, labels, values, current < 0 ? 0 : current);
+        OpenPicker(kind, titlePrefix, labels, values, current < 0 ? 0 : current, menu);
         try
         {
             string? picked = await pending.Task.ConfigureAwait(false);
@@ -173,13 +182,39 @@ internal sealed partial class InteractiveSession
         string question,
         IReadOnlyList<string> options,
         CancellationToken ct
+    ) =>
+        await AskSelectAsync(header, question, options, multiSelect: false, ct)
+            .ConfigureAwait(false)
+            is { Count: > 0 } selected
+            ? selected[0]
+            : WizardAbortValue;
+
+    /// <summary>
+    /// One plural answer through the same question component: Space toggles <c>[x]</c>, Enter
+    /// confirms the selection and the question shows how many rows are selected. Esc aborts.
+    /// </summary>
+    private async Task<IReadOnlyList<string>?> AskMultiSelectAsync(
+        string header,
+        string question,
+        IReadOnlyList<string> options,
+        CancellationToken ct
+    ) =>
+        await AskSelectAsync(header, question, options, multiSelect: true, ct)
+            .ConfigureAwait(false);
+
+    private async Task<IReadOnlyList<string>?> AskSelectAsync(
+        string header,
+        string question,
+        IReadOnlyList<string> options,
+        bool multiSelect,
+        CancellationToken ct
     )
     {
         SelectListQuestionModel model = SelectListQuestionModel.Create(
             header,
             question,
             [.. options.Select(option => new SelectListQuestionOption(option, string.Empty))],
-            multiSelect: false,
+            multiSelect,
             null
         );
         var interaction = new SelectListQuestionInteraction(_scheduler);
@@ -197,12 +232,9 @@ internal sealed partial class InteractiveSession
         try
         {
             SelectListQuestionModel answered = await decision.Task.ConfigureAwait(false);
-            if (answered.Status != QuestionPromptStatus.Submitted)
-            {
-                return WizardAbortValue;
-            }
-
-            return answered.Answer?.SelectedOptions.FirstOrDefault() ?? WizardAbortValue;
+            return answered.Status == QuestionPromptStatus.Submitted
+                ? answered.Answer?.SelectedOptions ?? []
+                : null;
         }
         finally
         {
@@ -215,291 +247,16 @@ internal sealed partial class InteractiveSession
 }
 
 /// <summary>
-/// The summary's lines: one value per line, group headers included, so the terminal note and the
-/// fixture pins read the same content at every width (layout is pinned at 80/60 columns by the
-/// fixture tests; the content is what matters here).
+/// The summary's file manifest: one fact per line, grouped by the file the commit writes, wrapped
+/// to the terminal width (80/60 by the fixture tests, 40 by the manifest and receipt pins).
 /// </summary>
 internal static class SetupWizardSummary
 {
-    internal static IReadOnlyList<string> Render(SetupWizardModel wizard)
-    {
-        List<string> lines = [];
-        if (wizard.Entry is WizardEntry.WalkEverything)
-        {
-            lines.Add(
-                wizard.IsQuick
-                    ? "setup mode: quick — provider, credential, model and chat profile"
-                    : "setup mode: detailed — every setting was asked"
-            );
-        }
-
-        if (wizard.Provider is { } provider)
-        {
-            lines.Add(
-                $"provider: {provider.Id}"
-                    + (
-                        provider.Custom
-                            ? $" (custom endpoint {provider.Endpoint} — family {provider.ApiFamily}, placement {provider.Placement.ToCompact()}, region {provider.Region ?? "(none)"}"
-                                + (
-                                    provider.ModelsUrl is { } modelsUrl
-                                        ? $", models URL {modelsUrl}"
-                                        : ""
-                                )
-                                + ")"
-                        : provider.Region is { } region ? $" (region {region})"
-                        : string.Empty
-                    )
-            );
-        }
-
-        if (wizard.Credential is { } credential)
-        {
-            lines.Add(
-                "credential: "
-                    + (
-                        credential.Key is not null
-                            ? "the key you typed (stored only in the auth store)"
-                            : credential.Reference
-                    )
-            );
-        }
-
-        switch (wizard.ConnectionTest?.Outcome)
-        {
-            case WizardProgress.Passed:
-                lines.Add("connection test: passed");
-                break;
-            case WizardProgress.Skipped:
-                lines.Add("connection test: skipped");
-                break;
-            case WizardProgress.Failed:
-                lines.Add($"connection test: failed ({wizard.ConnectionTest?.Detail})");
-                break;
-        }
-
-        if (wizard.Model is { } model)
-        {
-            lines.Add($"model: {model.ModelId} (family {model.ApiFamily})");
-        }
-
-        switch (wizard.ModelCheck?.Outcome)
-        {
-            case WizardProgress.Passed:
-                lines.Add("model check: passed");
-                break;
-            case WizardProgress.Skipped:
-                lines.Add("model check: skipped — the model stays unverified");
-                break;
-            case WizardProgress.Failed:
-                lines.Add(
-                    $"model check: failed ({wizard.ModelCheck?.Detail}) — the model stays unverified"
-                );
-                break;
-        }
-
-        if (wizard.ChatProfile is { } chat)
-        {
-            lines.Add(
-                "chat profile: "
-                    + chat.Name
-                    + (chat.ReasoningLevel is { } level ? $" (thinking {level})" : string.Empty)
-            );
-        }
-
-        if (wizard.ChatUsageBinding is { } bound)
-        {
-            lines.Add("chat usage: " + bound);
-        }
-
-        if (wizard.FastUsage is { } fast)
-        {
-            lines.Add(
-                fast.ReuseChatProfile
-                    ? $"fast usage: {fast.ProfileName} (the chat profile also serves fast; checked as the chat model)"
-                    : $"fast usage: {fast.ProfileName} ({fast.ProviderId}/{fast.ModelId}"
-                        + (fast.ReasoningLevel is { } level ? $", thinking {level}" : string.Empty)
-                        + ")"
-            );
-            if (!fast.ReuseChatProfile)
-            {
-                lines.Add(
-                    (wizard.FastCheck?.Outcome) switch
-                    {
-                        WizardProgress.Passed => "fast check: passed",
-                        WizardProgress.Skipped =>
-                            "fast check: skipped — the fast profile stays unverified",
-                        WizardProgress.Failed =>
-                            $"fast check: failed ({wizard.FastCheck?.Detail}) — the fast profile stays unverified",
-                        _ => "fast check: not run — the fast profile stays unverified",
-                    }
-                );
-            }
-        }
-
-        if (wizard.DecisionProfile is { } decision)
-        {
-            lines.Add(
-                "decision profile: "
-                    + decision.ProfileName
-                    + (decision.Native ? " (native" : " (adapter")
-                    + (decision.PinnedVersion is { } pinned ? $", pinned {pinned}" : string.Empty)
-                    + ")"
-            );
-            lines.Add(
-                $"decision model: {decision.ProviderId}/{decision.ModelId} (family {decision.ApiFamily})"
-            );
-        }
-
-        if (wizard.DecisionProfile is not null)
-        {
-            switch (wizard.DecisionCheck?.Outcome)
-            {
-                case WizardProgress.Passed:
-                    lines.Add(
-                        $"decision check: passed — {wizard.DecisionProfile.ModelId} "
-                            + $"({(wizard.DecisionProfile.Native ? "native" : "adapter")})"
-                    );
-                    break;
-                case WizardProgress.Skipped:
-                    lines.Add("decision check: skipped — the decision profile stays unverified");
-                    break;
-                case WizardProgress.Failed:
-                    lines.Add(
-                        $"decision check: failed ({wizard.DecisionCheck?.Detail}) — the decision "
-                            + "profile stays unverified"
-                    );
-                    break;
-                default:
-                    lines.Add("decision check: not run — the decision profile stays unverified");
-                    break;
-            }
-        }
-
-        if (wizard.Decisions is { } decisions)
-        {
-            if (decisions.Approvals is { } approvals)
-            {
-                lines.Add($"decisions.approvals: {approvals}");
-            }
-
-            if (decisions.Routing is { } routing)
-            {
-                lines.Add(
-                    $"decisions.routing: {routing} (routing profiles: {string.Join(", ", RoutingCandidateNames(wizard))})"
-                );
-            }
-
-            if (decisions.Tool is { } tool)
-            {
-                lines.Add($"decisions.tool: {tool}");
-            }
-
-            if (decisions.Questions is { } questions)
-            {
-                lines.Add($"decisions.questions: {questions}");
-            }
-
-            foreach ((string profile, string description) in decisions.RoutingDescriptions)
-            {
-                lines.Add($"routing description ({profile}): {description}");
-            }
-        }
-        else if (wizard.IsSkipped(SetupStep.Decisions))
-        {
-            lines.Add("decisions: defaults accepted (nothing written for the layer)");
-        }
-
-        foreach (WizardInlineProvider inline in wizard.InlineProviders)
-        {
-            lines.Add(
-                $"added provider: {inline.Provider.Id} (region {inline.Provider.Region ?? "(none)"})"
-            );
-            lines.Add(
-                $"added credential ({inline.Provider.Id}): "
-                    + (
-                        inline.Credential.Key is not null
-                            ? "the key you typed (stored only in the auth store)"
-                            : inline.Credential.Reference
-                    )
-            );
-            lines.Add(
-                $"added connection test ({inline.Provider.Id}): "
-                    + inline.ConnectionTest.Outcome switch
-                    {
-                        WizardProgress.Passed => "passed",
-                        WizardProgress.Failed => $"failed ({inline.ConnectionTest.Detail})",
-                        _ => "skipped",
-                    }
-            );
-            lines.Add(
-                $"added model ({inline.Provider.Id}): {inline.Model.ModelId} (family {inline.Model.ApiFamily})"
-            );
-        }
-
-        if (wizard.SkippedSteps is { Count: > 0 } skipped)
-        {
-            lines.Add(
-                $"skipped: "
-                    + string.Join(
-                        ", ",
-                        skipped.Select(step =>
-                            step switch
-                            {
-                                SetupStep.Provider => "provider",
-                                SetupStep.Credential => "credential",
-                                SetupStep.ConnectionTest => "connection test",
-                                SetupStep.Model => "model",
-                                SetupStep.ModelCheck => "model check",
-                                SetupStep.ChatProfile => "chat profile",
-                                SetupStep.FastProfile => "fast usage",
-                                SetupStep.DecisionProfile => "decision profile",
-                                SetupStep.Decisions => "decisions settings",
-                                _ => step.ToString(),
-                            }
-                        )
-                    )
-            );
-        }
-
-        if (wizard.LeftAtDefault is { Count: > 0 } defaults)
-        {
-            lines.Add("Left at default:");
-            foreach (WizardDefault left in defaults)
-            {
-                lines.Add($"  {left.Setting}: {left.Value} — change later with {left.ChangeWith}");
-            }
-        }
-
-        return lines;
-    }
-
-    private static IReadOnlyList<string> RoutingCandidateNames(SetupWizardModel wizard)
-    {
-        var names = new List<string>();
-        if (wizard.ChatProfile is { } chat)
-        {
-            names.Add(chat.Name);
-        }
-
-        if (wizard.DecisionProfile is { } decision)
-        {
-            names.Add(decision.ProfileName);
-        }
-
-        foreach (string existing in wizard.ExistingRoutingProfiles)
-        {
-            if (!names.Contains(existing, StringComparer.Ordinal))
-            {
-                names.Add(existing);
-            }
-        }
-
-        return names;
-    }
-}
-
-file static class WizardCredentialSourceExtensions
-{
-    public static string Source(this WizardCredentialChoice credential, string reference) =>
-        credential.Key is null ? reference : "the key you typed (stored only in the auth store)";
+    /// <summary>The manifest's lines at the given terminal width: file headings, one fact per line,
+    /// and the settings the walk left unchanged. Layout is the renderer's; the content is every
+    /// staged value and its file (spec: The file manifest and the receipt).</summary>
+    internal static IReadOnlyList<string> Render(
+        SetupWizardModel wizard,
+        int width = SetupWizardManifest.DefaultWidth
+    ) => SetupWizardManifest.Render(wizard, width);
 }

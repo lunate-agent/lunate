@@ -154,18 +154,29 @@ public sealed class InteractiveSessionAutocompleteCompositionTests
     private static async Task<string> CaptureFrameAsync(InteractiveSessionHost host)
     {
         string? previous = null;
-        DateTime deadline = DateTime.UtcNow + WaitBudgets.InProcess;
-        while (DateTime.UtcNow < deadline)
+        try
         {
-            host.Advance(33);
-            await Task.Delay(1, TestContext.Current.CancellationToken);
-            string current = Escape(CanonicalFrame(host.LastFrame));
-            if (previous is not null && string.Equals(current, previous, StringComparison.Ordinal))
-            {
-                return current;
-            }
-
-            previous = current;
+            await host.WaitUntilAsync(
+                () =>
+                {
+                    // The clock step is part of the condition, so the wait's own wall-paced catch-up
+                    // keeps the sampled frames coming even when the runner is too slow to poll often
+                    // (#710). Checking after each 33 ms frame means a transient frame is still seen.
+                    host.Advance((int)WaitBudgets.SimulatedFrameStep.TotalMilliseconds);
+                    string current = Escape(CanonicalFrame(host.LastFrame));
+                    bool stable =
+                        previous is not null
+                        && string.Equals(current, previous, StringComparison.Ordinal);
+                    previous = current;
+                    return stable;
+                },
+                WaitBudgets.InProcess
+            );
+        }
+        catch (TimeoutException)
+        {
+            // The old loop returned the last frame it observed when the window closed; a golden
+            // assertion should still be able to report that frame rather than the wait's message.
         }
 
         return previous ?? string.Empty;

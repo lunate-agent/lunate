@@ -24,6 +24,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Security and safety | [`security.md`](security.md) | The user-facing posture: approvals, the workspace boundary, the bash guard, the container boundary, trust, secrets and what is out of scope |
 | Troubleshooting | [`troubleshooting.md`](troubleshooting.md) | Symptom → cause → next step for first-run, model, terminal, container and session failures |
 | Changelog | [`../CHANGELOG.md`](../CHANGELOG.md) | Notable changes, one section per release |
+| Changelog fragments | [`../changes/README.md`](../changes/README.md) | The release-note rule: a pull request writes `changes/<pr-number>.md`, the release pull request assembles `CHANGELOG.md` |
 | Plan and status | [`guide.md`](guide.md) | The implementation plan, phases and roadmap |
 | Documentation architecture (proposed) | [`dev/information-architecture.md`](dev/information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and slice plan, awaiting sign-off |
 | Architecture overview | [`architecture.md`](architecture.md) | Component map, model pipeline, one run and the event path, as diagrams |
@@ -45,7 +46,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 
 - **English-first.** User- and model-facing text is English; technical output is culture-invariant.
 - **Linted.** `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`, `AGENTS.md`,
-  `docs/**/*.md` and `adr/**/*.md` are checked by markdownlint
+  `changes/**/*.md`, `docs/**/*.md` and `adr/**/*.md` are checked by markdownlint
   (`npx --yes markdownlint-cli2@0.23.3`, configured in `.markdownlint-cli2.yaml`). `openspec/` is
   tool-managed and excluded.
 - **One home per fact.** Link to the owning document instead of copying it; a fact that exists twice drifts.
@@ -64,21 +65,28 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   `Process` job (that job's checkout fetches the tags, which the version region reads), and in
   `tree-checks.yml` on every push to `main` — a docs-only push skips the matrix, so that push is the
   one place a stale region had no gate at all.
+- **Links, anchors and redirects are checked.** `scripts/docs-check --check` resolves every relative
+  link and `#anchor` on the user and maintainer pages, validates every redirect stub, and keeps
+  `docs/docs.json` honest: the manifest's `navigation` lists every user-path page exactly once, and
+  `proseOnly` carries the pages that have no runnable example yet with a one-line reason.
 - **Behaviour changes update the specs first.** `openspec/specs/` is the source of truth; when prose and spec disagree, the spec wins.
 - **Keep it current.** A change updates the documents it invalidates; stale documentation is a bug.
-- **New documents land in a home above.** If none fits, propose a new home in an OpenSpec change first.
+- **New documents land in a home above.** If none fits, propose a new home in an OpenSpec change
+  first, then add the page to `docs/docs.json` so the checker can see it.
 
 ## Verification gate
 
 `scripts/verify.sh` is the done-gate; [`../CONTRIBUTING.md`](../CONTRIBUTING.md) owns its step
-list. By default its test phase runs the solution-wide `dotnet test` the gate has always used,
-once per culture. Setting `LUNATE_VERIFY_JOBS=2` (or more) opts into a faster local mode: the
-default-culture and `de-AT` passes run at the same time, each with a bounded pool of test
-assemblies, while process- and environment-sensitive assemblies keep a serial lane inside a
-pass. That shaves about two minutes off the test phase locally; CI keeps the default path
-because timing-sensitive suites flaked on the shared Windows runner under the pooled load. The
-passes are independent processes, so overlapping them changes the wall time, not what the gate
-checks.
+list. Its docs profile runs markdownlint, `scripts/docs-sync --check`, `scripts/docs-check --check`
+and the OpenSpec tree; the full profile also runs `scripts/docs-check --run` against the published
+binary after the runnable examples exist. By default its test phase runs the solution-wide
+`dotnet test` the gate has always used, once per culture. Setting `LUNATE_VERIFY_JOBS=2` (or more)
+opts into a faster local mode: the default-culture and `de-AT` passes run at the same time, each
+with a bounded pool of test assemblies, while process- and environment-sensitive assemblies keep a
+serial lane inside a pass. That shaves about two minutes off the test phase locally; CI keeps the
+default path because timing-sensitive suites flaked on the shared Windows runner under the pooled
+load. The passes are independent processes, so overlapping them changes the wall time, not what the
+gate checks.
 
 ## Blame and the one-time reformat
 

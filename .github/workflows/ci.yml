@@ -72,6 +72,7 @@ jobs:
           bash scripts/ci-ok.sh --self-test
           bash scripts/ci-powershell-paths.sh --self-test
           python3 scripts/docs-sync --self-test
+          python3 scripts/docs-check --self-test
           bash scripts/no-docs-references.sh --self-test
           bash scripts/no-wip-commits.sh --self-test
 
@@ -161,6 +162,49 @@ jobs:
           cat changed.txt
           bash scripts/ci-powershell-paths.sh --paths-file changed.txt >>"${GITHUB_OUTPUT}"
           cat "${GITHUB_OUTPUT}"
+
+  # The changelog rule: a pull request writes its release-note line in changes/<number>.md and never
+  # edits CHANGELOG.md; only the release pull request (branch release/<version> or a title starting
+  # chore(release)) assembles it. This runs whatever profile was chosen, because a prose pull request
+  # is exactly the one that used to edit the changelog. When the diff includes CHANGELOG.md -- the
+  # release pull request -- the same job runs the assembler's --check, so the assembly the release
+  # commits is verified by the run that uses it.
+  changelog:
+    name: changelog
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The decision diffs the pull request against its base, so the history has to be there.
+          fetch-depth: 0
+
+      - name: Only the release pull request edits CHANGELOG.md
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          git diff --name-status -M "origin/${BASE_REF}...HEAD" >changed.txt
+          echo "changed paths:"
+          cat changed.txt
+          python3 scripts/changelog-guard --self-test
+          # The rule is inert until changes/ exists on the base: the pull request that introduces
+          # the directory would otherwise be refused a changelog edit with nowhere else to put the
+          # line. That is exactly the one pull request that seeds the directory and the region.
+          if ! git cat-file -e "origin/${BASE_REF}:changes/README.md" 2>/dev/null; then
+            echo "changelog: changes/ is not on ${BASE_REF} yet, so the rule is inert for this pull request"
+            exit 0
+          fi
+          python3 scripts/changelog-guard --paths-file changed.txt \
+            --pull-request "${PR_NUMBER}" --branch "${HEAD_REF}" --title "${TITLE}"
+          if grep -qE '(^|[[:space:]])CHANGELOG\.md$' changed.txt; then
+            python3 scripts/changelog-assemble --check
+          fi
 
   # The platform-independent half of the gate: formatting, the generated docs regions, markdownlint,
   # the public API, the OpenSpec tree and the two agent-hygiene checks. Running it once on Linux is
@@ -649,7 +693,7 @@ jobs:
   # push still costs no matrix. scripts/ci-ok.sh --self-test pins both halves.
   ci-ok:
     name: ci-ok
-    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf]
+    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -669,4 +713,6 @@ jobs:
           DOCS: ${{ needs.verify-docs.result }}
           PERF: ${{ needs.perf.result }}
           PLATFORM: ${{ needs.platform.result }}
+          FRAGMENTS: ${{ needs.changelog.result }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: bash scripts/ci-ok.sh

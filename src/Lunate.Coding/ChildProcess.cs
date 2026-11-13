@@ -31,10 +31,19 @@ internal abstract class ChildProcess : IExecutionProcess
 
     public abstract void Dispose();
 
-    public static ChildProcess Start(ProcessRunRequest request) =>
+    /// <summary>
+    /// Starts the child. <paramref name="passthrough"/> is the tool-process pass-through list its
+    /// environment is built with; null reads the process-wide configured list. A test hands the
+    /// list it asserts on in through this seam instead of depending on what the process holds at
+    /// the moment of the spawn.
+    /// </summary>
+    public static ChildProcess Start(
+        ProcessRunRequest request,
+        IReadOnlyList<string>? passthrough = null
+    ) =>
         OperatingSystem.IsWindows()
-            ? WindowsChildProcess.Spawn(request)
-            : UnixChildProcess.Spawn(request);
+            ? WindowsChildProcess.Spawn(request, passthrough)
+            : UnixChildProcess.Spawn(request, passthrough);
 
     /// <summary>
     /// The tool child's environment: the builder's <see cref="ChildEnvironmentPolicy.Inherited"/>
@@ -49,16 +58,20 @@ internal abstract class ChildProcess : IExecutionProcess
     /// must not see is a credential Lunate resolved: a model-chosen command reading the user's
     /// provider key out of the environment is the leak the bash guard's <c>auth.json</c> read-deny
     /// closes for files. The stripping itself is the builder's (one implementation); this method
-    /// only names the policy and the names. The pass-through list is read here, where the policy is
+    /// only names the policy and the names. <paramref name="passthrough"/> is the caller's list when
+    /// it states one, otherwise the process-wide configured list is read here, where the policy is
     /// built — never at a spawn site. <c>ChildEnvironmentGuardTests</c> pins all of it.
     /// </remarks>
-    internal static IReadOnlyDictionary<string, string> BuildEnvironment(ProcessRunRequest request)
+    internal static IReadOnlyDictionary<string, string> BuildEnvironment(
+        ProcessRunRequest request,
+        IReadOnlyList<string>? passthrough = null
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
         return EnvironmentScrubber.Build(
             ChildEnvironmentPolicy.Inherited,
             set: request.ExtraEnvironment,
-            passthrough: ToolEnvironmentPassthrough.Names,
+            passthrough: passthrough ?? ToolEnvironmentPassthrough.Names,
             strip: CredentialVariables.All,
             inherited: request.Environment
         );

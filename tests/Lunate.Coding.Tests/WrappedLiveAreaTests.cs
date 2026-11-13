@@ -61,10 +61,10 @@ public sealed class WrappedLiveAreaTests
         foreach (
             string marker in new[]
             {
-                "provider: openai",
+                "provider openai",
                 "connection test: passed",
                 "model: gpt-3.5-turbo",
-                "chat profile: chat-main",
+                "profile chat-main",
             }
         )
         {
@@ -120,32 +120,35 @@ public sealed class WrappedLiveAreaTests
         await host.WaitForFrameAsync("Model (type to search");
         host.Console.SendEnter(); // the listed model
         await host.WaitForFrameAsync("Model check");
+        host.Advance(500); // let the picker's in-flight window close before the first key
         host.Console.SendUp(); // the send row, not the default skip
+        await host.WaitForFrameAsync("> Send the model check");
+        host.Advance(500); // close the key window before Enter
         host.Console.SendEnter();
-        await host.WaitForFrameAsync("Profile name");
 
-        // Every typed key is a repaint with the notice still up: the redraw loop the report saw.
+        await host.WaitForNoticeAsync("model check passed: gpt-3.5-turbo (openai-chat)");
+        Assert.Equal(1, ModelCheckNotices(host));
+
+        // Every typed key is a repaint: the status line must not be posted again per keystroke.
+        await host.WaitForFrameAsync("Profile name");
         foreach (char key in "chat-main")
         {
             host.Console.SendText(key.ToString());
             host.Advance(33);
         }
 
-        // The wizard reads the name through its own prompt, and the prompt label and the draft
-        // share one clipped line at 40 columns; submitting and waiting for the next step pins
-        // that every repaint happened before the frame is read.
         host.Console.SendEnter();
         await host.WaitForFrameAsync("fast usage");
+        Assert.Equal(1, ModelCheckNotices(host));
+
         var screen = new TerminalScreen(width);
         foreach (string write in host.Console.Writes)
         {
             screen.Feed(write);
         }
 
-        IReadOnlyList<string> lines = screen.Lines;
-        Assert.Equal(1, Occurrences(string.Join("\n", lines), "model check passed"));
         Assert.All(
-            lines,
+            screen.Lines,
             line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
         );
 
@@ -154,6 +157,74 @@ public sealed class WrappedLiveAreaTests
         host.Console.Complete();
         await run;
     }
+
+    [Fact]
+    public async Task The_manifest_and_receipt_render_at_40_columns_and_name_every_file()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            freshInstall: true,
+            discoveryTransport: new RecordingHandler((_, _) => Task.FromResult(Response())),
+            unifiedScrollback: true
+        );
+        host.Console.Size = new ConsoleSize(40, 24);
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await WalkToSummary(host);
+        await host.WaitForFrameAsync("Write this configuration?");
+
+        IReadOnlyList<string> manifestLines = Screen(host, 40);
+        string manifest = string.Join("\n", manifestLines);
+        Assert.Contains("providers.json", manifest, StringComparison.Ordinal);
+        Assert.Contains("auth.json", manifest, StringComparison.Ordinal);
+        Assert.Contains("settings.json", manifest, StringComparison.Ordinal);
+        Assert.Contains("provider openai", manifest, StringComparison.Ordinal);
+        Assert.Contains("profile chat-main", manifest, StringComparison.Ordinal);
+        Assert.Contains("left at default / unchanged", manifest, StringComparison.Ordinal);
+        AssertNoRowOverflows(manifestLines, 40);
+        Assert.DoesNotContain(Credential, manifest, StringComparison.Ordinal);
+
+        host.Console.SendEnter();
+        await host.WaitUntilAsync(() =>
+            string.Join("", host.Console.Writes)
+                .Contains("back to the session", StringComparison.Ordinal)
+        );
+
+        IReadOnlyList<string> receiptLines = Screen(host, 40);
+        string receipt = string.Join("\n", receiptLines);
+        Assert.Contains("setup written", receipt, StringComparison.Ordinal);
+        Assert.Contains("providers.json —", receipt, StringComparison.Ordinal);
+        Assert.Contains("auth.json —", receipt, StringComparison.Ordinal);
+        Assert.Contains("settings.json —", receipt, StringComparison.Ordinal);
+        Assert.Contains("/settings", receipt, StringComparison.Ordinal);
+        Assert.Contains("lunate auth login", receipt, StringComparison.Ordinal);
+        Assert.Contains("back to the session", receipt, StringComparison.Ordinal);
+        AssertNoRowOverflows(receiptLines, 40);
+        Assert.DoesNotContain(Credential, receipt, StringComparison.Ordinal);
+
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        host.Console.Complete();
+        await run;
+    }
+
+    private static IReadOnlyList<string> Screen(InteractiveSessionHost host, int width)
+    {
+        var screen = new TerminalScreen(width);
+        foreach (string write in host.Console.Writes)
+        {
+            screen.Feed(write);
+        }
+
+        return screen.Lines;
+    }
+
+    private static void AssertNoRowOverflows(IReadOnlyList<string> lines, int width) =>
+        Assert.All(
+            lines,
+            line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
+        );
 
     /// <summary>Drives every wizard step through the real console; the wait strings are the clipped
     /// forms of the step titles at 40/45 columns.</summary>
@@ -184,6 +255,9 @@ public sealed class WrappedLiveAreaTests
         await host.WaitForFrameAsync("fast usage");
         host.Console.SendEnter(); // skip
 
+        await host.WaitForFrameAsync("Add another provider?");
+        host.Console.SendEnter(); // Done
+
         await host.WaitForFrameAsync("Decision profile");
         host.Console.SendEnter(); // skip
 
@@ -192,6 +266,12 @@ public sealed class WrappedLiveAreaTests
 
         await host.WaitForFrameAsync("Write this configuration?");
     }
+
+    private static int ModelCheckNotices(InteractiveSessionHost host) =>
+        host.Notices.Entries.Count(entry =>
+            entry.Change == NoticeSlotChange.Posted
+            && entry.Text.StartsWith("model check passed", StringComparison.Ordinal)
+        );
 
     private static int Occurrences(string haystack, string needle)
     {

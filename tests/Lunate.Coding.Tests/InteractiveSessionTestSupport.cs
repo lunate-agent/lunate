@@ -560,6 +560,7 @@ internal sealed class InteractiveSessionHost : IDisposable
     private readonly List<AgentEvent> _events = [];
     private readonly object _eventsGate = new();
     private readonly Action<AgentEvent>? _eventObserverSuffix;
+    private readonly TimeSpan _pollInterval;
 
     public InteractiveSessionHost(
         HookRunner? hooks = null,
@@ -593,10 +594,12 @@ internal sealed class InteractiveSessionHost : IDisposable
         IHardlinkScanFileSystem? hardlinkScanFileSystem = null,
         HttpMessageHandler? discoveryTransport = null,
         bool freshInstall = false,
-        bool unifiedScrollback = false
+        bool unifiedScrollback = false,
+        TimeSpan? pollInterval = null
     )
     {
         _eventObserverSuffix = eventObserverSuffix;
+        _pollInterval = pollInterval ?? WaitBudgets.PollInterval;
         Scrollback = new TestConsole();
         Scrollback.Profile.Width = 80;
         Scrollback.Profile.Height = 24;
@@ -765,7 +768,11 @@ internal sealed class InteractiveSessionHost : IDisposable
         Console.SendText(text);
         await WaitUntilAsync(() => Session.Input.Text == text);
         Console.SendEnter();
-        await WaitUntilAsync(() => Session.Input.Text.Length == 0);
+        // Consumed, not necessarily cleared: `/editor` clears the line and then puts the editor's
+        // text back, so a poll that arrives after a fast child sees the new draft and never sees
+        // the transient empty line. Waiting for "different from what was submitted" observes the
+        // consumption without racing that transition.
+        await WaitUntilAsync(() => Session.Input.Text != text);
     }
 
     public string LastFrame => Console.Writes.Count == 0 ? string.Empty : Console.Writes[^1];
@@ -959,7 +966,7 @@ internal sealed class InteractiveSessionHost : IDisposable
                 );
             }
 
-            await Task.Delay(1, TestContext.Current.CancellationToken);
+            await Task.Delay(_pollInterval, TestContext.Current.CancellationToken);
         }
     }
 
@@ -1034,21 +1041,74 @@ internal sealed class InteractiveSessionHost : IDisposable
         // between two observations separate a hang (many polls, condition false at each) from a
         // starved runner (few polls, seconds apart), which is the question every occurrence of this
         // wait's timeout has had to answer without evidence.
+        //
+        // Some conditions advance the host's fake clock as part of the observation (`Advance(33)`
+        // before reading the frame). Those waits must not take their simulated time from the poll
+        // count (#710): a slower tick would then hand the session less simulated time and the same
+        // test would pass on one runner and fail on a loaded one. Once a condition is seen to step
+        // the clock, this loop advances it to the same wall-paced target a 1 ms poll used to reach,
+        // checking the condition after every frame so a transient paint is never skipped.
         TimeSpan budget = timeout ?? DefaultWait;
         DateTime startedAt = DateTime.UtcNow;
         DateTime deadline = startedAt + budget;
+        DateTimeOffset simulatedStart = Scheduler.Now;
         DateTime observedAt = startedAt;
         long polls = 0;
+        bool stepsClock = false;
         TimeSpan longestGap = TimeSpan.Zero;
         while (true)
         {
             polls++;
+            DateTimeOffset clockBefore = Scheduler.Now;
             if (condition())
             {
                 return;
             }
 
+            if (Scheduler.Now > clockBefore)
+            {
+                stepsClock = true;
+            }
+
             DateTime now = DateTime.UtcNow;
+            if (stepsClock)
+            {
+                DateTimeOffset simulatedTarget =
+                    simulatedStart
+                    + TimeSpan.FromMilliseconds(
+                        (now - startedAt).TotalMilliseconds
+                            * WaitBudgets.SimulatedFrameStepsPerRealMillisecond
+                    );
+                while (Scheduler.Now < simulatedTarget)
+                {
+                    polls++;
+                    DateTimeOffset beforeStep = Scheduler.Now;
+                    if (condition())
+                    {
+                        return;
+                    }
+
+                    if (Scheduler.Now == beforeStep)
+                    {
+                        Advance((int)WaitBudgets.SimulatedFrameStep.TotalMilliseconds);
+                    }
+
+                    now = DateTime.UtcNow;
+                    if (now > deadline)
+                    {
+                        throw await ExpiredAsync(
+                                conditionExpression,
+                                budget,
+                                startedAt,
+                                polls,
+                                longestGap
+                            )
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+
+            now = DateTime.UtcNow;
             TimeSpan gap = now - observedAt;
             if (gap > longestGap)
             {
@@ -1062,7 +1122,7 @@ internal sealed class InteractiveSessionHost : IDisposable
                     .ConfigureAwait(false);
             }
 
-            await Task.Delay(1, TestContext.Current.CancellationToken);
+            await Task.Delay(_pollInterval, TestContext.Current.CancellationToken);
         }
     }
 

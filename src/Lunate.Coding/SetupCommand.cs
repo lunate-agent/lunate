@@ -18,9 +18,9 @@ internal sealed record SetupCommandSeams(
 /// The <c>lunate setup</c> flag path (spec: Setup command line): every answer is a flag, absent
 /// flags skip steps and invent nothing, and the commit rides the same store writers the
 /// interactive wizard commits through. The connection test and the model check run unless
-/// suppressed; the summary prints stdout as one human-readable block and never prints a
-/// credential. Exit codes: 0 after a real commit or a no-op; 2 when a value needs interaction
-/// or a flag — the missing answer is named; 2 for usage errors too.
+/// suppressed; the file manifest and the post-write receipt print to stdout as human-readable
+/// blocks and never print a credential. Exit codes: 0 after a real commit or a no-op; 2 when a
+/// value needs interaction or a flag — the missing answer is named; 2 for usage errors too.
 /// </summary>
 internal static partial class SetupCommand
 {
@@ -32,7 +32,7 @@ internal static partial class SetupCommand
         "Usage: lunate setup [--provider <preset-id>] [--endpoint <url>] "
         + "[--api-family <family>] [--credential-placement <bearer|x-api-key>] "
         + "[--models-url <url>] [--credential <env:VARIABLE|auth:name> | --key-stdin] "
-        + "[--model <id>] [--profile <name>] [--thinking <low|medium|high>] [--fast] "
+        + "[--model <id>] [--profile <name>] [--thinking <off|low|medium|high>] [--fast] "
         + "[--as-decision] [--no-test] [--no-model-check] [--force]";
 
     internal static int Run(

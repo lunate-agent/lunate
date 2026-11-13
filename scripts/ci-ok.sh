@@ -22,6 +22,8 @@
 #   DOCS         needs.verify-docs.result
 #   PERF         needs.perf.result
 #   PLATFORM     needs.platform.result
+#   FRAGMENTS    needs.changelog.result
+#   PR_NUMBER    github.event.pull_request.number (named in the changelog failure)
 #
 # Exits 0 only when the run that actually happened is the gate the profile selected. Every other
 # outcome -- a draft, a skipped plan, a failed or skipped leg, a leg the profile did not select, an
@@ -46,8 +48,9 @@ decide() {
     local event="${EVENT_NAME:-}" draft="${DRAFT:-}" plan="${PLAN:-}"
     local profile="${PROFILE:-}" verify="${VERIFY:-}" powershell="${POWERSHELL:-}"
     local ps_required="${PS_REQUIRED:-}" docs="${DOCS:-}" perf="${PERF:-}" platform="${PLATFORM:-}"
+    local fragments="${FRAGMENTS:-}" pull_request="${PR_NUMBER:-}"
 
-    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform"
+    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform changelog=$fragments"
 
     if [ "$event" = "pull_request" ] && [ "$draft" != "false" ]; then
         fail "the head is a draft (draft=$draft), so no gate ran; a draft push costs no matrix, but the required check still has to report. Mark the pull request ready for review and this check runs again."
@@ -55,6 +58,20 @@ decide() {
     if [ "$plan" != "success" ]; then
         fail "the plan job did not succeed (plan=$plan)"
     fi
+    # The changelog guard runs on every non-draft pull request, whichever profile it selects. A
+    # pull-request run without its success is red; outside a pull request it must not have run.
+    case "$event" in
+        pull_request)
+            if [ "$fragments" != "success" ]; then
+                fail "the changelog guard did not succeed (changelog=$fragments); a pull request other than the release pull request must not edit CHANGELOG.md. Write the line in changes/${pull_request:-<pull-request-number>}.md instead"
+            fi
+            ;;
+        *)
+            if [ "$fragments" != "skipped" ]; then
+                fail "the changelog guard ran although only a pull request needs it (changelog=$fragments)"
+            fi
+            ;;
+    esac
     case "$profile" in
         docs)
             if [ "$verify" != "skipped" ] || [ "$powershell" != "skipped" ] || [ "$perf" != "skipped" ] || [ "$platform" != "skipped" ]; then
@@ -133,8 +150,16 @@ PY
 }
 
 _run_from_env() {
+    local fragments="${11:-}"
+    if [ -z "$fragments" ]; then
+        case "$1" in
+            pull_request) fragments="success" ;;
+            *) fragments="skipped" ;;
+        esac
+    fi
     env EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
         VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
+        FRAGMENTS="$fragments" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
 }
 
@@ -480,6 +505,18 @@ self_test() {
     _self_case "an unreadable profile" 1 "no usable profile" \
         pull_request false success "" skipped skipped skipped skipped "" ""
 
+    # The changelog guard: required on every pull request, absent outside one.
+    _self_case "a pull request whose changelog guard failed" 1 "changelog guard did not succeed" \
+        pull_request false success full success success skipped success success true failure
+    PR_NUMBER=1234 _self_case "a failed changelog guard names the fragment path" 1 "changes/1234.md" \
+        pull_request false success docs skipped skipped success skipped skipped "" failure
+    _self_case "a pull request whose changelog guard was skipped" 1 "changelog guard did not succeed" \
+        pull_request false success docs skipped skipped success skipped skipped "" skipped
+    _self_case "a pull request whose changelog guard passed" 0 "the docs gate succeeded" \
+        pull_request false success docs skipped skipped success skipped skipped "" success
+    _self_case "a main push on which the changelog guard ran" 1 "only a pull request needs it" \
+        push "" success full success success skipped success success true success
+
     # The event this workflow runs for: a main push runs the required gate, while a tag push belongs
     # to release.yml and must never leave a second ci-ok verdict on the release commit (#724).
     _self_push_trigger "ci: a push to main runs the required gate" "$WORKFLOW" push-main runs
@@ -497,7 +534,7 @@ self_test() {
     _self_workflow "plan must keep the draft gate, so a draft push costs no matrix" \
         plan '^    if:.*draft' 1
     _self_workflow "ci-ok must take every gate leg as a needed job" \
-        ci-ok '^    needs: \[plan, changes, verify, verify-powershell, platform, verify-docs, perf\]' 1
+        ci-ok '^    needs: \[plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog\]' 1
     _self_workflow "the verify matrix must cover every OS leg" \
         verify 'os: \[ubuntu-latest, macos-latest, windows-latest\]' 1
     _self_workflow "the verify matrix must run more than two shards per OS" \
@@ -532,6 +569,14 @@ self_test() {
         verify-powershell "needs\.changes\.outputs\.powershell == 'true'" 1
     _self_workflow "the changes job must decide through scripts/ci-powershell-paths.sh" \
         changes 'scripts/ci-powershell-paths\.sh' 1
+    _self_workflow "the changelog job must run on pull requests only" \
+        changelog "github\.event_name == 'pull_request'" 1
+    _self_workflow "the changelog job must not run on a draft" \
+        changelog 'draft == false' 1
+    _self_workflow "the changelog job must run the committed guard" \
+        changelog 'scripts/changelog-guard' 1
+    _self_workflow "the changelog rule must stay inert until changes/ is on the base" \
+        changelog 'git cat-file -e .*changes/README\.md' 1
 
     # Run concurrency: only a pull request may supersede its own older run, and the nightly is a
     # separate obligation from the push on the same branch. These assertions read the expression and
