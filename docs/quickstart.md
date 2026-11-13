@@ -111,13 +111,16 @@ sends no provider request at all (it skips both), while `--no-model-check` skips
 check and keeps the free discovery request. The file manifest and the post-write receipt go to
 stdout and never contain a credential.
 
-<!-- run: no sends a provider request -->
+<!-- run: offline -->
 ```bash
-printf '%s\n' "$OPENAI_API_KEY" |
+OPENAI_API_KEY="sk-ci-example" \
   lunate setup \
     --provider openai --credential env:OPENAI_API_KEY \
-    --model gpt-4.1 --profile chat-main --thinking medium
+    --model gpt-5 --profile chat-main --thinking medium --no-test
 ```
+
+`gpt-5` declares a reasoning style, so `--thinking` applies; a model that declares none refuses a
+level. The placeholder key is never sent, because `--no-test` suppresses both checks.
 
 The flag set is `--provider`, `--endpoint`, `--api-family`, `--credential-placement`,
 `--models-url`, `--credential` (an `env:`/`auth:` reference), `--key-stdin`, `--model`, `--profile`,
