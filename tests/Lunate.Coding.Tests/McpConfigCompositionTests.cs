@@ -250,6 +250,55 @@ public sealed class McpConfigCompositionTests
         Assert.Equal("from project", result.GetProperty("output").GetString());
     }
 
+    /// <summary>
+    /// The repository-identity half of the trust seam, independent of where the process puts its
+    /// temp directory: a project file in a worktree that carries its own <c>.git</c> is trusted
+    /// under that repository's identity, which is what the composition looks up. A record made
+    /// under the worktree root instead leaves the file refused, so this pins the seam the macOS
+    /// failures came from even where <c>TMPDIR</c> sits outside a repository (as CI's does).
+    /// </summary>
+    [Fact]
+    public async Task A_project_file_inside_a_repository_is_trusted_under_the_repository_identity()
+    {
+        using var temp = new TempDirectory();
+        string worktreeRoot = temp.File("worktree");
+        Directory.CreateDirectory(Path.Combine(worktreeRoot, ".git"));
+        Workspace worktree = new(worktreeRoot);
+        Assert.Equal(
+            Workspace.Canonicalize(Path.Combine(worktreeRoot, ".git")),
+            worktree.GitCommonDir
+        );
+        string marker = temp.File("project-marker.txt");
+        string projectConfig = McpComposition.ProjectConfigPath(worktree.WorktreeRoot);
+        Directory.CreateDirectory(Path.GetDirectoryName(projectConfig)!);
+        File.WriteAllText(projectConfig, McpTestServerSupport.ConfigJson("srv", marker));
+        string storePath = temp.File("store");
+        TrustProjectFile(storePath, worktree, projectConfig);
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+            WorkingDirectory = worktreeRoot,
+            Extensions = new ExtensionSeams
+            {
+                StorePath = storePath,
+                Log = new RecordingExtensionLog(),
+            },
+        };
+
+        (int exitCode, string output, _) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output);
+        Assert.True(
+            File.Exists(marker),
+            "a project file trusted under the repository identity must start its server"
+        );
+    }
+
     [Fact]
     public async Task The_lunate_user_file_wins_over_the_user_agents_file()
     {
@@ -493,7 +542,12 @@ public sealed class McpConfigCompositionTests
     /// the worktree root otherwise) and naming the file by the canonical path the composition
     /// reads. A record made under the raw temp path, or under the worktree root while the temp
     /// directory sits inside a repository, is a record the composition never looks at, so the file
-    /// would be refused as untrusted.
+    /// would be refused as untrusted. That is the environment difference these scenarios used to
+    /// depend on: with <c>TMPDIR</c> outside a repository (CI, <c>/tmp</c>) the worktree root is
+    /// the identity, with <c>TMPDIR</c> inside one (a sandbox pointed into a checkout) it is that
+    /// repository's git common dir.
+    /// <see cref="A_project_file_inside_a_repository_is_trusted_under_the_repository_identity"/>
+    /// pins that half of the seam without relying on where <c>TMPDIR</c> points.
     /// </summary>
     private static void TrustProjectFile(
         string storePath,
