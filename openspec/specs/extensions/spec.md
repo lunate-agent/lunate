@@ -970,7 +970,7 @@ The CLI SHALL provide an interactive `/extensions` command and a `lunate extensi
 
 ### Requirement: Skill sources from extensions
 
-Extensions SHALL contribute skills through a new `ISkillSource` service registered like other extension services: an id plus an enumeration of skill directories **on disk inside the extension's own folder** (v1 is disk-only — no in-memory skills; the core scans and validates them exactly like any other skill). Contributed skills SHALL appear in the skills index and `/skills` tagged `extension '<id>'`, SHALL inherit the extension's trust (no separate question) **and its disable state** (`disable-model-invocation` honoured), and SHALL count under the contributing extension's context budget (enforced before the global index cap). A malformed descriptor SHALL warn like a core skill and SHALL NOT load. A shadowed extension skill follows the common collision rule: the winner carries the `shadows` marker, the one-time warning names it, and the extension copy is not listed separately. The ADR-0017 catalogue and `docs/dev/spec/extensibility.md` SHALL gain the resource-discovery entry; the record lands as `adr/0017-addendum-skills.md`.
+Extensions SHALL contribute skills through a new `ISkillSource` service registered like other extension services: an id plus an enumeration of skill directories **on disk inside the extension's own folder** (v1 is disk-only — no in-memory skills; the core scans and validates them exactly like any other skill). Contributed skills SHALL appear in the skills index and `/skills` tagged `extension '<id>'`, SHALL inherit the extension's trust (no separate question) **and its disable state** (`disable-model-invocation` honoured), and SHALL count under the contributing extension's context budget (enforced before the global index cap). A malformed descriptor SHALL warn like a core skill and SHALL NOT load. A shadowed extension skill follows the common collision rule: the winner carries the `shadows` marker, the one-time warning names it, and the extension copy is not listed separately. The ADR-0017 catalogue and `docs/spec/extensibility.md` SHALL gain the resource-discovery entry; the record lands as `adr/0017-addendum-skills.md`.
 
 #### Scenario: A contributed skill joins the index tagged by source
 
@@ -1965,7 +1965,7 @@ behavior already specified by the C# tool requirements in `agent-tools` SHALL re
 The existing golden-session and end-to-end tests SHALL run unchanged as proof; a golden SHALL NOT be
 rewritten to make a diff pass.
 
-The migration SHALL record the baseline in `docs/dev/eval/roslyn-built-in-migration-baseline.md` before
+The migration SHALL record the baseline in `docs/eval/roslyn-built-in-migration-baseline.md` before
 changing composition and compare the migrated build against it using the same fixture, runtime and
 measurement method. The evidence SHALL include the startup floor and median, tool output and error
 flags for all five tools, idle process-tree memory, and Roslyn process-tree peak memory after loading
