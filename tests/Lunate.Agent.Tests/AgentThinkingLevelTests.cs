@@ -28,6 +28,36 @@ public sealed class AgentThinkingLevelTests
     }
 
     [Fact]
+    public async Task A_budget_model_on_an_openai_family_carries_the_reasoning_effort()
+    {
+        (_, ScriptedChatClient client) = await RunAsync(
+            style: "budget",
+            ThinkingLevel.High,
+            provider: "openai"
+        );
+
+        ChatOptions options = client.Requests[0].Options!;
+        Assert.Equal(ReasoningEffort.High, options.Reasoning?.Effort);
+        Assert.Null(options.RawRepresentationFactory);
+        Assert.Null(options.MaxOutputTokens);
+    }
+
+    [Fact]
+    public async Task An_effort_model_on_the_anthropic_family_carries_extended_thinking()
+    {
+        (_, ScriptedChatClient client) = await RunAsync(
+            style: "effort",
+            ThinkingLevel.High,
+            provider: "anthropic"
+        );
+
+        ChatOptions options = client.Requests[0].Options!;
+        Assert.Null(options.Reasoning);
+        Assert.NotNull(options.RawRepresentationFactory);
+        Assert.True(options.MaxOutputTokens > 32_768);
+    }
+
+    [Fact]
     public async Task An_inline_model_carries_no_provider_parameter()
     {
         (_, ScriptedChatClient client) = await RunAsync(style: "inline", ThinkingLevel.High);
