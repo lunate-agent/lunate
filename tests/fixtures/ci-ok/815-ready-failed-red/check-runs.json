@@ -1,5 +1,5 @@
 {
-  "total_count": 19,
+  "total_count": 25,
   "check_runs": [
     {
       "id": 1029,
@@ -228,6 +228,78 @@
         "id": 200
       },
       "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1047"
+    },
+    {
+      "id": 1048,
+      "name": "verify (ubuntu-latest, 2/4)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1048"
+    },
+    {
+      "id": 1049,
+      "name": "verify (ubuntu-latest, 3/4)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1049"
+    },
+    {
+      "id": 1050,
+      "name": "verify (ubuntu-latest, 4/4)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1050"
+    },
+    {
+      "id": 1051,
+      "name": "verify (windows-latest, 2/4)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1051"
+    },
+    {
+      "id": 1052,
+      "name": "verify (windows-latest, 3/4)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1052"
+    },
+    {
+      "id": 1053,
+      "name": "verify (windows-latest, 4/4)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1053"
     }
   ]
 }

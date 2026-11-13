@@ -13,7 +13,8 @@
 # and a cancelled attempt does not count, so rerunning an old run cannot turn a ready green red
 # (#815) and a cancelled draft run cannot override the ready run (#816). While the live gate's
 # required jobs are still queued or running, it fails with "gate still running" instead of deciding
-# from this run's stale `needs` values.
+# from this run's stale `needs` values. A verify shard the head has no check run for was never a
+# pass, so the live gate is red when a leg the plan put in the matrix is missing.
 #
 # Usage:
 #   ci-ok.sh            # decide from the environment (the CI step's env block)
@@ -197,17 +198,21 @@ _live_state() {
 
 # The pull-request path: the live state replaces every payload-derived value, then the same decision
 # rules run. A live draft still reports red -- the draft has not been reviewed -- while a live ready
-# head with running jobs says so by name.
+# head with running jobs says so by name. A head that never carried a leg the plan put in the matrix
+# is red too: the missing leg's absence is not another shard's pass.
 _decide_live() {
     local state
     state="$(_live_state)"
     eval "$state"
-    echo "ci-ok: live draft=$DRAFT plan=$PLAN profile=$PROFILE macos=$MACOS verify=$VERIFY verify-powershell=$POWERSHELL ps-required=$PS_REQUIRED verify-docs=$DOCS perf=$PERF platform=$PLATFORM changelog=$FRAGMENTS"
+    echo "ci-ok: live draft=$DRAFT plan=$PLAN profile=$PROFILE macos=$MACOS verify=$VERIFY verify-powershell=$POWERSHELL ps-required=$PS_REQUIRED verify-docs=$DOCS perf=$PERF platform=$PLATFORM changelog=$FRAGMENTS missing=$VERIFY_MISSING"
     if [ "$DRAFT" = "true" ]; then
         decide
     fi
     if [ -n "${GATE_RUNNING:-}" ]; then
         fail "gate still running: ${GATE_RUNNING}; wait for those jobs to finish, then rerun ci-ok"
+    fi
+    if [ -n "${VERIFY_MISSING:-}" ]; then
+        fail "the live gate is incomplete: this head has no check run for ${VERIFY_MISSING}; the plan's matrix requires every leg, so a leg that never ran cannot count as a pass. Rerun the CI workflow for this head."
     fi
     decide
 }
@@ -323,6 +328,22 @@ _self_workflow() {
         return 0
     fi
     echo "self-test: FAIL: ${name}" >&2
+    FAILURES=$((FAILURES + 1))
+}
+
+# The pull-request matrix the live decision requires must be the plan's own leg list: adding,
+# renaming or removing a leg in the workflow has to reach scripts/ci-ok-state, or the live verdict
+# would pass over a leg that never ran. The macOS legs are not compared: a pull request leaves them
+# to its merge-queue group (#831), so a live pull-request head has none.
+_self_verify_matrix() {
+    local name="$1" want got
+    want="$(_job_block plan | sed -nE 's/^ +leg ([a-z0-9-]+) .*/\1/p' | sed '/^macos-latest$/d' | tr '\n' ' ' | sed 's/ $//')"
+    got="$(python3 "${SCRIPT_DIR}/ci-ok-state" --print-verify-oses 2>&1)"
+    CASES=$((CASES + 1))
+    if [ "$want" = "$got" ]; then
+        return 0
+    fi
+    echo "self-test: FAIL: ${name}: the plan's pull-request legs are [${want}], the live decision requires [${got}]" >&2
     FAILURES=$((FAILURES + 1))
 }
 
@@ -579,6 +600,12 @@ self_test() {
         "did not succeed" "rerun-ready-failed-red"
     _self_live_case "a ready gate with running jobs names them" 1 \
         "gate still running" "ready-still-running"
+    # A gate that never carried a leg the plan put in the matrix is not a gate: the missing leg
+    # cannot count as a pass just because the other shards succeeded (#830 review).
+    _self_live_case "a gate missing one required verify shard is red" 1 \
+        "verify (ubuntu-latest, 3/4)" "missing-shard-red"
+    _self_live_case "a gate missing a whole verify OS is red" 1 \
+        "any verify (ubuntu-latest, <shard>) leg" "missing-os-red"
     _self_live_case "a live draft is red even when an older run passed" 1 \
         "the head is a draft (draft=true)" "live-draft-red"
 
@@ -715,6 +742,7 @@ self_test() {
         ci-ok 'MACOS: \$\{\{ needs\.plan\.outputs\.macos \}\}' 1
     _self_workflow "the legs must cover Ubuntu and Windows on every event" \
         plan '^          leg (ubuntu|windows)-latest .*"\$\{SHARDS\}"' 1
+    _self_verify_matrix "the live decision must require exactly the plan's pull-request legs"
     _self_workflow "the macOS legs must be left out of a pull-request run only" \
         plan '^            pull_request\) macos=false ;;' 1
     _self_workflow "the macOS legs must run two shards" \

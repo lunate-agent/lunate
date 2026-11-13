@@ -10,6 +10,11 @@ plan skipped is a draft-payload run and never gated, and a suite whose plan was 
 superseded before it could. Within each gate run, and across all of them, the newest non-cancelled
 attempt of each required job names that job's current state. A cancelled attempt therefore cannot
 override an older completed one, and a rerun of a draft payload cannot turn a ready verdict red.
+
+The matrix is the plan's, so the gate is only complete when every leg it put there is on the head: a
+verify shard that no check run names at all did not run, and its name (`verify (ubuntu-latest, 1/4)`)
+says how many shards there are. A missing leg is reported by name instead of being read as another
+passing shard.
 """
 from __future__ import annotations
 
@@ -24,6 +29,10 @@ PENDING = {"queued", "in_progress", "waiting", "pending", "requested"}
 FAILED = {"failure", "timed_out", "action_required", "startup_failure"}
 SINGLE_JOBS = {"plan", "changes", "changelog", "platform", "verify-docs"}
 OPTIONAL_DEFAULT = {"platform": "skipped", "verify-docs": "skipped", "verify-powershell": "skipped"}
+# The plan puts a leg in the matrix for each of these on every event. A pull request leaves the macOS
+# legs to its merge-queue group (#831), so a live pull-request head carries none of them.
+VERIFY_OSES = ("ubuntu-latest", "windows-latest")
+VERIFY_LEG = re.compile(r"^verify \((?P<os>[^,]+), (?P<shard>\d+)/(?P<count>\d+)\)$")
 
 
 def job_kind(name: str) -> str:
@@ -135,7 +144,40 @@ def pending_names(selected: dict[str, dict]) -> str:
     )
 
 
+def missing_verify_legs(selected: dict[str, dict]) -> str:
+    """Name every matrix leg the head has no check run for.
+
+    The shard count comes from the legs that did run -- `verify (ubuntu-latest, 1/4)` says four -- so
+    a leg that never started is visible as an absence, not as one more passing shard.
+    """
+    legs: dict[str, dict[int, int]] = {}
+    for name in selected:
+        match = VERIFY_LEG.match(name)
+        if match:
+            legs.setdefault(match.group("os"), {})[int(match.group("shard"))] = int(
+                match.group("count")
+            )
+    missing: list[str] = []
+    for os_name in VERIFY_OSES:
+        shards = legs.get(os_name, {})
+        if not shards:
+            missing.append("any verify ({0}, <shard>) leg".format(os_name))
+            continue
+        # Each shard count the head names is its own requirement: a leg absent under either shape
+        # did not run.
+        for count in sorted(set(shards.values())):
+            for shard in range(1, count + 1):
+                if shard not in shards:
+                    missing.append("verify ({0}, {1}/{2})".format(os_name, shard, count))
+    return ", ".join(missing)
+
+
 def main() -> int:
+    if "--print-verify-oses" in sys.argv[1:]:
+        # The self-test ties this to the plan's own `leg` lines in the workflow.
+        print(" ".join(VERIFY_OSES))
+        return 0
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr-json", required=True)
     parser.add_argument("--check-runs-json", required=True)
@@ -208,6 +250,8 @@ def main() -> int:
         ps_required = "false"
 
     macos = "true" if any("macos" in name for name in selected) else "false"
+    # Only a full gate has verify legs to be complete: a docs gate skips them by design.
+    verify_missing = missing_verify_legs(selected) if profile == "full" else ""
 
     values = {
         "DRAFT": "true" if pull_request.get("draft") else "false",
@@ -222,6 +266,7 @@ def main() -> int:
         "PLATFORM": platform,
         "FRAGMENTS": fragments,
         "GATE_RUNNING": pending_names(selected),
+        "VERIFY_MISSING": verify_missing,
     }
     for key, value in values.items():
         print("{0}={1}".format(key, shlex.quote(value)))
