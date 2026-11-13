@@ -86,8 +86,8 @@ below writes only the answers it collects.
 ## Give it a task
 
 `/help` lists the built-in commands, `/model` switches the model, `Esc` interrupts the running turn
-and `/quit` leaves. For a script or CI, `lunate -p "summarise what changed on this branch"` prints
-one prompt's final answer and `--json` emits every event as one JSON line.
+and `/quit` leaves. For a script or CI, [`lunate -p "summarise what changed on this branch"`](print.md)
+prints one prompt's final answer and `--json` emits every event as one JSON line.
 
 ## Re-run the wizard from a session
 
