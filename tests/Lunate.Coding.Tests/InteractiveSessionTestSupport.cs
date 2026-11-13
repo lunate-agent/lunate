@@ -798,19 +798,20 @@ internal sealed class InteractiveSessionHost : IDisposable
     /// <remarks>
     /// The Esc is handled on the key pump, but the walk behind the offer is a task of its own: the
     /// frame stops showing the picker as soon as the pump posts the dismissal, and only the walk's
-    /// continuation — running on the pool after the pump's own work item — posts the "setup
-    /// cancelled" notice and clears the turn flag last. Until it has,
-    /// <see cref="InteractiveSession.IsRunning"/> stays true and Enter routes to the follow-up
-    /// queue instead of submitting; the queue's <c>/quit</c> path quits the session without
-    /// clearing the line, so the typed text stays in <see cref="InteractiveSession.Input"/> and a
-    /// test that reads the prompt afterwards reads the wrong state (#817).
+    /// continuation — off the pump, on the pool — posts the "setup cancelled" notice and clears the
+    /// turn flag last. Until it has, <see cref="InteractiveSession.IsRunning"/> stays true and Enter
+    /// routes to the follow-up queue instead of submitting; the queue's <c>/quit</c> path quits the
+    /// session without clearing the line, so the typed text stays in
+    /// <see cref="InteractiveSession.Input"/> and a test that reads the prompt afterwards reads the
+    /// wrong state (#817).
     /// <para>
-    /// A loaded runner loses that race where an idle one wins it: the walk's continuation is
-    /// queued to the worker's own local queue, while a key the test sends afterwards wakes the
-    /// pump's channel read on the global queue, and a starved pool — the full-suite macOS legs —
-    /// serves the global item first. The wait is therefore the ordering this fixture needs, not
-    /// padding for a slow runner; the wizard fixtures that press another key after an Esc already
-    /// wait for it, and only this one typed a quit line straight after the dismissal.
+    /// A loaded runner can serve the pump's next key before the walk's continuation, where an idle
+    /// one always sees the flag cleared already; the full-suite macOS legs are loaded in exactly
+    /// that way. The wait is therefore the ordering these fixtures depend on, not padding for a slow
+    /// runner: the wizard fixtures that press another key after an Esc already wait this way, and
+    /// only the first-run ones typed a line straight after the dismissal. Reproduced by delaying the
+    /// walk's flag clear (a temporary <c>await Task.Delay</c> in <c>RunWizardTaskAsync</c>'s
+    /// <c>finally</c>): the test then reads <c>/quit</c> back from the prompt.
     /// </para>
     /// </remarks>
     public Task WaitForOfferDismissedAsync() => WaitUntilAsync(() => !Session.IsRunning);
