@@ -42,6 +42,7 @@ validation.
 | `lunate extensions [--json]` | list discovered extensions with scope, state, load time and contributions; `--json` prints a machine-readable array and exits 1 when an extension fails to load |
 | `lunate extensions build <id\|path> [--json]` | compile one single-file extension now |
 | `lunate extensions reload <id\|path> [--json]` | reload one extension in the running session |
+| `lunate cache prune [--json]` | delete the extension builds no discovered extension points at; an installed package's entry stays, because a reinstall is its repair ([single-file extensions](extensions/single-file.md)) |
 | `lunate trust` | show this repository's trust records and pending project-extension, `mcp.json` and server decisions (exit 3 when pending) |
 | `lunate trust --yes [--digest <sha>] [--json] [--clear]` | record exactly what it prints — for checkouts you control, never untrusted pull requests; gate CI with `--digest <sha>`; `--clear` removes this repository's records |
 
