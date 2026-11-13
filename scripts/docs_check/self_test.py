@@ -146,6 +146,29 @@ def self_test():
         "This page is now [Next](next.md). Update your bookmarks.\n"
     )
     expect(
+        "a changelog link to a documented maintainer move is history",
+        changed(
+            base(),
+            **{
+                "docs/docs.json": manifest(
+                    base_navigation(), [{"from": "gone.md", "to": "dev/architecture.md"}]
+                ),
+                "docs/dev/architecture.md": "# Architecture\n\nMaintainer page.\n",
+                "CHANGELOG.md": "# Changelog\n\nThe runbook is [here](docs/gone.md).\n",
+            },
+        ),
+        False,
+    )
+    expect(
+        "a changelog link no redirect records is still a dead link",
+        changed(
+            base(),
+            **{"CHANGELOG.md": "# Changelog\n\nThe runbook is [here](docs/gone.md).\n"},
+        ),
+        True,
+        "missing link target",
+    )
+    expect(
         "valid redirect stub",
         changed(
             base(),

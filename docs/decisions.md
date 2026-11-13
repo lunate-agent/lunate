@@ -68,7 +68,7 @@ support is checked as a technical requirement, while unknown capability facts ar
 decision response must name a defined option and provide valid probabilities; a malformed response
 is retried once and then fails with the model named. Provenance labels `native` or `adapter` and
 records the model id. Decisions can only tighten approvals: they never override deny or approve
-outside the user's allow envelope. See [`guide.md`](guide.md) for the full model and cost behavior.
+outside the user's allow envelope. See [`dev/guide.md`](dev/guide.md) for the full model and cost behavior.
 
 ## Confidence and approval thresholds
 

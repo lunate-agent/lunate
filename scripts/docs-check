@@ -5,7 +5,8 @@
 answers four questions:
 
   1. every navigation path exists exactly once, and every user-path page is in it;
-  2. every relative link and `#anchor` in the user and maintainer pages resolves;
+  2. every relative link and `#anchor` in the user and maintainer pages resolves — in `CHANGELOG.md`
+     a link to a path `redirects` records is history and passes, any other dead link there does not;
   3. every redirect is a valid four-line stub, or a rename into maintainer material;
   4. every user-path page carries a runnable marker, or is `proseOnly` with a reason.
 
