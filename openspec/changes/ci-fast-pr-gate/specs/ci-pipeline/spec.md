@@ -120,14 +120,14 @@ than pass.
 
 The required job set SHALL follow the event. A pull request SHALL require `plan`, `changes`, the
 changelog fragment guard, the platform checks (full profile) or the documentation profile (docs
-profile), and the Ubuntu verify legs; it SHALL NOT require macOS, Windows, the PowerShell twin or the
-perf leg, and their skip SHALL be a pass. A `merge_group` run SHALL require `plan` and the Ubuntu
-verify legs, and SHALL fail when `changes`, the changelog guard, the platform checks, the docs
-profile, the PowerShell twin, the perf leg or a macOS or Windows verify leg ran, because the pull
-request already proved them. A push to `main`, the nightly and a manual dispatch SHALL require the
-full matrix, `changes`, the platform checks, the PowerShell twin and the docs decision; the nightly
-SHALL also require the perf leg and a manual dispatch SHALL require it skipped; a missing macOS leg
-SHALL fail them.
+profile), and, on the full profile, the Ubuntu verify legs; it SHALL NOT require macOS, Windows, the
+PowerShell twin or the perf leg, and their skip SHALL be a pass. A `merge_group` run SHALL require
+`plan` and the Ubuntu verify legs (or only `plan` for a docs batch), and SHALL fail when `changes`,
+the changelog guard, the platform checks, the docs profile, the PowerShell twin, the perf leg or a
+macOS or Windows verify leg ran, because the pull request already proved them. A push to `main`, the
+nightly and a manual dispatch SHALL require the full matrix, `changes`, the platform checks, the
+PowerShell twin and the docs profile skipped; the nightly SHALL also require the perf leg and a
+manual dispatch SHALL require it skipped; a missing macOS leg SHALL fail them.
 
 For a pull request, the aggregate SHALL decide from the pull request's live draft state and the live
 head commit's check runs read through the GitHub API, not from the triggering run's frozen `draft`
