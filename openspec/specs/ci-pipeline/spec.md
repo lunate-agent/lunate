@@ -30,7 +30,7 @@ CI SHALL build and test the solution on ubuntu, macos and windows runners for ev
 - **THEN** the docs profile runs `openspec validate --all --strict` and no build, publish or test job runs
 
 #### Scenario: Prose beside code still runs the full matrix
-- **GIVEN** a pull request that changes `docs/guide.md` and `src/Lunate.Tui/Interaction/KeyBinding.cs`
+- **GIVEN** a pull request that changes `docs/dev/guide.md` and `src/Lunate.Tui/Interaction/KeyBinding.cs`
 - **WHEN** CI decides the profile from the changed paths
 - **THEN** the full matrix runs on all three runners
 
