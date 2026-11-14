@@ -1,3 +1,5 @@
+> **Not available in 0.4.0.** Container execution is planned for 0.5.0 (#627); the `--env` flag and the `environment` setting described here don't exist yet.
+
 # Run tool calls in a container
 
 Lunate runs tool commands on the host by default. A container environment moves the command half
