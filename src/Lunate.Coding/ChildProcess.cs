@@ -49,18 +49,19 @@ internal abstract class ChildProcess : IExecutionProcess
     /// The tool child's environment: the builder's <see cref="ChildEnvironmentPolicy.Inherited"/>
     /// policy — the caller's replacement when one is given, otherwise the caller's own
     /// environment — with <see cref="ProcessRunRequest.ExtraEnvironment"/> applied on top,
-    /// <see cref="CredentialVariables"/> stripped from everything inherited, and the
-    /// <see cref="ToolEnvironmentPassthrough.Names">user's pass-through names</see> re-admitted
-    /// after that strip.
+    /// <see cref="CredentialVariables"/> and the builder's credential-shape rule withheld from
+    /// everything inherited, and the <see cref="ToolEnvironmentPassthrough.Names">user's pass-through
+    /// names</see> re-admitted after those denies.
     /// </summary>
     /// <remarks>
     /// The bash tool is the user's shell, so the user's own environment is what it must see. What it
-    /// must not see is a credential Lunate resolved: a model-chosen command reading the user's
-    /// provider key out of the environment is the leak the bash guard's <c>auth.json</c> read-deny
-    /// closes for files. The stripping itself is the builder's (one implementation); this method
-    /// only names the policy and the names. <paramref name="passthrough"/> is the caller's list when
-    /// it states one, otherwise the process-wide configured list is read here, where the policy is
-    /// built — never at a spawn site. <c>ChildEnvironmentGuardTests</c> pins all of it.
+    /// must not see is a credential: a model-chosen command reading the user's provider key, or the
+    /// <c>GITHUB_TOKEN</c> Lunate never resolved, out of the environment is the leak the bash guard's
+    /// <c>auth.json</c> read-deny closes for files. The credential-shape rule lives in the builder
+    /// (ADR-0036); this method names only the policy and the names. <paramref name="passthrough"/> is
+    /// the caller's list when it states one, otherwise the process-wide configured list is read here,
+    /// where the policy is built — never at a spawn site. <c>ChildEnvironmentGuardTests</c> pins all
+    /// of it.
     /// </remarks>
     internal static IReadOnlyDictionary<string, string> BuildEnvironment(
         ProcessRunRequest request,

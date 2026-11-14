@@ -17,24 +17,6 @@ internal sealed partial class InteractiveSession
     /// <summary>The walk's staged state, non-null exactly while the wizard is open.</summary>
     private SetupWizardModel? _wizard;
 
-    /// <summary>The picked value of an open wizard picker; null means the picker dismissed it.</summary>
-    private TaskCompletionSource<string?>? _wizardPick;
-
-    /// <summary>
-    /// Test seam: awaited after a picker's answer is taken and before the dismissal clears it. A
-    /// completed pick's continuation runs off-thread and opens the next step's picker; a test
-    /// holds this point to prove the dismissal cannot then clear or cancel that newer picker.
-    /// Production leaves this null.
-    /// </summary>
-    internal Func<Task>? PickerDismissalSeam { get; set; }
-
-    /// <summary>
-    /// Test seam: invoked inside the picker's open transition after the next picker's state is
-    /// written and before it is installed, so a test can hold the walk there while a dismissal
-    /// runs. Production leaves this null.
-    /// </summary>
-    internal Action? PickerOpenSeam { get; set; }
-
     /// <summary>The discovery listing the connection test collected; empty when it skipped or failed.</summary>
     private IReadOnlyList<WizardModelListing> _listing = [];
 
@@ -167,7 +149,6 @@ internal sealed partial class InteractiveSession
         finally
         {
             _wizard = null;
-            _wizardPick = null;
             _turnActive = false;
             LoginTask = null;
         }

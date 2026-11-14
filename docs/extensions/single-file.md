@@ -425,3 +425,11 @@ Single-file entries are listed after the packaged ones, problems first and built
 `reason`, `build` (the key, once one exists), `resolved` (the locked graph), `generatorsSkipped`
 (the packages whose build-time code the compile leaves out) and `failure` (`trust`, `restore` or
 `compile`) on a failed step.
+
+## Related
+
+- [The manifest](manifest.md) — the fields a header declares and the manifest spells out
+- [Installing packages](packages.md) — the packaged form and its install record
+- [Lifecycle and trust](lifecycle-and-trust.md) — the digest a single file records
+- [Extension troubleshooting](troubleshooting.md) — a build or trust failure
+- [Extension authoring](README.md) — the contributions a file can register

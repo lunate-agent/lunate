@@ -4,15 +4,17 @@ namespace Lunate.Coding.Tests;
 
 /// <summary>
 /// The pass-through contract at the real spawn: the exact names on the list reach the tool child on
-/// POSIX and on Windows, a credential name the user did not list is still stripped, and a name that
-/// merely looks like one survives. The parent set is handed in through the request and the
-/// pass-through list through the spawn, so the test asserts the policy it states and never the
-/// process-wide list another class's startup may be configuring at the same moment.
+/// POSIX and on Windows, a credential name the user did not list is still stripped, a credential
+/// Lunate never resolved is withheld by the shape of its name, and a name that merely contains a
+/// credential word survives. The parent set is handed in through the request and the pass-through
+/// list through the spawn, so the test asserts the policy it states and never the process-wide list
+/// another class's startup may be configuring at the same moment.
 /// </summary>
 public sealed class ChildProcessToolEnvironmentTests
 {
     private const string PassedThroughToken = "sk-passthrough";
     private const string StrippedCredential = "alias-stripped";
+    private const string WithheldAmbientToken = "ghp_ambient";
     private const string LookAlike = "user-owned";
     private const string UserToken = "project-token";
     private static readonly string[] PassedThroughNames = ["OPENAI_API_KEY", "MY_PROJECT_TOKEN"];
@@ -29,9 +31,10 @@ public sealed class ChildProcessToolEnvironmentTests
             "/bin/bash",
             [
                 "-c",
-                "printf '%s|%s|%s|%s' \"${OPENAI_API_KEY:-missing}\" "
+                "printf '%s|%s|%s|%s|%s' \"${OPENAI_API_KEY:-missing}\" "
                     + "\"${GEMINI_API_KEY:-stripped}\" "
-                    + "\"${OPENAI_API_KEY_BACKUP:-missing}\" "
+                    + "\"${GITHUB_TOKEN:-withheld}\" "
+                    + "\"${KEYBOARD_LAYOUT:-missing}\" "
                     + "\"${MY_PROJECT_TOKEN:-missing}\"",
             ]
         );
@@ -56,12 +59,16 @@ public sealed class ChildProcessToolEnvironmentTests
                 "/c",
                 // cmd leaves an undefined %VAR% literal on the command line, so absence is
                 // asked with `if defined` instead of printing the variable and expecting empty.
-                "echo [%OPENAI_API_KEY%][%OPENAI_API_KEY_BACKUP%][%MY_PROJECT_TOKEN%]"
-                    + "& if defined GEMINI_API_KEY (echo leaked) else (echo stripped)",
+                "echo [%OPENAI_API_KEY%][%KEYBOARD_LAYOUT%][%MY_PROJECT_TOKEN%]"
+                    + "& if defined GEMINI_API_KEY (echo leaked) else (echo stripped)"
+                    + "& if defined GITHUB_TOKEN (echo leaked) else (echo withheld)",
             ]
         );
 
-        Assert.Equal($"[{PassedThroughToken}][{LookAlike}][{UserToken}]\nstripped", stdout.Trim());
+        Assert.Equal(
+            $"[{PassedThroughToken}][{LookAlike}][{UserToken}]\nstripped\nwithheld",
+            stdout.Trim()
+        );
     }
 
     private static async Task<string> RunAsync(string fileName, IReadOnlyList<string> arguments)
@@ -91,12 +98,16 @@ public sealed class ChildProcessToolEnvironmentTests
 
     private static void AssertPassThrough(string stdout)
     {
-        Assert.Equal($"{PassedThroughToken}|stripped|{LookAlike}|{UserToken}", stdout.Trim());
+        Assert.Equal(
+            $"{PassedThroughToken}|stripped|withheld|{LookAlike}|{UserToken}",
+            stdout.Trim()
+        );
     }
 
     /// <summary>
-    /// The parent set the request inherits: the configured credential pair, the look-alike, the
-    /// user's token, and the platform names a child needs to start a shell.
+    /// The parent set the request inherits: the configured credential pair, an ambient token Lunate
+    /// never resolved, a name that only contains a credential word, the user's token, and the
+    /// platform names a child needs to start a shell.
     /// </summary>
     private static Dictionary<string, string> ParentEnvironment()
     {
@@ -104,7 +115,8 @@ public sealed class ChildProcessToolEnvironmentTests
         {
             ["OPENAI_API_KEY"] = PassedThroughToken,
             ["GEMINI_API_KEY"] = StrippedCredential,
-            ["OPENAI_API_KEY_BACKUP"] = LookAlike,
+            ["GITHUB_TOKEN"] = WithheldAmbientToken,
+            ["KEYBOARD_LAYOUT"] = LookAlike,
             ["MY_PROJECT_TOKEN"] = UserToken,
         };
 

@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace Lunate.Coding.Tests;
 
 /// <summary>
@@ -8,6 +10,22 @@ namespace Lunate.Coding.Tests;
 [Collection(ToolEnvironmentCollection.Name)]
 public sealed class ToolEnvironmentPassthroughTests
 {
+    [Fact]
+    public void The_collection_never_runs_beside_another_collection()
+    {
+        // A session composed outside this collection configures the same process-wide list, so
+        // sequential tests inside the collection are not enough: the whole collection must run
+        // alone. This pins the definition that keeps that outside Configure(empty) from racing a
+        // read or a spawn here.
+        CollectionDefinitionAttribute definition = Assert.IsType<CollectionDefinitionAttribute>(
+            typeof(ToolEnvironmentCollection).GetCustomAttribute<CollectionDefinitionAttribute>()
+        );
+        Assert.True(
+            definition.DisableParallelization,
+            "the tool-environment collection must disable parallelization"
+        );
+    }
+
     [Fact]
     public void The_list_is_empty_until_it_is_configured()
     {

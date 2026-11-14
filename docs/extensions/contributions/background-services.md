@@ -88,7 +88,7 @@ A service that only holds state can leave both methods empty. `memory-provider` 
 file:
 [`MemoryStore.cs`](../../../samples/extensions/memory-provider/MemoryProviderExtension/MemoryStore.cs).
 
-## See also
+## Related
 
 - Named lookup and core handles: [services.md](services.md)
 - Session lifecycle and unload: [lifecycle-and-trust.md](../lifecycle-and-trust.md)

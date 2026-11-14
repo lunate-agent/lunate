@@ -88,7 +88,7 @@ Files:
 and
 [`HelloExtensionFactory.cs`](../../../tests/TestExtensions/HelloExtension/HelloExtensionFactory.cs).
 
-## See also
+## Related
 
 - The bus contract and per-workspace delivery: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#file-change-bus)
 - Background services for watchers and servers: [background-services.md](background-services.md)

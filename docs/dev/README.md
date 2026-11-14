@@ -5,6 +5,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Document kind | Home | What it owns |
 | --- | --- | --- |
 | Project entry point | [`../../README.md`](../../README.md) | What Lunate is, why it exists, install, the three-step start and what it can do |
+| Documentation entry point | [`../index.md`](../index.md) | The user path: every task group, and the page that owns each task |
 | Usage | [`../usage.md`](../usage.md) | The interactive session: input, turns, tools, approvals, thinking, forks and long sessions, and trust |
 | Project instructions | [`../agents-md.md`](../agents-md.md) | The `AGENTS.md` chain from the repository root to the launch directory, and what reaches the system prompt |
 | Skills | [`../skills.md`](../skills.md) | Agent Skills: the scopes Lunate reads, `/skills`, `/skill:<name>`, the index budget and the trust decision |
@@ -22,6 +23,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Settings reference | [`../settings.md`](../settings.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
 | Keybindings reference | [`../keybindings.md`](../keybindings.md) | Every prompt binding, generated from the keys file the router and the in-app help read so it cannot describe a key the product does not have |
 | Quickstart | [`../quickstart.md`](../quickstart.md) | Install, the first run and the setup wizard, and the first task |
+| How Lunate works | [`../how-lunate-works.md`](../how-lunate-works.md) | The mental model: the turn loop, the tools, the context, sessions and the three modes |
 | Models and providers | [`../models-and-providers.md`](../models-and-providers.md) | Choosing a provider, `lunate auth`, the `/auth` picker, provider instances and credentials, profiles, custom OpenAI-compatible endpoints and the user's own model catalog |
 | Decisions | [`../decisions.md`](../decisions.md) | The optional decision layer: its profile, approvals, routing, the decide tool, question suggestions and the System One transport |
 | Copy, export and debug | [`../export-copy-debug.md`](../export-copy-debug.md) | `/copy`, `/export` and `/debug`: taking an answer, the session or a diagnostic bundle out |
@@ -33,7 +35,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Changelog | [`../../CHANGELOG.md`](../../CHANGELOG.md) | Notable changes, one section per release |
 | Changelog fragments | [`../../changes/README.md`](../../changes/README.md) | The release-note rule: a pull request writes `changes/<pr-number>.md`, the release pull request assembles `CHANGELOG.md` |
 | Plan and status | [`guide.md`](guide.md) | The implementation plan, phases and roadmap |
-| Documentation architecture (proposed) | [`information-architecture.md`](information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and slice plan, awaiting sign-off |
+| Documentation architecture | [`information-architecture.md`](information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and the S1–S9 slice plan |
 | Architecture overview | [`architecture.md`](architecture.md) | Component map, model pipeline, one run and the event path, as diagrams |
 | Extensibility spec | [`spec/extensibility.md`](spec/extensibility.md) | Contract and hooks, tool model, services, UI by mode, fitness suite (under ADR-0017) |
 | Export contract | [`spec/export.md`](spec/export.md) | `/export` and `/copy`: destination, credential redaction, the HTML document's CSP and escaping guarantees |
@@ -57,6 +59,10 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   `changes/**/*.md`, `docs/**/*.md` and `adr/**/*.md` are checked by markdownlint
   (`npx --yes markdownlint-cli2@0.23.3`, configured in `.markdownlint-cli2.yaml`). `openspec/` is
   tool-managed and excluded.
+- **Pyramid per page.** A user-path page opens with one sentence saying what it answers and one
+  giving the short answer, heads its sections with the task or the statement rather than a noun, and
+  closes with a **Related** section of links to the pages that own the neighbouring facts. Details,
+  edge cases and reference tables come last.
 - **One home per fact.** Link to the owning document instead of copying it; a fact that exists twice drifts.
 - **Generated regions are not hand-written.** `scripts/docs-sync` fills
   `<!-- keys:start --> … <!-- keys:end -->` in `keybindings.md` from `src/Lunate.Tui/keys.json`

@@ -13,9 +13,10 @@ public enum ChildEnvironmentPolicy
     Scrubbed,
 
     /// <summary>
-    /// The caller's whole environment minus the names the caller declares as Lunate's own
-    /// credentials — the tool child's policy, because the bash tool is the user's shell and must
-    /// still see the user's own ambient environment.
+    /// The caller's whole environment minus the credentials the policy denies — the names the
+    /// caller declares as Lunate's own credentials and every name shaped like one — the tool
+    /// child's policy, because the bash tool is the user's shell and must still see the user's own
+    /// ambient environment.
     /// </summary>
     Inherited,
 }
@@ -69,20 +70,53 @@ public static class EnvironmentScrubber
     ];
 
     /// <summary>
+    /// The words that mark an inherited name as credential-shaped. A name is split on its
+    /// <c>_</c> and <c>-</c> separators and every part is compared against these, case-insensitively:
+    /// <c>GITHUB_TOKEN</c>, <c>NPM_TOKEN</c>, <c>AWS_SECRET_ACCESS_KEY</c> and
+    /// <c>OPENAI_API_KEY_BACKUP</c> are withheld, while <c>MONKEY</c>, <c>KEYBOARD_LAYOUT</c>,
+    /// <c>HOCKEY_POOL</c>, <c>GITLAB_TOKENIZE_TIMEOUT</c> and <c>OPENAI_BASE_URL</c> are not.
+    /// <c>AUTH</c>, <c>PWD</c>, <c>URL</c>, <c>URI</c> and <c>DSN</c> are deliberately absent:
+    /// <c>SSH_AUTH_SOCK</c>, <c>PWD</c>, <c>OPENAI_BASE_URL</c> and <c>NEXT_PUBLIC_*_URL</c> are
+    /// ambient names toolchains read, and a URL's name says nothing about whether it carries a
+    /// password. The shape rule is a heuristic, not a guarantee — <c>DATABASE_URL</c> and
+    /// <c>PGPASSWORD</c> still reach the child (ADR-0036).
+    /// </summary>
+    private static readonly HashSet<string> CredentialWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "KEY",
+        "KEYS",
+        "TOKEN",
+        "TOKENS",
+        "SECRET",
+        "SECRETS",
+        "PASSWORD",
+        "PASSWORDS",
+        "PASSWD",
+        "PASS",
+        "CREDENTIAL",
+        "CREDENTIALS",
+        "CREDS",
+    };
+
+    /// <summary>The pieces of a variable name: <c>_</c> and <c>-</c> separate words.</summary>
+    private static readonly char[] NameSeparators = ['_', '-'];
+
+    /// <summary>
     /// Builds a child environment under <paramref name="policy"/>. <see cref="ChildEnvironmentPolicy.Scrubbed"/>
     /// is the minimal base set, then the declared pass-through names, then the declared values; a
     /// name the parent holds and does not declare never arrives. <see cref="ChildEnvironmentPolicy.Inherited"/>
-    /// is the parent's whole environment, then the declared values, minus every declared strip name
-    /// (the credential variables Lunate resolved) — and then the declared pass-through names are
-    /// re-admitted from the parent, so an exact name the user opted back in wins over the strip for
-    /// that name alone. The strip still wins over a declared value, so a spawn site cannot
-    /// re-introduce a stripped name by accident.
+    /// is the parent's whole environment, then the declared values, minus two denies: every declared
+    /// strip name (the credential variables Lunate resolved) and every name shaped like a credential
+    /// (<see cref="CredentialWords"/>) — and then the declared pass-through names are re-admitted from
+    /// the parent, so an exact name the user opted back in wins over both denies for that name alone.
+    /// The denies still win over a declared value, so a spawn site cannot re-introduce a withheld
+    /// name by accident.
     /// </summary>
     /// <param name="policy">The policy; the call site always names one.</param>
     /// <param name="read">Reads one parent variable; null reads the process environment.</param>
     /// <param name="set">Values to set; null sets none.</param>
-    /// <param name="passthrough">Names read from the parent: the whole allow-list under <see cref="ChildEnvironmentPolicy.Scrubbed"/>, and the names re-admitted after the strip under <see cref="ChildEnvironmentPolicy.Inherited"/>; null passes none through.</param>
-    /// <param name="strip">Names removed under <see cref="ChildEnvironmentPolicy.Inherited"/>; null strips none.</param>
+    /// <param name="passthrough">Names read from the parent: the whole allow-list under <see cref="ChildEnvironmentPolicy.Scrubbed"/>, and the names re-admitted after both denies under <see cref="ChildEnvironmentPolicy.Inherited"/>; null passes none through.</param>
+    /// <param name="strip">Names removed under <see cref="ChildEnvironmentPolicy.Inherited"/> beside the credential-shape rule; null strips none.</param>
     /// <param name="inherited">
     /// The set <see cref="ChildEnvironmentPolicy.Inherited"/> starts from; null reads the process
     /// environment. The test seam for the inherited policy.
@@ -110,8 +144,8 @@ public static class EnvironmentScrubber
                 environment[name] = value;
             }
 
-            // The pass-through is the user's explicit act against the credential strip: remember the
-            // exact names' inherited values before the strip, so they can be re-admitted after it.
+            // The pass-through is the user's explicit act against the credential denies: remember
+            // the exact names' inherited values before them, so they can be re-admitted after.
             List<KeyValuePair<string, string>> passedThrough = [];
             foreach (string name in passthrough ?? [])
             {
@@ -124,6 +158,18 @@ public static class EnvironmentScrubber
             foreach (string name in strip ?? [])
             {
                 environment.Remove(name);
+            }
+
+            // The shape deny is the default for a name Lunate never resolved: a developer's
+            // GITHUB_TOKEN or AWS_SECRET_ACCESS_KEY is the same leak whether Lunate holds the name
+            // or not. It is a word match, so a name that merely contains a credential word survives
+            // (ADR-0036).
+            foreach (string name in environment.Keys.ToArray())
+            {
+                if (IsCredentialShaped(name))
+                {
+                    environment.Remove(name);
+                }
             }
 
             foreach ((string name, string value) in passedThrough)
@@ -152,11 +198,16 @@ public static class EnvironmentScrubber
 
         foreach ((string name, string value) in set ?? new Dictionary<string, string>())
         {
-            // The inherited policy's strip is a deny for the whole child, so a declared value
-            // cannot put a stripped name back.
-            if (policy == ChildEnvironmentPolicy.Inherited && strip is { } stripped)
+            // The inherited policy's denies are a deny for the whole child, so a declared value
+            // cannot put a stripped or credential-shaped name back.
+            if (policy == ChildEnvironmentPolicy.Inherited)
             {
-                if (stripped.Contains(name, StringComparer.Ordinal))
+                if (strip is { } stripped && stripped.Contains(name, StringComparer.Ordinal))
+                {
+                    continue;
+                }
+
+                if (IsCredentialShaped(name))
                 {
                     continue;
                 }
@@ -166,6 +217,25 @@ public static class EnvironmentScrubber
         }
 
         return environment;
+    }
+
+    /// <summary>
+    /// Whether a variable name is shaped like a credential: one of its <c>_</c>- or
+    /// <c>-</c>-separated parts is a <see cref="CredentialWords">credential word</see>, compared
+    /// case-insensitively. A substring match is deliberately not used: <c>MONKEY</c> and
+    /// <c>KEYBOARD_LAYOUT</c> are the user's own variables.
+    /// </summary>
+    private static bool IsCredentialShaped(string name)
+    {
+        foreach (string part in name.Split(NameSeparators, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (CredentialWords.Contains(part))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>The process environment as name/value pairs — the inherited policy's default source.</summary>

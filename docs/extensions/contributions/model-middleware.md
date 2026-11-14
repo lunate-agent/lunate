@@ -81,7 +81,7 @@ file:
 and its
 [`CountingMiddleware.cs`](../../../samples/extensions/model-router/ModelRouterExtension/CountingMiddleware.cs).
 
-## See also
+## Related
 
 - Providers and model ids: [model-providers.md](model-providers.md)
 - Virtual models: [virtual-models.md](virtual-models.md)

@@ -2,7 +2,8 @@ namespace Lunate.Coding;
 
 /// <summary>
 /// The tool-process environment's explicit pass-through list: the exact variable names a user
-/// allows into every tool child, applied after the inherited policy's credential strip. The list
+/// allows into every tool child, applied after the inherited policy's credential denies (the resolved
+/// provider keys and the credential-shaped names). The list
 /// is user-scope settings (<c>toolEnvironment.passthrough</c>), resolved once at startup; it is
 /// process-wide for the same reason <see cref="CredentialVariables"/> is — the tool child's
 /// environment is built in one shared spawn path, and <c>ChildProcess.BuildEnvironment</c> reads

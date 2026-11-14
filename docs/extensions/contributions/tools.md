@@ -140,7 +140,7 @@ When a tool declares `OutputSchema`, the handler can put a `JsonElement` in
 structured value travels beside it where the loop sends it. The `lsp-diagnostics` tool-result hook
 attaches `{"path", "diagnostics": […]}` this way.
 
-## See also
+## Related
 
 - Tool exposure and the core tool model: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#tool-model)
 - Test a tool through the real harness: [testing.md](../testing.md)

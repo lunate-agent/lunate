@@ -70,7 +70,7 @@ The tool in the same extension calls `context.Models.For("ext/model-router/auto"
 The model id is `ext/model-router/auto` because the manifest id is `model-router` and the local id
 is `auto`.
 
-## See also
+## Related
 
 - Providers and model ids: [model-providers.md](model-providers.md)
 - Middleware slots: [model-middleware.md](model-middleware.md)

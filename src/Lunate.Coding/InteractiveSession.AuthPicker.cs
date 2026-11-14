@@ -32,7 +32,7 @@ internal sealed partial class InteractiveSession
     /// endpoint row. Esc cancels without a write; selecting a preset starts the same masked prompt
     /// and save path as <c>/login</c>.
     /// </summary>
-    private void OpenAuthPicker()
+    private async ValueTask OpenAuthPicker()
     {
         if (RefusedWhileBusy())
         {
@@ -49,7 +49,8 @@ internal sealed partial class InteractiveSession
 
         labels.Add(AuthCustomLabel);
         values.Add(AuthCustomValue);
-        OpenPicker(PickerKind.AuthProvider, "Select provider", labels, values, 0);
+        await OpenPicker(PickerKind.AuthProvider, "Select provider", labels, values, 0)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -177,7 +178,7 @@ internal sealed partial class InteractiveSession
             _catalog = HarnessFactory.LoadCatalog(_settings, _options.ModelsPath);
 
             Notify($"logged in: {provider.Id} — /model to choose {provider.CatalogName}");
-            OfferVerification(provider.Id, provider.ToModelInfo());
+            await OfferVerification(provider.Id, provider.ToModelInfo()).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -230,7 +231,7 @@ internal sealed partial class InteractiveSession
     /// leave the saved key and the network untouched; a preset with no catalog model offers no
     /// verification at all.
     /// </summary>
-    private void OfferVerification(string providerId, ModelInfo? model)
+    private async ValueTask OfferVerification(string providerId, ModelInfo? model)
     {
         if (model is null)
         {
@@ -239,13 +240,14 @@ internal sealed partial class InteractiveSession
 
         _verifyProviderId = providerId;
         _verifyModel = model;
-        OpenPicker(
-            PickerKind.AuthVerify,
-            $"Verify {providerId} with one request?",
-            ["Yes, send one request", "Skip verification"],
-            ["yes", "no"],
-            1
-        );
+        await OpenPicker(
+                PickerKind.AuthVerify,
+                $"Verify {providerId} with one request?",
+                ["Yes, send one request", "Skip verification"],
+                ["yes", "no"],
+                1
+            )
+            .ConfigureAwait(false);
     }
 
     /// <summary>Runs the accepted verification; the task is exposed so tests can await the result.</summary>

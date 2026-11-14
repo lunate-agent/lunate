@@ -109,7 +109,7 @@ A declared provider uses a secret by name, not by value:
 Full file:
 [`extension.json`](../../../samples/extensions/model-router/ModelRouterExtension/extension.json).
 
-## See also
+## Related
 
 - Schema enforcement in the manifest: [manifest.md](../manifest.md#settingsschema)
 - Model providers and the secret read: [model-providers.md](model-providers.md)

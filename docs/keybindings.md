@@ -32,3 +32,9 @@ they drive.
 | `Ctrl+Y` | Yank the most recent kill |
 | `Alt+B` / `Alt+F` / `Ctrl+Left` / `Ctrl+Right` | Move back / forward by word (`Ctrl+Left`/`Ctrl+Right` are the Alt-free forms) |
 <!-- keys:end -->
+
+## Related
+
+- [Themes and keys](themes-and-keys.md) — remapping a binding and persisting it
+- [Settings reference](settings.md) — the `tui.keys` entry each remap is written to
+- [Use the terminal](usage.md) — the states the bindings act on
