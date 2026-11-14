@@ -1,4 +1,4 @@
-# ADR-0036: The CI gate is sized by the event, and the full matrix lives on main and the nightly
+# ADR-0037: The CI gate is sized by the event, and the full matrix lives on main and the nightly
 
 Status: accepted — 2026-11-14
 
