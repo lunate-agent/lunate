@@ -1,6 +1,6 @@
 ---
 name: openspec-git-discipline
-description: Use when running OpenSpec propose, continue, apply, verify, archive, or worktree workflows where proposal artifacts, branches, merges, or archive timing affect git history.
+description: Use when running OpenSpec propose, apply, verify, sync or archive workflows in this repository, where one implementation pull request per card, archive timing, reworks and spec conflicts decide what the reviewer sees.
 license: MIT
 compatibility: Requires git and OpenSpec workflow artifacts.
 ---
@@ -9,53 +9,72 @@ compatibility: Requires git and OpenSpec workflow artifacts.
 
 ## Core Rule
 
-Every OpenSpec state change must cross `main` before the next lifecycle phase depends on it.
+A card is **one implementation pull request**: proposal, apply and archive land in it together, never in
+separate pull requests and never as a follow-up archive PR.
 
-- Propose/continue artifacts may be drafted on a branch, but must be committed and merged to `main` before apply starts.
-- Apply may run on `main`, a branch, or a worktree only if that exact proposal change is already available on `main`.
-- Archive is the **final commit of the implementation PR**: run it on the change branch once review is done and the fast gate is green, then merge. Main receives code and specs in the same merge.
+- **The archive is the last commit, and it lands before review**, so the reviewer reads a tree whose
+  change is already archived and its delta specs already synced.
+- **A rework that a review requests redoes the archive**, or its update, as the last commit again.
+- **The reviewer reads the proposal delta** under `openspec/changes/<change>/` first, before the
+  implementation, so a mismatch between intent and code is a review finding, not a merge-order accident.
+- **Never rewrite a commit.** The lane pushes your first commit while you work, so no commit is private:
+  no `git commit --amend`, no `git rebase`, no `git reset` to an earlier commit, no squash. Fix a mistake
+  with a new commit.
 
-Never create commits, branches, or merges unless the user explicitly asks.
+## The Four Moments
 
-## Gates
-
-| Moment | Gate |
+| Moment | What happens |
 | --- | --- |
-| Before propose | Prefer `main`; if not, warn and ask whether to continue intentionally. |
-| During continue | Before creating the next artifact, ask the user to commit completed artifact changes or explicitly continue without that checkpoint. |
-| After propose | Ask the user to commit proposal artifacts; offer to create a PR branch for review. |
-| Before apply | Confirm the proposal change is committed on `main`; then apply may run from `main`, a branch, or a worktree. |
-| Before archive | Review is done and the fast gate is green on the change branch. Run `openspec archive <change> --yes` as the final commit of that same PR. |
-| After archive | Push the archive commit and merge once `ci-ok` is green. Never open a separate archive PR, and never leave more than one archive pending. |
+| Propose | `openspec new change` and the proposal artifacts, on the card's branch and in the card's pull request. There is no separate proposal pull request and no wait for `main`. |
+| Apply | Implement `tasks.md` on that same branch, test-first, ticking tasks as they land; commit as you go. |
+| Verify | `openspec-verify-change`, the fast gate green, then `openspec validate <change> --type change --strict`. |
+| Archive | `openspec sync specs`, then `openspec archive <change> --yes` as the **last** commit, **before** the pull request is handed to review. Nothing follows it: not a formatting run, not a test fix. |
+
+## Unattended Runs
+
+Nobody answers an unattended run. Decide inside the card's scope, commit on your branch, and put the
+question in the pull request for the reviewer instead of stopping to ask.
+
+- **Do not ask the user.** Neither this skill nor `AGENTS.md` asks a worker to wait for an answer.
+- **`grill-me` runs in self-answer mode.** `openspec/config.yaml` requires it for a proposal and it
+  interviews a user; unattended, answer each question from the card, the specs and the code, and list
+  every question with the answer you chose under the heading **Intent decisions** in the pull request
+  description. The reviewer checks that list first; a missing list is a send-back.
+- **The one exception is an architecture decision.** An ADR-level decision (the loop, tool contracts,
+  protocols, dependencies) keeps "propose and stop": propose it and wait for the maintainer's sign-off,
+  and name the open question in the pull request.
+
+## Specs Are The CLI's Output
+
+`openspec/specs/**` is written by `openspec sync specs` and `openspec archive`, never by hand.
+
+- **A conflict under `openspec/specs/**` is never resolved by editing a spec.** `git revert` the archive
+  commit, merge `origin/main`, then re-run `openspec archive <change> --yes` as the last commit again.
+- A hand-edited spec is indistinguishable from a synced one until someone reads the archive — which is
+  the state this repository has spent the week removing.
 
 ## Required Checks
 
-Before apply:
-
-1. Run `git status --short`.
-2. Verify `openspec/changes/<change>/` has no uncommitted proposal files.
-3. Verify the proposal change exists on `main` before applying from any branch/worktree.
-
-Use this language if the proposal has not reached `main`:
-
-> I should not apply this yet because the proposal change has not reached `main`. A proposal can be drafted on a branch, but apply must start only after that proposal state is available on `main`. Please merge or commit the proposal to `main` first, then I can apply from `main`, a branch, or a worktree.
-
 Before archive:
 
-1. Run `git branch --show-current` and `git status --short`.
-2. Stop if not on `main`.
-3. Stop if implementation work has not been merged back to `main`.
+1. `git status --short` — the implementation is committed, nothing is left uncommitted.
+2. The fast gate is green on this branch, and `openspec validate <change> --type change --strict` passes.
+3. The pull request description carries the **Intent decisions** list.
 
-Use this language:
+After archive:
 
-> I should not archive this yet because archive must run from `main` after implementation is merged back. Verify makes a change eligible to merge; it does not replace the merge.
+1. The archive commit is the branch's last commit.
+2. `openspec validate --all --strict` is green.
+3. The pull request is ready: `scripts/verify.sh` green on the head, the archive last, the intent list
+   present.
 
 ## Red Flags
 
-- Applying a proposal that exists only on the current branch/worktree.
-- Treating worktree visibility as proof that the proposal reached `main`.
-- Creating the next continue artifact without asking about committing the previous one.
-- Archiving from a feature branch or before implementation is merged to `main`.
-- Auto-committing, branching, or merging without explicit user approval.
+- A second pull request carrying the proposal, or a proposal waiting for `main` before apply.
+- An archive commit added after review, or an archive-only pull request.
+- A rework that leaves the archive behind an ordinary commit.
+- A spec file under `openspec/specs/**` edited by hand to resolve a conflict.
+- A run that stopped to ask a user, or a pull request description without an **Intent decisions** list.
+- A pushed commit rewritten (`--amend`, `rebase`, `reset`, squash).
 
-All of these mean: pause, explain the boundary, and ask the user to make the git state explicit.
+Any of these means: stop, fix the git state with a new commit, and say what happened in the pull request.
