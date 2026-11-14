@@ -32,23 +32,32 @@
 #   VERIFY       needs.verify.result
 #   POWERSHELL   needs.verify-powershell.result
 #   PS_REQUIRED  needs.changes.outputs.powershell ("true"/"false")
+#   CHANGES      needs.changes.result
 #   DOCS         needs.verify-docs.result
 #   PERF         needs.perf.result
 #   PLATFORM     needs.platform.result
 #   FRAGMENTS    needs.changelog.result
 #   PR_NUMBER    github.event.pull_request.number (named in the changelog failure)
 #
-# Exits 0 only when the run that actually happened is the gate the profile selected. Every other
-# outcome -- a draft, a skipped plan, a failed or skipped leg, a leg the profile did not select, an
-# unreadable profile -- exits 1 with a named reason.
+# Exits 0 only when the run that actually happened is the gate the event and profile require. Every
+# other outcome -- a draft, a skipped plan, a failed or skipped leg, a leg the event did not select,
+# an unreadable profile -- exits 1 with a named reason.
 #
-# The macOS verify legs run only where a merge follows (#831): a pull-request run has none and
-# passes without them, while a merge group, a push to main, the nightly and a manual dispatch
-# must have had them. An unreadable decision (MACOS empty) is red.
+# The event decides the job set (#831):
 #
-# The PowerShell leg is path-filtered: skipped is a pass when `changes` said its paths did not
-# match, and a failure when nothing said so. An unreadable decision (PS_REQUIRED empty) is red, not
-# "probably fine".
+#   pull_request   plan, changes, changelog, platform (full) or verify-docs (docs), and the Ubuntu
+#                  verify legs. No Windows, macOS, PowerShell or perf leg is required, and a skip of
+#                  one of them is a pass. The plan puts Ubuntu legs only in a pull-request matrix.
+#   merge_group    plan and the Ubuntu verify legs (or plan only for a docs batch). `changes`, the
+#                  changelog guard, the platform checks, the docs profile, the PowerShell twin and
+#                  the perf leg must be skipped: the pull request already proved them.
+#   push/schedule/ the full matrix (macOS and Windows present), plan, changes, platform, and the
+#   dispatch       PowerShell twin (schedule and dispatch also require the perf leg; a push's perf
+#                  result is advisory). The nightly requires perf; a manual dispatch does not run it.
+#
+# The PowerShell leg is conditional on the changed paths only on the events that run it. Skipped is
+# a pass when `changes` said its paths did not match, and a failure when nothing said so. An
+# unreadable decision (PS_REQUIRED empty) is red, not "probably fine".
 
 set -euo pipefail
 
@@ -64,10 +73,11 @@ fail() {
 decide() {
     local event="${EVENT_NAME:-}" draft="${DRAFT:-}" plan="${PLAN:-}"
     local profile="${PROFILE:-}" verify="${VERIFY:-}" powershell="${POWERSHELL:-}"
-    local ps_required="${PS_REQUIRED:-}" docs="${DOCS:-}" perf="${PERF:-}" platform="${PLATFORM:-}"
-    local fragments="${FRAGMENTS:-}" pull_request="${PR_NUMBER:-}" macos="${MACOS:-}"
+    local ps_required="${PS_REQUIRED:-}" changes="${CHANGES:-}" docs="${DOCS:-}" perf="${PERF:-}"
+    local platform="${PLATFORM:-}" fragments="${FRAGMENTS:-}" pull_request="${PR_NUMBER:-}"
+    local macos="${MACOS:-}"
 
-    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile macos=$macos verify=$verify verify-powershell=$powershell ps-required=$ps_required verify-docs=$docs perf=$perf platform=$platform changelog=$fragments"
+    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile macos=$macos verify=$verify verify-powershell=$powershell ps-required=$ps_required changes=$changes verify-docs=$docs perf=$perf platform=$platform changelog=$fragments"
 
     if [ "$event" = "pull_request" ] && [ "$draft" != "false" ]; then
         fail "the head is a draft (draft=$draft), so no gate ran; a draft push costs no matrix, but the required check still has to report. Mark the pull request ready for review and this check runs again."
@@ -75,80 +85,147 @@ decide() {
     if [ "$plan" != "success" ]; then
         fail "the plan job did not succeed (plan=$plan)"
     fi
-    # The changelog guard runs on every non-draft pull request, whichever profile it selects. A
-    # pull-request run without its success is red; outside a pull request it must not have run.
+
+    # The jobs the pull request owns, and the two the merge group must not repeat.
     case "$event" in
         pull_request)
+            if [ "$changes" != "success" ]; then
+                fail "the changed-path decision did not succeed on a pull request (changes=$changes); the fast gate needs it"
+            fi
             if [ "$fragments" != "success" ]; then
                 fail "the changelog guard did not succeed (changelog=$fragments); a pull request other than the release pull request must not edit CHANGELOG.md. Write the line in changes/${pull_request:-<pull-request-number>}.md instead"
             fi
             ;;
-        *)
+        merge_group)
+            if [ "$changes" != "skipped" ]; then
+                fail "the changed-path decision ran in a merge group (changes=$changes); its pull requests already proved it"
+            fi
+            if [ "$fragments" != "skipped" ]; then
+                fail "the changelog guard ran in a merge group (changelog=$fragments); its pull requests already proved it"
+            fi
+            ;;
+        push | schedule | workflow_dispatch)
+            if [ "$changes" != "success" ]; then
+                fail "the changed-path decision did not succeed on a $event run (changes=$changes)"
+            fi
             if [ "$fragments" != "skipped" ]; then
                 fail "the changelog guard ran although only a pull request needs it (changelog=$fragments)"
             fi
             ;;
+        *)
+            fail "the event is unreadable ('$event'); refusing to pass on a state this gate does not know"
+            ;;
     esac
+
     case "$profile" in
         docs)
             if [ "$verify" != "skipped" ] || [ "$powershell" != "skipped" ] || [ "$perf" != "skipped" ] || [ "$platform" != "skipped" ]; then
                 fail "profile=docs, yet a full leg ran (verify=$verify, verify-powershell=$powershell, perf=$perf, platform=$platform)"
             fi
-            if [ "$docs" != "success" ]; then
-                fail "the docs profile did not succeed (verify-docs=$docs)"
-            fi
-            ;;
-        full)
-            # The dedicated macOS perf leg is a nightly trend as of #724: a release tag is owned by
-            # the Release workflow, not this one. A pull request sees it skipped.
-            local perf_gate="$perf"
             case "$event" in
-                pull_request | merge_group)
-                    # Neither is a release: the dedicated perf leg is release-only, so its absence
-                    # must not fail the gate. A merge group that required it was ejected from the
-                    # queue by a timing measurement on a loaded runner.
-                    [ "$perf" = "skipped" ] && perf_gate="success"
+                merge_group)
+                    # The pull request ran the docs profile on the same tree; the queue has nothing
+                    # left to lint, so the docs leg must be absent too.
+                    if [ "$docs" != "skipped" ]; then
+                        fail "the docs profile ran in a merge group (verify-docs=$docs); its pull request already proved it"
+                    fi
                     ;;
-                push)
-                    # A push that reaches this workflow is a push to main: tags belong to
-                    # release.yml. A shared runner varies by a few percent, so on a branch push its
-                    # result does not feed this check at all.
-                    perf_gate="success"
+                *)
+                    if [ "$docs" != "success" ]; then
+                        fail "the docs profile did not succeed (verify-docs=$docs)"
+                    fi
                     ;;
             esac
-            if [ "$verify" != "success" ] || [ "$perf_gate" != "success" ] || [ "$platform" != "success" ]; then
-                fail "a required job did not succeed (verify=$verify, perf=$perf, platform=$platform)"
+            ;;
+        full)
+            if [ "$verify" != "success" ]; then
+                fail "a required job did not succeed (verify=$verify)"
             fi
-            # The verify result covers the legs the plan put in the matrix; `macos` says whether
-            # macOS was one of them. A pull request leaves macOS to its merge-queue group (#831).
+
+            # The platform checks run on a pull request, a push, the nightly and a dispatch; the
+            # merge queue spends its time on the tests instead.
+            case "$event" in
+                merge_group)
+                    if [ "$platform" != "skipped" ]; then
+                        fail "the platform checks ran in a merge group (platform=$platform); its pull request already proved them"
+                    fi
+                    ;;
+                *)
+                    if [ "$platform" != "success" ]; then
+                        fail "a required job did not succeed (platform=$platform)"
+                    fi
+                    ;;
+            esac
+
+            if [ "$docs" != "skipped" ]; then
+                fail "profile=full, yet the docs leg ran (verify-docs=$docs)"
+            fi
+
+            # The Windows twin belongs to the full matrix, not to the fast gate or the queue.
+            case "$event" in
+                pull_request | merge_group)
+                    if [ "$powershell" != "skipped" ]; then
+                        fail "the PowerShell twin ran on a $event run (verify-powershell=$powershell); it belongs to a push to main and the nightly"
+                    fi
+                    ;;
+                *)
+                    case "$ps_required" in
+                        true)
+                            if [ "$powershell" != "success" ]; then
+                                fail "the PowerShell leg was required by the changed paths but did not run (verify-powershell=$powershell); a skipped or cancelled leg is not a pass"
+                            fi
+                            ;;
+                        false)
+                            if [ "$powershell" != "skipped" ] && [ "$powershell" != "success" ]; then
+                                fail "the PowerShell leg was not required and did not pass either (verify-powershell=$powershell)"
+                            fi
+                            ;;
+                        *)
+                            fail "the path decision for the PowerShell leg is unreadable (ps-required='$ps_required'); refusing to pass on an unknown state"
+                            ;;
+                    esac
+                    ;;
+            esac
+
+            # The dedicated perf leg runs on a push and the nightly. It is the nightly's verdict; a
+            # push's timing does not feed this check.
+            case "$event" in
+                pull_request | merge_group)
+                    if [ "$perf" != "skipped" ]; then
+                        fail "the dedicated perf leg ran on a $event run (perf=$perf); it belongs to a push to main and the nightly"
+                    fi
+                    ;;
+                schedule)
+                    if [ "$perf" != "success" ]; then
+                        fail "a required job did not succeed (perf=$perf)"
+                    fi
+                    ;;
+                push)
+                    : # Measurement only; a shared runner varies by a few percent.
+                    ;;
+                workflow_dispatch)
+                    if [ "$perf" != "skipped" ]; then
+                        fail "the dedicated perf leg ran on a manual dispatch (perf=$perf); it belongs to a push to main and the nightly"
+                    fi
+                    ;;
+            esac
+
+            # The full matrix is the three-OS coverage: only the merge queue (and a pull request,
+            # whose own matrix is Ubuntu-only) may leave macOS out.
             case "$event:$macos" in
                 pull_request:true | pull_request:false) ;;
-                *:true) ;;
-                *:false)
-                    fail "the macOS verify legs did not run on a $event run (macos=false); only a pull request may leave them to the merge queue"
+                merge_group:false) ;;
+                merge_group:true)
+                    fail "the macOS verify legs ran in a merge group (macos=true); the queue runs Ubuntu only"
+                    ;;
+                push:true | schedule:true | workflow_dispatch:true) ;;
+                push:false | schedule:false | workflow_dispatch:false)
+                    fail "the macOS verify legs did not run on a $event run (macos=false); the full matrix belongs to main and the nightly"
                     ;;
                 *)
                     fail "the plan's macOS decision is unreadable (macos='$macos'); refusing to pass on an unknown state"
                     ;;
             esac
-            case "$ps_required" in
-                true)
-                    if [ "$powershell" != "success" ]; then
-                        fail "the PowerShell leg was required by the changed paths but did not run (verify-powershell=$powershell); a skipped or cancelled leg is not a pass"
-                    fi
-                    ;;
-                false)
-                    if [ "$powershell" != "skipped" ] && [ "$powershell" != "success" ]; then
-                        fail "the PowerShell leg was not required and did not pass either (verify-powershell=$powershell)"
-                    fi
-                    ;;
-                *)
-                    fail "the path decision for the PowerShell leg is unreadable (ps-required='$ps_required'); refusing to pass on an unknown state"
-                    ;;
-            esac
-            if [ "$docs" != "skipped" ]; then
-                fail "profile=full, yet the docs leg ran (verify-docs=$docs)"
-            fi
             ;;
         *)
             fail "the plan produced no usable profile ('$profile'); refusing to pass"
@@ -204,7 +281,7 @@ _decide_live() {
     local state
     state="$(_live_state)"
     eval "$state"
-    echo "ci-ok: live draft=$DRAFT plan=$PLAN profile=$PROFILE macos=$MACOS verify=$VERIFY verify-powershell=$POWERSHELL ps-required=$PS_REQUIRED verify-docs=$DOCS perf=$PERF platform=$PLATFORM changelog=$FRAGMENTS missing=$VERIFY_MISSING"
+    echo "ci-ok: live draft=$DRAFT plan=$PLAN profile=$PROFILE macos=$MACOS verify=$VERIFY verify-powershell=$POWERSHELL ps-required=$PS_REQUIRED changes=$CHANGES verify-docs=$DOCS perf=$PERF platform=$PLATFORM changelog=$FRAGMENTS missing=$VERIFY_MISSING"
     if [ "$DRAFT" = "true" ]; then
         decide
     fi
@@ -239,24 +316,31 @@ PY
 }
 
 _run_from_env() {
-    local fragments="${11:-}" macos="${12-default}"
+    local fragments="${11:-}" macos="${12-default}" changes="${13:-}"
     if [ -z "$fragments" ]; then
         case "$1" in
             pull_request) fragments="success" ;;
             *) fragments="skipped" ;;
         esac
     fi
-    # The plan's decision unless a case names one: no macOS legs on a pull request, macOS legs on
-    # every other event.
+    # The plan's decision unless a case names one: Ubuntu only on a pull request and in a merge
+    # group, the full three-OS matrix on every other event.
     if [ "$macos" = "default" ]; then
         case "$1" in
-            pull_request) macos="false" ;;
+            pull_request | merge_group) macos="false" ;;
             *) macos="true" ;;
+        esac
+    fi
+    # The changed-path decision runs on a pull request and a main event, never in a merge group.
+    if [ -z "$changes" ]; then
+        case "$1" in
+            merge_group) changes="skipped" ;;
+            *) changes="success" ;;
         esac
     fi
     env CI_OK_FROM_ENV=1 EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
         VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
-        FRAGMENTS="$fragments" MACOS="$macos" \
+        FRAGMENTS="$fragments" MACOS="$macos" CHANGES="$changes" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
 }
 
@@ -333,11 +417,11 @@ _self_workflow() {
 
 # The pull-request matrix the live decision requires must be the plan's own leg list: adding,
 # renaming or removing a leg in the workflow has to reach scripts/ci-ok-state, or the live verdict
-# would pass over a leg that never ran. The macOS legs are not compared: a pull request leaves them
-# to its merge-queue group (#831), so a live pull-request head has none.
+# would pass over a leg that never ran. The Windows and macOS legs are not compared: a pull request
+# runs Ubuntu only (#831), so a live pull-request head has none.
 _self_verify_matrix() {
     local name="$1" want got
-    want="$(_job_block plan | sed -nE 's/^ +leg ([a-z0-9-]+) .*/\1/p' | sed '/^macos-latest$/d' | tr '\n' ' ' | sed 's/ $//')"
+    want="$(_job_block plan | sed -nE 's/^ +leg ([a-z0-9-]+) .*/\1/p' | sed -e '/^macos-latest$/d' -e '/^windows-latest$/d' | tr '\n' ' ' | sed 's/ $//')"
     got="$(python3 "${SCRIPT_DIR}/ci-ok-state" --print-verify-oses 2>&1)"
     CASES=$((CASES + 1))
     if [ "$want" = "$got" ]; then
@@ -608,6 +692,10 @@ self_test() {
         "any verify (ubuntu-latest, <shard>) leg" "missing-os-red"
     _self_live_case "a live draft is red even when an older run passed" 1 \
         "the head is a draft (draft=true)" "live-draft-red"
+    # The fast gate's live head carries Ubuntu legs only; the Windows and macOS legs are not
+    # required, and their absence is not a missing leg (#831).
+    _self_live_case "a fast-gate head with Ubuntu legs only is green" 0 \
+        "the full gate succeeded" "fast-gate-green"
 
     # The required context must never be skipped on a head that can be merged.
     _self_case "a draft pull request fails instead of skipping" 1 "draft" \
@@ -617,96 +705,119 @@ self_test() {
     _self_case "a pull request whose draft flag did not render fails closed" 1 "draft" \
         pull_request "" success full success success success skipped success success true
 
-    # The profiles that can pass.
-    _self_case "a full gate that passed" 0 "the full gate succeeded" \
-        pull_request false success full success success skipped success success true
-    _self_case "a full gate whose PowerShell leg was not required" 0 "the full gate succeeded" \
-        pull_request false success full success skipped skipped success success false
-    _self_case "a full gate whose PowerShell leg ran without being required" 0 "the full gate succeeded" \
-        pull_request false success full success success skipped success success false
-    _self_case "a docs gate that passed" 0 "the docs gate succeeded" \
+    # The profiles that can pass, per event (#831). The fast gate, the merge queue and the full
+    # matrix are three different job sets, and each one has its own definition of a pass.
+    _self_case "a pull request that passed the fast gate" 0 "the full gate succeeded" \
+        pull_request false success full success skipped skipped skipped success false
+    _self_case "a pull request whose path decision says the PowerShell leg would be needed" 0 "the full gate succeeded" \
+        pull_request false success full success skipped skipped skipped success true
+    _self_case "a pull request that also carried macOS legs (a dispatch on the same head) passes" 0 "the full gate succeeded" \
+        pull_request false success full success skipped skipped skipped success true "" true
+    _self_case "a docs pull request that passed" 0 "the docs gate succeeded" \
         pull_request false success docs skipped skipped success skipped skipped ""
-    _self_case "a push to main" 0 "the full gate succeeded" \
+    _self_case "a push to main that passed the full matrix" 0 "the full gate succeeded" \
         push "" success full success success skipped success success true
-    _self_case "a manual dispatch" 0 "the full gate succeeded" \
-        workflow_dispatch "" success full success success skipped success success true
+    _self_case "a push whose PowerShell leg was not required" 0 "the full gate succeeded" \
+        push "" success full success skipped skipped success success false
+    _self_case "a manual dispatch that passed" 0 "the full gate succeeded" \
+        workflow_dispatch "" success full success success skipped skipped success true
+    _self_case "the nightly that passed" 0 "the full gate succeeded" \
+        schedule "" success full success success skipped success success true
+    _self_case "a merge group that passed the Ubuntu gate" 0 "the full gate succeeded" \
+        merge_group "" success full success skipped skipped skipped skipped "" "" false
+    _self_case "a docs merge group runs only the plan" 0 "the docs gate succeeded" \
+        merge_group "" success docs skipped skipped skipped skipped skipped "" "" false
 
     # Every way the run that happened can fail to be the gate:
-    _self_case "a failed verify leg" 1 "did not succeed" \
-        pull_request false success full failure success skipped success success true
-    _self_case "a failed windows leg" 1 "was required by the changed paths" \
-        pull_request false success full success failure skipped success success true
-    _self_case "a failed perf leg" 1 "did not succeed" \
-        pull_request false success full success success skipped failure success true
-    _self_case "a failed platform leg" 1 "did not succeed" \
-        pull_request false success full success success skipped success failure true
+    _self_case "a failed verify leg on a pull request" 1 "did not succeed" \
+        pull_request false success full failure skipped skipped skipped success false
+    _self_case "a skipped verify leg on the full profile" 1 "did not succeed" \
+        pull_request false success full skipped skipped skipped success success false
+    _self_case "a failed platform leg on a pull request" 1 "did not succeed" \
+        pull_request false success full success skipped skipped skipped failure false
+    _self_case "a skipped platform leg on a pull request" 1 "did not succeed" \
+        pull_request false success full success skipped skipped skipped skipped false
     _self_case "a failed docs leg" 1 "did not succeed" \
         pull_request false success docs skipped skipped failure skipped skipped ""
-    _self_case "a skipped verify leg on the full profile" 1 "did not succeed" \
-        pull_request false success full skipped success skipped success success true
-    _self_case "a skipped perf leg on a pull request" 0 "the full gate succeeded" \
+    _self_case "a failed PowerShell leg on a push" 1 "was required by the changed paths" \
+        push "" success full success failure skipped success success true
+    _self_case "a pull request in which the PowerShell twin ran" 1 "belongs to a push to main" \
         pull_request false success full success success skipped skipped success true
-    _self_case "a skipped perf leg on a branch push is not required" 0 "the full gate succeeded" \
-        push "" success full success success skipped skipped success true
+    _self_case "a merge group in which the PowerShell twin ran" 1 "belongs to a push to main" \
+        merge_group "" success full success success skipped skipped skipped "" "" false
+    _self_case "a merge group in which the platform checks ran" 1 "already proved them" \
+        merge_group "" success full success skipped skipped skipped success "" "" false
+    _self_case "a merge group in which the changed-path decision ran" 1 "already proved it" \
+        merge_group "" success full success skipped skipped skipped success "" "" false success
+    _self_case "a merge group in which the changelog guard ran" 1 "already proved it" \
+        merge_group "" success full success skipped skipped skipped success "" success false
+    _self_case "a merge group in which the docs profile ran" 1 "already proved it" \
+        merge_group "" success docs skipped skipped success skipped skipped "" "" false
+    _self_case "a merge group in which the perf leg ran" 1 "belongs to a push to main" \
+        merge_group "" success full success skipped skipped success skipped "" "" false
+    _self_case "a merge group with a macOS leg" 1 "the queue runs Ubuntu only" \
+        merge_group "" success full success skipped skipped skipped skipped "" "" true
+    _self_case "a push without the platform checks" 1 "did not succeed" \
+        push "" success full success success skipped success skipped true
+    _self_case "a push without the changed-path decision" 1 "changed-path decision did not succeed" \
+        push "" success full success success skipped success success true "" true failure
+    _self_case "a pull request without the changed-path decision" 1 "changed-path decision did not succeed" \
+        pull_request false success full success skipped skipped skipped success false "" false failure
     _self_case "a failed perf leg on a branch push never feeds this check" 0 "the full gate succeeded" \
         push "" success full success success skipped failure success true
+    _self_case "a skipped perf leg on a branch push is not required" 0 "the full gate succeeded" \
+        push "" success full success success skipped skipped success true
     _self_case "a failed perf leg on the nightly is the nightly verdict" 1 "did not succeed" \
         schedule "" success full success success skipped failure success true
-    _self_case "a skipped perf leg on a merge group" 0 "the full gate succeeded" \
-        merge_group "" success full success success skipped skipped success true
-    _self_case "a failed perf leg on a merge group is still a failure" 1 "did not succeed" \
-        merge_group "" success full success success skipped failure success true
-    _self_case "a skipped platform leg on the full profile" 1 "did not succeed" \
-        pull_request false success full success success skipped success skipped true
+    _self_case "a skipped perf leg on the nightly is red" 1 "did not succeed" \
+        schedule "" success full success success skipped skipped success true
+    _self_case "the perf leg ran on a pull request" 1 "belongs to a push to main" \
+        pull_request false success full success skipped skipped success success false
+    _self_case "the perf leg ran on a manual dispatch" 1 "belongs to a push to main" \
+        workflow_dispatch "" success full success success skipped success success true
+    _self_case "a failed platform leg on the nightly" 1 "did not succeed" \
+        schedule "" success full success success skipped success failure true
 
-    # The macOS legs (#831): a pull request passes without them; every event a merge follows
-    # requires them.
-    _self_case "a pull-request run without macOS legs passes" 0 "the full gate succeeded" \
-        pull_request false success full success success skipped success success true "" false
-    _self_case "a pull-request run that had macOS legs still passes" 0 "the full gate succeeded" \
-        pull_request false success full success success skipped success success true "" true
-    _self_case "a merge group with its macOS legs passes" 0 "the full gate succeeded" \
-        merge_group "" success full success success skipped skipped success true "" true
-    _self_case "a merge group without macOS legs fails" 1 "macOS verify legs did not run on a merge_group run" \
-        merge_group "" success full success success skipped skipped success true "" false
+    # The full matrix belongs to main and the nightly; only the fast gate and the queue leave macOS
+    # out, and the plan must say so.
     _self_case "a push to main without macOS legs fails" 1 "macOS verify legs did not run on a push run" \
         push "" success full success success skipped success success true "" false
     _self_case "a nightly without macOS legs fails" 1 "macOS verify legs did not run on a schedule run" \
         schedule "" success full success success skipped success success true "" false
-    _self_case "a merge group with an unreadable macOS decision fails" 1 "macOS decision is unreadable" \
-        merge_group "" success full success success skipped skipped success true "" ""
     _self_case "a pull request with an unreadable macOS decision fails" 1 "macOS decision is unreadable" \
-        pull_request false success full success success skipped success success true "" ""
+        pull_request false success full success skipped skipped skipped success false "" ""
     _self_case "a docs gate does not consult the macOS decision" 0 "the docs gate succeeded" \
-        merge_group "" success docs skipped skipped success skipped skipped "" "" ""
+        merge_group "" success docs skipped skipped skipped skipped skipped "" "" ""
 
-    # The path-filtered PowerShell leg: skipped is a pass only when the change said so.
-    _self_case "a PowerShell leg skipped although the paths required it" 1 "was required by the changed paths" \
-        pull_request false success full success skipped skipped success success true
-    _self_case "a PowerShell leg skipped with an unreadable decision" 1 "unreadable" \
-        pull_request false success full success skipped skipped success success ""
-    _self_case "a PowerShell leg cancelled although required" 1 "was required by the changed paths" \
-        pull_request false success full success cancelled skipped success success true
-    _self_case "a PowerShell leg cancelled although not required" 1 "did not pass either" \
-        pull_request false success full success cancelled skipped success success false
+    # The PowerShell path decision is consulted only where the leg runs.
+    _self_case "a PowerShell leg skipped on a push although the paths required it" 1 "was required by the changed paths" \
+        push "" success full success skipped skipped success success true
+    _self_case "a PowerShell leg skipped on a push with an unreadable decision" 1 "unreadable" \
+        push "" success full success skipped skipped success success ""
+    _self_case "a PowerShell leg cancelled on a push although required" 1 "was required by the changed paths" \
+        push "" success full success cancelled skipped success success true
+    _self_case "a PowerShell leg cancelled on a push although not required" 1 "did not pass either" \
+        push "" success full success cancelled skipped success success false
 
-    # Legs that ran although the profile did not select them.
+    # Legs that ran although the event and profile did not select them.
     _self_case "the docs leg ran on a full profile" 1 "docs leg ran" \
-        pull_request false success full success success success success success true
+        pull_request false success full success skipped success skipped success false
     _self_case "the matrix ran on a docs profile" 1 "full leg ran" \
-        pull_request false success docs success skipped success success skipped ""
+        pull_request false success docs success skipped skipped skipped skipped ""
     _self_case "the perf leg ran on a docs profile" 1 "full leg ran" \
         pull_request false success docs skipped skipped success success skipped ""
     _self_case "the platform leg ran on a docs profile" 1 "full leg ran" \
-        pull_request false success docs skipped skipped skipped success success ""
+        pull_request false success docs skipped skipped skipped success skipped ""
     _self_case "a skipped plan on a non-draft head" 1 "plan job did not succeed" \
-        pull_request false skipped "" skipped skipped skipped skipped "" ""
+        pull_request false skipped "" skipped skipped skipped skipped skipped "" ""
     _self_case "an unreadable profile" 1 "no usable profile" \
-        pull_request false success "" skipped skipped skipped skipped "" ""
+        pull_request false success "" skipped skipped skipped skipped skipped "" ""
+    _self_case "an unreadable event fails closed" 1 "event is unreadable" \
+        "" "" success full success skipped skipped skipped success ""
 
     # The changelog guard: required on every pull request, absent outside one.
     _self_case "a pull request whose changelog guard failed" 1 "changelog guard did not succeed" \
-        pull_request false success full success success skipped success success true failure
+        pull_request false success full success skipped skipped skipped success false failure
     PR_NUMBER=1234 _self_case "a failed changelog guard names the fragment path" 1 "changes/1234.md" \
         pull_request false success docs skipped skipped success skipped skipped "" failure
     _self_case "a pull request whose changelog guard was skipped" 1 "changelog guard did not succeed" \
@@ -740,11 +851,15 @@ self_test() {
         plan 'macos: \$\{\{ steps\.legs\.outputs\.macos \}\}' 1
     _self_workflow "ci-ok must read the plan's macOS decision" \
         ci-ok 'MACOS: \$\{\{ needs\.plan\.outputs\.macos \}\}' 1
-    _self_workflow "the legs must cover Ubuntu and Windows on every event" \
-        plan '^          leg (ubuntu|windows)-latest .*"\$\{SHARDS\}"' 1
+    _self_workflow "Ubuntu must be in every event's matrix" \
+        plan '^          leg ubuntu-latest .*"\$\{SHARDS\}"' 1
+    _self_workflow "Windows must sit in the full-matrix branch, not in the fast gate" \
+        plan '^            leg windows-latest .*"\$\{SHARDS\}"' 1
+    _self_workflow "the full-matrix branch must be decided by one event flag" \
+        plan 'if \[ "\$\{macos\}" = true \]; then' 1
     _self_verify_matrix "the live decision must require exactly the plan's pull-request legs"
-    _self_workflow "the macOS legs must be left out of a pull-request run only" \
-        plan '^            pull_request\) macos=false ;;' 1
+    _self_workflow "the full matrix must be left out of a pull request and a merge group" \
+        plan '^            pull_request \| merge_group\) macos=false ;;' 1
     _self_workflow "the macOS legs must run two shards" \
         plan 'macos_shards=\$\(\(SHARDS < 2 \? SHARDS : 2\)\)' 1
     _self_workflow "Ubuntu and Windows must use the default four-shard count" \
@@ -765,17 +880,25 @@ self_test() {
         platform 'scripts/verify\.sh --profile platform' 1
     _self_workflow "the platform job must run on the full profile only" \
         platform "^    if: needs\.plan\.outputs\.profile == 'full'" 1
+    _self_workflow "the platform checks must not run in a merge group" \
+        platform "github\.event_name != 'merge_group'" 1
+    _self_workflow "the changed-path decision must not run in a merge group" \
+        changes "github\.event_name != 'merge_group'" 1
+    _self_workflow "the docs profile must not run in a merge group" \
+        verify-docs "github\.event_name != 'merge_group'" 1
     _self_workflow "the perf leg must run the dedicated startup measurement" \
         perf 'scripts/perf\.sh' 1
     _self_workflow "the perf leg must run on the full profile only" \
         perf "^    if: needs\.plan\.outputs\.profile == 'full'" 1
-    _self_workflow "the perf leg must run only on the nightly" \
-        perf "github\.event_name == 'schedule'" 1
+    _self_workflow "the perf leg must run on the nightly and a push to main" \
+        perf "github\.event_name == 'schedule' \|\| github\.event_name == 'push'" 1
     _self_workflow "the perf leg must not run for a release tag" \
         perf "github\.ref_type == 'tag'" 0
     _self_workflow "the PowerShell leg must be gated on the changed paths" \
         verify-powershell "needs\.changes\.outputs\.powershell == 'true'" 1
-    _self_workflow "the changes job must decide through scripts/ci-powershell-paths.sh" \
+    _self_workflow "the PowerShell leg must not run on a pull request or a merge group" \
+        verify-powershell "github\.event_name != 'pull_request'" 1
+    _self_workflow "the changed-path decision must keep its own script" \
         changes 'scripts/ci-powershell-paths\.sh' 1
     _self_workflow "the changelog job must run on pull requests only" \
         changelog "github\.event_name == 'pull_request'" 1
@@ -785,6 +908,16 @@ self_test() {
         changelog 'scripts/changelog-guard' 1
     _self_workflow "the changelog rule must stay inert until changes/ is on the base" \
         changelog 'git cat-file -e .*changes/README\.md' 1
+    _self_workflow "ci-ok must read the changed-path decision" \
+        ci-ok 'CHANGES: \$\{\{ needs\.changes\.result \}\}' 1
+    _self_workflow "the nightly reporter must read the run's jobs, not needs" \
+        nightly-issue 'actions/runs/\$\{RUN_ID\}/jobs' 1
+    _self_workflow "the nightly reporter must file through scripts/nightly-issue.sh" \
+        nightly-issue 'scripts/nightly-issue\.sh' 1
+    _self_workflow "the nightly reporter must run only on the nightly" \
+        nightly-issue "github\.event_name == 'schedule'" 1
+    _self_workflow "the nightly reporter must run even when a leg failed" \
+        nightly-issue '^    if: always\(\)' 1
 
     # Run concurrency: only a pull request may supersede its own older run, and the nightly is a
     # separate obligation from the push on the same branch. These assertions read the expression and
