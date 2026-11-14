@@ -1,8 +1,8 @@
 # Usage
 
 What the interactive session does turn by turn: typing and completing a prompt, what a turn commits
-to the scrollback, how tools and approvals appear, sessions and thinking — and the three modes
-Lunate runs in. Configuration lives in [configuration](configuration.md) and the generated
+to the scrollback, how tools and approvals appear, sessions and thinking. Configuration lives in
+[configuration](configuration.md) and the generated
 [settings reference](settings.md); the things a project or the user owns — project instructions,
 skills, MCP servers, the theme and the key remaps — have a page each in
 [AGENTS.md](agents-md.md), [skills](skills.md), [MCP servers](mcp-servers.md) and
@@ -119,12 +119,11 @@ and `maxTime` (seconds), or per invocation with `--max-cost <usd>` and `--max-ti
 - The wall-clock limit is per run and uses one monotonic timer.
 - Either limit ends the run when the reached value equals the limit, with a notice that names the
   limit, its value and the spend or time reached. The limit is recorded in the session.
-- Print mode exits `3` for a cost limit and `4` for a time limit (step and length limits stay `2`).
 - A cost limit over a model the catalog cannot price refuses to start, because an unknown price is
   not `$0`; pass `--allow-unpriced` only when the limit may cover priced usage alone.
 
-Print mode is usually unattended, so set a cost limit there: `lunate -p --max-cost 2 "…"` is a
-budget the run cannot exceed without saying so.
+[Print mode](print.md#cap-the-runs-cost-and-time) owns the exit codes a limit produces and the
+budget an unattended run should carry.
 
 ## Run commands in a container
 
@@ -135,19 +134,22 @@ absolute path, so file tools, approvals and change tracking keep working; the st
 prefix and `auth.json` are not mounted. [Run tool calls in a container](execution-environments.md)
 has the full flow, the measurements and the platform limits.
 
-## Modes
+## Where the other two modes live
 
-- **Interactive** — `lunate`: the TUI session with approvals, the live area and command history
-  ([`openspec/specs/tui/spec.md`](../openspec/specs/tui/spec.md)).
-- **Print** — `lunate -p [--json] [--yolo] "<prompt>"`: one prompt to completion, the final answer as
-  the only thing on stdout, diagnostics on stderr, exit codes that scripts can branch on
-  ([`openspec/specs/print-mode/spec.md`](../openspec/specs/print-mode/spec.md)).
-- **ACP** — `lunate --acp`: serves the Agent Client Protocol over stdio for an editor, with nothing
-  but protocol on stdout ([`openspec/specs/protocols/spec.md`](../openspec/specs/protocols/spec.md)).
+This page describes the interactive mode (`lunate`), the TUI session with approvals, the live area
+and command history ([`openspec/specs/tui/spec.md`](../openspec/specs/tui/spec.md)).
+[Print mode](print.md) owns one prompt to completion, the final answer as the only thing on stdout
+and the exit codes scripts branch on; [the JSON event stream](json-events.md) owns the `--json`
+lines; [ACP](acp.md) owns the editor integration. [Command and option reference](cli.md) lists the
+flags the modes share.
 
 ## Related
 
 - [Quickstart](quickstart.md) — install, the setup wizard and the first task
+- [Run one prompt and exit](print.md) — print mode, its exit codes and its approvals
+- [Read the `--json` event stream](json-events.md) — one line per event, for scripts
+- [Run Lunate inside an editor over ACP](acp.md) — the editor-driven mode
+- [Command and option reference](cli.md) — every command and flag
 - [Models and providers](models-and-providers.md) — choosing a provider, credential, model and profile
 - [Decisions](decisions.md) — the optional second model for approvals, routing and questions
 - [Copy, export and debug](export-copy-debug.md) — taking an answer, the session or a bundle out
