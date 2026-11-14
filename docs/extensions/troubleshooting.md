@@ -179,7 +179,7 @@ restart per session; after that, use:
 A refusal at `initialize` means the protocol version is incompatible or the child implements a hook
 or service the manifest does not declare. See [remote extensions](../extensions-remote.md).
 
-## See also
+## Related
 
 - The manifest rules: [manifest.md](manifest.md)
 - Trust and unload: [lifecycle-and-trust.md](lifecycle-and-trust.md)

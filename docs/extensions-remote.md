@@ -202,3 +202,11 @@ provided, and the invoke, cancel and failure steps are not exercised. `command i
 
 The [node-remote sample](../samples/extensions/node-remote) is the reference implementation; its
 fitness tests run in CI.
+
+## Related
+
+- [The manifest](extensions/manifest.md) — `runtime` beside `entryAssembly`
+- [Lifecycle and trust](extensions/lifecycle-and-trust.md) — loading, unload and trust
+- [Extension authoring](extensions/README.md) — the guide this contract belongs to
+- [Extension contract](dev/spec/extensibility.md) — the normative extension semantics
+- [node-remote sample](../samples/extensions/node-remote) — a child process that answers the wire

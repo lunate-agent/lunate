@@ -102,7 +102,7 @@ ChatResponse response = await models
 in that case. The `model-router` sample's `ask` tool is the reference:
 [`ModelRouterExtensionFactory.cs`](../../../samples/extensions/model-router/ModelRouterExtension/ModelRouterExtensionFactory.cs).
 
-## See also
+## Related
 
 - Routing and middleware: [model-middleware.md](model-middleware.md), [virtual-models.md](virtual-models.md)
 - The model registry contract: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#services-for-long-lived-integrations)

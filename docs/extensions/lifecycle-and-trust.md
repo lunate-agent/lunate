@@ -169,7 +169,7 @@ instead. See [manifest.md](manifest.md#api-version).
 services, renderers, widgets, model providers or extension MCP servers. Configured `mcp.json`
 servers still run. `/extensions` reads `extensions disabled (--no-extensions)`.
 
-## See also
+## Related
 
 - The normative loading and trust contract: [`docs/dev/spec/extensibility.md`](../dev/spec/extensibility.md)
 - The full manifest field reference: [manifest.md](manifest.md)

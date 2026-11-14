@@ -142,3 +142,11 @@ There is no marketplace, search or discovery, no `update` command, and no self-u
 | 1 | the install failed (feed, resolution, filesystem) | the uninstall refused or failed | the store could not be read |
 | 2 | usage error (including the session gate without `--yes`) | usage error | usage error |
 | 3 | — | — | `--verify` found a broken record, a changed file or missing content |
+
+## Related
+
+- [The manifest](manifest.md) — the `extension.json` a bundle carries
+- [Lifecycle and trust](lifecycle-and-trust.md) — the trust a package asks for after it installs
+- [Single-file extensions](single-file.md) — the one-file form, with no bundle and no record
+- [Extension troubleshooting](troubleshooting.md) — a refused install or a missing extension
+- [CI and unattended runs](../ci.md) — `lunate trust --digest` in a pipeline

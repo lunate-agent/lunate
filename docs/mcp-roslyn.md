@@ -84,3 +84,9 @@ explanation as a tool error, and the server keeps running.
 
 stdout carries JSON-RPC frames only. The startup diagnostic names the launch directory, and any fatal
 error goes to stderr, the same rule ACP mode follows.
+
+## Related
+
+- [The MCP client](mcp-servers.md) — the other direction, servers Lunate consumes
+- [Extension contract](dev/spec/extensibility.md) — the built-in manifest rule
+- [C# tools in a session](usage.md#c-the-compiler-agrees-with) — the same tools inside Lunate
