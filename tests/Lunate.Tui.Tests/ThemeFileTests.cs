@@ -27,7 +27,7 @@ public sealed class ThemeFileTests
     [Fact]
     public void A_missing_file_leaves_the_selected_theme_alone()
     {
-        ThemeOutcome outcome = ThemeFile.Read(Path.Combine(ScratchDirectory(), "absent.json"));
+        ThemeOutcome outcome = ThemeFile.Read(ScratchPath("absent.json"));
 
         Assert.Null(outcome.Error);
         Assert.Empty(outcome.Tokens);
@@ -36,11 +36,20 @@ public sealed class ThemeFileTests
     [Fact]
     public void A_file_that_is_not_a_file_names_the_path()
     {
-        ThemeOutcome outcome = ThemeFile.Read(ScratchDirectory());
+        string path = ScratchPath(string.Empty);
+        Directory.CreateDirectory(path);
+        try
+        {
+            ThemeOutcome outcome = ThemeFile.Read(path);
 
-        Assert.NotNull(outcome.Error);
-        Assert.Contains("is not a file", outcome.Error, StringComparison.Ordinal);
-        Assert.Empty(outcome.Tokens);
+            Assert.NotNull(outcome.Error);
+            Assert.Contains("is not a file", outcome.Error, StringComparison.Ordinal);
+            Assert.Empty(outcome.Tokens);
+        }
+        finally
+        {
+            Directory.Delete(path);
+        }
     }
 
     [Fact]
