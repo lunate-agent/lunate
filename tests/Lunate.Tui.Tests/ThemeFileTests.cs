@@ -147,8 +147,7 @@ public sealed class ThemeFileTests
 
     private static ThemeOutcome Read(string json)
     {
-        string path = Path.Combine(
-            ScratchDirectory(),
+        string path = ScratchPath(
             string.Create(CultureInfo.InvariantCulture, $"theme-{Guid.NewGuid():N}.json")
         );
         File.WriteAllText(path, json);
@@ -162,14 +161,14 @@ public sealed class ThemeFileTests
         }
     }
 
-    /// <summary>A fresh directory under the process temp root (<c>$TMPDIR</c> on POSIX).</summary>
-    private static string ScratchDirectory()
+    /// <summary>A path in a fresh directory under the process temp root (<c>$TMPDIR</c> on POSIX).</summary>
+    private static string ScratchPath(string fileName)
     {
-        string path = Path.Combine(
+        string directory = Path.Combine(
             Path.GetTempPath(),
             string.Create(CultureInfo.InvariantCulture, $"lunate-theme-{Guid.NewGuid():N}")
         );
-        Directory.CreateDirectory(path);
-        return path;
+        Directory.CreateDirectory(directory);
+        return Path.Combine(directory, fileName);
     }
 }
