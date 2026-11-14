@@ -18,4 +18,4 @@
 
 - [x] 4.1 Run the docs profile of the gate (`bash scripts/verify.sh --profile docs`) and `bash scripts/check-openspec-skills.sh`; fix what they report.
 - [x] 4.2 Write `changes/<pr-number>.md` with the release-note line for this change.
-- [x] 4.3 Run `openspec validate --all --strict`, sync the specs and archive the change as the last commit.
+- [ ] 4.3 Run `openspec validate --all --strict`, sync the specs and archive the change as the last commit.
