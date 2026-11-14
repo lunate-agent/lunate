@@ -8,6 +8,13 @@ namespace Lunate.Coding.Tests;
 /// <c>/auth</c> picker once after composition, Esc dismisses it without a write, and every
 /// non-terminal path keeps the explicit missing-credential error instead of prompting.
 /// </summary>
+/// <remarks>
+/// A test that types after dismissing the offer waits for
+/// <see cref="InteractiveSessionHost.WaitForOfferDismissedAsync"/>. The dismissal reaches the frame
+/// on the key pump; the walk behind it clears the session's turn flag on its own continuation, and
+/// until it does, a key is read as a follow-up instead of prompt input — which a loaded suite's
+/// thread pool loses often enough to fail a full-suite leg (#817).
+/// </remarks>
 [Collection("setup-wizard")]
 public sealed class InteractiveSessionFirstRunTests
 {
@@ -27,6 +34,7 @@ public sealed class InteractiveSessionFirstRunTests
 
         host.Console.SendEscape();
         await WaitForFrameGoneAsync(host, "Select provider");
+        await host.WaitForOfferDismissedAsync();
         host.Console.SendText("/quit");
         host.Console.SendEnter();
         await run;
@@ -45,6 +53,7 @@ public sealed class InteractiveSessionFirstRunTests
         await WaitForFrameAsync(host, "Select provider");
         host.Console.SendEscape();
         await WaitForFrameGoneAsync(host, "Select provider");
+        await host.WaitForOfferDismissedAsync();
         int writesAfterDismiss = host.Console.Writes.Count;
 
         host.Console.SendText("/quit");
@@ -120,6 +129,7 @@ public sealed class InteractiveSessionFirstRunTests
 
         host.Console.SendEscape();
         await WaitForFrameGoneAsync(host, "Select provider");
+        await host.WaitForOfferDismissedAsync();
 
         host.Console.SendText("hi");
         host.Console.SendEnter();
