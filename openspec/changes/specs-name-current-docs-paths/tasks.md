@@ -29,3 +29,14 @@
       archive.
 - [x] 3.2 `openspec archive specs-name-current-docs-paths --yes` is the final commit of the pull
       request; the acceptance grep is rerun after it and reported in the session record.
+
+## 4. Rework after review
+
+- [x] 4.1 Merged `origin/main` into the branch (no `openspec/specs/**` conflict) and recorded that
+      #849 replaces the proposal-on-`main` rule with one pull request per card; the branch already
+      matches it.
+- [x] 4.2 Re-copied the `ci-pipeline` requirement from the merged spec, so the delta carries the
+      fast-gate and merge-group scenarios `main` added; the only difference from the current block
+      is `docs/guide.md` → `docs/dev/guide.md`.
+- [x] 4.3 Reverted the earlier archive commit, re-ran `openspec validate --all --strict`, and redid
+      `openspec archive specs-name-current-docs-paths --yes` as the last commit again.

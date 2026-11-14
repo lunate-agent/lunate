@@ -62,6 +62,12 @@ openspec/specs/tui/spec.md          ── names ──▶ docs/keybindings.md
 5. **Archive in this pull request, last commit.** The lane cannot push a proposal to `main` first;
    proposal, delta, design, ADR review, changelog fragment and archive land as commits on this branch,
    with the archive last, as the lane's rules require.
+6. **The rework merges `main`, never rewrites the branch.** The review's blocking finding cited the
+   proposal-on-`main` discipline; #849 replaced it with the rule that a card is one pull request
+   whose archive is the last commit, which this branch already follows. `main` also added the
+   fast-gate and merge-group scenarios to the `ci-pipeline` requirement, so the delta copies the
+   merged block again and keeps only the one path change. The archive is redone as the last commit
+   after the merge.
 
 ## Risks / Trade-offs
 
