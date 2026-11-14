@@ -68,6 +68,12 @@ openspec/specs/tui/spec.md          ── names ──▶ docs/keybindings.md
    fast-gate and merge-group scenarios to the `ci-pipeline` requirement, so the delta copies the
    merged block again and keeps only the one path change. The archive is redone as the last commit
    after the merge.
+7. **The ADR renumber is out of scope and is reverted.** An earlier commit on this branch renamed
+   `adr/0036-ci-gate-sized-by-event.md` to `0037` to unblock `scripts/check-adr-numbers.py`, which
+   reports the duplicate `0036` that `main` carries. The review flagged it as unrelated to this
+   card's documentation-path requirements, and it is: the duplicate number is a `main` defect that
+   needs its own change, so the rename is reverted here and the branch states the red tree check
+   rather than absorbing an unrelated fix.
 
 ## Risks / Trade-offs
 

@@ -40,3 +40,13 @@
       is `docs/guide.md` → `docs/dev/guide.md`.
 - [x] 4.3 Reverted the earlier archive commit, re-ran `openspec validate --all --strict`, and redid
       `openspec archive specs-name-current-docs-paths --yes` as the last commit again.
+
+## 5. Second rework after review
+
+- [x] 5.1 Removed the `adr/0036` → `adr/0037` CI-gate renumber, which was unrelated to this card's
+      documentation-path requirements; the duplicate ADR-0036 number on `main` needs its own change.
+- [x] 5.2 Confirmed the branch already contains `origin/main` (`7dd17817`) as its merge base, so no
+      merge commit was needed; nothing under `openspec/specs/**` conflicts.
+- [x] 5.3 Reverted the archive commit, re-ran `openspec validate --all --strict`, the acceptance
+      grep, `scripts/docs-check --check`, `scripts/check-spec-archive.py` and markdownlint, then
+      redid `openspec archive specs-name-current-docs-paths --yes` as the last commit.
