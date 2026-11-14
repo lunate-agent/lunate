@@ -90,6 +90,20 @@ def self_test():
         True,
         "user-path page is not in navigation",
     )
+    # The S4 move left docs/spikes/ and docs/eval/ empty; a page that reappears there is a page the
+    # checker must report, not a record it silently exempts.
+    for pre_move in ("docs/spikes/", "docs/eval/"):
+        expect(
+            f"a page at the pre-move record path {pre_move} is not exempt",
+            changed(
+                base(),
+                **{
+                    f"{pre_move}S-1/summary.md": "# Summary\n\nA write-up that is not in navigation.\n"
+                },
+            ),
+            True,
+            "user-path page is not in navigation",
+        )
     expect(
         "duplicate navigation path",
         changed(base(), **{"docs/docs.json": manifest([{"title": "G", "items": [{"title": "Start", "path": "start.md"}, {"title": "Again", "path": "start.md"}, {"title": "Next", "path": "next.md"}]}])}),
@@ -254,6 +268,48 @@ def self_test():
         write_text(binary, "#!/bin/sh\nexit 3\n")
         if not any("exited 3" in problem for problem in run_examples(root, binary)):
             failures.append("run: a failing help block must be reported")
+
+    def cli_case(name, page, help_text, fails, contains):
+        with tempfile.TemporaryDirectory(
+            prefix="docs-check-self-test.", dir=os.environ.get("TMPDIR") or None
+        ) as tmp:
+            root = Path(tmp)
+            files = base()
+            files["docs/docs.json"] = manifest(
+                base_navigation() + [{"title": "CLI", "path": "cli.md"}]
+            )
+            files["docs/cli.md"] = page
+            for relative, text in files.items():
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                write_text(path, text)
+            binary = root / "fake-lunate"
+            write_text(binary, f"#!/bin/sh\nprintf '%s\\n' {help_text!r}\nexit 0\n")
+            binary.chmod(0o755)
+            problems = run_examples(root, binary)
+            joined = "\n".join(problems)
+            if fails and contains not in joined:
+                failures.append(f"cli.md: {name}: expected '{contains}' in:\n{joined}")
+            elif not fails and problems:
+                failures.append(f"cli.md: {name}: expected success, got:\n{joined}")
+
+    help_run = "<!-- run: help -->\n```bash\nlunate --help\n```\n"
+    cli_page = "# CLI\n\nRun `lunate --help` or pass `--json`.\n\n" + help_run
+    cli_case("matching options", cli_page, "lunate --help [--json]", False, "")
+    cli_case(
+        "documented option the help omits",
+        cli_page,
+        "lunate --help",
+        True,
+        "documents '--json', which the --help output does not list",
+    )
+    cli_case(
+        "help option the page omits",
+        "# CLI\n\n" + help_run,
+        "lunate --help [--json]",
+        True,
+        "lists '--json', which the page does not document",
+    )
 
     if failures:
         for failure in failures:

@@ -130,8 +130,8 @@ public sealed class SettingsStoreTuiTests
 
         AgentSettings resolved = SettingsStore.Resolve(path, _ => null);
         Assert.Equal("ansi16", resolved.Tui.Theme);
-        // The saved spelling is the help overlay's, so a reader below sees what a guide reader
-        // saw when the remap was written.
+        // The saved spelling is the help overlay's, so a reader below sees what a
+        // keybindings-reference reader saw when the remap was written.
         Assert.Equal(["Ctrl+T"], resolved.Tui.Keys["ctrl-o.transcript"]);
         Assert.Equal(ThinkingLevel.High, resolved.Thinking);
         Assert.Equal(1234, resolved.ToolOutputLimit);

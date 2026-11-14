@@ -57,6 +57,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       profile: ${{ steps.decide.outputs.profile }}
+      macos: ${{ steps.legs.outputs.macos }}
+      verify_matrix: ${{ steps.legs.outputs.verify_matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -117,6 +119,59 @@ jobs:
           cat changed.txt
           bash scripts/ci-plan.sh --paths-file changed.txt >>"${GITHUB_OUTPUT}"
           cat "${GITHUB_OUTPUT}"
+
+      # The verify job's matrix. Ubuntu and Windows run the dispatch's shard count (four unless a
+      # manual dispatch picks another) on every event. macOS runs two shards, and only where a merge
+      # follows: the merge queue, a push to main, the nightly and a manual dispatch -- not a pull
+      # request. The free plan runs five macOS jobs at once; four per pull-request run plus four per
+      # merge-queue group left shards cancelled without a runner, which ejected green pull requests
+      # from the queue (#831). ci-ok reads `macos` and requires the macOS legs on every event but a
+      # pull request.
+      #
+      # budget_ms: calibrated in spike S-3 (docs/dev/spikes/S-3/report.md, ADR 0005 accepted
+      # 2026-10-04) -- runner startup median + ~50% headroom, rounded up to 50 ms. Re-calibrate when a
+      # runner image or baseline shifts. The local default in scripts/perf.sh stays 150 ms.
+      # memory_gate_mb: idle peak-RSS gate (MB) per OS (ADR 0009); provisional 150 until the T-18 TUI
+      # subject exists (report-only until then).
+      # The shared macOS runner's floor is bimodal (~80-240 ms quiet, ~310-330 ms loaded), so a breach
+      # there is measured and printed, not fatal (budget_enforce 0); `perf (macos-latest)` enforces
+      # the budget on a leg that runs nothing else.
+      - name: Decide the verify legs
+        id: legs
+        shell: bash
+        env:
+          SHARDS: ${{ inputs.verify_shard_count || '4' }}
+        run: |
+          set -euo pipefail
+          case "${SHARDS}" in
+            1 | 2 | 3 | 4) ;;
+            *)
+              echo "::error::verify_shard_count must be 1 to 4, got '${SHARDS}'"
+              exit 1
+              ;;
+          esac
+          macos_shards=$((SHARDS < 2 ? SHARDS : 2))
+          case "${GITHUB_EVENT_NAME}" in
+            pull_request) macos=false ;;
+            *) macos=true ;;
+          esac
+          legs=""
+          # os, rid, budget_ms, memory_gate_mb, shard count, extra JSON fields
+          leg() {
+            local shard
+            for ((shard = 1; shard <= $5; shard++)); do
+              legs+="${legs:+,}{\"os\":\"$1\",\"rid\":\"$2\",\"budget_ms\":$3,\"memory_gate_mb\":$4,\"shard\":${shard},\"shard_count\":$5$6}"
+            done
+          }
+          leg ubuntu-latest linux-x64 250 150 "${SHARDS}" ""
+          if [ "${macos}" = true ]; then
+            leg macos-latest osx-arm64 300 150 "${macos_shards}" ',"budget_enforce":0'
+          fi
+          leg windows-latest win-x64 350 150 "${SHARDS}" ""
+          {
+            echo "macos=${macos}"
+            echo "verify_matrix={\"include\":[${legs}]}"
+          } | tee -a "${GITHUB_OUTPUT}"
 
   # Which legs the changed paths actually touch. Today that is one question -- does the Windows
   # PowerShell leg have to run? -- but it lives in a job of its own so ci-ok can tell a legitimate
@@ -258,46 +313,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        # The test phase sharded across four jobs per OS (#696, building on
-        # #390): verify.sh's --shard i/n partitions the solution's test projects
-        # by position, and each shard runs its slice of both culture passes.
-        # Shard 1 also owns every non-test step (publish, budgets, roundtrips,
-        # format, docs checks, public API); a shard > 1 runs only the build it
-        # needs plus its test slice. The ruleset requires ci-ok, and ci-ok
-        # requires the verify job, which fails on any failed shard. More shards
-        # shorten every leg instead of leaving one of them at the 26-minute
-        # line; the Windows leg gets the same count so its shards finish.
-        # Manual dispatch can compare --shard 1/1 with the normal four-shard
-        # run on the same commit. Pull requests always use [1, 2, 3, 4].
-        shard: ${{ fromJSON(inputs.verify_shard_count == '1' && '[1]' || inputs.verify_shard_count == '2' && '[1, 2]' || inputs.verify_shard_count == '3' && '[1, 2, 3]' || '[1, 2, 3, 4]') }}
-        include:
-          # budget_ms: calibrated in spike S-3 (docs/dev/spikes/S-3/report.md, ADR 0005
-          # accepted 2026-10-04) — runner startup median + ~50% headroom, rounded up to 50 ms.
-          # Re-calibrate when a runner image or baseline shifts. The local default
-          # in scripts/perf.sh stays 150 ms.
-          # memory_gate_mb: idle peak-RSS gate (MB) per OS (ADR 0009); provisional
-          # 150 until the T-18 TUI subject exists (report-only until then).
-          - os: ubuntu-latest
-            rid: linux-x64
-            budget_ms: 250
-            memory_gate_mb: 150
-            shard_count: ${{ inputs.verify_shard_count || 4 }}
-          - os: macos-latest
-            rid: osx-arm64
-            budget_ms: 300
-            # The shared macOS runner's floor is bimodal (~80-240 ms quiet, ~310-330 ms loaded), so a
-            # breach here is measured and printed, not fatal; `perf (macos-latest)` enforces the budget
-            # on a leg that runs nothing else.
-            budget_enforce: 0
-            memory_gate_mb: 150
-            shard_count: ${{ inputs.verify_shard_count || 4 }}
-          - os: windows-latest
-            rid: win-x64
-            budget_ms: 350
-            memory_gate_mb: 150
-            shard_count: ${{ inputs.verify_shard_count || 4 }}
+      # The legs and their shards come from the plan job (`Decide the verify legs`): Ubuntu and
+      # Windows run four shards on every event, macOS two and not on a pull request. The test phase
+      # is sharded per OS (#696, building on #390): verify.sh's --shard i/n partitions the
+      # solution's test projects by position, and each shard runs its slice of both culture passes.
+      # Shard 1 also owns every non-test step (publish, budgets, roundtrips, format, docs checks,
+      # public API); a shard > 1 runs only the build it needs plus its test slice. The ruleset
+      # requires ci-ok, and ci-ok requires the verify job, which fails on any failed shard. Manual
+      # dispatch can compare --shard 1/1 with the sharded run on the same commit.
+      matrix: ${{ fromJSON(needs.plan.outputs.verify_matrix) }}
     env:
       RID: ${{ matrix.rid }}
       # The platform-independent checks (format, docs, public API, Openspec) run once in the
@@ -707,6 +731,7 @@ jobs:
           DRAFT: ${{ github.event.pull_request.draft }}
           PLAN: ${{ needs.plan.result }}
           PROFILE: ${{ needs.plan.outputs.profile }}
+          MACOS: ${{ needs.plan.outputs.macos }}
           VERIFY: ${{ needs.verify.result }}
           POWERSHELL: ${{ needs.verify-powershell.result }}
           PS_REQUIRED: ${{ needs.changes.outputs.powershell }}

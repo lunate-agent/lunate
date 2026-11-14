@@ -86,8 +86,8 @@ below writes only the answers it collects.
 ## Give it a task
 
 `/help` lists the built-in commands, `/model` switches the model, `Esc` interrupts the running turn
-and `/quit` leaves. For a script or CI, `lunate -p "summarise what changed on this branch"` prints
-one prompt's final answer and `--json` emits every event as one JSON line.
+and `/quit` leaves. For a script or CI, [`lunate -p "summarise what changed on this branch"`](print.md)
+prints one prompt's final answer and `--json` emits every event as one JSON line.
 
 ## Re-run the wizard from a session
 
@@ -105,29 +105,8 @@ shorter path for a missing credential.
 
 ## Scripted setup
 
-`lunate setup` runs the same walk without a TTY. Every answer is a flag; an absent flag skips its
-step and invents nothing. The connection test and the model check run unless suppressed: `--no-test`
-sends no provider request at all (it skips both), while `--no-model-check` skips only the paid model
-check and keeps the free discovery request. The file manifest and the post-write receipt go to
-stdout and never contain a credential.
-
-<!-- run: offline -->
-```bash
-OPENAI_API_KEY="sk-ci-example" \
-  lunate setup \
-    --provider openai --credential env:OPENAI_API_KEY \
-    --model gpt-5 --profile chat-main --thinking medium --no-test
-```
-
-`gpt-5` declares a reasoning style, so `--thinking` applies; a model that declares none refuses a
-level. The placeholder key is never sent, because `--no-test` suppresses both checks.
-
-The flag set is `--provider`, `--endpoint`, `--api-family`, `--credential-placement`,
-`--models-url`, `--credential` (an `env:`/`auth:` reference), `--key-stdin`, `--model`, `--profile`,
-`--thinking`, `--fast`, `--as-decision`, `--no-test` (offline: skips the connection test and the
-model check, so no provider request is sent), `--no-model-check` (skips the model check only), and
-`--force`. A run without a terminal exits 2 and names the missing answer when a value needs
-interaction; 0 after a real commit or a no-op; 1 for a store/load failure.
+`lunate setup` runs the same walk without a TTY. [CI and unattended runs](ci.md) owns the flags, the
+provider requests each one sends and the trust decision a pipeline records.
 
 ## If the first run refuses
 
@@ -140,4 +119,6 @@ fix, including the print-mode error that exits 1.
   the model catalog
 - [Let a second model help decide](decisions.md) — the optional decisions layer
 - [Use the terminal](usage.md) — the interactive session after the first run
-- [Configuration reference](configuration.md) — every settings key and where files live
+- [Scripted setup, trust and unattended runs](ci.md) — the same walk without a TTY
+- [Configuration](configuration.md) — where files live and the project scope
+- [Settings reference](settings.md) — every settings key, generated from the schema

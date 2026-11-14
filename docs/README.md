@@ -5,16 +5,23 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Document kind | Home | What it owns |
 | --- | --- | --- |
 | Project entry point | [`../README.md`](../README.md) | What Lunate is, why it exists, install, the three-step start and what it can do |
-| Usage | [`usage.md`](usage.md) | The interactive session: input, turns, tools, approvals, thinking, forks and long sessions, trust, and the modes |
+| Usage | [`usage.md`](usage.md) | The interactive session: input, turns, tools, approvals, thinking, forks and long sessions, and trust |
 | Project instructions | [`agents-md.md`](agents-md.md) | The `AGENTS.md` chain from the repository root to the launch directory, and what reaches the system prompt |
 | Skills | [`skills.md`](skills.md) | Agent Skills: the scopes Lunate reads, `/skills`, `/skill:<name>`, the index budget and the trust decision |
 | MCP servers | [`mcp-servers.md`](mcp-servers.md) | The MCP client: where `mcpServers` is read, how a server starts, and what its child process inherits |
 | Themes and keys | [`themes-and-keys.md`](themes-and-keys.md) | The colour-depth policy, the key remaps `/settings` persists, and why `keys.json` stays the only declaration |
 | Execution environments | [`execution-environments.md`](execution-environments.md) | Run tool calls in a container: where commands and file tools run, the Docker/Podman flag and settings, what is mounted, and the measured cost and platform limits |
 | Configuration | [`configuration.md`](configuration.md) | How to configure a session: decision profiles, custom provider entries, thinking, the welcome header and update check, and recording |
+| Print mode | [`print.md`](print.md) | One prompt to completion: the final answer as the only thing on stdout, the exit codes, the approval mapping and the cost and time caps |
+| JSON event stream | [`json-events.md`](json-events.md) | The `--json` line shapes: the stamped envelope, every event type with its fields, and the usage, cache and limit fields |
+| Editors over ACP | [`acp.md`](acp.md) | `lunate --acp`: the Agent Client Protocol over stdio, what an editor gets, and what the mode refuses |
+| CI and unattended runs | [`ci.md`](ci.md) | `lunate setup` without a TTY, trust by digest, and print mode in a pipeline |
+| Command and option reference | [`cli.md`](cli.md) | Every command and flag, checked against `--help` before the docs merge |
+| Providers and the model catalog | [`providers.md`](providers.md) | The twelve presets, the five API families, custom provider entries, and how a model id resolves through the catalog |
+| Environment variables | [`environment-variables.md`](environment-variables.md) | Every environment variable Lunate reads, and which settings key it overrides |
 | Settings reference | [`settings.md`](settings.md) | Every settings key with its type, default, scope and allowed values, generated from the settings schema so it cannot list a key the store refuses |
 | Keybindings reference | [`keybindings.md`](keybindings.md) | Every prompt binding, generated from the keys file the router and the in-app help read so it cannot describe a key the product does not have |
-| Quickstart | [`quickstart.md`](quickstart.md) | Install, the first run and the setup wizard, the first task, and scripted setup |
+| Quickstart | [`quickstart.md`](quickstart.md) | Install, the first run and the setup wizard, and the first task |
 | Models and providers | [`models-and-providers.md`](models-and-providers.md) | Choosing a provider, `lunate auth`, the `/auth` picker, provider instances and credentials, profiles, custom OpenAI-compatible endpoints and the user's own model catalog |
 | Decisions | [`decisions.md`](decisions.md) | The optional decision layer: its profile, approvals, routing, the decide tool, question suggestions and the System One transport |
 | Copy, export and debug | [`export-copy-debug.md`](export-copy-debug.md) | `/copy`, `/export` and `/debug`: taking an answer, the session or a diagnostic bundle out |
@@ -69,6 +76,10 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   link and `#anchor` on the user and maintainer pages, validates every redirect stub, and keeps
   `docs/docs.json` honest: the manifest's `navigation` lists every user-path page exactly once, and
   `proseOnly` carries the pages that have no runnable example yet with a one-line reason.
+- **The CLI reference is checked against `--help`.** In the `--run` pass `scripts/docs-check`
+  executes the `<!-- run: help -->` block on `cli.md` and compares every long option in the page with
+  the output in both directions, so an option the product does not accept and an option the page
+  forgot both fail the gate.
 - **Behaviour changes update the specs first.** `openspec/specs/` is the source of truth; when prose and spec disagree, the spec wins.
 - **Keep it current.** A change updates the documents it invalidates; stale documentation is a bug.
 - **New documents land in a home above.** If none fits, propose a new home in an OpenSpec change

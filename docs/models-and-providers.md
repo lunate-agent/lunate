@@ -68,39 +68,10 @@ guessing.
 
 ## Provider instances and credentials
 
-The twelve built-in provider kinds are templates for adapters and defaults. A user may define
-multiple named provider entries of one kind in `~/.lunate/providers.json`:
-
-<!-- config: providers -->
-```json providers
-{
-  "schemaVersion": 1,
-  "providers": [
-    {
-      "name": "work-anthropic",
-      "kind": "anthropic",
-      "baseUrl": "https://api.anthropic.com",
-      "credentialReference": "auth:work-anthropic",
-      "region": "eu"
-    }
-  ]
-}
-```
-
-`credentialReference` and optional header values are references, never secret values. Supported
-sources are `auth:<key>` and `env:<VARIABLE>`. The credential itself stays in `auth.json` or the
-environment. `region` (`eu`, `us`, or `local`) is
-descriptive metadata only: it does not choose an endpoint or guarantee data residency.
-
-On load, Lunate idempotently migrates legacy stored keys and custom endpoints into matching provider
-entries. An explicit provider entry wins, and migration never copies the secret out of `auth.json`.
-Environment credentials continue to take precedence over stored keys, including in CI. Reachability
-shown by `auth list` is a bounded unauthenticated probe; it sends neither credentials nor optional
-headers.
-
-Project settings may refer to user-defined providers and profiles or lower user limits. They cannot
-define a provider, endpoint, credential reference, or header secret. This prevents a repository from
-redirecting a user's credentials to its own server.
+The twelve built-in provider kinds are templates for adapters and defaults; a user may define
+multiple named provider entries of one kind in `~/.lunate/providers.json`. [The provider
+reference](providers.md#custom-provider-entries) owns the entry shape, the API families, the
+credential and header rules and the migration of legacy keys.
 
 ## Profiles and usages
 
@@ -226,7 +197,9 @@ remains in `auth.json`; new multi-provider setups should use `providers.json` an
 ## Related
 
 - [Quickstart](quickstart.md) — install, the setup wizard and the first task
+- [Providers and the model catalog](providers.md) — the presets, the API families and the catalog
+  reference
 - [Decisions](decisions.md) — the optional second model for approvals, routing and questions
-- [Configuration reference](configuration.md) — every settings key, its scope and its default
+- [Settings reference](settings.md) — every settings key, its scope and its default
 - [Where thinking resolves from](configuration.md#where-thinking-resolves-from) — the thinking level
   a profile selects

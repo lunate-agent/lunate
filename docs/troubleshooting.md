@@ -12,7 +12,7 @@ it in the table below.
 | `run /auth to configure a provider` | The model is known but no preset credential resolves | Run `/auth` in the session, or `lunate auth login <provider>` before starting it |
 | `set <VARIABLE> to a valid key` | The variable is present but empty or unusable | Set a non-empty value, or store the key with `lunate auth login` |
 | `Cannot connect to Podman` | The Podman machine is not running | `podman machine start`; on Linux start the engine's daemon or socket |
-| Interactive mode exits with a hint to use `-p` | stdout is not a terminal, or `TERM=dumb` | Run [print mode](usage.md#modes) instead: `lunate -p "…"` |
+| Interactive mode exits with a hint to use `-p` | stdout is not a terminal, or `TERM=dumb` | Run [print mode](print.md) instead: `lunate -p "…"` |
 | `/fork`, `/clone`, `/rewind` or `/setup` refuses | A turn is still running | Wait for the turn to finish, or press `Esc` to interrupt it |
 | The run ends at its cost or time limit | `maxCost` or `maxTime` was reached | Raise the setting, or pass a larger `--max-cost` or `--max-time` |
 
@@ -41,7 +41,7 @@ or socket is the thing to start. The command does not run on the host in either 
 ## Interactive mode needs a terminal
 
 If stdout is not a terminal or `TERM=dumb`, interactive mode exits with a hint to use `-p`; pipes,
-CI and `TERM=dumb` are print mode only. On a Windows console without VT processing, Lunate reports
+CI and `TERM=dumb` are [print mode](print.md) only. On a Windows console without VT processing, Lunate reports
 the terminal it cannot drive instead of writing control sequences into a console that will not
 interpret them; use Windows Terminal, conhost or another supported terminal.
 
@@ -65,6 +65,6 @@ may cover priced usage alone.
 - [Models and providers](models-and-providers.md) — choosing a provider, `lunate auth` and profiles
 - [Run tool calls in a container](execution-environments.md) — the flags, the flow and the limits
 - [Use the terminal](usage.md) — approvals, run limits and the modes
-- [Configuration reference](configuration.md) — `maxCost`, `maxTime`, `approval` and every key
+- [Settings reference](settings.md) — `maxCost`, `maxTime`, `approval` and every key
 - [Run Lunate safely](security.md) — the trust model behind the approval prompts
 - [Extension troubleshooting](extensions/troubleshooting.md) — failures inside an extension
