@@ -35,20 +35,11 @@ That does not make it a sandbox: the guard does not stop a reachable Docker sock
 pre-existing hardlink into the state root, or anything inside the workspace. `bashGuard: false`
 turns it off, and the header and tool results name that state.
 
-**The container boundary.** Starting Lunate with `--env podman:<image>` or `--env docker:<image>`
-(or the user-scoped `environment` setting) runs `bash` and every process-spawning tool through the
-engine's `exec` in one long-lived container. Only the workspace is mounted, at the same absolute
-path as on the host; the state root (`LUNATE_HOME`), the install prefix and `auth.json` are never
-mounted. `read`, `write` and `edit`, write verification, approvals and the file-change bus stay on
-the host and work on the mounted workspace; a file written by a container command is published by
-the host's post-call scan. The OS-level guard still wraps the host `exec` client and refuses a
-state-root write before the container is touched. It does not follow the command inside the
-container: the mount boundary is what limits that command's reach, and whether that is the accepted
-policy for inner commands is the open sign-off question on
-[#627](https://github.com/lunate-agent/lunate/issues/627). The container is not a jail: the engine
-socket, a pre-existing hardlink and the workspace itself remain reachable.
-[Run tool calls in a container](execution-environments.md) has the flags, the flow and the
-measured limits.
+**The container boundary (planned).** In 0.4.0, `bash` and every process-spawning tool run on the
+host, behind the approval panel and the bash guard; there is no container boundary yet. It arrives
+with [#627](https://github.com/lunate-agent/lunate/issues/627): commands run in one long-lived
+container with only the workspace mounted, while the direct file tools and approvals stay on the host.
+[Run tool calls in a container](execution-environments.md) describes the planned flags and flow.
 
 **Repository-provided code.** A project extension, a project `mcp.json` file, each server it defines
 and a project skill are code from the repository, so each asks once per repository before it runs
