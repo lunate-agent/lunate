@@ -115,6 +115,7 @@ fix, including the print-mode error that exits 1.
 
 ## Related
 
+- [Documentation home](index.md) — every task group and the page that owns it
 - [Models and providers](models-and-providers.md) — `lunate auth`, custom endpoints, profiles and
   the model catalog
 - [Let a second model help decide](decisions.md) — the optional decisions layer

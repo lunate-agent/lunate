@@ -4,8 +4,16 @@
       "title": "Get started",
       "items": [
         {
+          "title": "Documentation home",
+          "path": "index.md"
+        },
+        {
           "title": "Quickstart",
           "path": "quickstart.md"
+        },
+        {
+          "title": "How Lunate works",
+          "path": "how-lunate-works.md"
         }
       ]
     },
@@ -33,10 +41,6 @@
           "path": "terminal-setup.md"
         },
         {
-          "title": "Configuration",
-          "path": "configuration.md"
-        },
-        {
           "title": "Execution environments",
           "path": "execution-environments.md"
         }
@@ -45,6 +49,10 @@
     {
       "title": "Customize",
       "items": [
+        {
+          "title": "Configuration",
+          "path": "configuration.md"
+        },
         {
           "title": "Project instructions",
           "path": "agents-md.md"
@@ -261,6 +269,14 @@
     }
   ],
   "proseOnly": [
+    {
+      "path": "index.md",
+      "reason": "Navigation entry point; every group links to the page that owns its runnable example."
+    },
+    {
+      "path": "how-lunate-works.md",
+      "reason": "Mental-model page; each mode it names has an owning page with the runnable example."
+    },
     {
       "path": "configuration.md",
       "reason": "Prose-only; its generated settings table lives in the settings reference, and its config example lands with the configuration split in S6."
