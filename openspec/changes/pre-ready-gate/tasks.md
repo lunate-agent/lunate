@@ -45,6 +45,6 @@
 
 ## 5. Verification and bookkeeping
 
-- [ ] 5.1 `python3 tests/scripts/test_pre_ready.py` green, including the four real findings.
-- [ ] 5.2 `dotnet csharpier check .`, markdownlint and `openspec validate --all --strict` green.
-- [ ] 5.3 `openspec archive pre-ready-gate --yes` as the final commit of this pull request.
+- [x] 5.1 `python3 tests/scripts/test_pre_ready.py` green, including the four real findings.
+- [x] 5.2 `dotnet csharpier check .`, markdownlint and `openspec validate --all --strict` green.
+- [x] 5.3 `openspec archive pre-ready-gate --yes` as the final commit of this pull request.
