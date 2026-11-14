@@ -26,8 +26,8 @@ agent and at home in polyglot repositories.
   `cs_diagnostics`, `cs_find_symbol`, `cs_find_references`, `cs_outline`, `cs_rename` — the
   diagnostics tool is a compile check after an edit, and an edit is verified against the compiler,
   not the model's guess. The published benchmark evidence is a five-instance SWE-bench Verified
-  pilot, not a C# suite: Lunate resolved 2/5 with the budget model and 3/5 with the frontier model,
-  while the mini-swe-agent baseline resolved 4/5 and 3/5 on the same subset; the write-up states
+  pilot, not a C# suite: Lunate resolved 2/5 with the budget model and 4/5 with the frontier model,
+  while the mini-swe-agent baseline resolved 5/5 with both on the same subset; the write-up states
   the failures and the pilot's limits
   ([`docs/dev/eval/swebench-first-run.md`](docs/dev/eval/swebench-first-run.md)).
 - **Yours to extend in C#.** Start from **one `.cs` file** — a header declares its tools and the

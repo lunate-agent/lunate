@@ -17,7 +17,7 @@
     }
   ],
   "limits": {
-    "maxCostUsd": 30,
+    "maxCostUsd": 5,
     "maxTimeSeconds": 1800
   },
   "instanceTimeoutSeconds": 1800,

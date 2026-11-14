@@ -2,7 +2,7 @@
 
 ### Requirement: Committed evidence and honest scope
 
-The repository SHALL commit the run summary and a write-up at `docs/dev/eval/swebench-first-run.md` containing the resolved counts, the spend, the failure modes and an explicit statement of what the run does and does not show. The README's C# claim SHALL cite this write-up and the number it reports, or state no benchmark claim when the run does not support one. A workflow that would publish is not evidence: the summary SHALL come from a completed run whose artifacts are linked. For every instance and arm, the repository SHALL commit the official evaluation result that the resolved count comes from under `eval/swebench/runs/<run-id>/`, and every instance row of the committed summary SHALL record a repository-relative path to that result, so a reader of a clean checkout can follow the number to its official verdict without the run host. The orchestrator SHALL write its working tree to that tracked directory by default rather than to a git-ignored or machine-local path. Raw artifacts the run host did not retain SHALL be named as not retained in the run's evidence README and in the write-up; they SHALL NOT be reconstructed to look complete.
+The repository SHALL commit the run summary and a write-up at `docs/dev/eval/swebench-first-run.md` containing the resolved counts, the spend, the failure modes and an explicit statement of what the run does and does not show. The README's C# claim SHALL cite this write-up and the number it reports, or state no benchmark claim when the run does not support one. A workflow that would publish is not evidence: the summary SHALL come from a completed run whose artifacts are linked. For every instance and arm, the repository SHALL commit the prediction the official harness scored under `eval/swebench/runs/<run-id>/` and, when the instance submitted a non-empty patch, the official evaluation result the resolved count comes from; an instance with no patch has no official evaluation and SHALL commit its empty prediction, and its row SHALL record that it was unresolved. Every instance row of the committed summary SHALL record a repository-relative path to its committed evidence, so a reader of a clean checkout can follow the number to its official verdict without the run host. The orchestrator SHALL write its working tree to that tracked directory by default rather than to a git-ignored or machine-local path. Raw artifacts the run host did not retain SHALL be named as not retained in the run's evidence README and in the write-up; they SHALL NOT be reconstructed to look complete.
 
 #### Scenario: The write-up states the scope
 
@@ -20,7 +20,13 @@ The repository SHALL commit the run summary and a write-up at `docs/dev/eval/swe
 
 - **GIVEN** the committed run summary
 - **WHEN** a reader opens the `workDir` of any instance row
-- **THEN** the path is relative to the repository, resolves inside `eval/swebench/runs/<run-id>/`, and the official result there names the instance with the same resolved verdict the row reports
+- **THEN** the path is relative to the repository, resolves inside `eval/swebench/runs/<run-id>/`, holds the prediction whose patch presence the row reports, and — when the row reports a patch — holds the official result whose resolved verdict the row reports
+
+#### Scenario: An instance without a patch declares itself
+
+- **GIVEN** an instance whose agent produced no non-empty patch
+- **WHEN** the repository commits that run's evidence
+- **THEN** the committed directory holds the empty prediction and no official result, and the summary row records the instance as unpatched and unresolved
 
 #### Scenario: A new run writes durable links
 

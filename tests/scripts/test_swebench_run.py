@@ -665,17 +665,39 @@ class SwebenchRunEvidenceTests(unittest.TestCase):
                     directory.parts[:3],
                     f"{row['instanceId']}: workDir is outside the committed run tree",
                 )
-                report_path = REPOSITORY / directory / "official-results.json"
-                self.assertTrue(report_path.is_file(), f"missing committed evidence: {report_path}")
-                report = json.loads(report_path.read_text(encoding="utf-8"))
+                predictions_path = REPOSITORY / directory / "predictions.jsonl"
+                self.assertTrue(
+                    predictions_path.is_file(), f"missing committed prediction: {predictions_path}"
+                )
+                predictions = [
+                    json.loads(line)
+                    for line in predictions_path.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+                self.assertEqual(1, len(predictions), f"{row['instanceId']}: not one prediction")
+                self.assertEqual(row["instanceId"], predictions[0]["instance_id"])
+                self.assertEqual(arm["model"], predictions[0]["model_name_or_path"])
+                self.assertEqual(
+                    row["hasPatch"],
+                    bool(predictions[0]["model_patch"].strip()),
+                    f"{row['instanceId']}: the committed prediction disagrees with the row",
+                )
+                report_path = REPOSITORY / directory / "report.json"
+                if not report_path.is_file():
+                    # The official harness was not asked to evaluate an empty patch, so an
+                    # instance without one has no report; the committed prediction is its record.
+                    self.assertFalse(row["hasPatch"], f"{row['instanceId']}: patched row has no report")
+                    self.assertFalse(row["resolved"], f"{row['instanceId']}: unresolved row has no report")
+                    continue
+                report = json.loads(report_path.read_text(encoding="utf-8"))[row["instanceId"]]
                 self.assertEqual(
                     row["resolved"],
-                    row["instanceId"] in (report.get("resolved_ids") or []),
-                    f"{row['instanceId']}: the committed official result disagrees with the row",
+                    report["resolved"],
+                    f"{row['instanceId']}: the committed official report disagrees with the row",
                 )
                 self.assertEqual(
                     row["hasPatch"],
-                    1 == report.get("submitted_instances"),
+                    report["patch_exists"],
                     f"{row['instanceId']}: the committed submission record disagrees with the row",
                 )
 

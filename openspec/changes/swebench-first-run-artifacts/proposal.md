@@ -4,10 +4,10 @@ The reviewer of the first published run found the evidence behind the numbers un
 
 ## What Changes
 
-- Commit the run's per-instance evidence under `eval/swebench/runs/first-run-2026-11-08/`: one `official-results.json` per instance and arm, naming the ids the official harness resolved, left unresolved or saw with an empty patch, plus a README that states what the run host retained and what it did not.
-- Point every instance row of `eval/swebench/summary.json`, of `first-run-2026-11-08.lunate.json` and of `first-run-2026-11-08.baseline.json`, and the write-up, at those committed paths instead of the machine-local one.
+- Commit the published run's per-instance evidence under `eval/swebench/runs/rerun-624-bosgame-2/`: each instance's submitted `predictions.jsonl`, the official `report.json` for every instance that produced a patch, and the run's summary, plus a README that states what the run host retained and what it did not. The rerun replaces the first run's record, whose raw artifacts the host no longer held.
+- Point every instance row of `eval/swebench/summary.json` and the write-up at those committed paths instead of the run host's absolute path.
 - Default the orchestrator's `--work-dir` to the tracked `eval/swebench/runs`, so a run's `workDir` values resolve inside the checkout, and ignore only the bulk of a working tree there (trajectories, logs, the resolved dataset) rather than the whole tree.
-- Add tests that the default work dir is the committed tree and that every committed summary row links a committed official result whose verdict agrees with the row.
+- Add tests that the default work dir is the committed tree and that every committed summary row links a committed prediction and official report whose verdicts agree with the row.
 
 No product code, no `src/` change, no dependency.
 
@@ -23,6 +23,7 @@ No product code, no `src/` change, no dependency.
 
 ## Impact
 
-- New: `eval/swebench/runs/first-run-2026-11-08/` (one official result per instance and arm, plus its README), `eval/swebench/runs/.gitignore`.
-- Modified: `eval/swebench/summary.json`, `eval/swebench/first-run-2026-11-08.lunate.json`, `eval/swebench/first-run-2026-11-08.baseline.json`, `scripts/eval/swebench_run.py`, `tests/scripts/test_swebench_run.py`, `eval/README.md`, `docs/dev/eval/swebench-first-run.md`, `openspec/specs/benchmark-harness/spec.md`.
+- New: `eval/swebench/runs/rerun-624-bosgame-2/` (predictions, official per-instance reports, the run summary and its README), `eval/swebench/runs/.gitignore`.
+- Removed: the first run's `eval/swebench/runs/first-run-2026-11-08/` and its two arm records, replaced by the rerun's evidence.
+- Modified: `eval/swebench/summary.json`, `eval/swebench/summary.md`, `eval/swebench/run.json` (the published run's US$5 cap), `scripts/eval/swebench_run.py`, `tests/scripts/test_swebench_run.py`, `eval/README.md`, `docs/dev/eval/swebench-first-run.md`, `README.md`, `openspec/specs/benchmark-harness/spec.md`.
 - No live API, no Docker and no model call in the change or its tests.

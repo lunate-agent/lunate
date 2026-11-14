@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "runId": "first-run-2026-11-08",
+  "runId": "rerun-624-bosgame-2",
   "dataset": "SWE-bench/SWE-bench_Verified",
   "split": "test",
   "subset": [
@@ -11,8 +11,8 @@
     "sphinx-doc__sphinx-8120"
   ],
   "total": 5,
-  "maxCostUsd": 30.0,
-  "totalSpendUsd": 1.678134,
+  "maxCostUsd": 5.0,
+  "totalSpendUsd": 1.615688,
   "capReached": false,
   "arms": [
     {
@@ -24,15 +24,15 @@
           "instanceId": "astropy__astropy-12907",
           "exitCode": 2,
           "completed": false,
-          "hasPatch": false,
-          "resolved": false,
-          "spendUsd": 0.050103876000000006,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.015200082,
           "steps": 50,
-          "inputTokens": 356238,
-          "outputTokens": 11350,
+          "inputTokens": 343799,
+          "outputTokens": 10665,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -40,60 +40,60 @@
           "completed": false,
           "hasPatch": false,
           "resolved": false,
-          "spendUsd": 0.021974411999999995,
+          "spendUsd": 0.022593593999999998,
           "steps": 50,
-          "inputTokens": 344178,
-          "outputTokens": 19352,
+          "inputTokens": 389795,
+          "outputTokens": 19109,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-django__django-13128"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
           "exitCode": 2,
           "completed": false,
           "hasPatch": true,
-          "resolved": true,
-          "spendUsd": 0.021426791999999997,
+          "resolved": false,
+          "spendUsd": 0.024496086,
           "steps": 50,
-          "inputTokens": 424052,
-          "outputTokens": 18698,
+          "inputTokens": 413545,
+          "outputTokens": 20670,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-django__django-15572"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
-          "exitCode": 2,
-          "completed": false,
-          "hasPatch": false,
-          "resolved": false,
-          "spendUsd": 0.046512276,
-          "steps": 50,
-          "inputTokens": 356054,
-          "outputTokens": 9330,
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.007419894000000001,
+          "steps": 32,
+          "inputTokens": 174489,
+          "outputTokens": 4526,
           "limit": null,
-          "failure": "exit 2",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-pydata__xarray-3151"
+          "failure": null,
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
           "exitCode": 2,
           "completed": false,
-          "hasPatch": true,
-          "resolved": true,
-          "spendUsd": 0.02368719,
+          "hasPatch": false,
+          "resolved": false,
+          "spendUsd": 0.021638442,
           "steps": 50,
-          "inputTokens": 504017,
-          "outputTokens": 16492,
+          "inputTokens": 443463,
+          "outputTokens": 14982,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 2,
       "total": 5,
-      "spendUsd": 0.163705,
+      "spendUsd": 0.091348,
       "unpricedInstances": [],
       "failures": [
         {
@@ -106,10 +106,6 @@
         },
         {
           "instanceId": "django__django-15572",
-          "reason": "exit 2"
-        },
-        {
-          "instanceId": "pydata__xarray-3151",
           "reason": "exit 2"
         },
         {
@@ -129,13 +125,13 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.050728,
-          "steps": 3,
-          "inputTokens": 8597,
-          "outputTokens": 817,
+          "spendUsd": 0.07006,
+          "steps": 4,
+          "inputTokens": 12025,
+          "outputTokens": 1098,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -143,13 +139,13 @@
           "completed": true,
           "hasPatch": false,
           "resolved": false,
-          "spendUsd": 0.432892,
-          "steps": 13,
-          "inputTokens": 73738,
-          "outputTokens": 6897,
+          "spendUsd": 0.506264,
+          "steps": 14,
+          "inputTokens": 84446,
+          "outputTokens": 8424,
           "limit": null,
           "failure": "empty patch",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-django__django-13128"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -157,27 +153,27 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.18326,
-          "steps": 7,
-          "inputTokens": 36385,
-          "outputTokens": 1886,
+          "spendUsd": 0.15486,
+          "steps": 6,
+          "inputTokens": 29655,
+          "outputTokens": 1812,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-django__django-15572"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
           "exitCode": 0,
           "completed": true,
           "hasPatch": true,
-          "resolved": false,
-          "spendUsd": 0.227456,
-          "steps": 9,
-          "inputTokens": 46744,
-          "outputTokens": 2024,
+          "resolved": true,
+          "spendUsd": 0.156096,
+          "steps": 7,
+          "inputTokens": 30759,
+          "outputTokens": 1653,
           "limit": null,
-          "failure": "unresolved",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-pydata__xarray-3151"
+          "failure": null,
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -185,27 +181,23 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.239996,
-          "steps": 10,
-          "inputTokens": 48644,
-          "outputTokens": 2271,
+          "spendUsd": 0.193748,
+          "steps": 9,
+          "inputTokens": 38567,
+          "outputTokens": 1974,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-sphinx-doc__sphinx-8120"
         }
       ],
-      "resolved": 3,
+      "resolved": 4,
       "total": 5,
-      "spendUsd": 1.134332,
+      "spendUsd": 1.081028,
       "unpricedInstances": [],
       "failures": [
         {
           "instanceId": "django__django-13128",
           "reason": "empty patch"
-        },
-        {
-          "instanceId": "pydata__xarray-3151",
-          "reason": "unresolved"
         }
       ]
     },
@@ -220,14 +212,14 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.00852096,
-          "steps": 16,
+          "spendUsd": 0.00488456,
+          "steps": 14,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -235,14 +227,14 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.009193884,
-          "steps": 22,
+          "spendUsd": 0.010700799999999998,
+          "steps": 20,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-django__django-13128"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -250,29 +242,29 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.006482076,
-          "steps": 12,
+          "spendUsd": 0.00489197,
+          "steps": 10,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-django__django-15572"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
           "exitCode": 0,
           "completed": true,
           "hasPatch": true,
-          "resolved": false,
-          "spendUsd": 0.007517616000000001,
-          "steps": 21,
+          "resolved": true,
+          "spendUsd": 0.0036207000000000006,
+          "steps": 11,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
-          "failure": "unresolved",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-pydata__xarray-3151"
+          "failure": null,
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -280,26 +272,21 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.010563659999999999,
-          "steps": 21,
+          "spendUsd": 0.015173130000000003,
+          "steps": 35,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-sphinx-doc__sphinx-8120"
         }
       ],
-      "resolved": 4,
+      "resolved": 5,
       "total": 5,
-      "spendUsd": 0.042278,
+      "spendUsd": 0.039271,
       "unpricedInstances": [],
-      "failures": [
-        {
-          "instanceId": "pydata__xarray-3151",
-          "reason": "unresolved"
-        }
-      ]
+      "failures": []
     },
     {
       "arm": "baseline",
@@ -312,14 +299,14 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.031497800000000006,
+          "spendUsd": 0.0313662,
           "steps": 4,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -327,14 +314,14 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.16161100000000003,
-          "steps": 8,
+          "spendUsd": 0.22713,
+          "steps": 13,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-django__django-13128"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -342,68 +329,59 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.03425400000000001,
+          "spendUsd": 0.0339522,
           "steps": 4,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-django__django-15572"
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
           "exitCode": 0,
           "completed": true,
           "hasPatch": true,
-          "resolved": false,
-          "spendUsd": 0.06541780000000001,
-          "steps": 7,
+          "resolved": true,
+          "spendUsd": 0.043250000000000004,
+          "steps": 4,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
           "exitStatus": "Submitted",
-          "failure": "unresolved",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-pydata__xarray-3151"
+          "failure": null,
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
-          "exitCode": 1,
-          "completed": false,
-          "hasPatch": false,
-          "resolved": false,
-          "spendUsd": 0.04503820000000001,
-          "steps": 6,
+          "exitCode": 0,
+          "completed": true,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.0683424,
+          "steps": 8,
           "inputTokens": 0,
           "outputTokens": 0,
           "limit": null,
-          "exitStatus": "APIError",
-          "failure": "baseline run failed",
-          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-sphinx-doc__sphinx-8120"
+          "exitStatus": "Submitted",
+          "failure": null,
+          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-sphinx-doc__sphinx-8120"
         }
       ],
-      "resolved": 3,
+      "resolved": 5,
       "total": 5,
-      "spendUsd": 0.337819,
+      "spendUsd": 0.404041,
       "unpricedInstances": [],
-      "failures": [
-        {
-          "instanceId": "pydata__xarray-3151",
-          "reason": "unresolved"
-        },
-        {
-          "instanceId": "sphinx-doc__sphinx-8120",
-          "reason": "baseline run failed"
-        }
-      ]
+      "failures": []
     }
   ],
   "lunate": {
-    "startedAt": "2026-11-08T09:49:27Z",
-    "finishedAt": "2026-11-08T10:10:34Z"
+    "startedAt": "2026-11-14T11:25:15Z",
+    "finishedAt": "2026-11-14T11:46:37Z"
   },
   "baseline": {
-    "startedAt": "2026-11-10T20:58:27Z",
-    "finishedAt": "2026-11-10T21:30:39Z"
+    "startedAt": "2026-11-14T11:25:15Z",
+    "finishedAt": "2026-11-14T12:00:58Z"
   }
 }
