@@ -12,8 +12,7 @@ command — Lunate runs it, adds the result to the conversation and asks the mod
 when an answer needs no tool, or when the run reaches its step limit (50 by default). `Esc` cancels the
 turn at any point.
 
-A tool that fails reports what failed and what to do next back to the model as text, not as a
-crash.
+A tool that fails reports what failed and what to do next back to the model as text, not as a crash.
 
 ## The tools are the only way it acts
 
