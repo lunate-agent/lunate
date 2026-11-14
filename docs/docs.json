@@ -279,7 +279,7 @@
     },
     {
       "path": "configuration.md",
-      "reason": "Prose-only; its generated settings table lives in the settings reference, and its config example lands with the configuration split in S6."
+      "reason": "Prose-only; every key it names is generated in the settings reference, and its examples live on the pages that own them."
     },
     {
       "path": "settings.md",
@@ -294,92 +294,64 @@
       "reason": "Prose-only; the container flag has no unattended example that does not need a container image."
     },
     {
-      "path": "extensions-remote.md",
-      "reason": "Wire reference with no unattended command today; its runnable example lands with S7."
-    },
-    {
       "path": "extensions/contributions/README.md",
       "reason": "Index page; each contribution page owns its own example."
     },
     {
       "path": "extensions/contributions/background-services.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/file-changes.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/hooks.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/mcp-servers.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/model-middleware.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
-    },
-    {
-      "path": "extensions/contributions/model-providers.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/services.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/settings-and-secrets.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/skill-sources.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/status-widgets.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/tool-result-renderers.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/tools.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/contributions/virtual-models.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
-    },
-    {
-      "path": "extensions/lifecycle-and-trust.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {
       "path": "extensions/manifest.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
-    },
-    {
-      "path": "extensions/packages.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
+      "reason": "Field reference; each JSON block is a fragment of one manifest, not a whole document the checker can parse."
     },
     {
       "path": "extensions/single-file.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
-    },
-    {
-      "path": "extensions/testing.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
-    },
-    {
-      "path": "extensions/troubleshooting.md",
-      "reason": "Prose-only; its runnable example lands with the page's slice."
-    },
-    {
-      "path": "mcp-roslyn.md",
-      "reason": "Host configuration example; no runnable command until its rewrite in S7."
+      "reason": "Its commands are console transcripts of `lunate extensions build`, which needs a trust decision and a toolchain first."
     },
     {
       "path": "third-party-licences.md",

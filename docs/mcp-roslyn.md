@@ -8,6 +8,8 @@ uses. It is the Roslyn bundle without the agent: no model, no session, no approv
 
 Add the server to the host's MCP configuration. The command is the same `lunate` binary:
 
+<!-- config: mcp -->
+
 ```json
 {
   "mcpServers": {

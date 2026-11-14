@@ -14,6 +14,8 @@ DTOs the host uses (the generator ships in `Lunate.Extensibility.Testing`, toget
 
 Exactly one of `entryAssembly` (in-process) or `runtime` (out-of-process) is required.
 
+<!-- config: extension -->
+
 ```json
 {
     "id": "node-remote",

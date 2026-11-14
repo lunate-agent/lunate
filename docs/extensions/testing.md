@@ -154,6 +154,8 @@ sample.
 
 ## Run the tests
 
+<!-- run: no runs the extension's own test project, which the docs run does not build -->
+
 ```bash
 dotnet test templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj
 dotnet test extensions/permission-gate/PermissionGateExtension.Tests/PermissionGateExtension.Tests.csproj

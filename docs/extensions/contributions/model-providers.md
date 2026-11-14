@@ -49,6 +49,8 @@ reach extension code.
 
 The `model-router` sample declares `router-local` with the models `fast` and `deep`:
 
+<!-- config: extension -->
+
 ```json
 {
     "id": "model-router",

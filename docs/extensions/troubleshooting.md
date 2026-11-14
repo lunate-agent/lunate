@@ -60,6 +60,8 @@ extension.json: field 'id' must match [a-z0-9-]+ but is 'Hello'.
 The extension is project-scoped and this repository (or worktree) has not trusted its current
 content. Approve it interactively, or record it ahead of time:
 
+<!-- run: no needs an untrusted project extension to exist -->
+
 ```bash
 lunate trust                        # inspect: the records, the pending decisions and their digest
 lunate trust --yes                  # at a terminal: record every pending decision

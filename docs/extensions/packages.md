@@ -22,6 +22,8 @@ A skills-only bundle has no `extension/` folder and no entry assembly; it instal
 
 ## Install
 
+<!-- run: no resolves the package from a NuGet feed -->
+
 ```bash
 lunate install <package-id>                 # latest stable, resolved once and recorded exactly
 lunate install <package-id>@<version>       # pinned
