@@ -172,8 +172,10 @@ from `swebench.harness.run_evaluation`. When an instance's spend cannot be price
 the run stops and the summary reports that instance as unpriced and the run total as unknown —
 never the cap or a number above it. A mini-swe-agent trajectory whose `instance_cost` is missing or
 non-positive is unpriced, not zero spend. The committed `eval/swebench/summary.json` and
-`summary.md` are the evidence; the per-instance patches and trajectories stay under the ignored
-`eval/runs/`.
+`summary.md` are the evidence, and each instance row's `workDir` points at the committed
+official result under `eval/swebench/runs/<run-id>/`. The orchestrator's default `--work-dir` is
+`eval/swebench/runs`, so a new run's links resolve in a checkout; trajectories and logs stay out of
+git (`.gitignore` there), the predictions and official results are committed deliberately.
 
 On an arm64 host running the official `linux/amd64` images under QEMU, export
 `DOTNET_EnableWriteXorExecute=0`; the adapter sets invariant globalization itself because the

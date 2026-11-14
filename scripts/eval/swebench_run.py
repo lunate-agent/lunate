@@ -49,7 +49,11 @@ SWEBENCH_DIR = REPOSITORY / "eval" / "swebench"
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", default=str(SWEBENCH_DIR / "run.json"))
-    parser.add_argument("--work-dir", default=str(REPOSITORY / "eval" / "runs" / "swebench-first-run"))
+    parser.add_argument(
+        "--work-dir",
+        default=str(SWEBENCH_DIR / "runs"),
+        help="parent of the run working trees (default: eval/swebench/runs, which is committed)",
+    )
     parser.add_argument("--summary-dir", default=str(SWEBENCH_DIR))
     parser.add_argument("--run-id", default="swebench-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
     parser.add_argument("--arm", choices=("lunate", "baseline", "merge", "all"), default="all")

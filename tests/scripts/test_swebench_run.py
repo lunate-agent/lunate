@@ -643,5 +643,42 @@ class SwebenchRunCapTests(unittest.TestCase):
             self.assertFalse((root / "run-1.baseline.json").exists())
 
 
+class SwebenchRunEvidenceTests(unittest.TestCase):
+    """The committed summary must point at evidence a clean checkout can read."""
+
+    def test_the_default_work_dir_is_the_committed_runs_tree(self) -> None:
+        arguments = swebench_run.parse_args([])
+
+        self.assertEqual(EVAL / "runs", Path(arguments.work_dir))
+
+    def test_every_instance_row_links_committed_official_evidence(self) -> None:
+        summary = json.loads((EVAL / "summary.json").read_text(encoding="utf-8"))
+
+        for arm in summary["arms"]:
+            for row in arm["instances"]:
+                directory = Path(row["workDir"])
+                self.assertFalse(
+                    directory.is_absolute(), f"{row['instanceId']}: workDir is a machine-local path"
+                )
+                self.assertEqual(
+                    ("eval", "swebench", "runs"),
+                    directory.parts[:3],
+                    f"{row['instanceId']}: workDir is outside the committed run tree",
+                )
+                report_path = REPOSITORY / directory / "official-results.json"
+                self.assertTrue(report_path.is_file(), f"missing committed evidence: {report_path}")
+                report = json.loads(report_path.read_text(encoding="utf-8"))
+                self.assertEqual(
+                    row["resolved"],
+                    row["instanceId"] in (report.get("resolved_ids") or []),
+                    f"{row['instanceId']}: the committed official result disagrees with the row",
+                )
+                self.assertEqual(
+                    row["hasPatch"],
+                    1 == report.get("submitted_instances"),
+                    f"{row['instanceId']}: the committed submission record disagrees with the row",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

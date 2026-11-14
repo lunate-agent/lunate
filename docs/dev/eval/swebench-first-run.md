@@ -140,5 +140,19 @@ python3 scripts/eval/swebench_run.py --arm all --lunate-bin artifacts/linux-x64/
   --mini-extra mini-extra --run-id <run-id>
 ```
 
-The orchestrator writes `eval/swebench/summary.json` and `summary.md`; the per-instance patches are
-kept under `eval/runs/` (ignored by git) for audit.
+The orchestrator writes `eval/swebench/summary.json` and `summary.md`. Its default `--work-dir` is
+`eval/swebench/runs`, so a run's working tree — and therefore every `workDir` the summary records —
+resolves inside the checkout instead of a machine-local temporary directory.
+
+## Committed evidence
+
+The per-instance official results behind every number above are committed under
+[`eval/swebench/runs/first-run-2026-11-08/`](../../../eval/swebench/runs/first-run-2026-11-08/):
+one `official-results.json` per instance and arm, naming the ids the official harness resolved, left
+unresolved or saw with an empty patch, and linked from that instance's `workDir` in
+[`summary.json`](../../../eval/swebench/summary.json). A reader can follow a resolved count from the
+write-up to the summary row to the official verdict without the run host.
+
+The trajectories and the `predictions.jsonl` patch text stayed in the run's working tree on the run
+host and are not part of the repository; that directory's README records what is and is not
+committed.
