@@ -363,7 +363,7 @@
       "type": "string array",
       "default": "[]",
       "scope": "user",
-      "description": "Exact environment variable names to admit into tool processes after the inherited environment's credential strip; a listed name the parent does not hold stays absent. An admitted variable is reachable by the model through tool processes: the model can read it from a command it runs. The admitted names are listed at session start. No wildcards, prefixes or patterns. A name that is also a Lunate credential name is admitted with one startup warning. `Scrubbed` extension hosts are unaffected. User scope only: a project settings file may not carry the key. There is no environment-variable override."
+      "description": "Exact environment variable names to admit into tool processes after the inherited environment's credential denies (the provider keys Lunate resolved and every name shaped like a credential); a listed name the parent does not hold stays absent. An admitted variable is reachable by the model through tool processes: the model can read it from a command it runs. The admitted names are listed at session start. No wildcards, prefixes or patterns. A name that is also a Lunate credential name is admitted with one startup warning; a name only the credential-shape rule withholds is admitted with the same notice and no warning. `Scrubbed` extension hosts are unaffected. User scope only: a project settings file may not carry the key. There is no environment-variable override."
     },
     {
       "name": "tools.extra",

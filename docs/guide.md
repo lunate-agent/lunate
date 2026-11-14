@@ -724,13 +724,21 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
   `env`: `"env": {"SERVER_TOKEN": "${SERVER_TOKEN}"}` resolves from Lunate's environment when the
   file loads, so the value is passed explicitly and nothing reaches the child by omission.
 - A tool child (`bash`) is the user's shell, so its environment is the `Inherited` policy: the
-  user's whole environment — an unrelated toolchain's own variables and `PATH` arrive — minus the
-  variables Lunate resolves as provider credentials (each built-in provider's key variable and
-  alias, and each custom provider's `env:` reference). A model-chosen command cannot read the
-  user's provider key out of its environment, the same boundary the bash guard's `auth.json`
-  read-deny draws for files.
+  user's whole environment — an unrelated toolchain's own variables and `PATH` arrive — minus two
+  kinds of credential. First, the variables Lunate resolves as provider credentials (each built-in
+  provider's key variable and alias, and each custom provider's `env:` reference). Second, every
+  variable whose *name* is shaped like a credential, whether Lunate resolved it or not: the name is
+  split on `_` and `-`, and a name with a part equal (ignoring case) to `KEY`, `KEYS`, `TOKEN`,
+  `TOKENS`, `SECRET`, `SECRETS`, `PASSWORD`, `PASSWORDS`, `PASSWD`, `PASS`, `CREDENTIAL`,
+  `CREDENTIALS` or `CREDS` is withheld — so `GITHUB_TOKEN`, `NPM_TOKEN` and `AWS_SECRET_ACCESS_KEY`
+  do not reach a tool child, while `MONKEY`, `KEYBOARD_LAYOUT` and `OPENAI_BASE_URL` do. It is a
+  word match, not a substring or glob: a name whose character tells nothing about a credential
+  (`DATABASE_URL` with a password in it, `PGPASSWORD`) still arrives. A model-chosen command cannot
+  read the user's provider key out of its environment, the same boundary the bash guard's
+  `auth.json` read-deny draws for files ([ADR-0036](../adr/0036-tool-child-credential-shape-strip.md)).
 - `toolEnvironment.passthrough` in `~/.lunate/settings.json` names the exact variables to admit into
-  tool children after that strip: `{"toolEnvironment": {"passthrough": ["MY_PROJECT_TOKEN"]}}`.
+  tool children after those denies, including one the name rule withheld:
+  `{"toolEnvironment": {"passthrough": ["GITHUB_TOKEN"]}}`.
   Matching is by exact name — no wildcard, prefix or pattern — and a listed name the parent does not
   hold stays absent. The admitted names are listed at session start. An admitted variable is
   reachable by the model through tool processes: the model can read it from a command it runs, so
