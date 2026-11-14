@@ -74,6 +74,15 @@ openspec/specs/tui/spec.md          ── names ──▶ docs/keybindings.md
    card's documentation-path requirements, and it is: the duplicate number is a `main` defect that
    needs its own change, so the rename is reverted here and the branch states the red tree check
    rather than absorbing an unrelated fix.
+8. **The maintainer overrides item 7: the renumber stays in this pull request.** The 2026-11-14
+   decision keeps the `0036-ci-gate-sized-by-event.md` → `0037-ci-gate-sized-by-event.md` rename
+   here, because it repairs the duplicate ADR-0036 that `main` carries and therefore the red
+   `verify-docs` profile this branch inherits from it; the review finding behind item 7 predates
+   #849, which replaced the proposal-on-`main` discipline with one pull request per card. The
+   earlier arrival (`0036-tool-child-credential-shape-strip.md`, from #840) keeps its number, the
+   rule #766 used to free the duplicate 0034. Nothing else about this change moves: the pristine
+   documentation-path requirements and the archive timing are unchanged, and the archived
+   `ci-fast-pr-gate` record keeps the path it was written with.
 
 ## Risks / Trade-offs
 
@@ -81,6 +90,9 @@ openspec/specs/tui/spec.md          ── names ──▶ docs/keybindings.md
   copied byte identical except the page names, and re-read before archiving.
 - [Other stale paths remain in specs] → the card's grep over `openspec/specs/` is run before the
   archive; it currently finds only these two files.
+- [The ADR rename and the path requirements ride in one card] → the rename is a one-file,
+  title-line change that `scripts/check-adr-numbers.py` pins; the verification step runs the
+  checker so the tree stays green in the same pull request that merges `main`.
 - [Renaming the `tui` requirement breaks a reference to its old title] → search the repository for
   the old title before the archive; nothing but the spec and this change name it.
 

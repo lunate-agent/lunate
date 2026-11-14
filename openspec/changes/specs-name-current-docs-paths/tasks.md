@@ -50,3 +50,18 @@
 - [x] 5.3 Reverted the archive commit, re-ran `openspec validate --all --strict`, the acceptance
       grep, `scripts/docs-check --check`, `scripts/check-spec-archive.py` and markdownlint, then
       redid `openspec archive specs-name-current-docs-paths --yes` as the last commit.
+
+## 6. Third rework after review
+
+- [x] 6.1 The maintainer's 2026-11-14 decision overrides 5.1: the CI-gate renumber to `0037` stays
+      in this pull request, because it fixes the duplicate ADR-0036 that `main` carries and the red
+      `verify-docs` profile this branch inherits from it; the finding behind 5.1 predates #849.
+      Design item 8 records the reversal and 5.1 stays as the history of that rework.
+- [x] 6.2 Confirmed `origin/main` (`7dd17817`) is still the merge base, so there was nothing to
+      merge; nothing under `openspec/specs/**` conflicts.
+- [x] 6.3 Reverted the archive commit so the change is live again, updated the design, the ADR
+      review and this task list, and re-ran `openspec validate --all --strict`,
+      `scripts/check-adr-numbers.py`, the acceptance grep, `scripts/docs-check --check`,
+      `scripts/check-spec-archive.py` and markdownlint.
+- [x] 6.4 Redid `openspec archive specs-name-current-docs-paths --yes` as the last commit of the
+      pull request.

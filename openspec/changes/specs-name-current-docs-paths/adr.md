@@ -24,7 +24,9 @@ no durable decision is introduced.
 ## New Durable ADRs Created
 
 None. No major durable architectural decision was introduced, so no repository-level ADR file was
-created. ADR-0035 remains the highest primary ADR number.
+created. The same branch does rename the CI-gate record from `0036-ci-gate-sized-by-event.md` to
+`0037-ci-gate-sized-by-event.md` to free the duplicate `0036`; that is a numbering repair of an
+existing record, not a new decision, so `0037` is now the highest primary ADR number.
 
 ## Related
 
