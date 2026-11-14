@@ -1,0 +1,11 @@
+# A run's working tree lives here so the summary links resolve in a checkout. What gets committed is
+# the official evaluation result for each instance; the bulk stays out of git.
+trajectory.jsonl
+*.traj.json
+*.log
+dataset.json
+exit-code
+image-pull.log
+prompt.md
+run.sh
+collect_patch.py

@@ -31,6 +31,9 @@ class SwebenchAdapterPreflightTests(AdapterTestCase):
             "--evaluate",
             "--env",
             "--timeout",
+            "--max-cost",
+            "--max-time",
+            "--max-workers",
         ):
             self.assertIn(flag, result.stdout)
         self.assertIn("ProgramBench", result.stdout)
@@ -112,6 +115,11 @@ class SwebenchAdapterPreflightTests(AdapterTestCase):
             module.instance_image({"instance_id": "alpha__one-1", "image": "example/alpha-one:latest"}),
         )
 
+    def test_the_current_official_dataset_is_the_default(self) -> None:
+        module = load_adapter_module("swebench_adapter_default")
+
+        self.assertEqual("SWE-bench/SWE-bench_Verified", module.DEFAULT_DATASET)
+
     def test_the_patch_collector_keeps_new_files_and_skips_baseline_untracked(self) -> None:
         if shutil.which("git") is None:
             self.skipTest("git is not available")
@@ -131,6 +139,8 @@ class SwebenchAdapterPreflightTests(AdapterTestCase):
         (repo / "preexisting.txt").write_text("image setup\n", encoding="utf-8")
         (repo / "tracked.txt").write_text("after\n", encoding="utf-8")
         (repo / "new-file.txt").write_text("agent output\n", encoding="utf-8")
+        (repo / "qemu_lunate_20261108-083421_27.core").write_bytes(b"\x7fELF core")
+        (repo / "core.1234").write_bytes(b"core dump")
         collector = self.tmp / "collect_patch.py"
         collector.write_text(module.PATCH_COLLECTOR, encoding="utf-8")
         destination = self.tmp / "patch.diff"
@@ -147,6 +157,8 @@ class SwebenchAdapterPreflightTests(AdapterTestCase):
         self.assertIn("new-file.txt", patch)
         self.assertIn("tracked.txt", patch)
         self.assertNotIn("preexisting.txt", patch)
+        self.assertNotIn("qemu_lunate", patch)
+        self.assertNotIn("core.1234", patch)
 
     def test_programbench_is_documented_as_out_of_scope(self) -> None:
         documentation = (REPOSITORY_ROOT / "eval" / "README.md").read_text(encoding="utf-8")

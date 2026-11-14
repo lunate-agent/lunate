@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import NoReturn
 
-DEFAULT_DATASET = "princeton-nlp/SWE-bench_Verified"
+DEFAULT_DATASET = "SWE-bench/SWE-bench_Verified"
 PROVIDER_ENV = (
     "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
@@ -61,6 +61,12 @@ def check_usage(args: argparse.Namespace) -> None:
         fail("usage: --model <exact-model-id> is required")
     if not args.lunate_bin:
         fail("usage: --lunate-bin <linux-x64 executable> is required")
+    if args.max_cost is not None and args.max_cost <= 0:
+        fail("usage: --max-cost must be a positive amount of US dollars")
+    if args.max_time is not None and args.max_time <= 0:
+        fail("usage: --max-time must be a positive number of seconds")
+    if args.max_workers <= 0:
+        fail("usage: --max-workers must be at least 1")
 
 
 def load_dataset(args: argparse.Namespace) -> list[dict]:

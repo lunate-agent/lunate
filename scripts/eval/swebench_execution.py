@@ -25,12 +25,24 @@ def git(*args: str) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(["git", "-C", repo, *args], capture_output=True, check=False)
 
 
+def is_crash_artifact(name: str) -> bool:
+    """A crashed emulator or runtime leaves a core dump; it is not a model edit."""
+    leaf = name.rsplit("/", 1)[-1]
+    return (
+        leaf == "core"
+        or leaf.startswith("core.")
+        or leaf.endswith(".core")
+        or leaf.startswith("qemu_")
+        or leaf.startswith("vgcore.")
+    )
+
+
 baseline_path = Path(baseline_path)
 baseline = set(baseline_path.read_text(encoding="utf-8", errors="replace").splitlines()) if baseline_path.exists() else set()
 untracked = [
     line
     for line in git("ls-files", "--others", "--exclude-standard").stdout.decode(errors="replace").splitlines()
-    if line and line not in baseline
+    if line and line not in baseline and not is_crash_artifact(line)
 ]
 if untracked:
     git("add", "-N", "--", *untracked)
@@ -43,7 +55,10 @@ set -u
 cd /testbed || exit 90
 export LUNATE_HOME=/lunate-run/lunate-home
 git ls-files --others --exclude-standard > /lunate-run/baseline-untracked.txt 2>/dev/null || true
-/opt/lunate/lunate -p --json --yolo --model "$LUNATE_MODEL" "$(cat /lunate-run/prompt.md)" \\
+args=(-p --json --yolo --model "$LUNATE_MODEL")
+if [ -n "${LUNATE_MAX_COST:-}" ]; then args+=(--max-cost "$LUNATE_MAX_COST"); fi
+if [ -n "${LUNATE_MAX_TIME:-}" ]; then args+=(--max-time "$LUNATE_MAX_TIME"); fi
+/opt/lunate/lunate "${args[@]}" "$(cat /lunate-run/prompt.md)" \\
     > /lunate-run/trajectory.jsonl 2> /lunate-run/lunate.log
 code=$?
 echo "$code" > /lunate-run/exit-code
@@ -105,8 +120,14 @@ def run_instance(args, instance: dict, run_dir: Path, forwarded: dict[str, str])
         "--volume",
         f"{args.lunate_bin}:/opt/lunate/lunate:ro",
         "--env",
+        "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1",
+        "--env",
         f"LUNATE_MODEL={args.model}",
     ]
+    if args.max_cost is not None:
+        command += ["--env", f"LUNATE_MAX_COST={args.max_cost}"]
+    if args.max_time is not None:
+        command += ["--env", f"LUNATE_MAX_TIME={args.max_time}"]
     for variable in forwarded:
         command += ["--env", variable]
     command += ["--entrypoint", "/bin/bash", image, "-lc", "bash /lunate-run/run.sh"]
@@ -179,7 +200,7 @@ def evaluation_command(args, predictions: Path, dataset: Path, ids: list[str]) -
         "--predictions_path",
         str(predictions),
         "--max_workers",
-        "1",
+        str(args.max_workers),
         "--run_id",
         args.run_id,
         "--timeout",
@@ -202,10 +223,22 @@ def evaluate(args, run_root: Path, predictions: Path, dataset: Path, ids: list[s
         "resultsPath": None,
     }
     reports = sorted(run_root.rglob("report.json"), key=lambda item: item.stat().st_mtime)
-    results = sorted(run_root.rglob("results.json"), key=lambda item: item.stat().st_mtime)
-    if results:
+    summaries = sorted(
+        (
+            path
+            for pattern in (f"*.{args.run_id}.json", f"{args.run_id}.*.json")
+            for path in run_root.glob(pattern)
+            if path.name not in ("run.json", "dataset.json", "official-results.json")
+        ),
+        key=lambda item: item.stat().st_mtime,
+    )
+    legacy_results = sorted(
+        run_root.rglob("results.json"), key=lambda item: item.stat().st_mtime
+    )
+    chosen_summary = summaries[-1] if summaries else (legacy_results[-1] if legacy_results else None)
+    if chosen_summary is not None:
         destination = run_root / "official-results.json"
-        destination.write_bytes(results[-1].read_bytes())
+        destination.write_bytes(chosen_summary.read_bytes())
         record["resultsPath"] = "official-results.json"
     for instance_id in ids:
         matching = [report for report in reports if report.parent.name == instance_id]
