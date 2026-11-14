@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .cli_options import check_cli_options
 from .markers import scan_markers
 from .paths import document_paths, relative_document
 from .text import posix, read_text, write_text
@@ -32,6 +33,7 @@ def run_examples(root, binary):
     if not bash:
         return problems + ["docs-check: --run needs bash on PATH"]
 
+    help_outputs = {}
     scratch = tempfile.mkdtemp(prefix="docs-check-run.", dir=os.environ.get("TMPDIR") or None)
     try:
         bin_dir = Path(scratch) / "bin"
@@ -65,6 +67,9 @@ def run_examples(root, binary):
                     f"{relative}:{line}: run:{kind} exited {result.returncode}"
                     + (f": {output}" if output else "")
                 )
+            if kind == "help":
+                help_outputs.setdefault(relative, []).append(result.stdout)
+        check_cli_options(root, help_outputs, problems)
         return problems
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
