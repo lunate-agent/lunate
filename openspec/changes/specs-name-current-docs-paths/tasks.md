@@ -7,7 +7,8 @@
 - [x] 1.2 Delta specs copy each requirement and every scenario in full; the only changes are
       `docs/guide.md` → `docs/dev/guide.md` in `ci-pipeline` and the guide's table → the
       `docs/keybindings.md` reference in `tui`. `tui` pairs a RENAMED entry with a MODIFIED block so
-      the new title wins over the old one.
+      the new title wins over the old one. (See 7.2: the `ci-pipeline` block is now #855's, not
+      `main`'s.)
 - [x] 1.3 Design records the two-requirement scope, the `tui` title rename, the records that stay
       untouched and why no test changes.
 - [x] 1.4 ADR review records that the change introduces no durable architectural decision.
@@ -64,4 +65,21 @@
       `scripts/check-adr-numbers.py`, the acceptance grep, `scripts/docs-check --check`,
       `scripts/check-spec-archive.py` and markdownlint.
 - [x] 6.4 Redid `openspec archive specs-name-current-docs-paths --yes` as the last commit of the
+      pull request.
+
+## 7. Fourth rework after review: reconcile the sibling merge-queue delta
+
+- [x] 7.1 Reverted the archive commit so the change is live again, and confirmed `origin/main`
+      (`7dd17817`) is still its merge base, so there was nothing to merge and nothing under
+      `openspec/specs/**` conflicts.
+- [x] 7.2 Rebuilt `openspec/changes/specs-name-current-docs-paths/specs/ci-pipeline/spec.md` from
+      the open `merge-queue-tree-checks` delta (#855), which modifies the same two requirements, so
+      `openspec/specs/ci-pipeline/spec.md` keeps the merge-group tree checks whichever of the two
+      cards lands second. The only differing line is the "Prose beside code still runs the full
+      matrix" GIVEN path; both files were diffed to prove that.
+- [x] 7.3 Recorded the reconciliation in the proposal, the design (item 9 and its trade-off) and this
+      task list, and kept the `tui` delta as it was.
+- [x] 7.4 Re-ran `openspec validate --all --strict`, the acceptance grep, `scripts/check-adr-numbers.py`,
+      `scripts/check-spec-archive.py`, `scripts/docs-check --check` and markdownlint.
+- [ ] 7.5 Redid `openspec archive specs-name-current-docs-paths --yes` as the last commit of the
       pull request.

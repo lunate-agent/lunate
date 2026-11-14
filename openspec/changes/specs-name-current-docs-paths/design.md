@@ -83,11 +83,29 @@ openspec/specs/tui/spec.md          ── names ──▶ docs/keybindings.md
    rule #766 used to free the duplicate 0034. Nothing else about this change moves: the pristine
    documentation-path requirements and the archive timing are unchanged, and the archived
    `ci-fast-pr-gate` record keeps the path it was written with.
+9. **The `ci-pipeline` delta is the merge-queue tree-checks delta with one path change, not `main`'s
+   block with one path change.** An OpenSpec MODIFIED block is a full restatement of the requirement,
+   so a delta written against `main` also states every other line of it. #855's open delta
+   `merge-queue-tree-checks` changes the same two requirements — "Per-commit verification matrix"
+   and "Aggregate merge gate" — to add the tree checks to a `merge_group` run. A path-only
+   restatement of `main`'s block would therefore return those two requirements to their pre-#855
+   wording wherever it landed second, and the `tui` half of the card has no reason to be the change
+   that drops the queue's tree checks. The delta here is #855's delta byte for byte except
+   `docs/guide.md` → `docs/dev/guide.md` in the "Prose beside code still runs the full matrix"
+   GIVEN line, so the two branches merge cleanly in either order and the live requirement keeps both
+   the tree checks and the guide's current path. The job, the script and `ci-ok` wiring stay #855's:
+   this card adds no workflow, script or test. If #848 lands first, `openspec/specs/ci-pipeline/
+   spec.md` names the tree checks a pull request early; the implementation reaches `main` in #855,
+   and a spec that a sibling change is already applying is the smaller cost than a spec that
+   silently reverts it.
 
 ## Risks / Trade-offs
 
 - [A requirement block is copied whole and a later `main` edit collides at archive] → keep every
   copied byte identical except the page names, and re-read before archiving.
+- [The `ci-pipeline` delta races the open #855 delta] → the delta is copied from that delta, so
+  whichever lands second keeps both changes; the only differing line is the guide's path, which
+  #855 does not touch.
 - [Other stale paths remain in specs] → the card's grep over `openspec/specs/` is run before the
   archive; it currently finds only these two files.
 - [The ADR rename and the path requirements ride in one card] → the rename is a one-file,
