@@ -184,7 +184,11 @@ file — runs the docs profile: markdownlint, the generated-region check, the li
 the "no test reads `docs/`" guard and `openspec validate --all --strict`, in seconds. Anything that
 touches source, tests, templates or workflows runs the full matrix. The decision lives in
 `scripts/ci-plan.sh` and is deny-by-default, so a path nobody thought about runs the full gate rather
-than the cheap one.
+than the cheap one. The single required `ci-ok` check judges the live head's newest attempt of each
+required job, not the run's trigger payload: rerunning an older or draft run reports the current
+verdict, and draft and ready runs have separate concurrency groups so a draft push cannot cancel the
+ready gate. A gate that never carried a leg the plan put in its verify matrix is red too, naming the
+missing leg, rather than green on the shards that did run.
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the

@@ -279,6 +279,8 @@ The Release workflow SHALL fail a tag whose commit is not on `main` or whose com
 
 The CI workflow SHALL expose a single aggregate status check (`ci-ok`) that succeeds only when every verification job the selected profile requires has completed successfully and every job that profile does not select was skipped, so renaming, adding, or removing a matrix leg cannot silently drop required coverage. The repository ruleset SHALL require the aggregate check for `main` — a one-time maintainer configuration outside the workflow's control. The aggregate SHALL report a result on every pull request: the workflow SHALL NOT apply path filters to pull-request events. A required job that is skipped or cancelled SHALL NOT count as success, a job that ran although the profile did not select it SHALL fail the aggregate, and a run whose profile cannot be read SHALL fail rather than pass.
 
+For a pull request, the aggregate SHALL decide from the pull request's live draft state and the live head commit's check runs read through the GitHub API, not from the triggering run's frozen `draft` payload or its own `needs` results. It SHALL take, for each required job, the newest attempt across all runs on that live head. A run whose newest plan check run was skipped is a draft-payload run and SHALL NOT count; a cancelled attempt SHALL NOT count when any other attempt of that job exists, and SHALL never be a pass when it is the only evidence. While the live gate's required jobs are still queued or running, the aggregate SHALL fail with `gate still running` and SHALL name those jobs; it SHALL NOT report green and SHALL NOT turn this run's payload into a red. The live head SHALL carry a check run for every leg of the plan's verify matrix: the aggregate SHALL take the matrix's shard count from the legs that ran, and SHALL fail, naming each missing leg, when a shard or a whole OS leg the plan requires has no check run at all, so a missing leg cannot count as another shard's pass. Rerunning an older or draft-payload run SHALL therefore yield the live head's verdict: green when the head's ready gate passed and carried every required leg, red when it failed or a required leg is absent. `merge_group`, push, `schedule` and `workflow_dispatch` decisions SHALL keep the existing payload decision.
+
 Two jobs MAY be conditional: the Windows PowerShell leg on the changed paths and the changelog
 fragment gate on the pull-request event. The PowerShell skip SHALL count as success only when the
 path decision output says the leg was not required; a skip or cancellation while the decision says it
@@ -343,6 +345,66 @@ run in which it did not succeed SHALL fail the aggregate.
 - **WHEN** the aggregate check runs
 - **THEN** the changelog job succeeds and the aggregate can complete green
 
+#### Scenario: A rerun of a draft payload does not override a passed ready run (#815)
+
+- **GIVEN** a ready run on the live head whose required jobs passed, and a newer rerun of an earlier draft-payload run whose plan skipped
+- **WHEN** the rerun's aggregate check runs
+- **THEN** it reads the live head, ignores the draft-payload attempt, and completes green
+
+#### Scenario: A rerun of a draft payload does not override a failed ready run (#815)
+
+- **GIVEN** a ready run on the live head whose required jobs failed, and a newer rerun of an earlier draft-payload run
+- **WHEN** the rerun's aggregate check runs
+- **THEN** it reads the live head, ignores the draft-payload attempt, and fails naming the failed required job
+
+#### Scenario: Cancelled legs do not override the ready run (#816)
+
+- **GIVEN** a ready run whose required legs were cancelled, a draft run beside it, and a later ready run on the same live head that passed
+- **WHEN** the aggregate check runs
+- **THEN** it ignores the cancelled and draft-payload attempts and completes green
+
+#### Scenario: A re-executed ready run is judged by its newest attempt
+
+- **GIVEN** a ready run on the live head whose required jobs passed, and a newer rerun of an older ready run that re-executed its jobs and passed as well
+- **WHEN** the aggregate check runs
+- **THEN** it takes the newest attempt of each required job and completes green
+
+#### Scenario: A failed re-execution of a ready run is red
+
+- **GIVEN** a ready run on the live head whose required jobs failed, and a newer rerun of an older ready run that re-executed its jobs and failed again
+- **WHEN** the aggregate check runs
+- **THEN** it takes the newest attempt of each required job and fails, naming the failed required job
+
+#### Scenario: A ready gate with running jobs says so
+
+- **GIVEN** a live ready pull request whose required jobs include a check run that is queued or in progress
+- **WHEN** the aggregate check runs
+- **THEN** it fails with `gate still running`, names those jobs, and neither reports green nor derives a red from its own payload
+
+#### Scenario: A missing required matrix leg is red
+
+- **GIVEN** a live ready pull request whose gate passed every leg it ran, but one shard of the plan's verify matrix has no check run on the head at all
+- **WHEN** the aggregate check runs
+- **THEN** it fails and names the missing leg instead of completing green on the shards that did run
+
+#### Scenario: A whole missing OS leg is red
+
+- **GIVEN** a live ready pull request whose gate ran the Windows verify shards but no Ubuntu verify leg at all
+- **WHEN** the aggregate check runs
+- **THEN** it fails and names the missing Ubuntu legs, so a matrix that shrank silently cannot pass
+
+#### Scenario: A live draft is red
+
+- **GIVEN** a pull request that is currently a draft, even though an earlier run on the same head passed
+- **WHEN** the aggregate check runs
+- **THEN** it fails because the head is a draft, from the pull request's live state
+
+#### Scenario: A merge group keeps its payload decision
+
+- **GIVEN** a `merge_group` run
+- **WHEN** the aggregate check runs
+- **THEN** it decides from that run's required jobs exactly as before, not through the pull-request API path
+
 ### Requirement: Fixture restores in the gate are bounded and honest
 
 The test suite's fixture restores SHALL restore XML solutions (`.slnx`) only and SHALL refuse a
@@ -387,27 +449,25 @@ entered, so a zero-error solution failure still says where the restore gave up.
 
 ### Requirement: Run concurrency is scoped to one obligation
 
-CI SHALL cancel a run only when a newer run of the same obligation supersedes it: `cancel-in-progress`
-SHALL be true only for `pull_request` runs. A push to `main`, a `v*` tag push, a `merge_group` run, a
-`workflow_dispatch` run and the nightly `schedule` run SHALL NOT be cancelled by the concurrency
-setting. The nightly run SHALL use a concurrency group distinct from the push run on the same branch,
-so neither obligation can cancel the other. Advisory workflows that also run on `main` (`docs-lint`,
-`pack`) SHALL apply the same rule; a workflow without a `pull_request` trigger therefore cancels
-nothing. A committed self-test SHALL evaluate the effective group and cancellation decision per event
-for `ci.yml`, `docs-lint.yml` and `pack.yml`, and SHALL fail when a workflow regresses.
+CI SHALL cancel a run only when a newer run of the same obligation supersedes it: `cancel-in-progress` SHALL be true only for `pull_request` runs. A draft pull-request run and a ready pull-request run SHALL use different concurrency groups, so a draft run SHALL NOT cancel a ready run and a ready run SHALL NOT cancel a draft run. Within a group, a newer run of the same obligation SHALL supersede the older one. A push to `main`, a `v*` tag push, a `merge_group` run, a `workflow_dispatch` run and the nightly `schedule` run SHALL NOT be cancelled by the concurrency setting. The nightly run SHALL use a concurrency group distinct from the push run on the same branch, so neither obligation can cancel the other. Advisory workflows that also run on `main` (`docs-lint`, `pack`) SHALL apply the same rule; a workflow without a `pull_request` trigger therefore cancels nothing. A committed self-test SHALL evaluate the effective group and cancellation decision per event for `ci.yml`, `docs-lint.yml` and `pack.yml`, and SHALL fail when a workflow regresses.
 
 #### Scenario: A push to main and the nightly coexist
 
 - **GIVEN** a `CI [push]` run on `main` and a nightly `schedule` run on the same branch
 - **WHEN** the nightly starts while the push run is in flight
-- **THEN** the two runs are in different concurrency groups, neither is cancelled, and both reach a
-  completed conclusion
+- **THEN** the two runs are in different concurrency groups, neither is cancelled, and both reach a completed conclusion
 
 #### Scenario: Only a pull request supersedes its own older run
 
-- **GIVEN** two runs of the same pull request, the second started while the first is in flight
+- **GIVEN** two runs of the same pull request with the same draft state, the second started while the first is in flight
 - **WHEN** the second run enters its concurrency group
 - **THEN** the first run is cancelled and the second runs the gate
+
+#### Scenario: A draft run never cancels a ready run
+
+- **GIVEN** a ready pull-request run in flight and a newer draft pull-request run for the same pull request
+- **WHEN** the draft run enters its concurrency group
+- **THEN** its group differs from the ready run's group, so the ready run is not cancelled
 
 #### Scenario: A tag push is never cancelled
 
@@ -437,6 +497,7 @@ for `ci.yml`, `docs-lint.yml` and `pack.yml`, and SHALL fail when a workflow reg
 #### Scenario: A regression in the expression is caught
 
 - **GIVEN** a workflow whose `cancel-in-progress` becomes true for a `push`, tag, `merge_group` or
-  `schedule` event, or whose nightly group equals the push group
+  `schedule` event, or whose nightly group equals the push group, or whose draft and ready
+  pull-request groups coincide
 - **WHEN** `scripts/ci-ok.sh --self-test` runs
 - **THEN** it fails and names the workflow and event that broke the rule
