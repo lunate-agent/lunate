@@ -71,11 +71,15 @@ and writes nothing until you confirm the summary — `Esc` leaves without changi
 interrupts the running turn, `/quit` leaves. For a script or CI, `lunate -p "summarise what changed
 on this branch"` prints one prompt's final answer and `--json` emits every event as one JSON line.
 
-Next: [Quickstart](docs/quickstart.md) · [Models and providers](docs/models-and-providers.md) ·
-[Customize](docs/configuration.md) · [Automate](openspec/specs/print-mode/spec.md)
+Next: [Documentation](docs/index.md) — every task group and the page that owns it — then
+[Quickstart](docs/quickstart.md), [Models and providers](docs/models-and-providers.md),
+[Customize](docs/configuration.md) and [Automate](docs/print.md)
 
 <details>
 <summary>Explore capabilities and extending Lunate</summary>
+
+The [documentation](docs/index.md) groups every capability by the task it serves, and each page states
+its answer in the first paragraph. The list below is the short tour.
 
 ## What it can do
 
