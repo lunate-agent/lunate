@@ -28,7 +28,7 @@ separate pull requests and never as a follow-up archive PR.
 | Propose | `openspec new change` and the proposal artifacts, on the card's branch and in the card's pull request. There is no separate proposal pull request and no wait for `main`. |
 | Apply | Implement `tasks.md` on that same branch, test-first, ticking tasks as they land; commit as you go. |
 | Verify | `openspec-verify-change`, the fast gate green, then `openspec validate <change> --type change --strict`. |
-| Archive | `openspec sync specs`, then `openspec archive <change> --yes` as the **last** commit, **before** the pull request is handed to review. Nothing follows it: not a formatting run, not a test fix. |
+| Archive | Sync the delta specs (the `openspec-sync-specs` workflow), then `openspec archive <change> --yes` as the **last** commit, **before** the pull request is handed to review. Nothing follows it: not a formatting run, not a test fix. |
 
 ## Unattended Runs
 
@@ -46,7 +46,7 @@ question in the pull request for the reviewer instead of stopping to ask.
 
 ## Specs Are The CLI's Output
 
-`openspec/specs/**` is written by `openspec sync specs` and `openspec archive`, never by hand.
+`openspec/specs/**` is written by the `openspec-sync-specs` workflow and `openspec archive`, never by hand.
 
 - **A conflict under `openspec/specs/**` is never resolved by editing a spec.** `git revert` the archive
   commit, merge `origin/main`, then re-run `openspec archive <change> --yes` as the last commit again.
