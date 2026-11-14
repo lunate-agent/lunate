@@ -1,13 +1,11 @@
 # Usage
 
-What the interactive session does turn by turn: typing and completing a prompt, what a turn commits
-to the scrollback, how tools and approvals appear, sessions and thinking. Configuration lives in
-[configuration](configuration.md) and the generated
-[settings reference](settings.md); the things a project or the user owns — project instructions,
-skills, MCP servers, the theme and the key remaps — have a page each in
-[AGENTS.md](agents-md.md), [skills](skills.md), [MCP servers](mcp-servers.md) and
-[themes and keys](themes-and-keys.md); copy, export and debug have their own
-[page](export-copy-debug.md) and the optional decision layer is [Decisions](decisions.md).
+This page answers what the interactive session does turn by turn: typing and completing a prompt,
+what a turn commits to the scrollback, how tools and approvals appear, sessions and thinking. The
+short answer: `lunate` in a repository — you type a task, writes and commands stop at an
+approval, and each finished tool call commits one line to the scrollback. Choosing a model, setting
+up the terminal, copying or exporting, the decision layer and configuration each have a page of
+their own, linked under [Related](#related).
 
 ## Type, complete, send
 
