@@ -65,7 +65,7 @@ Full file:
 [`UiShowcaseUsageWidget.cs`](../../../samples/extensions/ui-showcase/UiShowcaseExtension/UiShowcaseUsageWidget.cs).
 The factory registers it with `context.RegisterStatusWidget(new UiShowcaseUsageWidget());`.
 
-## See also
+## Related
 
 - UI capabilities by mode: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#ui-by-mode)
 - Tool-result renderers: [tool-result-renderers.md](tool-result-renderers.md)

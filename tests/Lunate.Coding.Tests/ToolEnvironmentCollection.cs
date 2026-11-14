@@ -1,11 +1,15 @@
 namespace Lunate.Coding.Tests;
 
 /// <summary>
-/// The tool-process environment is process-wide state (like <see cref="CredentialVariables"/>), so
-/// the tests that configure it and the tests that spawn a child which reads it share one xUnit
-/// collection and run sequentially.
+/// The tool-process environment is process-wide state (like <see cref="CredentialVariables"/>), and
+/// every session composition configures it from its resolved settings. A test that reads or
+/// configures the list therefore must not run beside any other test: a parallel session's
+/// <c>Configure(empty)</c> would clear it between a test's configure and its spawn. The collection
+/// runs its own tests sequentially, and <c>DisableParallelization</c> makes it exclusive with every
+/// other collection too — the same shape as the other process-global collections.
 /// </summary>
-internal static class ToolEnvironmentCollection
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class ToolEnvironmentCollection
 {
-    internal const string Name = "tool-process-environment";
+    public const string Name = "tool-process-environment";
 }

@@ -81,7 +81,7 @@ internal sealed class DirectorySkillSource(string id, string root) : ISkillSourc
 Full file:
 [`SkillSourceExtensionFactory.cs`](../../../tests/TestExtensions/SkillSourceExtension/SkillSourceExtensionFactory.cs).
 
-## See also
+## Related
 
 - Skills discovery, trust and index budget: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#contract-and-loading)
 - The skills a session loads: [`skills.md`](../../../docs/skills.md)

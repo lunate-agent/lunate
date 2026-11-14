@@ -187,7 +187,7 @@ If the extension is missing from the list, it did not survive discovery; the rea
 session log (the manifest is read before any code loads). If it reads `trust-denied` or `failed`,
 see [troubleshooting.md](troubleshooting.md).
 
-## What to read next
+## Related
 
 - The contribution you want to add: [contributions/](contributions/README.md).
 - When it loads, and how project trust behaves: [lifecycle-and-trust.md](lifecycle-and-trust.md).

@@ -110,6 +110,8 @@ A global extension can register an `IProjectTrustHandler` to **veto** a project 
 The command inspects and records this repository's pending decisions without loading code,
 dispatching hooks or starting servers:
 
+<!-- run: no needs a repository's pending trust record -->
+
 ```bash
 lunate trust                       # current records and pending decisions; exit 3 when something is pending
 lunate trust --json                # the same as one JSON document
@@ -167,7 +169,7 @@ instead. See [manifest.md](manifest.md#api-version).
 services, renderers, widgets, model providers or extension MCP servers. Configured `mcp.json`
 servers still run. `/extensions` reads `extensions disabled (--no-extensions)`.
 
-## See also
+## Related
 
 - The normative loading and trust contract: [`docs/dev/spec/extensibility.md`](../dev/spec/extensibility.md)
 - The full manifest field reference: [manifest.md](manifest.md)

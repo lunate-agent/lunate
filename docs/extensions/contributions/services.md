@@ -144,7 +144,7 @@ Full file:
 [`MemoryProviderExtensionFactory.cs`](../../../samples/extensions/memory-provider/MemoryProviderExtension/MemoryProviderExtensionFactory.cs).
 The service itself implements `IBackgroundService` and does its work in memory for the session.
 
-## See also
+## Related
 
 - Service registry and core capabilities: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#services-for-long-lived-integrations)
 - Start and stop semantics: [background-services.md](background-services.md)

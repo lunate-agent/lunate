@@ -83,3 +83,10 @@ shown are the documented defaults the store applies when a key is missing.
 | `usages.subagents` | string | unset | user, project | The profile child runs use. |
 | `verify` | string | block | user | How staged writes behave when a write verifier refuses the content: refuse, write and report unverified, or skip verifier selection. File-only; no environment override. Values: `block`, `warn`, `off`. |
 <!-- /docs-sync: settings -->
+
+## Related
+
+- [Configuration](configuration.md) — how to configure a session
+- [Environment variables](environment-variables.md) — which variable overrides which key
+- [Keybindings reference](keybindings.md) — the `tui.keys` entries
+- [Models and providers](models-and-providers.md) — profiles and provider entries in practice
