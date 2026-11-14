@@ -32,7 +32,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -47,7 +47,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -62,7 +62,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -77,7 +77,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": "unresolved",
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -92,7 +92,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/budget-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 4,
@@ -124,7 +124,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -139,7 +139,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -154,7 +154,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -169,7 +169,7 @@
           "limit": null,
           "exitStatus": "Submitted",
           "failure": "unresolved",
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -184,7 +184,7 @@
           "limit": null,
           "exitStatus": "APIError",
           "failure": "baseline run failed",
-          "workDir": "eval/runs/swebench-first-run/first-run-2026-11-08/baseline"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/baseline/frontier-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 3,

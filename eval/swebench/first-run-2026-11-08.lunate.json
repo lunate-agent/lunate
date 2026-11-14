@@ -31,7 +31,7 @@
           "outputTokens": 11350,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/budget-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -45,7 +45,7 @@
           "outputTokens": 19352,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/budget-django__django-13128"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -59,7 +59,7 @@
           "outputTokens": 18698,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/budget-django__django-15572"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -73,7 +73,7 @@
           "outputTokens": 9330,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/budget-pydata__xarray-3151"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -87,7 +87,7 @@
           "outputTokens": 16492,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/budget-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/budget-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 2,
@@ -134,7 +134,7 @@
           "outputTokens": 817,
           "limit": null,
           "failure": null,
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/frontier-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -148,7 +148,7 @@
           "outputTokens": 6897,
           "limit": null,
           "failure": "empty patch",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/frontier-django__django-13128"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -162,7 +162,7 @@
           "outputTokens": 1886,
           "limit": null,
           "failure": null,
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/frontier-django__django-15572"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -176,7 +176,7 @@
           "outputTokens": 2024,
           "limit": null,
           "failure": "unresolved",
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/frontier-pydata__xarray-3151"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -190,7 +190,7 @@
           "outputTokens": 2271,
           "limit": null,
           "failure": null,
-          "workDir": "/private/var/folders/77/x9mfd0pd1jgggsztxgndhm7c0000gn/T/lunate-bench/first-run-work/first-run-2026-11-08/lunate/frontier-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/first-run-2026-11-08/lunate/frontier-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 3,

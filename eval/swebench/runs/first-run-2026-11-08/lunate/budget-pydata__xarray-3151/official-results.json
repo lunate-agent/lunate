@@ -1,0 +1,16 @@
+{
+  "total_instances": 1,
+  "submitted_instances": 0,
+  "completed_instances": 0,
+  "resolved_instances": 0,
+  "unresolved_instances": 0,
+  "empty_patch_instances": 1,
+  "error_instances": 0,
+  "resolved_ids": [],
+  "unresolved_ids": [],
+  "empty_patch_ids": [
+    "pydata__xarray-3151"
+  ],
+  "error_ids": [],
+  "dataset_instances": 1
+}
