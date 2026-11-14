@@ -1,7 +1,9 @@
 """Resolving every relative link and anchor the documentation carries."""
 
-from .paths import is_record, relative_document
+from .paths import docs_relative, is_record, relative_document
 from .text import anchors_of, links_of, read_text
+
+CHANGELOG = "CHANGELOG.md"
 
 
 def resolve_link(root, source, target):
@@ -15,7 +17,23 @@ def resolve_link(root, source, target):
     return destination, fragment
 
 
-def check_links(root, paths, problems):
+def is_recorded_move(root, source, destination, redirects):
+    """A changelog keeps the paths it was written with; a documented redirect covers the move.
+
+    `CHANGELOG.md` is a record (`AGENTS.md`, "records are history"): an entry names the document
+    that owned the fact when it was written, and only the release pull request may edit the file.
+    A link that no longer resolves is therefore accepted when `docs/docs.json` records where the
+    page went, and reported like any other dead link when it does not.
+    """
+    if relative_document(root, source) != CHANGELOG:
+        return False
+    try:
+        return docs_relative(root, destination) in redirects
+    except ValueError:
+        return False
+
+
+def check_links(root, paths, problems, redirects=frozenset()):
     anchor_cache = {}
     for source in paths:
         relative = relative_document(root, source)
@@ -36,7 +54,8 @@ def check_links(root, paths, problems):
                 problems.append(f"{relative}: link escapes the repository: {target}")
                 continue
             if not destination.exists():
-                problems.append(f"{relative}: missing link target: {target}")
+                if not is_recorded_move(root, source, destination, redirects):
+                    problems.append(f"{relative}: missing link target: {target}")
                 continue
             if fragment and destination.suffix.lower() == ".md":
                 if destination not in anchor_cache:

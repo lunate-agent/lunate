@@ -1,0 +1,305 @@
+{
+  "total_count": 25,
+  "check_runs": [
+    {
+      "id": 1029,
+      "name": "plan",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1029"
+    },
+    {
+      "id": 1030,
+      "name": "changes",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1030"
+    },
+    {
+      "id": 1031,
+      "name": "changelog",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1031"
+    },
+    {
+      "id": 1032,
+      "name": "platform",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1032"
+    },
+    {
+      "id": 1033,
+      "name": "verify (${{ matrix.os }}, ${{ matrix.shard }}/${{ matrix.shard_count }})",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1033"
+    },
+    {
+      "id": 1034,
+      "name": "verify-docs",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1034"
+    },
+    {
+      "id": 1035,
+      "name": "verify-powershell (windows)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1035"
+    },
+    {
+      "id": 1036,
+      "name": "perf (${{ matrix.os }})",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1036"
+    },
+    {
+      "id": 1037,
+      "name": "ci-ok",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:12:59Z",
+      "completed_at": "2026-11-12T22:12:59Z",
+      "check_suite": {
+        "id": 100
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/100/job/1037"
+    },
+    {
+      "id": 1038,
+      "name": "plan",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1038"
+    },
+    {
+      "id": 1039,
+      "name": "changes",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1039"
+    },
+    {
+      "id": 1040,
+      "name": "changelog",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1040"
+    },
+    {
+      "id": 1041,
+      "name": "platform",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1041"
+    },
+    {
+      "id": 1042,
+      "name": "verify (ubuntu-latest, 1/4)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1042"
+    },
+    {
+      "id": 1043,
+      "name": "verify (windows-latest, 1/4)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1043"
+    },
+    {
+      "id": 1044,
+      "name": "verify-docs",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1044"
+    },
+    {
+      "id": 1045,
+      "name": "verify-powershell (windows)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1045"
+    },
+    {
+      "id": 1046,
+      "name": "perf (${{ matrix.os }})",
+      "status": "completed",
+      "conclusion": "skipped",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1046"
+    },
+    {
+      "id": 1047,
+      "name": "ci-ok",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1047"
+    },
+    {
+      "id": 1048,
+      "name": "verify (ubuntu-latest, 2/4)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1048"
+    },
+    {
+      "id": 1049,
+      "name": "verify (ubuntu-latest, 3/4)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1049"
+    },
+    {
+      "id": 1050,
+      "name": "verify (ubuntu-latest, 4/4)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1050"
+    },
+    {
+      "id": 1051,
+      "name": "verify (windows-latest, 2/4)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1051"
+    },
+    {
+      "id": 1052,
+      "name": "verify (windows-latest, 3/4)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1052"
+    },
+    {
+      "id": 1053,
+      "name": "verify (windows-latest, 4/4)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-12T22:13:12Z",
+      "completed_at": "2026-11-12T22:13:12Z",
+      "check_suite": {
+        "id": 200
+      },
+      "details_url": "https://github.com/lunate-agent/lunate/actions/runs/200/job/1053"
+    }
+  ]
+}

@@ -239,6 +239,6 @@ S1 must land first; S2 before S3 because the key table leaves the guide. S3 and 
 
 ## Related
 
-- [Documentation map](../README.md) — the current home for each document kind
+- [Documentation map](README.md) — the current home for each document kind
 - [Contributing](../../CONTRIBUTING.md) — the build and verify gate
 - [Agent rules](../../AGENTS.md) — the rules that govern this repository
