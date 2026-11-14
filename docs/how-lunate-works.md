@@ -12,8 +12,8 @@ command — Lunate runs it, adds the result to the conversation and asks the mod
 when an answer needs no tool, or when the run reaches its step limit (50 by default). `Esc` cancels the
 turn at any point.
 
-The rule is the same for every tool: the model proposes, Lunate decides. A tool that fails reports
-what failed and what to do next back to the model as text, not as a crash.
+A tool that fails reports what failed and what to do next back to the model as text, not as a
+crash.
 
 ## The tools are the only way it acts
 
@@ -31,8 +31,8 @@ refuses what it may not approve. [Run Lunate safely](security.md) owns the trust
 ## Context is what fits the window
 
 The model sees the composed system prompt, your `AGENTS.md` chain, the session's messages and the
-tool declarations — trimmed to fit the selected model's context window. Three mechanisms keep a long
-session inside it without losing the transcript:
+tool declarations — trimmed to fit the selected model's context window. Lunate keeps a long session
+inside it without losing the transcript:
 
 - A large tool result is spilled to a file, and the model gets a short stub with a pointer it can page
   back through.
@@ -48,8 +48,8 @@ session inside it without losing the transcript:
 
 By default every run is recorded to a session file, so it survives a restart. `--continue` picks up
 the newest session recorded for the working directory, `--resume` opens a picker, `--session` loads
-one by id, and `--no-session` runs without writing one. Inside a session `/fork` and `/clone` branch
-it without losing the tail. [Use the terminal](usage.md) owns the commands and
+one by id or path, and `--no-session` runs without writing one. Inside a session `/fork` and `/clone`
+branch it without losing the tail. [Use the terminal](usage.md) owns the commands and
 [the command and option reference](cli.md#session-and-per-run-options) the flags.
 
 ## Three ways to run it
@@ -60,8 +60,8 @@ it without losing the tail. [Use the terminal](usage.md) owns the commands and
 | Print | `lunate -p "<task>"` | One prompt to completion, the final answer on stdout, exit codes scripts branch on; `--json` writes every event as one JSON line instead |
 | Editor | `lunate --acp` | The Agent Client Protocol over stdio, driven by an editor such as Zed or JetBrains |
 
-[Use the terminal](usage.md), [print mode](print.md), [the JSON event stream](json-events.md) and
-[ACP](acp.md) each own their mode.
+[Use the terminal](usage.md) owns the interactive session, [print mode](print.md) and
+[the JSON event stream](json-events.md) the non-interactive one, and [ACP](acp.md) the editor's.
 
 ## Related
 
