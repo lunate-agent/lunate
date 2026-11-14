@@ -82,12 +82,21 @@ class DocsCheckTests(unittest.TestCase):
         self.assertIn("--binary", verify)
 
     def test_every_always_on_docs_job_runs_the_checker(self) -> None:
-        for name in ("process.yml", "tree-checks.yml", "docs-lint.yml"):
+        # `tree-checks.yml` reaches the checker through `scripts/tree-checks.sh`, the one command
+        # list the merge queue's `tree-checks` job also calls; the other two run it directly.
+        for name in ("process.yml", "docs-lint.yml"):
             with self.subTest(workflow=name):
                 text = (REPOSITORY_ROOT / ".github" / "workflows" / name).read_text(
                     encoding="utf-8"
                 )
                 self.assertIn("scripts/docs-check --check", text)
+
+        workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "tree-checks.yml").read_text(
+            encoding="utf-8"
+        )
+        script = (REPOSITORY_ROOT / "scripts" / "tree-checks.sh").read_text(encoding="utf-8")
+        self.assertIn("scripts/tree-checks.sh", workflow)
+        self.assertIn("scripts/docs-check --check", script)
 
     def test_each_checker_file_stays_under_the_size_guidance(self) -> None:
         # AGENTS.md asks for files under about 300 lines; the checker is split to honour that.
