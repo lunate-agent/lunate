@@ -1,0 +1,99 @@
+name: Pre-ready
+
+# The lane used to run ~/.hermes/scripts/lunate-pr-ready.py: a per-machine check nobody could see
+# on the pull request. This workflow runs the committed replacement as one job, so the four
+# mechanical findings that have cost this week's reviews are visible before a reviewer is spent:
+#
+#   1. an OpenSpec change not archived in the final commit,
+#   2. a missing changes/<pr-number>.md (or a direct CHANGELOG.md edit),
+#   3. a hand-edited openspec/specs/ path without its archive,
+#   4. an acceptance check in the linked issue that has no answer with evidence.
+#
+# It is deliberately advisory in this change: the job is not in the repository ruleset's required
+# checks and not in ci-ok's needs, so it can run green on a real pull request before a maintainer
+# makes it required. Retiring the lane script is a separate change.
+#
+# The acceptance check reads the pull request body and its comments. `edited` re-runs it when the
+# body gains answers; `ready_for_review` re-runs it when the lane marks the pull request ready after
+# posting the session report. If the report is posted after the last run, re-run this job once. It
+# reads the pull request head, not the synthetic merge commit, so the final commit is the one the
+# archive check judges.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+# A newer push or body edit supersedes an older run for the same pull request; nothing else shares
+# this group.
+concurrency:
+  group: pre-ready-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  pre-ready:
+    name: pre-ready
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the pull request head
+        uses: actions/checkout@v7
+        with:
+          # The archive check judges the pull request's final commit. The default pull_request
+          # checkout is the synthetic merge commit, whose HEAD is not that commit.
+          ref: ${{ github.event.pull_request.head.sha }}
+          # The base diff and the HEAD commit's own paths need the full history.
+          fetch-depth: 0
+
+      - name: Fetch the base branch
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          # A checkout of an explicit head SHA does not promise the base branch's remote-tracking
+          # ref; the script diffs origin/<base>...HEAD and reads that tree.
+          git fetch --no-tags --prune origin \
+            "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+
+      - name: Read the pull request, its comments and the issues it links
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/pre-ready"
+          rm -rf "${root}"
+          mkdir -p "${root}/issues"
+          gh api "repos/${REPO}/pulls/${PR}" >"${root}/pr.json"
+          gh api --paginate --slurp "repos/${REPO}/issues/${PR}/comments" >"${root}/comments.json"
+          python3 scripts/pre-ready.py --list-linked-issues --pr-json "${root}/pr.json" \
+            >"${root}/issues.txt"
+          while IFS= read -r number; do
+            [ -n "${number}" ] || continue
+            # A reference in the body can name an issue that was deleted or is private. The script
+            # names the missing read as the acceptance finding instead of this step ending on a
+            # bare `gh` exit.
+            if ! gh api "repos/${REPO}/issues/${number}" >"${root}/issues/${number}.json"; then
+              rm -f "${root}/issues/${number}.json"
+              echo "pre-ready: could not read linked issue #${number}; it may be deleted or private" >&2
+            fi
+          done <"${root}/issues.txt"
+
+      - name: The four pre-ready checks
+        shell: bash
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/pre-ready"
+          python3 scripts/pre-ready.py \
+            --base "origin/${BASE_REF}" \
+            --pr-json "${root}/pr.json" \
+            --comments-json "${root}/comments.json" \
+            --issues-dir "${root}/issues"

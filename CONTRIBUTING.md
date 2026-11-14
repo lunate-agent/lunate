@@ -213,6 +213,17 @@ that edits the changelog: it runs `scripts/changelog-assemble --write`, commits 
 deletes the consumed fragments. `ci-ok` fails any other pull request that edits `CHANGELOG.md` and
 names the fragment path to use.
 
+The advisory `pre-ready` job runs on every pull request — it is not a required check yet — and
+reports the four mechanical findings a reviewer would otherwise report by hand: a change under
+`openspec/changes/<name>/` that is not archived in the final commit, a missing
+`changes/<pr-number>.md`, an `openspec/specs/` change without an archive beside it, and an acceptance
+check in the linked issue with no answer. Answer every acceptance check by number in the pull request
+body or the final comment, as `1. **met** — <a file:line or a test name>`; a `not met` answer fails
+too, because the pull request is not ready while a check is unmet. The job reads the comments when it
+runs, so if the final report is posted after the last run, re-run it once. `scripts/pre-ready.py` is
+the decision, `tests/scripts/test_pre_ready.py` is its suite, and the `ci-pipeline` spec owns the
+rule.
+
 ## Trust in scripted runs
 
 A repository's project extensions and its project `.lunate/mcp.json` run repository-provided code, so

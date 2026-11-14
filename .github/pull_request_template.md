@@ -16,6 +16,7 @@
 - [ ] `openspec validate <change> --type change --strict` green
 - [ ] Gate self-tests green (`scripts/gate-tests.sh`)
 - [ ] Tests added or updated for every behaviour change
+- [ ] Every acceptance check of the linked issue is answered by number with a `file:line` or a test name
 - [ ] No public API change unless the change allowed it
 - [ ] No new package without an ADR
 - [ ] Anything this PR says exists outside the repository (a published package, a release asset, a
