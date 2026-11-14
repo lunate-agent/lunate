@@ -21,12 +21,13 @@ platform-independent checks, the documentation profile, the Windows PowerShell t
 perf leg SHALL NOT run. A prose-only batch SHALL therefore run the plan only, because its pull
 request already ran the documentation profile.
 
-A push to `main`, the nightly `schedule` run and a manual dispatch SHALL run the full matrix: build
-and tests on ubuntu, macos and windows with every shard, the platform-independent checks once on
-Linux, the Windows PowerShell twin, and the dedicated perf leg. The push to `main` and the nightly
-SHALL be the events on which the three-OS coverage is obtained; a pull request and a merge group
-SHALL NOT run macOS or Windows verify legs. A push to `main` SHALL run the CodeQL workflow, and the
-weekly CodeQL schedule SHALL keep analyzing `main`.
+A push to `main` and the nightly `schedule` run SHALL run the full matrix: build and tests on
+ubuntu, macos and windows with every shard, the platform-independent checks once on Linux, the
+Windows PowerShell twin, and the dedicated perf leg. A manual dispatch SHALL run the same matrix and
+the PowerShell twin, with the perf leg left to the nightly. The push to `main` and the nightly SHALL
+be the events on which the three-OS coverage is obtained; a pull request and a merge group SHALL NOT
+run macOS or Windows verify legs. A push to `main` SHALL run the CodeQL workflow, and the weekly
+CodeQL schedule SHALL keep analyzing `main`.
 
 The checks whose result does not depend on the operating system — formatting, the generated
 documentation regions, the documentation link, anchor, redirect and navigation check
@@ -124,8 +125,9 @@ perf leg, and their skip SHALL be a pass. A `merge_group` run SHALL require `pla
 verify legs, and SHALL fail when `changes`, the changelog guard, the platform checks, the docs
 profile, the PowerShell twin, the perf leg or a macOS or Windows verify leg ran, because the pull
 request already proved them. A push to `main`, the nightly and a manual dispatch SHALL require the
-full matrix, `changes`, the platform checks, the PowerShell twin and the docs decision, and the
-nightly SHALL also require the perf leg; a missing macOS leg SHALL fail them.
+full matrix, `changes`, the platform checks, the PowerShell twin and the docs decision; the nightly
+SHALL also require the perf leg and a manual dispatch SHALL require it skipped; a missing macOS leg
+SHALL fail them.
 
 For a pull request, the aggregate SHALL decide from the pull request's live draft state and the live
 head commit's check runs read through the GitHub API, not from the triggering run's frozen `draft`

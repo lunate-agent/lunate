@@ -42,7 +42,8 @@ Windows and macOS legs only when the event is not `pull_request` and not `merge_
 | `merge_group` (full) | Ubuntu, 4 shards | skipped | skipped | skipped | skipped | skipped | skipped |
 | `merge_group` (docs) | none | skipped | skipped | skipped | skipped | skipped | skipped |
 | `push` to `main` | Ubuntu 4, Windows 4, macOS 2 | runs | skipped | runs | skipped | runs | runs (advisory) |
-| `schedule` / dispatch | Ubuntu 4, Windows 4, macOS 2 | runs | skipped | runs | skipped | runs | nightly only |
+| `schedule` | Ubuntu 4, Windows 4, macOS 2 | runs | skipped | runs | skipped | runs | required |
+| `workflow_dispatch` | Ubuntu 4, Windows 4, macOS 2 | runs | skipped | runs | skipped | runs | skipped |
 
 Mermaid sketch of the event-to-job flow (lightweight C4 container view of the CI system):
 
