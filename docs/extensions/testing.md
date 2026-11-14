@@ -154,6 +154,8 @@ sample.
 
 ## Run the tests
 
+<!-- run: no runs the extension's own test project, which the docs run does not build -->
+
 ```bash
 dotnet test templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj
 dotnet test extensions/permission-gate/PermissionGateExtension.Tests/PermissionGateExtension.Tests.csproj
@@ -174,7 +176,7 @@ has to reach around the contract is evidence about the contract.
 Every behaviour change has a test. Tests use fixtures under `tests/fixtures/`, never live APIs, and
 must not depend on the machine culture or locale.
 
-## See also
+## Related
 
 - The template's test project: [`TemplateExtensionTests.cs`](../../templates/extension/TemplateExtension.Tests/TemplateExtensionTests.cs)
 - The kit's own tests: [`tests/Lunate.Extensibility.Testing.Tests/`](../../tests/Lunate.Extensibility.Testing.Tests/)

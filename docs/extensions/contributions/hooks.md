@@ -128,7 +128,7 @@ third argument of `ToolResultReadyResult` (`StructuredContent`). Every not-appli
 every failure returns the original output unchanged. Full file:
 [`LspDiagnosticsToolResultReadyHandler.cs`](../../../extensions/lsp-diagnostics/LspDiagnosticsExtension/LspDiagnosticsToolResultReadyHandler.cs).
 
-## See also
+## Related
 
 - The hook catalogue and failure policies: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#hook-catalogue)
 - Testing hooks through the real host: [testing.md](../testing.md)

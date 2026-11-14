@@ -59,6 +59,10 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   `changes/**/*.md`, `docs/**/*.md` and `adr/**/*.md` are checked by markdownlint
   (`npx --yes markdownlint-cli2@0.23.3`, configured in `.markdownlint-cli2.yaml`). `openspec/` is
   tool-managed and excluded.
+- **Pyramid per page.** A user-path page opens with one sentence saying what it answers and one
+  giving the short answer, heads its sections with the task or the statement rather than a noun, and
+  closes with a **Related** section of links to the pages that own the neighbouring facts. Details,
+  edge cases and reference tables come last.
 - **One home per fact.** Link to the owning document instead of copying it; a fact that exists twice drifts.
 - **Generated regions are not hand-written.** `scripts/docs-sync` fills
   `<!-- keys:start --> … <!-- keys:end -->` in `keybindings.md` from `src/Lunate.Tui/keys.json`

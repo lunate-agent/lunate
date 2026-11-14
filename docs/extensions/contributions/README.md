@@ -46,3 +46,10 @@ by `/extensions` as `commands 0 (N declared)`.
 “Refuses the load” means the extension ends up in the `failed` state in `/extensions`; the message
 names the extension and the field. “Wins” means the session continues with one contribution and
 the conflict is logged.
+
+## Related
+
+- [Extension authoring](../README.md) — the guide this index belongs to
+- [The manifest](../manifest.md) — the fields a contribution declares
+- [Extension contract](../../dev/spec/extensibility.md) — the normative per-surface rules
+- [Testing extensions](../testing.md) — the harness that runs a contribution

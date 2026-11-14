@@ -68,7 +68,7 @@ context.RegisterToolResultRenderer(new UiShowcaseBarsRenderer());
 Full file:
 [`UiShowcaseExtensionFactory.cs`](../../../samples/extensions/ui-showcase/UiShowcaseExtension/UiShowcaseExtensionFactory.cs).
 
-## See also
+## Related
 
 - UI capabilities by mode: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#ui-by-mode)
 - Status widgets: [status-widgets.md](status-widgets.md)

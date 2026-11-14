@@ -77,7 +77,7 @@ Full file:
 The sample's tests prove the lazy start, the `fake__tool` names, the exposure gate and crash
 status.
 
-## See also
+## Related
 
 - MCP tools in the core: [`docs/dev/spec/extensibility.md`](../../dev/spec/extensibility.md#services-for-long-lived-integrations)
 - Configuring MCP servers outside extensions: [`mcp-servers.md`](../../../docs/mcp-servers.md)
