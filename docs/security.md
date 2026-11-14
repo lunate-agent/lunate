@@ -59,9 +59,9 @@ made; project extensions always ask.
 
 ### How the layers compose
 
-The approval panel, the workspace boundary, the bash guard, verified edits, the file-change bus and
-the container boundary answer different questions and compose; the container replaces neither the
-approval panel nor the guard.
+The approval panel, the workspace boundary, the bash guard, verified edits and the file-change bus
+answer different questions and compose. The container boundary is planned (#627), not in 0.4.0; when
+it arrives it will replace neither the approval panel nor the guard.
 
 | Layer | Question it answers | What it does | What it does not do |
 | --- | --- | --- | --- |
@@ -70,13 +70,14 @@ approval panel nor the guard.
 | BashGuard | Can the command write Lunate's host state or read the key? | OS-level deny on the state root and install prefix and an `auth.json` read-deny; wraps the host process and names itself on refusal. | Does not follow an inner container command; Windows has no mechanism yet. |
 | Verified edits | Was a host-side write correct? | Runs the verifier pipeline on `write` and `edit`, with `verify` as `block`, `warn` or `off`. | Does not verify arbitrary files a `bash` command writes. |
 | File-change bus | What did this call change? | Publishes `write`/`edit` changes and the host post-call scan of `bash` changes, including a container Bash write through the mount. | Does not see files that exist only inside the image. |
-| Container boundary | What can the command reach? | Mounts only the workspace (plus the image and runtime), so the state root, install prefix and credentials are absent. | Does not replace the approval panel or the guard, and is not a jail. |
+| Container boundary — planned (#627), not in 0.4.0 | What can the command reach? | Mounts only the workspace (plus the image and runtime), so the state root, install prefix and credentials are absent. | Does not replace the approval panel or the guard, and is not a jail. |
 
-The layers compose: the approval panel supplies intent, the guard protects host state, verified
-edits and the bus keep host-side facts, and the container limits reach. When a container environment
-is active, the bash guard refuses a state-root write on the host before the engine starts; it does
-not constrain the inner `exec` command. That is the honest boundary this page records, not a claim
-that the container is guarded by BashGuard.
+In 0.4.0 the layers that compose are the approval panel, the bash guard, verified edits and the
+file-change bus: the approval panel supplies intent, the guard protects host state, and verified
+edits and the bus keep host-side facts. The container boundary (planned, #627) will add a limit on
+reach; once it ships, the bash guard refuses a state-root write on the host before the engine
+starts and does not constrain the inner `exec` command — not a claim that the container is guarded
+by BashGuard.
 
 ## Secrets
 
@@ -105,8 +106,8 @@ the configured `env` values) are removed from that child's environment unless th
 ## Related
 
 - [Security policy](../SECURITY.md) — how to report a vulnerability
-- [Run tool calls in a container](execution-environments.md) — the container flags, the flow and the
-  measured limits
+- [Run tool calls in a container](execution-environments.md) — planned (#627), not in 0.4.0: the
+  container flags, the flow and the measured limits
 - [Use the terminal](usage.md) — approvals, trust prompts and the modes
 - [Settings reference](settings.md) — `approval`, `bashGuard` and every settings key
 - [Lifecycle and trust](extensions/lifecycle-and-trust.md) — the trust decision for repository code
