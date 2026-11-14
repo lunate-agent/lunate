@@ -38,9 +38,11 @@ on:
 # Supersede in-flight runs only for the same obligation: a pull-request push makes the pull
 # request's previous run obsolete, while a push to main and a merge-group gate each need their own
 # completed verdict. The nightly runs on the same branch as a push, so it gets its own group and
-# cancels nothing (#705).
+# cancels nothing (#705). A draft and a ready pull-request run are separate obligations: a draft
+# push still costs no matrix, and it must never cancel the ready run whose gate proves the head
+# (#830). Within a group, a newer run of the same obligation still supersedes the older one.
 concurrency:
-  group: ci-${{ github.ref }}${{ github.event_name == 'schedule' && '-nightly' || '' }}
+  group: ci-${{ github.ref }}${{ github.event_name == 'schedule' && '-nightly' || '' }}${{ github.event_name == 'pull_request' && github.event.pull_request.draft && '-draft' || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -715,11 +717,21 @@ jobs:
   # check is a failing step in scripts/ci-ok.sh instead -- a failure cannot
   # satisfy a required context -- while `plan` keeps its draft gate so a draft
   # push still costs no matrix. scripts/ci-ok.sh --self-test pins both halves.
+  #
+  # A pull request is judged from the live head, not this run's payload: ci-ok
+  # reads the pull request and its live head's check runs through the API, so a
+  # rerun of an older or draft run cannot override the ready run's verdict
+  # (#815), and a cancelled draft run cannot hide it (#816). The `needs` results
+  # below still drive every other event, including a merge_group run.
   ci-ok:
     name: ci-ok
     needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -728,7 +740,6 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          DRAFT: ${{ github.event.pull_request.draft }}
           PLAN: ${{ needs.plan.result }}
           PROFILE: ${{ needs.plan.outputs.profile }}
           MACOS: ${{ needs.plan.outputs.macos }}
@@ -740,4 +751,5 @@ jobs:
           PLATFORM: ${{ needs.platform.result }}
           FRAGMENTS: ${{ needs.changelog.result }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: bash scripts/ci-ok.sh

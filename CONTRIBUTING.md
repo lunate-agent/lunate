@@ -14,7 +14,7 @@ repository actually runs on, and this page is the path from a fresh clone to a m
 - [Node.js](https://nodejs.org/) — runs the documentation lint through a pinned `npx`
 - [hyperfine](https://github.com/sharkdp/hyperfine) — measures the startup budget
 - `jq` — reads the performance and memory samples (`scripts/perf.sh`, `scripts/memory.sh`)
-- [GitHub CLI](https://cli.github.com/) — only for the release runbook in [`docs/distribution.md`](docs/distribution.md)
+- [GitHub CLI](https://cli.github.com/) — only for the release runbook in [`docs/dev/distribution.md`](docs/dev/distribution.md)
 
 ## Quick start
 
@@ -102,7 +102,7 @@ a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis
 | `openspec/specs/` | current behaviour, the source of truth |
 | `openspec/changes/` | in-flight proposals and tasks |
 | `adr/` | durable architectural decisions |
-| `docs/` | guide and documentation map; `docs/dev/` holds the contracts, spikes and eval evidence |
+| `docs/` | the user pages; `docs/dev/` holds the documentation map, the guide, the architecture, the release runbook, the contracts, spikes and eval evidence |
 | `templates/`, `samples/` | the extension template and the reference extensions (the fitness suite) |
 | `extensions/` | the first-party supported extension tier, shipped as `Lunate.Extensions.*` packages |
 
@@ -114,11 +114,11 @@ names both files when it fails. The requirement lives in the `repo-quality` spec
 
 ## Documentation
 
-Start at [`docs/README.md`](docs/README.md) — the map of every document kind and the writing
+Start at [`docs/dev/README.md`](docs/dev/README.md) — the map of every document kind and the writing
 guideline. Key entry points:
 
-- [Guide](docs/guide.md) — what Lunate is, the plan and the roadmap
-- [Architecture](docs/architecture.md) — the component map and the runtime flows
+- [Guide](docs/dev/guide.md) — what Lunate is, the plan and the roadmap
+- [Architecture](docs/dev/architecture.md) — the component map and the runtime flows
 - [Specs](openspec/specs/) — the behaviour source of truth
 - [ADRs](adr/) — decisions with their context
 - [Releases](https://github.com/lunate-agent/lunate/releases)
@@ -184,7 +184,11 @@ file — runs the docs profile: markdownlint, the generated-region check, the li
 the "no test reads `docs/`" guard and `openspec validate --all --strict`, in seconds. Anything that
 touches source, tests, templates or workflows runs the full matrix. The decision lives in
 `scripts/ci-plan.sh` and is deny-by-default, so a path nobody thought about runs the full gate rather
-than the cheap one.
+than the cheap one. The single required `ci-ok` check judges the live head's newest attempt of each
+required job, not the run's trigger payload: rerunning an older or draft run reports the current
+verdict, and draft and ready runs have separate concurrency groups so a draft push cannot cancel the
+ready gate. A gate that never carried a leg the plan put in its verify matrix is red too, naming the
+missing leg, rather than green on the shards that did run.
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the

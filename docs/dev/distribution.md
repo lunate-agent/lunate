@@ -17,9 +17,9 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `Lunate.Extensibility.Testing.<product version>.nupkg` | the test kit, preview, versioned the same way |
 | `SHA256SUMS` | `<hash>  <filename>` lines covering every other asset |
 
-- Installers: [`install.sh`](../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/lunate-agent/lunate/main/...`), not from the release assets.
-- Channel artifacts live in [`packaging/`](../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 4). The guard in [`scripts/check-channel-manifests.py`](../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
-- Every package version is derived from the tag in one place, [`scripts/release-versions.sh`](../scripts/release-versions.sh): an RC tag publishes `-rc.<n>` for every package (the contracts too), and only a final tag publishes the stable API version and the `-preview.<n>` previews. [`scripts/pack-dry-run.sh`](../scripts/pack-dry-run.sh) proves that derivation on every pull request, and the release workflow computes the same values from the tag before it packs or pushes anything.
+- Installers: [`install.sh`](../../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/lunate-agent/lunate/main/...`), not from the release assets.
+- Channel artifacts live in [`packaging/`](../../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 4). The guard in [`scripts/check-channel-manifests.py`](../../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
+- Every package version is derived from the tag in one place, [`scripts/release-versions.sh`](../../scripts/release-versions.sh): an RC tag publishes `-rc.<n>` for every package (the contracts too), and only a final tag publishes the stable API version and the `-preview.<n>` previews. [`scripts/pack-dry-run.sh`](../../scripts/pack-dry-run.sh) proves that derivation on every pull request, and the release workflow computes the same values from the tag before it packs or pushes anything.
 - The extension package is the distribution channel for extensions: the same tag that publishes the tool pushes it to nuget.org, so `lunate install <package-id>` installs the version the tag names. It is attached to the release as well, so a machine without feed access can point a `nuget.config` at the downloaded folder.
 - Release asset names, the installer platform map and the `LUNATE_INSTALL_*` environment seams are pinned in the distribution spec (`openspec/specs/distribution/spec.md` after archive).
 
@@ -29,7 +29,7 @@ Before tagging, run the terminal matrix from the guide: Windows Terminal, conhos
 
 ### 0. Re-read the README, the guide and the security model against the shipped behaviour
 
-Re-read `README.md`, `docs/guide.md` and `SECURITY.md` against the state the code ships: every
+Re-read `README.md`, `docs/dev/guide.md` and `SECURITY.md` against the state the code ships: every
 command, flag and credential source those pages name must exist in the tree, and the generated docs
 regions must be fresh (`scripts/docs-sync --check` is always-on in Process). The 0.2.0-rc.1 review
 found pages documenting a `helper:` credential source and an `--allow-path` flag the code never
@@ -37,7 +37,7 @@ implemented (#450) — this step exists to name that class of drift before a tag
 
 ## Release smoke
 
-[`smoke.yml`](../.github/workflows/smoke.yml) verifies a *published* release rather than a branch, on ubuntu, macos and windows: both installers install the tag's archive, the binary prints that version and starts, and the extension package the same tag published is installed by id from nuget.org, listed by `lunate packages`, verified, discovered by `lunate extensions` (pending trust) and uninstalled with nothing left behind.
+[`smoke.yml`](../../.github/workflows/smoke.yml) verifies a *published* release rather than a branch, on ubuntu, macos and windows: both installers install the tag's archive, the binary prints that version and starts, and the extension package the same tag published is installed by id from nuget.org, listed by `lunate packages`, verified, discovered by `lunate extensions` (pending trust) and uninstalled with nothing left behind.
 
 It also installs through every channel the docs name and checks what that channel serves against the tag: Homebrew on macOS, Scoop on Windows, and winget on Windows once `wdaniel1993.lunate` is live in `microsoft/winget-pkgs`. A stable tag must match exactly — a channel a release behind fails the smoke, naming the channel and the version it actually serves. A prerelease stays on the stable channel and is reported as such, not failed.
 
@@ -188,7 +188,7 @@ Publishing is passwordless. A Trusted Publishing policy on nuget.org names
 `pack` job asks GitHub for an OIDC token, trades it for a key valid for minutes, and pushes
 both packages — the `lunate` tool and `Lunate.Extensions.Subagents`. There is no API key in the
 repository and nothing to rotate. Both packages carry a licence, the readme at their root and a
-repository link: [`scripts/check-package-metadata.sh`](../scripts/check-package-metadata.sh)
+repository link: [`scripts/check-package-metadata.sh`](../../scripts/check-package-metadata.sh)
 opens the packed `.nupkg` and fails the verify gate, and the pack job before the push, when either
 package loses one — the 0.1.0 pages rendered with no licence and no introduction because nothing
 checked it. The tag
