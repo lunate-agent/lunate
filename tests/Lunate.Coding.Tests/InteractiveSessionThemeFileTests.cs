@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Lunate.Coding.Tests;
 
 /// <summary>
@@ -47,6 +49,49 @@ public sealed class InteractiveSessionThemeFileTests
         {
             File.Delete(flagPath);
         }
+    }
+
+    [Fact]
+    public async Task The_tui_theme_setting_paints_at_startup()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            environment: TrueColorEnvironment
+        );
+        WriteSettings(host, """{"schemaVersion": 2, "tui": {"theme": "mono"}}""");
+
+        Task run = host.RunAsync();
+
+        // The setting is the selection when no flag names one, so the repaint after the theme is
+        // resolved carries no colour attribute: the default theme's prompt tone is gone.
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.LastFrame.Contains("> Ask anything", StringComparison.Ordinal)
+                && !Regex.IsMatch(host.LastFrame, @"\x1b\[[0-9;]*m", RegexOptions.CultureInvariant);
+        });
+
+        await QuitAsync(host, run);
+    }
+
+    [Fact]
+    public async Task The_theme_flag_name_wins_over_the_tui_theme_setting()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            environment: TrueColorEnvironment,
+            launch: new LaunchOptions { Theme = "ansi16" }
+        );
+        WriteSettings(host, """{"schemaVersion": 2, "tui": {"theme": "mono"}}""");
+
+        Task run = host.RunAsync();
+
+        // ansi16 pins the sixteen-colour system over the setting's colourless frame, so the prompt
+        // marker paints ANSI blue — the flag decides the selection before the setting is read.
+        await host.WaitUntilAsync(Painted(host, "\u001b[34m"));
+        Assert.DoesNotContain("\u001b[38;2", host.LastFrame, StringComparison.Ordinal);
+
+        await QuitAsync(host, run);
     }
 
     [Fact]
@@ -101,6 +146,9 @@ public sealed class InteractiveSessionThemeFileTests
         Directory.CreateDirectory(store);
         File.WriteAllText(System.IO.Path.Combine(store, "theme.json"), json);
     }
+
+    private static void WriteSettings(InteractiveSessionHost host, string json) =>
+        File.WriteAllText(host.Temp.File("settings.json"), json);
 
     /// <summary>A scratch token file under the process temp root (<c>$TMPDIR</c> on POSIX).</summary>
     private static string ScratchTheme(string json)
