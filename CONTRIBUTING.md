@@ -130,14 +130,18 @@ documents a change invalidates.
 
 Work happens through OpenSpec changes, and the artifacts are the source of truth:
 
-1. **Propose** — describe the change; the proposal, the delta specs and the tasks land on `main`
-   before any implementation.
-2. **Apply** — implement the tasks on a branch from `main`, test-first, ticking tasks as they land.
+1. **Propose** — describe the change: the proposal, the delta specs, the design and the tasks land on
+   the change's branch, inside its one implementation pull request. `grill-me` stress-tests the plan
+   first; an unattended run answers the interview itself and lists the answers under **Intent
+   decisions** in the pull request, for the reviewer.
+2. **Apply** — implement the tasks on that same branch from `main`, test-first, ticking tasks as they
+   land. There is no separate proposal pull request and no wait for the proposal to reach `main`.
 3. **Verify** — check the implementation against the change's artifacts before archiving
    (`openspec validate <change> --type change --strict`).
 4. **Archive** — sync the delta specs into `openspec/specs/` and archive the change as the *final
-   commit of the implementation pull request*, added after review and before merge, so one reviewer
-   sees the work and the bookkeeping that closes it.
+   commit of the implementation pull request*, added before review, so the reviewer reads a tree in
+   which the change is already archived and its specs already synced. A rework that a review requests
+   redoes the archive as the last commit again.
 
 A pull request that only archives a change is refused by the `archive-only` check. A standalone
 archive is still legitimate when a change merged before its archive existed: label the pull request
