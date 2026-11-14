@@ -28,8 +28,13 @@ from typing import Optional
 
 PENDING = {"queued", "in_progress", "waiting", "pending", "requested"}
 FAILED = {"failure", "timed_out", "action_required", "startup_failure"}
-SINGLE_JOBS = {"plan", "changes", "changelog", "platform", "verify-docs"}
-OPTIONAL_DEFAULT = {"platform": "skipped", "verify-docs": "skipped", "verify-powershell": "skipped"}
+SINGLE_JOBS = {"plan", "changes", "changelog", "platform", "verify-docs", "tree-checks"}
+OPTIONAL_DEFAULT = {
+    "platform": "skipped",
+    "verify-docs": "skipped",
+    "verify-powershell": "skipped",
+    "tree-checks": "skipped",
+}
 # A pull-request matrix is Ubuntu-only (#831): the full matrix belongs to a push to main and the
 # nightly, and a manual dispatch on the same head is not required.
 VERIFY_OSES = ("ubuntu-latest",)
@@ -217,6 +222,7 @@ def main() -> int:
     changes = single("changes")
     fragments = single("changelog")
     platform = single("platform")
+    tree = single("tree-checks")
     docs = single("verify-docs")
     powershell = single("verify-powershell")
     perf = aggregate("perf")
@@ -265,6 +271,7 @@ def main() -> int:
         "DOCS": docs,
         "PERF": perf,
         "PLATFORM": platform,
+        "TREE": tree,
         "FRAGMENTS": fragments,
         "CHANGES": changes,
         "GATE_RUNNING": pending_names(selected),
