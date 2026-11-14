@@ -1,5 +1,7 @@
 # Run tool calls in a container
 
+> **Not available in 0.4.0.** Container execution is planned for 0.5.0 (#627); the `--env` flag and the `environment` setting described here don't exist yet.
+
 Lunate runs tool commands on the host by default. A container environment moves the command half
 of the agent — `bash` and every other tool that spawns a process — into one long-lived Docker or
 Podman container, while the agent loop, approvals and the direct file tools stay on the host. The
