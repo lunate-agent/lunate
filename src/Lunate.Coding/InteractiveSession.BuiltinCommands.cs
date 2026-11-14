@@ -183,7 +183,7 @@ internal sealed partial class InteractiveSession
                     }
                     else
                     {
-                        session.OpenModelPicker();
+                        await session.OpenModelPicker().ConfigureAwait(false);
                     }
 
                     return CommandResult.None;
@@ -196,7 +196,7 @@ internal sealed partial class InteractiveSession
                 case "/auth":
                     if (invocation.Argument.Length == 0)
                     {
-                        session.OpenAuthPicker();
+                        await session.OpenAuthPicker().ConfigureAwait(false);
                     }
                     else
                     {
@@ -243,7 +243,7 @@ internal sealed partial class InteractiveSession
                         return CommandResult.None;
                     }
 
-                    session.OpenSessionPicker();
+                    await session.OpenSessionPicker().ConfigureAwait(false);
                     return CommandResult.None;
                 case "/setup":
                     session.HandleSetupCommand();

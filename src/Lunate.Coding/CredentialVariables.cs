@@ -10,9 +10,11 @@ namespace Lunate.Coding;
 /// resolves it as a key, whichever provider the session happens to use.
 /// </summary>
 /// <remarks>
-/// It is a strip list, not a pattern: <c>OPENAI_API_KEY_BACKUP</c> is the user's own variable and
-/// survives, because Lunate never resolved it. Registration only ever adds names, and a stale name
-/// strips nothing that is not there.
+/// It is a strip list, not a pattern: this list is exactly the names Lunate resolved. The tool
+/// child's `Inherited` policy also withholds a name shaped like a credential whatever its source
+/// (ADR-0036, the shared child-environment builder), so <c>OPENAI_API_KEY_BACKUP</c> is withheld by
+/// that rule and not by this list. Registration only ever adds names, and a stale name strips
+/// nothing that is not there.
 /// </remarks>
 internal static class CredentialVariables
 {

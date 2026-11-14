@@ -151,21 +151,24 @@ internal sealed partial class InteractiveSession
         var pending = new TaskCompletionSource<string?>(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
-        _wizardPick = pending;
         using CancellationTokenRegistration registration = ct.Register(() =>
             pending.TrySetCanceled(ct)
         );
         int current = values.IndexOf(selected ?? string.Empty);
-        OpenPicker(kind, titlePrefix, labels, values, current < 0 ? 0 : current, menu);
-        try
-        {
-            string? picked = await pending.Task.ConfigureAwait(false);
-            return picked == WizardAbortValue ? null : picked;
-        }
-        finally
-        {
-            _wizardPick = null;
-        }
+        // The pick travels with the open request: the owner completes it when it confirms or
+        // dismisses this picker, so no other thread completes or clears it.
+        await OpenPicker(
+                kind,
+                titlePrefix,
+                labels,
+                values,
+                current < 0 ? 0 : current,
+                menu,
+                pending
+            )
+            .ConfigureAwait(false);
+        string? picked = await pending.Task.ConfigureAwait(false);
+        return picked == WizardAbortValue ? null : picked;
     }
 
     private Task<string?> PromptAsync(string label, CancellationToken ct) =>

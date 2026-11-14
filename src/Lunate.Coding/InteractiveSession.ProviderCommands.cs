@@ -107,7 +107,7 @@ internal sealed partial class InteractiveSession
             }
 
             Notify("logged in: " + preset.Id + " — /model to choose a model");
-            OfferVerification(preset.Id, VerificationModel(preset.Id));
+            await OfferVerification(preset.Id, VerificationModel(preset.Id)).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

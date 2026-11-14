@@ -130,14 +130,18 @@ documents a change invalidates.
 
 Work happens through OpenSpec changes, and the artifacts are the source of truth:
 
-1. **Propose** — describe the change; the proposal, the delta specs and the tasks land on `main`
-   before any implementation.
-2. **Apply** — implement the tasks on a branch from `main`, test-first, ticking tasks as they land.
+1. **Propose** — describe the change: the proposal, the delta specs, the design and the tasks land on
+   the change's branch, inside its one implementation pull request. `grill-me` stress-tests the plan
+   first; an unattended run answers the interview itself and lists the answers under **Intent
+   decisions** in the pull request, for the reviewer.
+2. **Apply** — implement the tasks on that same branch from `main`, test-first, ticking tasks as they
+   land. There is no separate proposal pull request and no wait for the proposal to reach `main`.
 3. **Verify** — check the implementation against the change's artifacts before archiving
    (`openspec validate <change> --type change --strict`).
 4. **Archive** — sync the delta specs into `openspec/specs/` and archive the change as the *final
-   commit of the implementation pull request*, added after review and before merge, so one reviewer
-   sees the work and the bookkeeping that closes it.
+   commit of the implementation pull request*, added before review, so the reviewer reads a tree in
+   which the change is already archived and its specs already synced. A rework that a review requests
+   redoes the archive as the last commit again.
 
 A pull request that only archives a change is refused by the `archive-only` check. A standalone
 archive is still legitimate when a change merged before its archive existed: label the pull request
@@ -182,13 +186,22 @@ not what the other harnesses expect — set it back to `agents` and re-run `open
 A pull request that changes only prose — `docs/`, `adr/`, `openspec/`, or a root-level Markdown
 file — runs the docs profile: markdownlint, the generated-region check, the link/navigation check,
 the "no test reads `docs/`" guard and `openspec validate --all --strict`, in seconds. Anything that
-touches source, tests, templates or workflows runs the full matrix. The decision lives in
-`scripts/ci-plan.sh` and is deny-by-default, so a path nobody thought about runs the full gate rather
-than the cheap one. The single required `ci-ok` check judges the live head's newest attempt of each
-required job, not the run's trigger payload: rerunning an older or draft run reports the current
-verdict, and draft and ready runs have separate concurrency groups so a draft push cannot cancel the
-ready gate. A gate that never carried a leg the plan put in its verify matrix is red too, naming the
-missing leg, rather than green on the shards that did run.
+touches source, tests, templates or workflows runs the fast gate: `plan`, the changed-path decision,
+the changelog guard, the platform checks and build plus tests on `ubuntu-latest` only. The decision
+lives in `scripts/ci-plan.sh` and is deny-by-default, so a path nobody thought about runs the full
+gate rather than the cheap one. The single required `ci-ok` check judges the live head's newest
+attempt of each required job, not the run's trigger payload: rerunning an older or draft run reports
+the current verdict, and draft and ready runs have separate concurrency groups so a draft push cannot
+cancel the ready gate. A gate that never carried a Ubuntu leg the plan put in its verify matrix is red
+too, naming the missing leg, rather than green on the shards that did run.
+
+The merge queue is the same diff one more time, so it runs the Ubuntu test gate and skips what the
+pull request already proved: the changed-path decision, the changelog guard, the platform checks, the
+docs profile and the Windows PowerShell twin. The full matrix — Ubuntu, Windows and macOS with every
+shard, the PowerShell twin and the dedicated perf measurement — runs on a push to `main` and the
+nightly; CodeQL runs on a push to `main` and its weekly schedule, not on a pull request. A red
+nightly files one `kind/bug` card per failing job in milestone `0.4.0`, naming the job and the run
+link, and comments on the open card for that job instead of filing a duplicate.
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the

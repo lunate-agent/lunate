@@ -25,6 +25,7 @@ public sealed class EnvironmentScrubberTests
         ["LOCALAPPDATA"] = @"C:\Users\user\AppData\Local",
         ["LANG"] = "en_US.UTF-8",
         ["ANTHROPIC_API_KEY"] = "sk-secret",
+        ["GITHUB_TOKEN"] = "ghp_parent",
         ["TMPDIR"] = "/var/tmp",
     };
 
@@ -83,10 +84,10 @@ public sealed class EnvironmentScrubberTests
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
             ChildEnvironmentPolicy.Scrubbed,
             Read(Parent),
-            passthrough: ["GITHUB_TOKEN", "HOME"]
+            passthrough: ["NPM_TOKEN", "HOME"]
         );
 
-        Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
+        Assert.DoesNotContain("NPM_TOKEN", environment.Keys);
         Assert.Equal("/home/user", environment["HOME"]);
     }
 
@@ -119,16 +120,142 @@ public sealed class EnvironmentScrubberTests
     [Fact]
     public void The_inherited_policy_takes_the_whole_parent_environment()
     {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["PATH"] = "/usr/bin",
+            ["NODE_OPTIONS"] = "--max-old-space-size=4096",
+            ["MY_BUILD_FLAG"] = "on",
+        };
+
         IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
             ChildEnvironmentPolicy.Inherited,
-            inherited: Parent
+            inherited: parent
         );
 
         // Everything the parent holds, not the base-set allow-list: the tool child is the user's
-        // shell, so a toolchain's own variable is the user's business.
-        Assert.Equal(Parent.Count, environment.Count);
-        Assert.Equal("sk-secret", environment["ANTHROPIC_API_KEY"]);
+        // shell, so a toolchain's own variable is the user's business. The only exception is a
+        // credential-shaped name, which the shape rule withholds by default (#741).
+        Assert.Equal(parent.Count, environment.Count);
+        Assert.Equal("--max-old-space-size=4096", environment["NODE_OPTIONS"]);
         Assert.Equal("/usr/bin", environment["PATH"]);
+    }
+
+    [Fact]
+    public void The_inherited_policy_withholds_a_credential_shaped_name_lunate_never_resolved()
+    {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["PATH"] = "/usr/bin",
+            ["GITHUB_TOKEN"] = "ghp_ambient",
+            ["NPM_TOKEN"] = "npm_ambient",
+            ["AWS_SECRET_ACCESS_KEY"] = "aws-ambient",
+            ["MY_TOOLCHAIN_FLAG"] = "on",
+        };
+
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            inherited: parent
+        );
+
+        // The strip closes the leak for the keys Lunate resolved; the shape rule closes it for the
+        // credentials a developer machine holds and Lunate never heard of (#741).
+        Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
+        Assert.DoesNotContain("NPM_TOKEN", environment.Keys);
+        Assert.DoesNotContain("AWS_SECRET_ACCESS_KEY", environment.Keys);
+        Assert.Equal("on", environment["MY_TOOLCHAIN_FLAG"]);
+        Assert.Equal("/usr/bin", environment["PATH"]);
+    }
+
+    [Fact]
+    public void The_shape_rule_is_a_word_match_not_a_substring_match()
+    {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["MONKEY"] = "1",
+            ["KEYBOARD_LAYOUT"] = "us",
+            ["HOCKEY_POOL"] = "2",
+            ["GITLAB_TOKENIZE_TIMEOUT"] = "30",
+            ["OPENAI_BASE_URL"] = "https://gateway.example.test/v1",
+        };
+
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            inherited: parent
+        );
+
+        // A variable whose name merely contains a credential word is the user's own: withholding
+        // it would break a build with no error message at all.
+        Assert.Equal(parent.Count, environment.Count);
+        Assert.Equal("us", environment["KEYBOARD_LAYOUT"]);
+        Assert.Equal("30", environment["GITLAB_TOKENIZE_TIMEOUT"]);
+        Assert.Equal("https://gateway.example.test/v1", environment["OPENAI_BASE_URL"]);
+    }
+
+    [Fact]
+    public void The_shape_rule_is_case_insensitive()
+    {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["github_token"] = "ghp_ambient",
+            ["Monkey"] = "survives",
+        };
+
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            inherited: parent
+        );
+
+        Assert.DoesNotContain("github_token", environment.Keys);
+        Assert.Equal("survives", environment["Monkey"]);
+    }
+
+    [Fact]
+    public void An_explicit_listed_credential_shaped_name_is_admitted()
+    {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GITHUB_TOKEN"] = "ghp_mine",
+            ["NPM_TOKEN"] = "npm_ambient",
+        };
+
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            passthrough: ["GITHUB_TOKEN"],
+            inherited: parent
+        );
+
+        // The pass-through is the opt-in: one exact name, and only that name.
+        Assert.Equal("ghp_mine", environment["GITHUB_TOKEN"]);
+        Assert.DoesNotContain("NPM_TOKEN", environment.Keys);
+    }
+
+    [Fact]
+    public void A_declared_value_cannot_put_a_withheld_shaped_name_back()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            set: new Dictionary<string, string> { ["GITHUB_TOKEN"] = "re-added" },
+            inherited: new Dictionary<string, string>()
+        );
+
+        // The shape rule is a deny for the whole child, so a spawn site cannot re-introduce a
+        // withheld name by declaring it as an extra value.
+        Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
+    }
+
+    [Fact]
+    public void The_scrubbed_policy_leaves_the_shape_rule_to_its_declared_names()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Scrubbed,
+            Read(Parent),
+            passthrough: ["GITHUB_TOKEN"]
+        );
+
+        // An extension host never receives the inherited set, so a credential-shaped name arrives
+        // only when the host's own declared names ask for it.
+        Assert.Equal("ghp_parent", environment["GITHUB_TOKEN"]);
+        Assert.DoesNotContain("ANTHROPIC_API_KEY", environment.Keys);
     }
 
     [Fact]

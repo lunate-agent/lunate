@@ -188,17 +188,17 @@ public sealed class UnixChildProcessTests
     }
 
     [Fact]
-    public async Task An_unrelated_variable_that_merely_looks_like_a_key_survives()
+    public async Task A_variable_that_merely_contains_a_credential_word_survives()
     {
         SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
 
-        // The strip is a name list, not a pattern: a user's own variable beside a credential name
-        // is the user's business and must arrive.
-        using var environment = new ProcessEnvironment(("OPENAI_API_KEY_BACKUP", "user-owned"));
+        // The credential-shape rule is a word match, not a substring match: a user's own variable
+        // whose name merely contains a credential word is the user's business and must arrive.
+        using var environment = new ProcessEnvironment(("KEYBOARD_LAYOUT", "user-owned"));
         using var temp = new TempDirectory();
         var request = new ProcessRunRequest(
             "/bin/bash",
-            ["-c", "printf '%s' \"${OPENAI_API_KEY_BACKUP:-missing}\""],
+            ["-c", "printf '%s' \"${KEYBOARD_LAYOUT:-missing}\""],
             temp.Root
         );
         using Lunate.Coding.ChildProcess child = UnixChildProcess.Spawn(request);
@@ -209,6 +209,30 @@ public sealed class UnixChildProcessTests
 
         Assert.Equal(0, exit);
         Assert.Equal("user-owned", stdout);
+    }
+
+    [Fact]
+    public async Task An_ambient_credential_lunate_never_resolved_is_withheld_by_its_name()
+    {
+        SkipOnWindowsBecausePosixSpawnPinningIsPosixOnly();
+
+        // The shape rule covers what the strip cannot: a credential a developer machine holds and
+        // Lunate never heard of (ADR-0036).
+        using var environment = new ProcessEnvironment(("GITHUB_TOKEN", "ghp_ambient"));
+        using var temp = new TempDirectory();
+        var request = new ProcessRunRequest(
+            "/bin/bash",
+            ["-c", "printf '%s' \"${GITHUB_TOKEN:-withheld}\""],
+            temp.Root
+        );
+        using Lunate.Coding.ChildProcess child = UnixChildProcess.Spawn(request);
+        string stdout = await child.StandardOutput.ReadToEndAsync(
+            TestContext.Current.CancellationToken
+        );
+        int exit = await child.WaitForExitAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, exit);
+        Assert.Equal("withheld", stdout);
     }
 
     [Fact]
