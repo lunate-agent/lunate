@@ -118,6 +118,25 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="container and official-test timeout (default: 1800)",
     )
     parser.add_argument(
+        "--max-cost",
+        type=float,
+        metavar="USD",
+        help="pass --max-cost to Lunate so one instance cannot spend past this amount",
+    )
+    parser.add_argument(
+        "--max-time",
+        type=int,
+        metavar="SECONDS",
+        help="pass --max-time to Lunate so one instance cannot run past this wall clock",
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=1,
+        metavar="N",
+        help="official-evaluation workers (default: 1)",
+    )
+    parser.add_argument(
         "--eval-python",
         default=sys.executable,
         metavar="PYTHON",
@@ -138,6 +157,10 @@ def execute(args: argparse.Namespace) -> int:
     check_docker(args)
     records = load_dataset(args)
     selected = select_instances(records, args.instance)
+    selected = [
+        record if record.get("image") or record.get("docker_image") else {**record, "image": instance_image(record)}
+        for record in selected
+    ]
     check_official_harness(args, evaluate_mode)
     run_root = Path(args.output_dir).resolve() / run_id
     if run_root.exists() and any(run_root.iterdir()):
@@ -157,6 +180,9 @@ def execute(args: argparse.Namespace) -> int:
         "lunateBinary": str(args.lunate_bin),
         "forwardedEnvironment": sorted(forwarded),
         "evaluate": evaluate_mode,
+        "maxCostUsd": args.max_cost,
+        "maxTimeSeconds": args.max_time,
+        "maxWorkers": args.max_workers,
         "instances": [],
         "evaluation": {"requested": False},
     }

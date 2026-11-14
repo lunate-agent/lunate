@@ -1,0 +1,9 @@
+# SWE-bench Verified test instances for the first published run.
+# Selection rule: every 100th instance id in lexicographic order of the 500-instance
+# Verified test split (indices 0, 100, 200, 300, 400). The rule is recorded in run.json
+# so the list can be regenerated from the official dataset.
+astropy__astropy-12907
+django__django-13128
+django__django-15572
+pydata__xarray-3151
+sphinx-doc__sphinx-8120

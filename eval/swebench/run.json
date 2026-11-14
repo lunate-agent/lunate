@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "dataset": "SWE-bench/SWE-bench_Verified",
+  "split": "test",
+  "selection": "Every 100th instance id in lexicographic order of the 500-instance Verified test split (indices 0, 100, 200, 300, 400).",
+  "instancesFile": "instances.txt",
+  "models": [
+    {
+      "tier": "budget",
+      "id": "opencode-go/deepseek-v4.1-flash",
+      "credential": "OPENCODE_GO_API_KEY"
+    },
+    {
+      "tier": "frontier",
+      "id": "openrouter/anthropic/claude-opus-5.5",
+      "credential": "OPENROUTER_API_KEY"
+    }
+  ],
+  "limits": {
+    "maxCostUsd": 5,
+    "maxTimeSeconds": 1800
+  },
+  "instanceTimeoutSeconds": 1800,
+  "evaluationWorkers": 2,
+  "baseline": {
+    "tool": "mini-swe-agent",
+    "version": "2.4.6",
+    "command": "mini-extra",
+    "stepLimit": 50,
+    "costLimitUsd": 3,
+    "models": {
+      "opencode-go/deepseek-v4.1-flash": "openai/deepseek-v4.1-flash",
+      "openrouter/anthropic/claude-opus-5.5": "openrouter/anthropic/claude-opus-5.5"
+    },
+    "env": {
+      "opencode-go/deepseek-v4.1-flash": {
+        "OPENAI_API_BASE": "https://opencode.ai/inference/go/openai/v1",
+        "OPENAI_API_KEY": "OPENCODE_GO_API_KEY"
+      },
+      "openrouter/anthropic/claude-opus-5.5": {
+        "OPENROUTER_API_KEY": "OPENROUTER_API_KEY"
+      }
+    },
+    "apiBase": {
+      "opencode-go/deepseek-v4.1-flash": "https://opencode.ai/inference/go/openai/v1"
+    }
+  }
+}
