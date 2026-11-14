@@ -89,7 +89,7 @@ and the documentation link, anchor, redirect and navigation check.
 - **THEN** the docs profile runs `openspec validate --all --strict` and no build, publish or test job runs
 
 #### Scenario: Prose beside code still runs the full matrix
-- **GIVEN** a pull request that changes `docs/guide.md` and `src/Lunate.Tui/Interaction/KeyBinding.cs`
+- **GIVEN** a pull request that changes `docs/dev/guide.md` and `src/Lunate.Tui/Interaction/KeyBinding.cs`
 - **WHEN** CI decides the profile from the changed paths
 - **THEN** the full gate runs, with its build and test legs on `ubuntu-latest`
 

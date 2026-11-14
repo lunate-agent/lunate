@@ -1825,9 +1825,9 @@ The document SHALL use inline CSS, SHALL contain no JavaScript and no external a
 - **WHEN** `/editor` is submitted
 - **THEN** the draft is untouched, one notice carries the exit code, the temporary file is gone, and no run starts
 
-### Requirement: The guide's key table matches the catalog
+### Requirement: The keybindings reference table matches the catalog
 
-`docs/guide.md`'s key table and `KeyBindingCatalog` SHALL be checked against each other by a test that fails in both directions: every key in the catalog SHALL appear in the table, and every key in the table SHALL have a catalog row. The check SHALL read only the table under the guide's `**Key bindings (one meaning each)**` heading and only its Key column, so a key named inside an Action cell is not a documented binding. A Key cell MAY list several keys separated by `/`, each spelled exactly as `KeyPatternFormatter` writes it, and a merged cell passes when every key in it is covered. Exempt from the table-to-catalog direction SHALL be exactly the panel-owned approval decisions `y`, `n` and `a`, the prompt-gated `?` whose empty-idle condition is not a catalog context, and the deliberately unbound `Ctrl+P`, each carried in the test's exemption table with a one-line reason; a new exemption is a change to this requirement. The check SHALL fail when the heading, the table or its `| Key | Action |` header is missing, so deleting the table cannot pass it, and each failure SHALL name the key, the direction and the row: `docs/guide.md documents 'Ctrl+Left' and no catalog row has it (row: 'Alt+B / Alt+F' — Move back / forward by word)` for a ghost and `KeyBindingCatalog's 'Ctrl+Enter' (Insert a newline) has no docs/guide.md row` for a gap.
+`docs/keybindings.md`'s key table and `KeyBindingCatalog` SHALL be checked against each other by a test that fails in both directions: every key in the catalog SHALL appear in the table, and every key in the table SHALL have a catalog row. The check SHALL read only the table under the page's `**Key bindings (one meaning each)**` heading and only its Key column, so a key named inside an Action cell is not a documented binding. A Key cell MAY list several keys separated by `/`, each spelled exactly as `KeyPatternFormatter` writes it, and a merged cell passes when every key in it is covered. Exempt from the table-to-catalog direction SHALL be exactly the panel-owned approval decisions `y`, `n` and `a`, the prompt-gated `?` whose empty-idle condition is not a catalog context, and the deliberately unbound `Ctrl+P`, each carried in the test's exemption table with a one-line reason; a new exemption is a change to this requirement. The check SHALL fail when the heading, the table or its `| Key | Action |` header is missing, so deleting the table cannot pass it, and each failure SHALL name the key, the direction and the row: `docs/keybindings.md documents 'Ctrl+Left' and no catalog row has it (row: 'Alt+B / Alt+F' — Move back / forward by word)` for a ghost and `KeyBindingCatalog's 'Ctrl+Enter' (Insert a newline) has no docs/keybindings.md row` for a gap.
 
 #### Scenario: A catalog key the table omits fails
 
@@ -1855,7 +1855,7 @@ The document SHALL use inline CSS, SHALL contain no JavaScript and no external a
 
 #### Scenario: A deleted table fails instead of passing vacuously
 
-- **GIVEN** a guide whose key heading, table or header row is gone
+- **GIVEN** a page whose key heading, table or header row is gone
 - **WHEN** the check runs
 - **THEN** it fails naming what is missing, and does not report success
 
