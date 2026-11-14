@@ -85,4 +85,4 @@ file at `~/.lunate/extensions-settings/codemode.json` overrides the defaults, fo
    cancellation stay in the core pipeline.
 3. Keep the tests: they prove the bridge ids, approvals, the limits and the protocol.
 
-See `docs/dev/spec/extensibility.md` ("Code mode and hosted tools") and `docs/guide.md` for T-48.
+See `docs/dev/spec/extensibility.md` ("Code mode and hosted tools") and `docs/dev/guide.md` for T-48.

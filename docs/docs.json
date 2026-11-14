@@ -238,6 +238,26 @@
     {
       "from": "first-run.md",
       "to": "quickstart.md"
+    },
+    {
+      "from": "README.md",
+      "to": "dev/README.md"
+    },
+    {
+      "from": "guide.md",
+      "to": "dev/guide.md"
+    },
+    {
+      "from": "architecture.md",
+      "to": "dev/architecture.md"
+    },
+    {
+      "from": "distribution.md",
+      "to": "dev/distribution.md"
+    },
+    {
+      "from": "media/README.md",
+      "to": "dev/media.md"
     }
   ],
   "proseOnly": [
