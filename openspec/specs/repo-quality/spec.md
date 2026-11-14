@@ -45,7 +45,7 @@ The repository SHALL provide a pull request template carrying the review-map sec
 - **THEN** a bug report or feature request form is offered
 
 ### Requirement: Documentation entry points and guideline
-`README.md` SHALL be the project entry point (what it is, status, quick start, links); `docs/README.md` SHALL map every documentation kind to its home and state the writing guideline; `AGENTS.md` SHALL point to the map so every session finds it.
+`README.md` SHALL be the project entry point (what it is, status, quick start, links); `docs/dev/README.md` SHALL map every documentation kind to its home and state the writing guideline; `AGENTS.md` SHALL point to the map so every session finds it.
 
 #### Scenario: One hop to every document kind
 - **GIVEN** a reader starting at `README.md`
@@ -58,7 +58,7 @@ The repository SHALL provide a pull request template carrying the review-map sec
 - **THEN** it tells them which document kind owns which fact and that behavior changes update the specs first
 
 ### Requirement: Architecture documentation
-`docs/architecture.md` SHALL present the system's structure as Mermaid diagrams: the component map (projects, dependency directions, external boundaries), the model pipeline order, one run as a sequence (model calls, tool execution, events, spans), and the event path from emission to consumers. Each diagram SHALL stay small, SHALL link to the spec or ADR that owns its detail, and SHALL be updated in the same change that alters the pictured structure.
+`docs/dev/architecture.md` SHALL present the system's structure as Mermaid diagrams: the component map (projects, dependency directions, external boundaries), the model pipeline order, one run as a sequence (model calls, tool execution, events, spans), and the event path from emission to consumers. Each diagram SHALL stay small, SHALL link to the spec or ADR that owns its detail, and SHALL be updated in the same change that alters the pictured structure.
 
 #### Scenario: One hop from the map to the picture and back
 - **GIVEN** a reader starting at the documentation map
@@ -68,7 +68,7 @@ The repository SHALL provide a pull request template carrying the review-map sec
 #### Scenario: Structure changes update the page
 - **GIVEN** a change that alters the project graph or a pictured flow
 - **WHEN** the change is reviewed
-- **THEN** `docs/architecture.md` is updated in the same change, and the review can verify each changed edge because the diagrams are text
+- **THEN** `docs/dev/architecture.md` is updated in the same change, and the review can verify each changed edge because the diagrams are text
 
 ### Requirement: The gate has two stages
 
@@ -142,7 +142,7 @@ Committed text that is hashed, compared or generated SHALL be pinned to LF in `.
 - **THEN** their bytes are unchanged
 
 ### Requirement: ADR number verification
-The documentation verification gate SHALL check primary ADR filename numbers for uniqueness and density, using filenames only. The check SHALL run in the `verify-docs` profile without invoking a build or test suite. Files named `NNNN-addendum-*.md` SHALL be treated as addenda to their parent ADR, not as separate primary ADR numbers. On a duplicate or gap, the diagnostic SHALL identify both relevant files, state any missing number, and report the next free number (one greater than the highest primary ADR number). The author-facing numbering rule SHALL be documented in `docs/guide.md` because the repository has no ADR README.
+The documentation verification gate SHALL check primary ADR filename numbers for uniqueness and density, using filenames only. The check SHALL run in the `verify-docs` profile without invoking a build or test suite. Files named `NNNN-addendum-*.md` SHALL be treated as addenda to their parent ADR, not as separate primary ADR numbers. On a duplicate or gap, the diagnostic SHALL identify both relevant files, state any missing number, and report the next free number (one greater than the highest primary ADR number). The author-facing numbering rule SHALL be documented in `docs/dev/guide.md` because the repository has no ADR README.
 
 #### Scenario: Duplicate primary numbers fail with actionable paths
 - **GIVEN** two primary ADR files claim the same number

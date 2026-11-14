@@ -135,6 +135,6 @@ def check(root, manifest=None):
                 f"docs/{page}: has no snippet, config or run marker and is not proseOnly"
             )
 
-    check_links(root, documents, problems)
+    check_links(root, documents, problems, redirect_from)
     check_navigation_region(root, navigation, problems)
     return problems

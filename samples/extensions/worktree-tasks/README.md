@@ -83,4 +83,4 @@ every call (destructive-capable), `merge` follows the write policy.
    behaviours end to end without live APIs.
 
 See `docs/dev/spec/extensibility.md` § Workspaces and repository identity for the workspace contract and
-`docs/guide.md` for T-51.
+`docs/dev/guide.md` for T-51.
