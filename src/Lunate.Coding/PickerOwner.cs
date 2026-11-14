@@ -58,6 +58,10 @@ internal sealed partial class PickerOwner
     // Published by the loop, read by the key pump: one immutable snapshot at a time.
     private PickerSnapshot _snapshot = new(null, default, string.Empty, false, false);
 
+    /// <param name="currentModelId">The active model, read only while a row label is built so the
+    /// model picker can keep its <c>* </c> marker. A string reference is read atomically; it is
+    /// display input, never a transition.</param>
+    /// <param name="post">The live area's picker slot: the one place the owner publishes to.</param>
     internal PickerOwner(Func<string> currentModelId, Action<SelectListModel?> post)
     {
         ArgumentNullException.ThrowIfNull(currentModelId);

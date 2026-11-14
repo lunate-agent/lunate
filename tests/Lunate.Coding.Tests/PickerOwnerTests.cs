@@ -12,7 +12,7 @@ public sealed class PickerOwnerTests
     /// <summary>
     /// #731: the walk had already posted the next picker when the pump's dismissal of the previous
     /// one arrived. The dismissal targets the picker it was read against, so the newer picker and
-    /// its pick survive.
+    /// its pick survive: confirming it still answers the walk.
     /// </summary>
     [Fact]
     public async Task A_dismissal_of_a_replaced_picker_leaves_the_new_picker_open()
@@ -21,13 +21,18 @@ public sealed class PickerOwnerTests
         var owner = new PickerOwner(() => "model", posted.Add);
         try
         {
+            var picked = new TaskCompletionSource<string?>(
+                TaskCreationOptions.RunContinuationsAsynchronously
+            );
             SelectListModel first = await OpenAsync(owner, "First");
-            SelectListModel second = await OpenAsync(owner, "Second");
+            SelectListModel second = await OpenAsync(owner, "Second", pick: picked);
 
             await owner.DismissAsync(first);
 
             Assert.Same(second, owner.Snapshot.Picker);
-            Assert.Equal("Second", posted[^1]?.Title);
+            Assert.Equal(["First", "Second"], posted.Select(picker => picker?.Title));
+            Assert.Equal("one", (await owner.ConfirmAsync(second))?.Value);
+            Assert.Equal("one", await picked.Task);
         }
         finally
         {
@@ -40,7 +45,7 @@ public sealed class PickerOwnerTests
     /// dismissal came first and cannot cancel the pick the walk is waiting on.
     /// </summary>
     [Fact]
-    public async Task A_dismissal_before_the_next_open_does_not_cancel_the_next_picker()
+    public async Task A_dismissal_before_the_next_open_does_not_cancel_the_next_pick()
     {
         var posted = new List<SelectListModel?>();
         var owner = new PickerOwner(() => "model", posted.Add);
@@ -51,10 +56,15 @@ public sealed class PickerOwnerTests
             Assert.False(owner.Snapshot.IsOpen);
             Assert.Null(posted[^1]);
 
-            SelectListModel second = await OpenAsync(owner, "Second");
+            var picked = new TaskCompletionSource<string?>(
+                TaskCreationOptions.RunContinuationsAsynchronously
+            );
+            SelectListModel second = await OpenAsync(owner, "Second", pick: picked);
+            Assert.Equal("one", (await owner.ConfirmAsync(second))?.Value);
 
-            Assert.Same(second, owner.Snapshot.Picker);
-            Assert.Equal("Second", posted[^1]?.Title);
+            Assert.Equal("one", await picked.Task);
+            Assert.False(owner.Snapshot.IsOpen);
+            Assert.Equal(["First", null, "Second", null], posted.Select(picker => picker?.Title));
         }
         finally
         {
@@ -130,6 +140,11 @@ public sealed class PickerOwnerTests
             Assert.False(owner.Snapshot.IsOpen);
             Assert.Null(posted[^1]);
             Assert.Equal(InteractiveSession.WizardBackValue, await picked.Task);
+
+            // A picker with no pending pick is not a wizard pick: the verb leaves it open.
+            SelectListModel plain = await OpenAsync(owner, "Plain");
+            await owner.NavigateAsync(plain, InteractiveSession.WizardBackValue);
+            Assert.Same(plain, owner.Snapshot.Picker);
         }
         finally
         {
@@ -148,15 +163,44 @@ public sealed class PickerOwnerTests
         {
             SelectListModel first = await OpenAsync(owner, "First", labels: ["one", "two"]);
             SelectListModel second = await OpenAsync(owner, "Second", labels: ["one", "two"]);
-            SelectListModel before = owner.Snapshot.Picker!;
 
             await owner.MoveAsync(first, 1);
             await owner.AppendFilterAsync(first, "x");
             PickerConfirmation? confirmed = await owner.ConfirmAsync(first);
 
             Assert.Null(confirmed);
-            Assert.Same(before, owner.Snapshot.Picker);
-            Assert.Same(second, before);
+            Assert.Same(second, owner.Snapshot.Picker);
+            Assert.Equal(0, owner.Snapshot.Picker?.Selected);
+        }
+        finally
+        {
+            await owner.StopAsync();
+        }
+    }
+
+    /// <summary>
+    /// A pick cannot outlive its picker: when an open replaces a picker whose pick is still
+    /// pending, the owner completes that pick as dismissed instead of leaving the walk on it.
+    /// </summary>
+    [Fact]
+    public async Task An_open_that_replaces_a_pending_picker_completes_its_pick_as_dismissed()
+    {
+        var owner = new PickerOwner(() => "model", _ => { });
+        try
+        {
+            var stale = new TaskCompletionSource<string?>(
+                TaskCreationOptions.RunContinuationsAsynchronously
+            );
+            await OpenAsync(owner, "First", pick: stale);
+            await OpenAsync(owner, "Second");
+
+            Assert.Null(
+                await stale.Task.WaitAsync(
+                    WaitBudgets.InProcess,
+                    TestContext.Current.CancellationToken
+                )
+            );
+            Assert.Equal("Second", owner.Snapshot.Picker?.Title);
         }
         finally
         {
