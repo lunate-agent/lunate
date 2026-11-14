@@ -269,6 +269,42 @@ jobs:
             python3 scripts/changelog-assemble --check
           fi
 
+  # The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs
+  # regions, the docs link/navigation check and the docs lint -- on the tree the queue is about to
+  # land. Each pull request proved only its own tree against its own base (#840 took a free ADR-0036
+  # while #843's full-profile gate never asked about ADR numbers), so the batch that combined them was
+  # the first tree to carry a duplicate and nothing in the queue ran the check that catches it
+  # (#854). The push to `main` runs the same script in `tree-checks.yml`; a pull request keeps the
+  # checks its profile already carries. `scripts/tree-checks.sh` holds the one command list.
+  tree-checks:
+    name: tree-checks
+    # Only the queue needs its own copy: a push to `main` has `tree-checks.yml` (a docs-only push
+    # skips this workflow entirely), and a pull request runs the checks through its profile.
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # `check-spec-archive.py` diffs the batch against the queue's base commit, which a shallow
+          # clone does not carry, and the version region in README.md is derived from the release
+          # tags, which a shallow checkout does not fetch either.
+          fetch-depth: 0
+          fetch-tags: true
+
+      # No .NET, no build, no test: seconds of wall clock, which is why the queue can afford them.
+      - name: Tree checks
+        shell: bash
+        env:
+          # The batch's own range: the commit it would land on, to the combined head. The ADR
+          # numbering check reads the whole tree, so it sees a duplicate whichever queued pull
+          # request introduced it.
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          echo "checking the batch's range ${BASE_SHA}...HEAD"
+          bash scripts/tree-checks.sh --base "${BASE_SHA}"
+
   # The platform-independent half of the gate: formatting, the generated docs regions, markdownlint,
   # the public API, the OpenSpec tree and the two agent-hygiene checks. Running it once on Linux is
   # the point -- a Windows runner formatting the same source as a macOS runner was cost, not depth.
@@ -749,7 +785,7 @@ jobs:
   # below still drive every other event, including a merge_group run.
   ci-ok:
     name: ci-ok
-    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
+    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog, tree-checks]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -774,6 +810,7 @@ jobs:
           DOCS: ${{ needs.verify-docs.result }}
           PERF: ${{ needs.perf.result }}
           PLATFORM: ${{ needs.platform.result }}
+          TREE: ${{ needs.tree-checks.result }}
           FRAGMENTS: ${{ needs.changelog.result }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}

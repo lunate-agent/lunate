@@ -18,11 +18,11 @@ qualify, and anything else — any change under `.github/workflows/`, either sid
 path outside those trees — SHALL select the full gate. A profile that cannot be read SHALL select the
 full gate.
 
-A `merge_group` run SHALL run the full test gate on `ubuntu-latest` only and SHALL skip the work the
-pull request already proved: the changed-path decision, the changelog fragment guard, the
-platform-independent checks, the documentation profile, the Windows PowerShell twin and the dedicated
-perf leg SHALL NOT run. A prose-only batch SHALL therefore run the plan only, because its pull
-request already ran the documentation profile.
+A `merge_group` run SHALL run the full test gate on `ubuntu-latest` only and the tree checks, and
+SHALL skip the work the pull request already proved: the changed-path decision, the changelog
+fragment guard, the platform-independent checks, the documentation profile, the Windows PowerShell
+twin and the dedicated perf leg SHALL NOT run. A prose-only batch SHALL therefore run the plan and
+the tree checks, because its pull request already ran the documentation profile.
 
 A push to `main` and the nightly `schedule` run SHALL run the full matrix: build and tests on
 ubuntu, macos and windows with every shard, the platform-independent checks once on Linux, the
@@ -40,6 +40,15 @@ Linux job that the aggregate gate requires; an OS leg SHALL NOT repeat them. Eac
 the checks whose result is a property of that machine: build, test, publish, the startup budget and
 the artifact proofs.
 
+The tree checks — ADR numbering, the spec-archive rule, the generated documentation regions, the
+documentation link, anchor, redirect and navigation check, and markdownlint — SHALL run in one job on
+a `merge_group` run, judged against the batch's base commit. The batch is the first tree on which two
+pull requests meet, and each pull request proved only its own tree against its own base, so only the
+queue can see a rule both of them break together. The same command list SHALL be what the push to
+`main` runs, so the two triggers cannot drift. The job SHALL need no build and no test, and it SHALL
+take the batch's full history and its release tags, because the spec-archive check diffs the batch's
+range and the version region is derived from the tags.
+
 Pushes that touch only documentation MAY skip the matrix but SHALL still run the documentation lint
 and the documentation link, anchor, redirect and navigation check.
 
@@ -51,12 +60,22 @@ and the documentation link, anchor, redirect and navigation check.
 #### Scenario: A merge group runs the Ubuntu test gate only
 - **GIVEN** a `merge_group` run for a batch that contains code
 - **WHEN** all its jobs complete
-- **THEN** the plan and the Ubuntu verify shards ran, and the changed-path decision, changelog guard, platform checks, docs profile, PowerShell twin, perf leg and macOS and Windows legs did not run
+- **THEN** the plan, the tree checks and the Ubuntu verify shards ran, and the changed-path decision, changelog guard, platform checks, docs profile, PowerShell twin, perf leg and macOS and Windows legs did not run
 
 #### Scenario: A prose-only batch runs the plan only
 - **GIVEN** a `merge_group` run whose changed paths are all prose
 - **WHEN** its CI run completes
-- **THEN** only the plan and the aggregate check ran, because the pull request already ran the documentation profile
+- **THEN** only the plan ran a profile job, the tree checks ran beside it and the aggregate check ran, because the pull request already ran the documentation profile
+
+#### Scenario: A merge group runs the tree checks against the batch's base
+- **GIVEN** a `merge_group` run for a batch
+- **WHEN** all its jobs complete
+- **THEN** the tree checks ran the shared command list against the batch's base commit, with the batch's full history and the release tags
+
+#### Scenario: A duplicate ADR number in a batch is rejected
+- **GIVEN** two pull requests in the same batch that each took the same free ADR number
+- **WHEN** the merge group's tree checks run on the combined head
+- **THEN** ADR numbering fails and names both files, the aggregate gate is red, and the queue ejects the batch
 
 #### Scenario: A push to main runs the full matrix
 - **GIVEN** a push to `main` that is not prose-only
@@ -89,7 +108,7 @@ and the documentation link, anchor, redirect and navigation check.
 - **THEN** the docs profile runs `openspec validate --all --strict` and no build, publish or test job runs
 
 #### Scenario: Prose beside code still runs the full matrix
-- **GIVEN** a pull request that changes `docs/guide.md` and `src/Lunate.Tui/Interaction/KeyBinding.cs`
+- **GIVEN** a pull request that changes `docs/dev/guide.md` and `src/Lunate.Tui/Interaction/KeyBinding.cs`
 - **WHEN** CI decides the profile from the changed paths
 - **THEN** the full gate runs, with its build and test legs on `ubuntu-latest`
 
@@ -355,9 +374,10 @@ The required job set SHALL follow the event. A pull request SHALL require `plan`
 changelog fragment guard, the platform checks (full profile) or the documentation profile (docs
 profile), and, on the full profile, the Ubuntu verify legs; it SHALL NOT require macOS, Windows, the
 PowerShell twin or the perf leg, and their skip SHALL be a pass. A `merge_group` run SHALL require
-`plan` and the Ubuntu verify legs (or only `plan` for a docs batch), and SHALL fail when `changes`,
-the changelog guard, the platform checks, the docs profile, the PowerShell twin, the perf leg or a
-macOS or Windows verify leg ran, because the pull request already proved them. A push to `main`, the
+`plan`, the tree checks and the Ubuntu verify legs (or `plan` and the tree checks for a docs batch),
+and SHALL fail when the tree checks did not succeed, or when `changes`, the changelog guard, the
+platform checks, the docs profile, the PowerShell twin, the perf leg or a macOS or Windows verify leg
+ran, because the pull request already proved them. A push to `main`, the
 nightly and a manual dispatch SHALL require the full matrix, `changes`, the platform checks, the
 PowerShell twin and the docs profile skipped; the nightly SHALL also require the perf leg and a
 manual dispatch SHALL require it skipped; a missing macOS leg SHALL fail them.
@@ -379,12 +399,14 @@ SHALL therefore yield the live head's verdict: green when the head's ready gate 
 every required leg, red when it failed or a required leg is absent. `merge_group`, push, `schedule`
 and `workflow_dispatch` decisions SHALL keep the payload decision.
 
-Four jobs are conditional. The Windows PowerShell twin SHALL run on a push to `main`, the nightly and
-a manual dispatch, and its skip on a pull request or a merge group SHALL be a pass. The changelog
-fragment gate SHALL run on every non-draft pull request regardless of profile, and SHALL fail when
-the pull request is not the release pull request and its changed paths include `CHANGELOG.md`; its
-skip SHALL count as success outside a pull-request event, and a pull-request run in which it did not
-succeed SHALL fail the aggregate. The `changes` job SHALL run on a pull request and on a push,
+Five jobs are conditional. The tree checks SHALL run on a `merge_group` run and SHALL be skipped on
+every other event: a skip SHALL be a pass outside a merge group, and a merge group in which the job
+did not succeed SHALL fail the aggregate. The Windows PowerShell twin SHALL run on a push to `main`,
+the nightly and a manual dispatch, and its skip on a pull request or a merge group SHALL be a pass.
+The changelog fragment gate SHALL run on every non-draft pull request regardless of profile, and
+SHALL fail when the pull request is not the release pull request and its changed paths include
+`CHANGELOG.md`; its skip SHALL count as success outside a pull-request event, and a pull-request run
+in which it did not succeed SHALL fail the aggregate. The `changes` job SHALL run on a pull request and on a push,
 nightly or manual dispatch, and its skip SHALL be a pass only in a merge group. The dedicated perf
 leg SHALL run on the nightly and on a push to `main`; it SHALL feed the nightly's verdict and SHALL
 NOT feed a push's verdict, because a shared runner varies by a few percent.
@@ -430,6 +452,17 @@ NOT feed a push's verdict, because a shared runner varies by a few percent.
 - **GIVEN** a `merge_group` run in which `changes`, the changelog guard, the platform checks, the docs profile or the PowerShell twin ran
 - **WHEN** the aggregate check runs
 - **THEN** it fails, naming the job that should have been skipped
+
+#### Scenario: A merge group whose tree checks failed is red
+
+- **GIVEN** a `merge_group` run whose tree checks reported a duplicate ADR number or a hand-edited spec
+- **WHEN** the aggregate check runs
+- **THEN** it fails and names the tree checks, so the queue rejects the batch
+
+#### Scenario: A merge group whose tree checks were skipped is red
+- **GIVEN** a `merge_group` run in which the tree-checks job was skipped
+- **WHEN** the aggregate check runs
+- **THEN** it fails, because the batch's own tree was never judged
 
 #### Scenario: A merge group with a missing Ubuntu shard is red
 

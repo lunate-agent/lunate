@@ -36,6 +36,7 @@
 #   DOCS         needs.verify-docs.result
 #   PERF         needs.perf.result
 #   PLATFORM     needs.platform.result
+#   TREE         needs.tree-checks.result
 #   FRAGMENTS    needs.changelog.result
 #   PR_NUMBER    github.event.pull_request.number (named in the changelog failure)
 #
@@ -48,9 +49,11 @@
 #   pull_request   plan, changes, changelog, platform (full) or verify-docs (docs), and the Ubuntu
 #                  verify legs. No Windows, macOS, PowerShell or perf leg is required, and a skip of
 #                  one of them is a pass. The plan puts Ubuntu legs only in a pull-request matrix.
-#   merge_group    plan and the Ubuntu verify legs (or plan only for a docs batch). `changes`, the
-#                  changelog guard, the platform checks, the docs profile, the PowerShell twin and
-#                  the perf leg must be skipped: the pull request already proved them.
+#   merge_group    plan, the tree checks and the Ubuntu verify legs (or plan and the tree checks for
+#                  a docs batch). `changes`, the changelog guard, the platform checks, the docs
+#                  profile, the PowerShell twin and the perf leg must be skipped: the pull request
+#                  already proved them. The tree checks are the exception, because the batch is the
+#                  first tree on which two pull requests meet (#854).
 #   push/schedule/ the full matrix (macOS and Windows present), plan, changes, platform, and the
 #   dispatch       PowerShell twin (schedule and dispatch also require the perf leg; a push's perf
 #                  result is advisory). The nightly requires perf; a manual dispatch does not run it.
@@ -75,9 +78,9 @@ decide() {
     local profile="${PROFILE:-}" verify="${VERIFY:-}" powershell="${POWERSHELL:-}"
     local ps_required="${PS_REQUIRED:-}" changes="${CHANGES:-}" docs="${DOCS:-}" perf="${PERF:-}"
     local platform="${PLATFORM:-}" fragments="${FRAGMENTS:-}" pull_request="${PR_NUMBER:-}"
-    local macos="${MACOS:-}"
+    local macos="${MACOS:-}" tree="${TREE:-}"
 
-    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile macos=$macos verify=$verify verify-powershell=$powershell ps-required=$ps_required changes=$changes verify-docs=$docs perf=$perf platform=$platform changelog=$fragments"
+    echo "ci-ok: event=$event draft=$draft plan=$plan profile=$profile macos=$macos verify=$verify verify-powershell=$powershell ps-required=$ps_required changes=$changes verify-docs=$docs perf=$perf platform=$platform tree-checks=$tree changelog=$fragments"
 
     if [ "$event" = "pull_request" ] && [ "$draft" != "false" ]; then
         fail "the head is a draft (draft=$draft), so no gate ran; a draft push costs no matrix, but the required check still has to report. Mark the pull request ready for review and this check runs again."
@@ -114,6 +117,24 @@ decide() {
             ;;
         *)
             fail "the event is unreadable ('$event'); refusing to pass on a state this gate does not know"
+            ;;
+    esac
+
+    # The cheap tree checks run in the merge queue and nowhere else in this workflow: the batch is
+    # the first tree on which two pull requests meet, so the queue is the one place a rule both of
+    # them break together can be caught (#854). A push to `main` runs the same script in
+    # `tree-checks.yml` (a docs-only push skips this workflow), and a pull request runs the checks
+    # its profile already carries.
+    case "$event" in
+        merge_group)
+            if [ "$tree" != "success" ]; then
+                fail "the tree checks did not succeed in a merge group (tree-checks=$tree); the batch is judged as its own tree, so ADR numbering, the spec-archive rule and the documentation checks have to pass here. A skipped job means the wiring broke, not that the paths did not match"
+            fi
+            ;;
+        *)
+            if [ "$tree" != "skipped" ]; then
+                fail "the tree checks ran on a $event run (tree-checks=$tree); they belong to a merge group and to the push to main"
+            fi
             ;;
     esac
 
@@ -281,7 +302,7 @@ _decide_live() {
     local state
     state="$(_live_state)"
     eval "$state"
-    echo "ci-ok: live draft=$DRAFT plan=$PLAN profile=$PROFILE macos=$MACOS verify=$VERIFY verify-powershell=$POWERSHELL ps-required=$PS_REQUIRED changes=$CHANGES verify-docs=$DOCS perf=$PERF platform=$PLATFORM changelog=$FRAGMENTS missing=$VERIFY_MISSING"
+    echo "ci-ok: live draft=$DRAFT plan=$PLAN profile=$PROFILE macos=$MACOS verify=$VERIFY verify-powershell=$POWERSHELL ps-required=$PS_REQUIRED changes=$CHANGES verify-docs=$DOCS perf=$PERF platform=$PLATFORM tree-checks=$TREE changelog=$FRAGMENTS missing=$VERIFY_MISSING"
     if [ "$DRAFT" = "true" ]; then
         decide
     fi
@@ -316,7 +337,7 @@ PY
 }
 
 _run_from_env() {
-    local fragments="${11:-}" macos="${12-default}" changes="${13:-}"
+    local fragments="${11:-}" macos="${12-default}" changes="${13:-}" tree="${14:-}"
     if [ -z "$fragments" ]; then
         case "$1" in
             pull_request) fragments="success" ;;
@@ -338,9 +359,16 @@ _run_from_env() {
             *) changes="success" ;;
         esac
     fi
+    # The tree checks run in a merge group here, and on a push to main in `tree-checks.yml`.
+    if [ -z "$tree" ]; then
+        case "$1" in
+            merge_group) tree="success" ;;
+            *) tree="skipped" ;;
+        esac
+    fi
     env CI_OK_FROM_ENV=1 EVENT_NAME="$1" DRAFT="$2" PLAN="$3" PROFILE="$4" \
         VERIFY="$5" POWERSHELL="$6" DOCS="$7" PERF="$8" PLATFORM="$9" PS_REQUIRED="${10}" \
-        FRAGMENTS="$fragments" MACOS="$macos" CHANGES="$changes" \
+        FRAGMENTS="$fragments" MACOS="$macos" CHANGES="$changes" TREE="$tree" \
         bash "${SCRIPT_DIR}/ci-ok.sh"
 }
 
@@ -725,7 +753,7 @@ self_test() {
         schedule "" success full success success skipped success success true
     _self_case "a merge group that passed the Ubuntu gate" 0 "the full gate succeeded" \
         merge_group "" success full success skipped skipped skipped skipped "" "" false
-    _self_case "a docs merge group runs only the plan" 0 "the docs gate succeeded" \
+    _self_case "a docs merge group runs the plan and the tree checks" 0 "the docs gate succeeded" \
         merge_group "" success docs skipped skipped skipped skipped skipped "" "" false
 
     # Every way the run that happened can fail to be the gate:
@@ -751,6 +779,14 @@ self_test() {
         merge_group "" success full success skipped skipped skipped success "" "" false success
     _self_case "a merge group in which the changelog guard ran" 1 "already proved it" \
         merge_group "" success full success skipped skipped skipped success "" success false
+    # #854: the batch is the first tree on which two pull requests meet, so its tree checks are the
+    # queue's own duty -- a failure ejects the batch, and a skip means the wiring broke.
+    _self_case "a merge group in which the tree checks failed" 1 "tree checks" \
+        merge_group "" success full success skipped skipped skipped skipped "" "" false "" failure
+    _self_case "a merge group in which the tree checks were skipped" 1 "tree checks" \
+        merge_group "" success full success skipped skipped skipped skipped "" "" false "" skipped
+    _self_case "a pull request in which the tree checks ran" 1 "tree checks" \
+        pull_request false success full success skipped skipped skipped success false "" false "" success
     _self_case "a merge group in which the docs profile ran" 1 "already proved it" \
         merge_group "" success docs skipped skipped success skipped skipped "" "" false
     _self_case "a merge group in which the perf leg ran" 1 "belongs to a push to main" \
@@ -844,7 +880,9 @@ self_test() {
     _self_workflow "plan must keep the draft gate, so a draft push costs no matrix" \
         plan '^    if:.*draft' 1
     _self_workflow "ci-ok must take every gate leg as a needed job" \
-        ci-ok '^    needs: \[plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog\]' 1
+        ci-ok '^    needs: \[plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog, tree-checks\]' 1
+    _self_workflow "ci-ok must read the tree-check result" \
+        ci-ok 'TREE: \$\{\{ needs\.tree-checks\.result \}\}' 1
     _self_workflow "the verify matrix must be the plan's leg decision" \
         verify 'matrix: \$\{\{ fromJSON\(needs\.plan\.outputs\.verify_matrix\) \}\}' 1
     _self_workflow "the plan must hand ci-ok its macOS decision" \
@@ -882,6 +920,18 @@ self_test() {
         platform "^    if: needs\.plan\.outputs\.profile == 'full'" 1
     _self_workflow "the platform checks must not run in a merge group" \
         platform "github\.event_name != 'merge_group'" 1
+    _self_workflow "the tree checks must run in a merge group" \
+        tree-checks "github\.event_name == 'merge_group'" 1
+    _self_workflow "the tree-check job must not add a pull-request or push trigger" \
+        tree-checks "github\.event_name == 'pull_request'" 0
+    _self_workflow "the tree-check job must run the shared script" \
+        tree-checks 'scripts/tree-checks\.sh' 1
+    _self_workflow "the tree-check job must judge the batch against the queue's base" \
+        tree-checks 'github\.event\.merge_group\.base_sha' 1
+    _self_workflow "the tree-check job must fetch the pushed range" \
+        tree-checks 'fetch-depth: 0' 1
+    _self_workflow "the tree-check job must fetch the release tags" \
+        tree-checks 'fetch-tags: true' 1
     _self_workflow "the changed-path decision must not run in a merge group" \
         changes "github\.event_name != 'merge_group'" 1
     _self_workflow "the docs profile must not run in a merge group" \

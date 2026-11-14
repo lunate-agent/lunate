@@ -77,9 +77,10 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   `<!-- snippet: <path> -->` into a fenced block
   taken from that real file — the marker owns the block below it. Edit the source, then run
   `scripts/docs-sync`; `--check` is what the gate runs, in the docs profile, in the always-on
-  `Process` job (that job's checkout fetches the tags, which the version region reads), and in
-  `tree-checks.yml` on every push to `main` — a docs-only push skips the matrix, so that push is the
-  one place a stale region had no gate at all.
+  `Process` job (that job's checkout fetches the tags, which the version region reads), and in the
+  tree checks — `tree-checks.yml` on every push to `main` and the merge queue's `tree-checks` job,
+  both calling `scripts/tree-checks.sh` — a docs-only push skips the matrix, so the push is the one
+  place a stale region had no gate at all without them.
 - **Links, anchors and redirects are checked.** `scripts/docs-check --check` resolves every relative
   link and `#anchor` on the user and maintainer pages, validates every redirect stub, and keeps
   `docs/docs.json` honest: the manifest's `navigation` lists every user-path page exactly once, and

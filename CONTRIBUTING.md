@@ -195,21 +195,26 @@ the current verdict, and draft and ready runs have separate concurrency groups s
 cancel the ready gate. A gate that never carried a Ubuntu leg the plan put in its verify matrix is red
 too, naming the missing leg, rather than green on the shards that did run.
 
-The merge queue is the same diff one more time, so it runs the Ubuntu test gate and skips what the
-pull request already proved: the changed-path decision, the changelog guard, the platform checks, the
-docs profile and the Windows PowerShell twin. The full matrix — Ubuntu, Windows and macOS with every
-shard, the PowerShell twin and the dedicated perf measurement — runs on a push to `main` and the
+The merge queue is the same diff one more time, so it runs the Ubuntu test gate and the cheap tree
+checks, and skips what the pull request already proved: the changed-path decision, the changelog
+guard, the platform checks, the docs profile and the Windows PowerShell twin. The tree checks belong
+to the queue because the batch is the first tree on which two pull requests meet: `#840` took a free
+ADR-0036 and `#843`'s full-profile gate never asked about ADR numbers, so their duplicate reached
+`main` while both pull requests were green. `ci-ok` requires the `tree-checks` job, so a batch that
+carries a duplicate is ejected instead of merged. The full matrix — Ubuntu, Windows and macOS with
+every shard, the PowerShell twin and the dedicated perf measurement — runs on a push to `main` and the
 nightly; CodeQL runs on a push to `main` and its weekly schedule, not on a pull request. A red
 nightly files one `kind/bug` card per failing job in milestone `0.4.0`, naming the job and the run
 link, and comments on the open card for that job instead of filing a duplicate.
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the
-link/navigation check and the docs lint in one job of a few seconds. A docs-only push skips the
-matrix, so without that job a check that fails on `main` stays invisible until the first pull
-request that touches documentation — which is how `#738` (`check-adr-numbers.py` failing on `main`)
-survived. A red `tree-checks` on a `main` commit means one of those rules broke on the merge, not
-that the merge was fine.
+link/navigation check and the docs lint in one job of a few seconds. Both triggers call
+`scripts/tree-checks.sh`, so the push to `main` and the queue run one command list. A docs-only push
+skips the matrix, so without that job a check that fails on `main` stays invisible until the first
+pull request that touches documentation — which is how `#738` (`check-adr-numbers.py` failing on
+`main`) survived. A red `tree-checks` on a `main` commit means one of those rules broke on the merge,
+not that the merge was fine.
 
 Pull requests use the [pull request template](.github/pull_request_template.md): what the change is,
 what lands, where to look first, and the verification you ran. Keep commits small and conventional
