@@ -81,5 +81,5 @@
       task list, and kept the `tui` delta as it was.
 - [x] 7.4 Re-ran `openspec validate --all --strict`, the acceptance grep, `scripts/check-adr-numbers.py`,
       `scripts/check-spec-archive.py`, `scripts/docs-check --check` and markdownlint.
-- [ ] 7.5 Redid `openspec archive specs-name-current-docs-paths --yes` as the last commit of the
+- [x] 7.5 Redid `openspec archive specs-name-current-docs-paths --yes` as the last commit of the
       pull request.
