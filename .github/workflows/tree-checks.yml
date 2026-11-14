@@ -11,8 +11,10 @@ name: Tree checks
 # else's work.
 #
 # These checks are seconds of wall clock and need no build, so one small job runs all of them on
-# every push to main. A pull request's behaviour is unchanged: it gets the same checks through
-# `verify-docs` (prose), the `platform` profile (code, except ADR numbering) and `Process`.
+# every push to main. The command list lives in `scripts/tree-checks.sh`, which the merge queue's
+# `tree-checks` job in `ci.yml` also calls, so the push to main and the queue cannot drift. A pull
+# request's behaviour is unchanged: it gets the same checks through `verify-docs` (prose), the
+# `platform` profile (code, except ADR numbering) and `Process`.
 
 on:
   push:
@@ -41,11 +43,9 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # One step per check, so a red run names the rule that broke instead of "the docs job".
-      - name: ADR numbering
-        run: python3 scripts/check-adr-numbers.py
-
-      - name: Spec changes are archived
+      # One step, one command list: `scripts/tree-checks.sh` is also what the merge queue's
+      # `tree-checks` job calls, so the two triggers cannot drift.
+      - name: Tree checks
         env:
           # The push's own range: on main `origin/main` is HEAD, so a diff against it would pass
           # vacuously. An all-zero sha is a branch's first push, which has nothing before it.
@@ -59,13 +59,4 @@ jobs:
               ;;
           esac
           echo "checking the pushed range ${base}...HEAD"
-          python3 scripts/check-spec-archive.py --base "${base}"
-
-      - name: Generated docs regions
-        run: python3 scripts/docs-sync --check
-
-      - name: Docs links and navigation
-        run: python3 scripts/docs-check --check
-
-      - name: Docs lint
-        run: npx --yes markdownlint-cli2@0.23.3
+          bash scripts/tree-checks.sh --base "${base}"

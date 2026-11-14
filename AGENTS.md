@@ -9,7 +9,12 @@ This repo is developed with OpenCode and OpenSpec (schema: `intent-driven`).
 
 - OpenSpec is the only plan format. Plans, ledgers and resume notes for a change live in its `openspec/changes/<name>/` folder (design.md, tasks.md, or notes.md there), never in a skill's or tool's own directory. A session never descopes a maintainer requirement on its own; it files the gap as an issue in the same milestone and says so in the PR.
 - Work happens through OpenSpec changes. Never hand-write files under `openspec/changes/` or `openspec/specs/`; use the `openspec` CLI and the lifecycle skills in `.agents/skills/`, in order: `openspec-new-change` → `openspec-propose` → `openspec-continue-change` → `openspec-apply-change` → `openspec-verify-change` → `openspec-sync-specs` → `openspec-archive-change`. They work the same in every coding harness.
-- For propose/apply/verify/archive workflows, use the local `openspec-git-discipline` skill: proposals land on `main` before apply; the archive is the final commit of the implementation PR, added after review and before merge.
+- For propose/apply/verify/archive workflows, use the local `openspec-git-discipline` skill. A card is one implementation pull request: proposal, apply and archive land in it together, never in separate pull requests.
+- The archive is the last commit, and it lands before review, so the reviewer reads a tree whose change is already archived and its delta specs already synced. A rework that a review requests redoes the archive, or its update, as the last commit again.
+- The reviewer reads the proposal delta under `openspec/changes/<change>/` before the implementation, so a mismatch between intent and code is a review finding, not a merge-order accident.
+- Nobody answers an unattended run: decide inside the card's scope, commit on your branch and put the question in the pull request for the reviewer rather than stopping to ask. The one exception is an architecture decision (below): propose it and stop for the maintainer's sign-off.
+- `openspec/config.yaml` requires `grill-me` for a proposal, and `grill-me` interviews a user. Unattended, run it in self-answer mode: answer each question from the card, the specs and the code, and list every question with the answer you chose under the heading **Intent decisions** in the pull request description. The reviewer checks that list; a missing list sends the pull request back.
+- A conflict under `openspec/specs/**` is never resolved by editing a spec by hand: `git revert` the archive commit, merge `origin/main`, then re-run `openspec archive <change> --yes` as the last commit again. A hand-edited spec is indistinguishable from a synced one until someone reads the archive.
 - OpenSpec specs are the source of truth for behaviour. If spec and code disagree, stop and report — fix the spec first.
 - One change per session. Do only what the change's `tasks.md` asks; anything else becomes a follow-up change.
 - src work goes through the `senior-dev` subagent (test-first, `test-driven-development` skill); acceptance-test work through `senior-qa`.
@@ -34,7 +39,7 @@ This repo is developed with OpenCode and OpenSpec (schema: `intent-driven`).
 
 ## Rules
 
-- Architecture decisions (loop, tool contracts, protocols, dependencies) require maintainer sign-off: propose and stop.
+- Architecture decisions (loop, tool contracts, protocols, dependencies) require maintainer sign-off: propose and stop, even unattended — this is the one exception to deciding inside the card's scope.
 - No new NuGet packages. Ask first.
 - Public API changes appear in `PublicAPI.Unshipped.txt`. Change public types only if the change says so; otherwise propose the change and stop.
 - A failing golden session test means the session format changed. Stop and report; never update golden files to make a test pass.

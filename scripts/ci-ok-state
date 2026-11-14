@@ -14,7 +14,8 @@ override an older completed one, and a rerun of a draft payload cannot turn a re
 The matrix is the plan's, so the gate is only complete when every leg it put there is on the head: a
 verify shard that no check run names at all did not run, and its name (`verify (ubuntu-latest, 1/4)`)
 says how many shards there are. A missing leg is reported by name instead of being read as another
-passing shard.
+passing shard. A pull-request matrix is Ubuntu-only (#831), so the live decision requires the Ubuntu
+legs; the Windows and macOS legs belong to a push to main and the nightly.
 """
 from __future__ import annotations
 
@@ -27,11 +28,16 @@ from typing import Optional
 
 PENDING = {"queued", "in_progress", "waiting", "pending", "requested"}
 FAILED = {"failure", "timed_out", "action_required", "startup_failure"}
-SINGLE_JOBS = {"plan", "changes", "changelog", "platform", "verify-docs"}
-OPTIONAL_DEFAULT = {"platform": "skipped", "verify-docs": "skipped", "verify-powershell": "skipped"}
-# The plan puts a leg in the matrix for each of these on every event. A pull request leaves the macOS
-# legs to its merge-queue group (#831), so a live pull-request head carries none of them.
-VERIFY_OSES = ("ubuntu-latest", "windows-latest")
+SINGLE_JOBS = {"plan", "changes", "changelog", "platform", "verify-docs", "tree-checks"}
+OPTIONAL_DEFAULT = {
+    "platform": "skipped",
+    "verify-docs": "skipped",
+    "verify-powershell": "skipped",
+    "tree-checks": "skipped",
+}
+# A pull-request matrix is Ubuntu-only (#831): the full matrix belongs to a push to main and the
+# nightly, and a manual dispatch on the same head is not required.
+VERIFY_OSES = ("ubuntu-latest",)
 VERIFY_LEG = re.compile(r"^verify \((?P<os>[^,]+), (?P<shard>\d+)/(?P<count>\d+)\)$")
 
 
@@ -216,6 +222,7 @@ def main() -> int:
     changes = single("changes")
     fragments = single("changelog")
     platform = single("platform")
+    tree = single("tree-checks")
     docs = single("verify-docs")
     powershell = single("verify-powershell")
     perf = aggregate("perf")
@@ -264,7 +271,9 @@ def main() -> int:
         "DOCS": docs,
         "PERF": perf,
         "PLATFORM": platform,
+        "TREE": tree,
         "FRAGMENTS": fragments,
+        "CHANGES": changes,
         "GATE_RUNNING": pending_names(selected),
         "VERIFY_MISSING": verify_missing,
     }

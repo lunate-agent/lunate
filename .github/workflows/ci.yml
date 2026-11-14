@@ -79,6 +79,7 @@ jobs:
           python3 scripts/docs-check --self-test
           bash scripts/no-docs-references.sh --self-test
           bash scripts/no-wip-commits.sh --self-test
+          bash scripts/nightly-issue.sh --self-test
 
       # A wip commit is the queue driver's safety net for a stalled session: it preserves work that
       # would otherwise be lost, and it belongs in a draft. This job only runs for a pull request
@@ -122,13 +123,14 @@ jobs:
           bash scripts/ci-plan.sh --paths-file changed.txt >>"${GITHUB_OUTPUT}"
           cat "${GITHUB_OUTPUT}"
 
-      # The verify job's matrix. Ubuntu and Windows run the dispatch's shard count (four unless a
-      # manual dispatch picks another) on every event. macOS runs two shards, and only where a merge
-      # follows: the merge queue, a push to main, the nightly and a manual dispatch -- not a pull
-      # request. The free plan runs five macOS jobs at once; four per pull-request run plus four per
-      # merge-queue group left shards cancelled without a runner, which ejected green pull requests
-      # from the queue (#831). ci-ok reads `macos` and requires the macOS legs on every event but a
-      # pull request.
+      # The verify job's matrix, sized by the event (#831): a pull request proves the change on
+      # Ubuntu only, a merge group runs the same Ubuntu shards without repeating the PR's cheap
+      # checks, and the full three-OS matrix belongs to a push to main, the nightly and a manual
+      # dispatch. Ubuntu and Windows run the dispatch's shard count (four unless a manual dispatch
+      # picks another); macOS runs two. The free plan runs five macOS jobs at once, so four per
+      # pull-request run plus four per merge-queue group left shards cancelled without a runner,
+      # which ejected green pull requests from the queue (#831). ci-ok reads `macos` and requires
+      # the full matrix only on the events that own it.
       #
       # budget_ms: calibrated in spike S-3 (docs/dev/spikes/S-3/report.md, ADR 0005 accepted
       # 2026-10-04) -- runner startup median + ~50% headroom, rounded up to 50 ms. Re-calibrate when a
@@ -154,7 +156,9 @@ jobs:
           esac
           macos_shards=$((SHARDS < 2 ? SHARDS : 2))
           case "${GITHUB_EVENT_NAME}" in
-            pull_request) macos=false ;;
+            # The fast gate and the merge queue are Ubuntu-only: the full matrix runs where a merge
+            # is already behind it, not twice on the same diff.
+            pull_request | merge_group) macos=false ;;
             *) macos=true ;;
           esac
           legs=""
@@ -168,8 +172,8 @@ jobs:
           leg ubuntu-latest linux-x64 250 150 "${SHARDS}" ""
           if [ "${macos}" = true ]; then
             leg macos-latest osx-arm64 300 150 "${macos_shards}" ',"budget_enforce":0'
+            leg windows-latest win-x64 350 150 "${SHARDS}" ""
           fi
-          leg windows-latest win-x64 350 150 "${SHARDS}" ""
           {
             echo "macos=${macos}"
             echo "verify_matrix={\"include\":[${legs}]}"
@@ -182,7 +186,9 @@ jobs:
   # from the code's own markers rather than a hand-kept list of files.
   changes:
     name: changes
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # A merge group skips this: its pull requests already proved their path decisions, and there is
+    # no later leg in the queue for the PowerShell decision to feed.
+    if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       powershell: ${{ steps.powershell.outputs.powershell }}
@@ -263,15 +269,52 @@ jobs:
             python3 scripts/changelog-assemble --check
           fi
 
+  # The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs
+  # regions, the docs link/navigation check and the docs lint -- on the tree the queue is about to
+  # land. Each pull request proved only its own tree against its own base (#840 took a free ADR-0036
+  # while #843's full-profile gate never asked about ADR numbers), so the batch that combined them was
+  # the first tree to carry a duplicate and nothing in the queue ran the check that catches it
+  # (#854). The push to `main` runs the same script in `tree-checks.yml`; a pull request keeps the
+  # checks its profile already carries. `scripts/tree-checks.sh` holds the one command list.
+  tree-checks:
+    name: tree-checks
+    # Only the queue needs its own copy: a push to `main` has `tree-checks.yml` (a docs-only push
+    # skips this workflow entirely), and a pull request runs the checks through its profile.
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # `check-spec-archive.py` diffs the batch against the queue's base commit, which a shallow
+          # clone does not carry, and the version region in README.md is derived from the release
+          # tags, which a shallow checkout does not fetch either.
+          fetch-depth: 0
+          fetch-tags: true
+
+      # No .NET, no build, no test: seconds of wall clock, which is why the queue can afford them.
+      - name: Tree checks
+        shell: bash
+        env:
+          # The batch's own range: the commit it would land on, to the combined head. The ADR
+          # numbering check reads the whole tree, so it sees a duplicate whichever queued pull
+          # request introduced it.
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          echo "checking the batch's range ${BASE_SHA}...HEAD"
+          bash scripts/tree-checks.sh --base "${BASE_SHA}"
+
   # The platform-independent half of the gate: formatting, the generated docs regions, markdownlint,
   # the public API, the OpenSpec tree and the two agent-hygiene checks. Running it once on Linux is
   # the point -- a Windows runner formatting the same source as a macOS runner was cost, not depth.
   # The OS legs skip these steps (VERIFY_SKIP_PLATFORM_CHECKS=1) and keep build, test, publish and
-  # the artifact proofs, which genuinely differ per OS.
+  # the artifact proofs, which genuinely differ per OS. A merge group skips this job too: its pull
+  # requests ran the same checks on the same tree.
   platform:
     name: platform
     needs: plan
-    if: needs.plan.outputs.profile == 'full'
+    if: needs.plan.outputs.profile == 'full' && github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -491,7 +534,8 @@ jobs:
   verify-docs:
     name: verify-docs
     needs: plan
-    if: needs.plan.outputs.profile == 'docs'
+    # The pull request already ran the docs profile; a merge group has nothing left to lint.
+    if: needs.plan.outputs.profile == 'docs' && github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -515,18 +559,16 @@ jobs:
         run: bash scripts/verify.sh --profile docs
 
   # The Windows PowerShell gate runs as its own job so it proceeds in parallel
-  # with the bash matrix. Running it sequentially on the same runner made
-  # Windows the ~16m critical path (bash ~9m40s + pwsh ~5m50s); in parallel the
-  # pipeline lands around ~10m while both gates still run on every PR.
+  # with the bash matrix. It is part of the full matrix now, so it runs on a push
+  # to main, the nightly and a manual dispatch rather than on every PR (#831).
   verify-powershell:
     name: verify-powershell (windows)
     needs: [plan, changes]
-    if: needs.plan.outputs.profile == 'full' && needs.changes.outputs.powershell == 'true'
+    # The Windows twin belongs to the full matrix: a push to main, the nightly and a manual
+    # dispatch. A pull request and a merge group run Ubuntu only, so Windows flakiness cannot
+    # eject a green change from the queue.
+    if: needs.plan.outputs.profile == 'full' && needs.changes.outputs.powershell == 'true' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
     runs-on: windows-latest
-    # A red nightly files its own issue; a pull request must not.
-    permissions:
-      contents: read
-      issues: write
     env:
       RID: win-x64
       BUDGET_MS: 350
@@ -596,36 +638,6 @@ jobs:
             .artifacts/
           if-no-files-found: warn
 
-      # The nightly run is the safety net for the path filter: if it is red, a Windows-only
-      # regression exists somewhere the filter did not name. Filed automatically so it cannot sit
-      # unnoticed until the next tag, and deduplicated so a week of red nights is one issue.
-      - name: File an issue when the nightly gate fails
-        if: failure() && github.event_name == 'schedule'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          title="Nightly PowerShell gate failed on main"
-          body="The nightly \`ci.yml\` run failed in the PowerShell leg on \`main\`.
-
-          Run: ${RUN_URL}
-          Commit: \`${GITHUB_SHA}\`
-
-          This leg is path-filtered on pull requests, so a red nightly means a Windows-only change
-          reached \`main\` through a path the filter did not classify — or the filter itself is wrong.
-          Triage the failing step, then either fix the code or widen \`scripts/ci-powershell-paths.sh\`
-          (its self-test has a case for it)."
-          existing="$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open \
-            --search "in:title \"${title}\"" --json number --jq '.[0].number // empty')"
-          if [ -n "${existing}" ]; then
-            gh issue comment "${existing}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
-          else
-            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}" \
-              --label kind/bug --milestone 0.3.0
-          fi
-
   # The dedicated cold-startup leg (#240). The floor measured inside verify is still noisy on
   # the shared macOS runner: across 29 successful `main` runs (2026-10-28/29, post-#135,
   # post-ADR-0005 floor gate) the macOS floor read 77-275 ms, p95 256 ms against a 300 ms
@@ -640,11 +652,13 @@ jobs:
   perf:
     name: perf (${{ matrix.os }})
     needs: plan
-    # The startup budget is a nightly trend here; the Release workflow's own gate measures it for a
-    # tag. A push to main or a merge queue batch must never go red on it: a shared runner varies by a
-    # few percent, and a 4% overrun (311 ms against a 300 ms budget) ejected a whole batch from the
-    # merge queue. The per-PR verify shards still enforce the budget through STARTUP_BUDGET_ENFORCE.
-    if: needs.plan.outputs.profile == 'full' && github.event_name == 'schedule'
+    # The startup budget is a nightly trend and a push-to-main measurement here; the Release
+    # workflow's own gate measures it for a tag. A push to main must never go red on it: a shared
+    # runner varies by a few percent, and a 4% overrun (311 ms against a 300 ms budget) ejected a
+    # whole batch from the merge queue when a batch measured it. The queue and the fast gate do not
+    # run it, the per-PR verify shards keep enforcing the budget through STARTUP_BUDGET_ENFORCE, and
+    # the nightly's perf result feeds its verdict.
+    if: needs.plan.outputs.profile == 'full' && (github.event_name == 'schedule' || github.event_name == 'push')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -698,18 +712,64 @@ jobs:
           BUDGET_MS: ${{ matrix.budget_ms }}
         run: bash scripts/perf.sh "artifacts/publish/${{ matrix.rid }}/lunate"
 
+  # A red nightly is the safety net for everything the fast gate and the merge queue no longer run:
+  # Windows, macOS, the PowerShell twin and the perf measurement. It files its own kind/bug card per
+  # failing job so a regression cannot sit unnoticed until the next tag, and the next red night for
+  # the same job comments on the open card instead of filing a duplicate. The report reads the run's
+  # jobs through the API rather than `needs`, because `needs.verify` collapses the matrix to one
+  # result and the card must name the leg. scripts/nightly-issue.sh owns the decision; its self-test
+  # runs in `plan` with a stubbed gh.
+  nightly-issue:
+    name: nightly-issue
+    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Read the run's jobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+            >"${RUNNER_TEMP}/jobs.json"
+
+      - name: File one card per failing job
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          bash scripts/nightly-issue.sh \
+            --jobs-json "${RUNNER_TEMP}/jobs.json" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --run-url "${RUN_URL}" \
+            --commit "${GITHUB_SHA}"
+
   # Single aggregate check for branch protection: the ruleset requires only
   # "ci-ok", so renaming, adding or removing a matrix leg cannot silently drop
   # a required check. always() so a failed leg produces a definitive red
   # instead of a skipped (missing) check; skipped or cancelled legs are not
   # success. No path filters exist on pull_request, so no path filter can
   # leave this check pending on a PR; new top-level verification jobs must be
-  # added to "needs" here to stay covered.
+  # added to "needs" here to stay covered. `nightly-issue` is deliberately not
+  # a needed job: it reports a red night, it is not a gate.
   #
-  # The plan decides WHICH legs run; this job decides whether the run that
-  # actually happened counts as success, and it fails closed on a profile it
-  # cannot read. The legs the profile does not select must be skipped, not
-  # green: a docs plan that also ran the full matrix means the plan lied.
+  # The plan decides WHICH legs and which matrix the event needs; this job decides whether the run
+  # that actually happened is that gate, and it fails closed on a profile it cannot read. The legs
+  # the event and profile do not select must be skipped, not green: a full matrix on a pull request,
+  # or a docs job in a merge group, means the plan lied (#831). The event table lives in
+  # scripts/ci-ok.sh, whose self-test covers the pull request, merge group and push/nightly sets.
   #
   # This job must never be skipped on a draft: branch protection reads a
   # skipped required check as satisfied, so a head whose only run was the draft
@@ -725,7 +785,7 @@ jobs:
   # below still drive every other event, including a merge_group run.
   ci-ok:
     name: ci-ok
-    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
+    needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog, tree-checks]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -746,9 +806,11 @@ jobs:
           VERIFY: ${{ needs.verify.result }}
           POWERSHELL: ${{ needs.verify-powershell.result }}
           PS_REQUIRED: ${{ needs.changes.outputs.powershell }}
+          CHANGES: ${{ needs.changes.result }}
           DOCS: ${{ needs.verify-docs.result }}
           PERF: ${{ needs.perf.result }}
           PLATFORM: ${{ needs.platform.result }}
+          TREE: ${{ needs.tree-checks.result }}
           FRAGMENTS: ${{ needs.changelog.result }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
