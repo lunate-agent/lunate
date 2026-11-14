@@ -16,7 +16,7 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "release.yml"
-RUNBOOK = REPOSITORY_ROOT / "docs" / "distribution.md"
+RUNBOOK = REPOSITORY_ROOT / "docs" / "dev" / "distribution.md"
 STEP = "- name: The release pull request is merged into main"
 PULL_STEP = "- name: The tag is a merged release pull request"
 RELEASE_STEP = "- name: The release exists with its assets"
