@@ -972,6 +972,22 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Launch_options_accept_a_bare_end_of_options_marker()
+    {
+        LaunchOptions options = Parse("--");
+
+        Assert.False(options.Print);
+        Assert.Null(options.Prompt);
+    }
+
+    [Fact]
+    public void Launch_options_keep_a_positional_after_the_marker_a_usage_error_in_interactive_mode()
+    {
+        Assert.False(LaunchOptions.TryParse(["--", "Hi"], out _, out string? error));
+        Assert.Contains("unexpected argument 'Hi'", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Launch_options_parse_offline()
     {
         Assert.False(Parse().Offline);
