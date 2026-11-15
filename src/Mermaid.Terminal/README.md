@@ -17,8 +17,9 @@ dotnet add package Mermaid.Terminal
 The source:
 
 ```mermaid
-graph LR
-A --> B
+flowchart LR
+    Loop["The harness<br/>the loop"] --> Rec["recorder"] -.->|"new events"| Acc[accumulator]
+    Loop --> Log[logging]
 ```
 
 Rendered by:
@@ -28,10 +29,11 @@ using Mermaid.Terminal;
 
 MermaidRenderResult result = MermaidRenderer.Render(
     """
-    graph LR
-    A --> B
+    flowchart LR
+        Loop["The harness<br/>the loop"] --> Rec["recorder"] -.->|"new events"| Acc[accumulator]
+        Loop --> Log[logging]
     """,
-    width: 80,
+    width: 100,
     glyphs: MermaidGlyphSet.Unicode
 );
 
@@ -48,21 +50,38 @@ else if (result is MermaidFallbackResult fallback)
 }
 ```
 
-That program prints:
+That program prints the Unicode drawing:
+
+![The left-to-right flowchart drawn with Unicode box glyphs](https://raw.githubusercontent.com/lunate-agent/lunate/main/docs/media/mermaid/flowchart-lr.png)
+
+With `MermaidGlyphSet.Ascii`, the same source prints:
 
 ```text
-┌───┐     ┌───┐
-│   │     │   │
-│ A ├────►│ B │
-│   │     │   │
-└───┘     └───┘
++-------------+     +----------+             +-------------+
+|             |     |          |             |             |
+| The harness |     |          |             |             |
+|             |---->| recorder |-new-events >| accumulator |
+|   the loop  |     |          |             |             |
+|             |     |          |             |             |
++-------------+     +----------+             +-------------+
+       |
+       |
+       |
+       |
+       |
+       |            +----------+
+       |            |          |
+       +----------->| logging  |
+                    |          |
+                    +----------+
 ```
 
 Each line carries runs tagged `MermaidSpanKind.Frame` (box borders, lines and arrowheads) or
 `MermaidSpanKind.Label` (the text the diagram supplied), so a host can paint the drawing dim and
 the labels plain, as Lunate's TUI does.
 
-`MermaidGlyphSet.Ascii` draws the same layout with `+ - |` and `> < ^ v`. A diagram that does not
+`MermaidGlyphSet.Ascii` keeps the same layout and swaps in `+ - |` and `> < ^ v`, as above. A diagram
+that does not
 fit the supplied width, a source outside the bounded grammar, or a diagram type this renderer does
 not support comes back as `MermaidFallbackResult`: the source lines and one reason, never a partial
 picture. `MermaidRenderer.MinimumWidth` is the narrowest width that draws anything; below it the
