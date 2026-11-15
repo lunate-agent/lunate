@@ -3,10 +3,10 @@ mermaid
 │ Consumer │     │ AgentHarness │
 └─────┬────┘     └───────┬──────┘
       │                  │
-      │ RunAsync(userInput)
+      │ RunAsync(userInp…│
       ├─────────────────►│
       │                  │
-      │ TextMessageStart / Content / End
+      │ TextMessageStart…│
       │◄┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┤
       │                  │
       │          ┌───────────────┐
