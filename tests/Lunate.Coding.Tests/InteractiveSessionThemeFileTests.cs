@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using Lunate.Extensibility;
+using Lunate.Extensibility.Abstractions;
 
 namespace Lunate.Coding.Tests;
 
@@ -125,6 +127,53 @@ public sealed class InteractiveSessionThemeFileTests
     }
 
     [Fact]
+    public async Task An_extension_accent_segment_takes_the_accent_token_not_the_code_token()
+    {
+        var renderers = new ToolResultRendererRegistry();
+        renderers.Register(
+            "ext.renderer",
+            new FixedRenderer("read", [new TextSegment("extension saw the read", TextStyle.Accent)])
+        );
+        using var host = new InteractiveSessionHost(
+            toolResultRenderers: renderers,
+            interactiveConsole: true,
+            environment: TrueColorEnvironment,
+            unifiedScrollback: true
+        );
+        // The two tokens are told apart: the accent segment must paint the accent, not the code
+        // tone an Accent segment used to borrow.
+        WriteHomeTheme(host, """{"accent":"#ff0000","code":"#00ff00"}""");
+        File.WriteAllText(host.Temp.File("a.txt"), "contents");
+        host.Client.Enqueue(
+            Scripts.Call("call-1", "read", Scripts.Args(("path", "a.txt"))),
+            Scripts.ToolCalls()
+        );
+        host.Client.Enqueue(Scripts.Text("done"), Scripts.Stop());
+        Task run = host.RunAsync();
+
+        host.Console.SendText("go");
+        host.Console.SendEnter();
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.Frames.Contains("extension saw the read", StringComparison.Ordinal);
+        });
+
+        Assert.Contains(
+            "\u001b[38;2;255;0;0mextension saw the read",
+            host.Frames,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(
+            "\u001b[38;2;0;255;0mextension saw the read",
+            host.Frames,
+            StringComparison.Ordinal
+        );
+
+        await QuitAsync(host, run);
+    }
+
+    [Fact]
     public async Task An_unknown_token_warns_and_the_built_in_theme_stands()
     {
         using var host = new InteractiveSessionHost(
@@ -179,6 +228,15 @@ public sealed class InteractiveSessionThemeFileTests
 
     private static void WriteSettings(InteractiveSessionHost host, string json) =>
         File.WriteAllText(host.Temp.File("settings.json"), json);
+
+    /// <summary>An extension block whose one segment carries the style under test.</summary>
+    private sealed class FixedRenderer(string toolName, IReadOnlyList<TextSegment> segments)
+        : IToolResultRenderer
+    {
+        public string ToolName => toolName;
+
+        public IReadOnlyList<TextSegment> Render(ToolResultView view) => segments;
+    }
 
     /// <summary>A scratch token file under the process temp root (<c>$TMPDIR</c> on POSIX).</summary>
     private static string ScratchTheme(string json)

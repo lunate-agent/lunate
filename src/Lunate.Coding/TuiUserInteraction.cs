@@ -74,7 +74,7 @@ internal sealed class TuiUserInteraction(LiveArea live) : IUserInteraction
         style switch
         {
             Style.Dim => SpanStyle.Dim,
-            Style.Accent => _theme.Span(ThemeToken.Code, _color),
+            Style.Accent => _theme.Span(ThemeToken.Accent, _color),
             Style.Warning => _theme.Span(ThemeToken.Warning, _color),
             Style.Error => _theme.Span(ThemeToken.Error, _color),
             _ => SpanStyle.Plain,
