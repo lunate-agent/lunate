@@ -11,7 +11,9 @@ Print mode is the non-interactive frontend: it runs one prompt to completion and
 
 `--max-cost <usd>` and `--max-time <duration>` SHALL set the run's cost and wall-clock limits for
 that invocation, overriding the corresponding settings. `--max-time` SHALL accept integer seconds or
-a suffix (`s`, `m`, `h`). `--allow-unpriced` SHALL permit a run with a cost limit and a model the
+a suffix (`s`, `m`, `h`). `--max-steps <n>` SHALL set the run's step ceiling for that invocation,
+overriding the `maxSteps` setting (default 50); a missing, non-integer, zero or negative value SHALL
+be a usage error (exit 2). `--allow-unpriced` SHALL permit a run with a cost limit and a model the
 catalog cannot price. A cost limit on an unpriced model without that flag SHALL be a launch refusal
 (exit 2) naming the model and the flag, before any model request.
 
@@ -32,6 +34,18 @@ catalog cannot price. A cost limit on an unpriced model without that flag SHALL 
 - **GIVEN** a scripted run that reaches the step limit
 - **WHEN** print mode finishes
 - **THEN** the exit code is 2 and the run's `step_limit_reached` event appears in the JSON stream
+
+#### Scenario: A higher step limit lets the run pass 50 steps
+
+- **GIVEN** a looping scripted run and `--max-steps` above 50
+- **WHEN** print mode runs with `--json`
+- **THEN** the run performs more than 50 model calls, and its `step_limit_reached` event carries the configured ceiling before `run_finished` with `stopReason: step_limit` and exit 2
+
+#### Scenario: A non-positive step limit is a usage error
+
+- **GIVEN** `--max-steps` with a missing value, a non-integer, zero or a negative number
+- **WHEN** the invocation is parsed
+- **THEN** it exits 2 with a message on stderr and nothing on stdout, and no model request is made
 
 #### Scenario: Cost limit exits 3
 

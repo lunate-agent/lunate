@@ -33,6 +33,7 @@ shown are the documented defaults the store applies when a key is missing.
 | `decisions.tool` | string | off | user | Offers the `decide` tool, only when `decisions.profile` resolves as well. Values: `off`, `on`. |
 | `favorites` | string array | [] | user | The ordered favourite model ids, at most eight unique entries; schema 2 and later. |
 | `maxCost` | number | unset | user | The cumulative cost ceiling of a session in US dollars; off when unset. A resumed session seeds its spend from its recorded usages. A cost limit over a model the catalog cannot price refuses to start unless `--allow-unpriced` is passed. Print mode can override it with `--max-cost`. |
+| `maxSteps` | integer | 50 | user | The maximum number of model calls in one run; defaults to 50. `--max-steps <n>` overrides it for the invocation. |
 | `maxTime` | integer | unset | user | The wall-clock ceiling of one run in seconds; off when unset. Print mode can override it with `--max-time`. |
 | `model` | string | unset | user | The default model id. `LUNATE_MODEL` overrides it. |
 | `output.spillThresholdTokens` | integer | 2000 | user, project | The estimated-token threshold (UTF-8 bytes / 4) above which a tool result is spilled. A project file may lower it, never raise it. `LUNATE_TOOL_SPILL_THRESHOLD` overrides it. |

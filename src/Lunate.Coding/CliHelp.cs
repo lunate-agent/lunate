@@ -188,6 +188,9 @@ internal static class CliHelp
         );
         output.WriteLine("  --no-tools                     expose no tools for the run");
         output.WriteLine(
+            "  --max-steps <n>                stop the run after n model calls (default 50)"
+        );
+        output.WriteLine(
             "  --max-cost <usd>               stop the run at this cumulative session spend"
         );
         output.WriteLine(

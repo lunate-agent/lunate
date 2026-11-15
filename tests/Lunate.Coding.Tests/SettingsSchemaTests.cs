@@ -43,6 +43,7 @@ public sealed partial class SettingsSchemaTests
         ["thinkingFull"] = true,
         ["favorites"] = new[] { ProbeModel },
         ["maxCost"] = 1.25,
+        ["maxSteps"] = 55,
         ["maxTime"] = 90,
         ["tools.extra"] = new[] { "grep" },
         ["toolEnvironment.passthrough"] = new[] { "MY_PROJECT_TOKEN" },
@@ -133,6 +134,7 @@ public sealed partial class SettingsSchemaTests
         Assert.Equal(ProbeProvider, settings.Profiles[WildcardId].Provider);
         Assert.Equal(1024, settings.Profiles[WildcardId].MaxOutput);
         Assert.Equal(0.5, settings.Decisions.ApprovalsThreshold);
+        Assert.Equal(55, settings.MaxSteps);
     }
 
     [Fact]
