@@ -691,8 +691,8 @@ internal static class PrintMode
             return (null, null);
         }
 
-        string directory =
-            options.SessionDirectory ?? HarnessFactory.DefaultSessionDirectory(workspace);
+        string directory = options.SessionDirectory
+            ?? HarnessFactory.DefaultSessionDirectory(workspace);
         if (launch.SessionId is { } sessionId)
         {
             // The id names a file in this working directory's session directory: present means

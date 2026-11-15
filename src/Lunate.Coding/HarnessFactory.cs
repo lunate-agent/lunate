@@ -308,24 +308,22 @@ internal static class HarnessFactory
         Workspace workspace,
         string? sessionId = null
     ) =>
-        SessionProvisioning.Create(
-            directory,
-            provisional =>
-                sessionId is null
-                    ? Session.Create(
-                        provisional,
-                        workspace.WorktreeRoot,
-                        workspace.GitCommonDir,
-                        workspace.WorktreeRoot
-                    )
-                    : Session.Create(
-                        provisional,
-                        workspace.WorktreeRoot,
-                        workspace.GitCommonDir,
-                        workspace.WorktreeRoot,
-                        sessionId,
-                        TimeProvider.System
-                    )
+        SessionProvisioning.Create(directory, provisional =>
+            sessionId is null
+                ? Session.Create(
+                    provisional,
+                    workspace.WorktreeRoot,
+                    workspace.GitCommonDir,
+                    workspace.WorktreeRoot
+                )
+                : Session.Create(
+                    provisional,
+                    workspace.WorktreeRoot,
+                    workspace.GitCommonDir,
+                    workspace.WorktreeRoot,
+                    sessionId,
+                    TimeProvider.System
+                )
         );
 
     /// <summary>

@@ -392,9 +392,8 @@ public sealed class PrintModeTests
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
         foreach (string type in (string[])["run_started", "run_finished"])
         {
-            JsonElement line = Assert.Single(
-                lines,
-                line => PrintModeTestSupport.TypeOf(line) == type
+            JsonElement line = Assert.Single(lines, line =>
+                PrintModeTestSupport.TypeOf(line) == type
             );
             Assert.Equal("run-870", line.GetProperty("sessionId").GetString());
         }
@@ -459,9 +458,8 @@ public sealed class PrintModeTests
         Assert.Equal(0, exitCode);
         Assert.Equal("ok", output);
         Assert.Empty(errors);
-        Assert.DoesNotContain(
-            client.Requests[0],
-            message => message.Text == "other worktree question"
+        Assert.DoesNotContain(client.Requests[0], message =>
+            message.Text == "other worktree question"
         );
         Assert.True(File.Exists(Path.Combine(sessions, "run-870.jsonl")));
         Assert.Equal(otherWritten, File.GetLastWriteTimeUtc(other.Path));
