@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Lunate.TestSupport;
 
 namespace Lunate.Coding.Tests;
@@ -58,6 +59,8 @@ public sealed class FixtureRestoreEnvironmentTests
         Assert.Contains("<fallbackPackageFolders>", config, StringComparison.Ordinal);
         Assert.Contains($"value=\"{temp.Root}\"", config, StringComparison.Ordinal);
         Assert.DoesNotContain("http", config, StringComparison.OrdinalIgnoreCase);
+        // The child parses this as XML, so well-formedness is part of the contract too.
+        Assert.Equal("configuration", XDocument.Parse(config).Root!.Name.LocalName);
     }
 
     [Fact]
@@ -111,6 +114,7 @@ public sealed class FixtureRestoreEnvironmentTests
             StringComparison.Ordinal
         );
         Assert.DoesNotContain("value=\"" + awkward + "\"", config, StringComparison.Ordinal);
+        Assert.Equal("configuration", XDocument.Parse(config).Root!.Name.LocalName);
     }
 
     [Fact]
@@ -262,6 +266,18 @@ public sealed class FixtureRestoreEnvironmentTests
             $"TMPDIR={Path.Combine(temp.Root, ".tmp")}",
             description,
             StringComparison.Ordinal
+        );
+        // The one folder the restore may read from without a feed: a missing pack and a missing cache
+        // are the same NU1101, so the failure report has to name the cache it used (#895).
+        string machinePackages = FixtureRestore.MachinePackagesFolder();
+        Assert.Contains(
+            $"NuGet fallback folder: {machinePackages}",
+            description,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(
+            Directory.Exists(machinePackages),
+            !description.Contains("the configuration named none", StringComparison.Ordinal)
         );
     }
 }
