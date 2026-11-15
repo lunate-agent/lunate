@@ -218,9 +218,8 @@ public sealed partial class AgentHarness
         bool includePreview
     )
     {
-        int sequence = _spillSequenceByCallId.GetOrAdd(
-            callId,
-            _ => Interlocked.Increment(ref _spillSequence)
+        int sequence = _spillSequenceByCallId.GetOrAdd(callId, _ =>
+            Interlocked.Increment(ref _spillSequence)
         );
         ToolOutputSpillResult spill = ToolOutputSpill.TryWrite(session, runId, sequence, output);
         if (spill.Error is { } error)
@@ -739,8 +738,7 @@ public sealed partial class AgentHarness
         if (StreamAccumulator.IsUnassembled(call))
         {
             string? raw = FragmentOf(call.Arguments);
-            string error =
-                call.Exception?.Message
+            string error = call.Exception?.Message
                 ?? "the streamed arguments were not assembled into a complete call";
             return (raw is { Length: > 0 } ? raw : error, default, error);
         }
@@ -791,8 +789,7 @@ public sealed partial class AgentHarness
                     continue;
                 }
 
-                string callId =
-                    call.CallId
+                string callId = call.CallId
                     ?? "ref:"
                         + RuntimeHelpers.GetHashCode(call).ToString(CultureInfo.InvariantCulture);
                 if (byCallId.TryAdd(callId, call))

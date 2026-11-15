@@ -61,13 +61,11 @@ public sealed class ExtensionTemplateTests
         // host-owned attribute set or their own shape's equivalents.
         foreach (string assembly in HostOwned)
         {
-            XElement package = Assert.Single(
-                document.Descendants("PackageReference"),
-                element =>
-                    ((string?)element.Attribute("Include"))?.Contains(
-                        assembly,
-                        StringComparison.Ordinal
-                    ) == true
+            XElement package = Assert.Single(document.Descendants("PackageReference"), element =>
+                ((string?)element.Attribute("Include"))?.Contains(
+                    assembly,
+                    StringComparison.Ordinal
+                ) == true
             );
             Assert.True(
                 string.Equals(
@@ -88,13 +86,11 @@ public sealed class ExtensionTemplateTests
                     + "the host loads it, so it is not a runtime asset of the extension"
             );
 
-            XElement project = Assert.Single(
-                document.Descendants("ProjectReference"),
-                element =>
-                    ((string?)element.Attribute("Include"))?.Contains(
-                        assembly,
-                        StringComparison.Ordinal
-                    ) == true
+            XElement project = Assert.Single(document.Descendants("ProjectReference"), element =>
+                ((string?)element.Attribute("Include"))?.Contains(
+                    assembly,
+                    StringComparison.Ordinal
+                ) == true
             );
             Assert.True(
                 string.Equals(

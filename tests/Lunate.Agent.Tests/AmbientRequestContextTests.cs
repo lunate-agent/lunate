@@ -61,18 +61,16 @@ public sealed class AmbientRequestContextTests
 
         List<AgentEvent> events = await Run(harness);
         RunStarted parentStart = events.OfType<RunStarted>().First();
-        RunStarted childStart = Assert.Single(
-            events.OfType<RunStarted>(),
-            start => start.ParentRunId == parentStart.RunId
+        RunStarted childStart = Assert.Single(events.OfType<RunStarted>(), start =>
+            start.ParentRunId == parentStart.RunId
         );
         Session childSession = Session.Load(
             Path.Combine(
                 Path.GetDirectoryName(Path.GetFullPath(session.Path))!,
                 SessionPaths.SessionFileName(
                     Assert
-                        .Single(
-                            session.Entries.OfType<SessionChildSessionEntry>(),
-                            entry => entry.RunId == childStart.RunId
+                        .Single(session.Entries.OfType<SessionChildSessionEntry>(), entry =>
+                            entry.RunId == childStart.RunId
                         )
                         .ChildSessionId
                 )
@@ -82,9 +80,8 @@ public sealed class AmbientRequestContextTests
         // The parent's own model calls name the parent's session; the child's call names the
         // child session and the child run — even though every call shares this one client (the
         // parent makes a second call after the spawn returns).
-        Assert.All(
-            seen.Observed.Where(context => context.RunId == parentStart.RunId),
-            context => Assert.Equal(session.SessionId, context.SessionId)
+        Assert.All(seen.Observed.Where(context => context.RunId == parentStart.RunId), context =>
+            Assert.Equal(session.SessionId, context.SessionId)
         );
         Assert.Equal(
             childSession.SessionId,

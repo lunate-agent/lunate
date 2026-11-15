@@ -47,11 +47,8 @@ static async Task ProbeAsync()
     DateTime processStart = System.Diagnostics.Process.GetCurrentProcess().StartTime;
     var buildWatch = System.Diagnostics.Stopwatch.StartNew();
     ScriptedChatClient client = new([new([Updates.Text("ready")])]);
-    OwnLoopAgent agent = new(
-        client,
-        SpikeTool.All,
-        SystemPrompt,
-        (_, _) => ValueTask.FromResult(ApprovalDecision.AllowOnce)
+    OwnLoopAgent agent = new(client, SpikeTool.All, SystemPrompt, (_, _) =>
+        ValueTask.FromResult(ApprovalDecision.AllowOnce)
     );
     buildWatch.Stop();
 
@@ -72,11 +69,8 @@ static async Task ProbeAsync()
 static void RunCheck2()
 {
     ScriptedChatClient client = new([new([Updates.Text("ok")])]);
-    OwnLoopAgent agent = new(
-        client,
-        SpikeTool.All,
-        SystemPrompt,
-        (_, _) => ValueTask.FromResult(ApprovalDecision.AllowOnce)
+    OwnLoopAgent agent = new(client, SpikeTool.All, SystemPrompt, (_, _) =>
+        ValueTask.FromResult(ApprovalDecision.AllowOnce)
     );
     _ = CollectAsync(agent.RunAsync("hello")).GetAwaiter().GetResult();
 
@@ -90,11 +84,8 @@ static void RunCheck2()
 static async Task RunCheck3Async()
 {
     ScriptedChatClient canonicalClient = new(ChatScripts.Canonical());
-    OwnLoopAgent canonical = new(
-        canonicalClient,
-        SpikeTool.All,
-        SystemPrompt,
-        (_, _) => ValueTask.FromResult(ApprovalDecision.AllowOnce)
+    OwnLoopAgent canonical = new(canonicalClient, SpikeTool.All, SystemPrompt, (_, _) =>
+        ValueTask.FromResult(ApprovalDecision.AllowOnce)
     );
     PrintTranscript(
         "canonical",
@@ -115,11 +106,8 @@ static async Task RunCheck3Async()
         ]),
         new([Updates.Text("Noted; I will also check the tests."), Updates.Finish()]),
     ]);
-    steering = new OwnLoopAgent(
-        steeringClient,
-        SpikeTool.All,
-        SystemPrompt,
-        (_, _) => ValueTask.FromResult(ApprovalDecision.AllowOnce)
+    steering = new OwnLoopAgent(steeringClient, SpikeTool.All, SystemPrompt, (_, _) =>
+        ValueTask.FromResult(ApprovalDecision.AllowOnce)
     );
     PrintTranscript(
         "steering",
@@ -150,11 +138,8 @@ static async Task RunCheck3Async()
             Updates.Finish(ChatFinishReason.ToolCalls),
         ]),
     ]);
-    OwnLoopAgent cancel = new(
-        cancelClient,
-        SpikeTool.All,
-        SystemPrompt,
-        (_, _) => ValueTask.FromResult(ApprovalDecision.AllowOnce)
+    OwnLoopAgent cancel = new(cancelClient, SpikeTool.All, SystemPrompt, (_, _) =>
+        ValueTask.FromResult(ApprovalDecision.AllowOnce)
     );
     PrintTranscript(
         "cancel",
@@ -179,16 +164,11 @@ static async Task RunCheck4Async()
         new([Updates.Text("Done."), Updates.Finish()]),
     ]);
 
-    OwnLoopAgent agent = new(
-        client,
-        SpikeTool.All,
-        SystemPrompt,
-        (context, _) =>
-        {
-            callbacks.Add($"name={context.Tool.Name} args={context.ArgsJson}");
-            return ValueTask.FromResult(ApprovalDecision.AllowForSession);
-        }
-    );
+    OwnLoopAgent agent = new(client, SpikeTool.All, SystemPrompt, (context, _) =>
+    {
+        callbacks.Add($"name={context.Tool.Name} args={context.ArgsJson}");
+        return ValueTask.FromResult(ApprovalDecision.AllowForSession);
+    });
 
     PrintTranscript(
         "approval-session",
@@ -211,19 +191,14 @@ static async Task RunCheck4Async()
         new([Updates.Text("I skipped the destructive one."), Updates.Finish()]),
     ]);
 
-    OwnLoopAgent argumentAgent = new(
-        argumentClient,
-        SpikeTool.All,
-        SystemPrompt,
-        (context, _) =>
-        {
-            argumentCallbacks.Add(context.ArgsJson);
-            bool destructive = context.ArgsJson.Contains("rm -rf", StringComparison.Ordinal);
-            return ValueTask.FromResult(
-                destructive ? ApprovalDecision.Deny : ApprovalDecision.AllowOnce
-            );
-        }
-    );
+    OwnLoopAgent argumentAgent = new(argumentClient, SpikeTool.All, SystemPrompt, (context, _) =>
+    {
+        argumentCallbacks.Add(context.ArgsJson);
+        bool destructive = context.ArgsJson.Contains("rm -rf", StringComparison.Ordinal);
+        return ValueTask.FromResult(
+            destructive ? ApprovalDecision.Deny : ApprovalDecision.AllowOnce
+        );
+    });
 
     PrintTranscript(
         "approval-per-arguments",
@@ -262,11 +237,8 @@ static async Task RunCheck5Async()
 static async Task RunSplitAsync()
 {
     ScriptedChatClient client = new(ChatScripts.SplitArguments());
-    OwnLoopAgent agent = new(
-        client,
-        SpikeTool.All,
-        SystemPrompt,
-        (_, _) => ValueTask.FromResult(ApprovalDecision.AllowOnce)
+    OwnLoopAgent agent = new(client, SpikeTool.All, SystemPrompt, (_, _) =>
+        ValueTask.FromResult(ApprovalDecision.AllowOnce)
     );
     IReadOnlyList<OwnLoopEvent> events = await CollectAsync(
         agent.RunAsync(ChatScripts.SystemUserMessage)
@@ -281,11 +253,8 @@ static async Task RunSplitAsync()
 
 static async Task<string> RunTranscriptAsync(IChatClient client)
 {
-    OwnLoopAgent agent = new(
-        client,
-        SpikeTool.All,
-        SystemPrompt,
-        (_, _) => ValueTask.FromResult(ApprovalDecision.AllowForSession)
+    OwnLoopAgent agent = new(client, SpikeTool.All, SystemPrompt, (_, _) =>
+        ValueTask.FromResult(ApprovalDecision.AllowForSession)
     );
     StringBuilder transcript = new();
     await foreach (OwnLoopEvent item in agent.RunAsync(ChatScripts.SystemUserMessage))

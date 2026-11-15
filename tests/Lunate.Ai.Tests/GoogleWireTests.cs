@@ -212,8 +212,8 @@ public sealed class GoogleWireTests
             updates.SelectMany(update => update.Contents).OfType<FunctionCallContent>()
         );
         Assert.Equal("echo", call.Name);
-        IDictionary<string, object?> arguments =
-            call.Arguments ?? new Dictionary<string, object?>();
+        IDictionary<string, object?> arguments = call.Arguments
+            ?? new Dictionary<string, object?>();
         var argument = Assert.Single(arguments);
         Assert.Equal("text", argument.Key);
         Assert.Equal("ping", argument.Value?.ToString());
@@ -260,9 +260,8 @@ public sealed class GoogleWireTests
         );
 
         ChatMessage assistant = updates.ToChatResponse().Messages[0];
-        Assert.Contains(
-            assistant.Contents.OfType<TextReasoningContent>(),
-            reasoning => reasoning.ProtectedData == Signature
+        Assert.Contains(assistant.Contents.OfType<TextReasoningContent>(), reasoning =>
+            reasoning.ProtectedData == Signature
         );
     }
 

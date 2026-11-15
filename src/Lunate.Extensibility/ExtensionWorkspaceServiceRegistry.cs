@@ -72,8 +72,7 @@ internal sealed class ExtensionWorkspaceServiceRegistry
         Service service;
         lock (_gate)
         {
-            service =
-                _services.FirstOrDefault(entry => entry.Is(extensionId, name))
+            service = _services.FirstOrDefault(entry => entry.Is(extensionId, name))
                 ?? throw new InvalidOperationException(
                     $"extension '{extensionId}': workspace service '{name}' is not registered; access it through the extension that registered it."
                 );

@@ -83,8 +83,7 @@ public static class SessionTitle
     public static void Write(string sessionPath, string title)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionPath);
-        string normalized =
-            Normalize(title)
+        string normalized = Normalize(title)
             ?? throw new ArgumentException(
                 $"A session title must be 1 to {MaxLength} characters after trimming.",
                 nameof(title)

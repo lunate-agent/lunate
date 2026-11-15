@@ -95,13 +95,10 @@ public sealed class InteractiveSessionSystemPromptTests
 
         string[] files = Directory.GetFiles(host.Temp.File("sessions"), "*.jsonl");
         Assert.Equal(2, files.Length);
-        Assert.All(
-            files,
-            file =>
-                Assert.Contains(
-                    Session.Load(file).Entries.OfType<SessionPromptSectionEntry>(),
-                    entry => entry.Section == "system" && entry.Text == "the interactive contract"
-                )
+        Assert.All(files, file =>
+            Assert.Contains(Session.Load(file).Entries.OfType<SessionPromptSectionEntry>(), entry =>
+                entry.Section == "system" && entry.Text == "the interactive contract"
+            )
         );
 
         host.Console.Complete();

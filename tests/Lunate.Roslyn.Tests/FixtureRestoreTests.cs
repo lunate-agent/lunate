@@ -87,21 +87,19 @@ public sealed class FixtureRestoreTests
                 children <= 1,
                 $"six restores of one solution started {children} child processes"
             );
-            Assert.All(
-                fixtures,
-                fixture =>
-                    Assert.True(
-                        File.Exists(
-                            Path.Combine(
-                                fixture.Root,
-                                "src",
-                                "ConsoleApp",
-                                "obj",
-                                "project.assets.json"
-                            )
-                        ),
-                        $"{fixture.Root} was not restored"
-                    )
+            Assert.All(fixtures, fixture =>
+                Assert.True(
+                    File.Exists(
+                        Path.Combine(
+                            fixture.Root,
+                            "src",
+                            "ConsoleApp",
+                            "obj",
+                            "project.assets.json"
+                        )
+                    ),
+                    $"{fixture.Root} was not restored"
+                )
             );
         }
         finally

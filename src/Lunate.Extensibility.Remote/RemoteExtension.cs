@@ -410,8 +410,7 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
         InitializeResult answer;
         try
         {
-            answer =
-                result.Value.Deserialize<InitializeResult>(WireJson.Options)
+            answer = result.Value.Deserialize<InitializeResult>(WireJson.Options)
                 ?? throw Refuse("the initialize result was null.");
         }
         catch (JsonException exception)

@@ -267,9 +267,8 @@ public sealed class PackageUninstallTests
         byte[] recordBefore = File.ReadAllBytes(install.RecordPath);
         string assembly = Path.Combine(store, "extensions", "acme-tools", "acme-tools.dll");
         File.Delete(assembly);
-        InstalledFile recorded = Assert.Single(
-            install.Record.Content.Paths,
-            file => file.Path == "extensions/acme-tools/acme-tools.dll"
+        InstalledFile recorded = Assert.Single(install.Record.Content.Paths, file =>
+            file.Path == "extensions/acme-tools/acme-tools.dll"
         );
 
         PackageInstallResult repaired = await installer.InstallAsync(

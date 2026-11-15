@@ -18,15 +18,11 @@ public sealed class ManualSchedulerChainProbe
     private static readonly TimeSpan Frame = TimeSpan.FromMilliseconds(33);
 
     private static IDisposable Post(IScheduler scheduler, TimeSpan due, Action action) =>
-        scheduler.Schedule(
-            action,
-            due,
-            static (_, work) =>
-            {
-                work();
-                return Disposable.Empty;
-            }
-        );
+        scheduler.Schedule(action, due, static (_, work) =>
+        {
+            work();
+            return Disposable.Empty;
+        });
 
     [Fact]
     public void Every_sampled_tick_rearms_the_next_one()

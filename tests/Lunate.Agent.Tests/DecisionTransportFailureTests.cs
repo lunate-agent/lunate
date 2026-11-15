@@ -27,27 +27,22 @@ public sealed class DecisionTransportFailureTests
 
         DecisionFailed[] failures = [.. run.Events.OfType<DecisionFailed>()];
         Assert.Equal(4, failures.Length);
-        Assert.All(
-            failures,
-            failure =>
-                Assert.Contains(
-                    "System One rejected field 'questions.writes_outside_workspace.criteria'",
-                    failure.Reason,
-                    StringComparison.Ordinal
-                )
+        Assert.All(failures, failure =>
+            Assert.Contains(
+                "System One rejected field 'questions.writes_outside_workspace.criteria'",
+                failure.Reason,
+                StringComparison.Ordinal
+            )
         );
-        Assert.All(
-            failures,
-            failure => Assert.Contains("Invalid input", failure.Reason, StringComparison.Ordinal)
+        Assert.All(failures, failure =>
+            Assert.Contains("Invalid input", failure.Reason, StringComparison.Ordinal)
         );
-        Assert.All(
-            failures,
-            failure =>
-                Assert.DoesNotContain(
-                    "provider request failed",
-                    failure.Reason,
-                    StringComparison.Ordinal
-                )
+        Assert.All(failures, failure =>
+            Assert.DoesNotContain(
+                "provider request failed",
+                failure.Reason,
+                StringComparison.Ordinal
+            )
         );
         // A deterministic 4xx is not retried, and the failure leaves the ordinary flow in charge.
         Assert.Equal(1, run.TransportRequests);
@@ -62,19 +57,15 @@ public sealed class DecisionTransportFailureTests
 
         DecisionFailed[] failures = [.. run.Events.OfType<DecisionFailed>()];
         Assert.Equal(4, failures.Length);
-        Assert.All(
-            failures,
-            failure =>
-                Assert.Contains(
-                    "Decision state too large for this model",
-                    failure.Reason,
-                    StringComparison.Ordinal
-                )
+        Assert.All(failures, failure =>
+            Assert.Contains(
+                "Decision state too large for this model",
+                failure.Reason,
+                StringComparison.Ordinal
+            )
         );
-        Assert.All(
-            failures,
-            failure =>
-                Assert.Contains("maximum context length", failure.Reason, StringComparison.Ordinal)
+        Assert.All(failures, failure =>
+            Assert.Contains("maximum context length", failure.Reason, StringComparison.Ordinal)
         );
         Assert.Equal(1, run.TransportRequests);
         Assert.Equal(1, run.Executions);

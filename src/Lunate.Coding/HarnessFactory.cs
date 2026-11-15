@@ -303,15 +303,13 @@ internal static class HarnessFactory
     /// sessions <c>&lt;sessionId&gt;.jsonl</c>): create, rename to the store-assigned id, reload.
     /// </summary>
     internal static Session CreateSession(string directory, Workspace workspace) =>
-        SessionProvisioning.Create(
-            directory,
-            provisional =>
-                Session.Create(
-                    provisional,
-                    workspace.WorktreeRoot,
-                    workspace.GitCommonDir,
-                    workspace.WorktreeRoot
-                )
+        SessionProvisioning.Create(directory, provisional =>
+            Session.Create(
+                provisional,
+                workspace.WorktreeRoot,
+                workspace.GitCommonDir,
+                workspace.WorktreeRoot
+            )
         );
 
     /// <summary>
@@ -340,8 +338,7 @@ internal static class HarnessFactory
 
         try
         {
-            ModelInfo model =
-                catalog.Find(modelId)
+            ModelInfo model = catalog.Find(modelId)
                 ?? throw new UnknownModelException(
                     $"Model '{modelId}' is not in the catalog. Run lunate --discover <name-or-url> "
                         + $"to draft a models.json entry or add '{modelId}' to ~/.lunate/models.json."

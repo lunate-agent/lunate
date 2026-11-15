@@ -99,9 +99,8 @@ public sealed class UsageProfileTests
         List<AgentEvent> events = await AgentTestSupport.Run(harness);
 
         Assert.Empty(decision.Requests);
-        Assert.Contains(
-            events.OfType<RunError>(),
-            error => error.Message.Contains("structured-output", StringComparison.Ordinal)
+        Assert.Contains(events.OfType<RunError>(), error =>
+            error.Message.Contains("structured-output", StringComparison.Ordinal)
         );
     }
 
@@ -202,9 +201,8 @@ public sealed class UsageProfileTests
         List<AgentEvent> events = await AgentTestSupport.Run(harness);
 
         Assert.Empty(selected.Requests);
-        Assert.Contains(
-            events.OfType<RunError>(),
-            error => error.Message.Contains(missingCapability, StringComparison.Ordinal)
+        Assert.Contains(events.OfType<RunError>(), error =>
+            error.Message.Contains(missingCapability, StringComparison.Ordinal)
         );
     }
 

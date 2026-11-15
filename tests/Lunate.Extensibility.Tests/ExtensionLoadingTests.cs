@@ -24,9 +24,8 @@ public sealed class ExtensionLoadingTests
         Assert.Equal("hello", loaded.Id);
         Assert.NotNull(loaded.Extension);
         Assert.Equal("hello", loaded.Descriptor.Id);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("created hello instance 1", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("created hello instance 1", StringComparison.Ordinal)
         );
     }
 
@@ -63,9 +62,8 @@ public sealed class ExtensionLoadingTests
                 message.Contains("created hello instance 1", StringComparison.Ordinal)
             )
         );
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("instance 2", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("instance 2", StringComparison.Ordinal)
         );
     }
 
@@ -204,9 +202,8 @@ public sealed class ExtensionLoadingTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("shared \"hello\"/ChatMessage", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("shared \"hello\"/ChatMessage", StringComparison.Ordinal)
         );
     }
 

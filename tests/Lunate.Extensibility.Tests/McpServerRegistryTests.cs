@@ -21,12 +21,10 @@ public sealed class McpServerRegistryTests
         RegisteredMcpServer registered = Assert.Single(registry.List());
         Assert.Equal("first", registered.ExtensionId);
         Assert.Same(first, registered.Registration);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'test'", StringComparison.Ordinal)
-                && message.Contains("'first'", StringComparison.Ordinal)
-                && message.Contains("'second'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'test'", StringComparison.Ordinal)
+            && message.Contains("'first'", StringComparison.Ordinal)
+            && message.Contains("'second'", StringComparison.Ordinal)
         );
     }
 
@@ -105,12 +103,10 @@ public sealed class McpServerRegistryTests
 
         RegisteredMcpServer registered = Assert.Single(loader.McpServers.List());
         Assert.Equal("first", registered.ExtensionId);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'test'", StringComparison.Ordinal)
-                && message.Contains("'first'", StringComparison.Ordinal)
-                && message.Contains("'second'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'test'", StringComparison.Ordinal)
+            && message.Contains("'first'", StringComparison.Ordinal)
+            && message.Contains("'second'", StringComparison.Ordinal)
         );
     }
 

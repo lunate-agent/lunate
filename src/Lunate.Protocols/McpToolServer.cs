@@ -152,9 +152,8 @@ internal static class McpToolServer
                 },
                 NotificationHandlers =
                 [
-                    new(
-                        NotificationMethods.RootsListChangedNotification,
-                        (_, cancellationToken) => HandleRootsChangedAsync(cancellationToken)
+                    new(NotificationMethods.RootsListChangedNotification, (_, cancellationToken) =>
+                        HandleRootsChangedAsync(cancellationToken)
                     ),
                 ],
             },

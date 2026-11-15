@@ -62,9 +62,8 @@ public sealed class HookRunnerTimingTests
             await runner.RunToolCallingAsync(Payload("path"), Ct);
         }
 
-        string warning = Assert.Single(
-            log.Messages,
-            message => message.StartsWith("warn: hook ToolCalling", StringComparison.Ordinal)
+        string warning = Assert.Single(log.Messages, message =>
+            message.StartsWith("warn: hook ToolCalling", StringComparison.Ordinal)
         );
         Assert.Contains("ext-slow", warning, StringComparison.Ordinal);
         Assert.Contains("slow-hook threshold of 10 ms", warning, StringComparison.Ordinal);
@@ -114,9 +113,8 @@ public sealed class HookRunnerTimingTests
         Assert.Equal(0, timings.SlowCount);
         Assert.True(timings.TotalMs >= 40, $"total was {timings.TotalMs}");
         Assert.Empty(events);
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("slow", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("slow", StringComparison.Ordinal)
         );
     }
 
@@ -158,13 +156,11 @@ public sealed class HookRunnerTimingTests
         Assert.True(timings.MaxMs >= 50, $"max was {timings.MaxMs}");
         Assert.Single(events);
 
-        Assert.Single(
-            log.Messages,
-            message => message.StartsWith("warn: hook ToolCalling", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.StartsWith("warn: hook ToolCalling", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            log.Messages,
-            message => message.StartsWith("error: hook ToolCalling", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.StartsWith("error: hook ToolCalling", StringComparison.Ordinal)
         );
     }
 
@@ -224,16 +220,14 @@ public sealed class HookRunnerTimingTests
         await lax.RunToolCallingAsync(Payload("path"), Ct);
 
         Assert.Equal(1, Assert.Single(strict.Snapshot("ext-threshold")).SlowCount);
-        Assert.Contains(
-            strictLog.Messages,
-            message => message.StartsWith("warn: hook ToolCalling", StringComparison.Ordinal)
+        Assert.Contains(strictLog.Messages, message =>
+            message.StartsWith("warn: hook ToolCalling", StringComparison.Ordinal)
         );
         HookTimings laxTimings = Assert.Single(lax.Snapshot("ext-threshold"));
         Assert.Equal(0, laxTimings.SlowCount);
         Assert.True(laxTimings.MaxMs >= 20, $"max was {laxTimings.MaxMs}");
-        Assert.DoesNotContain(
-            laxLog.Messages,
-            message => message.Contains("slow-hook threshold", StringComparison.Ordinal)
+        Assert.DoesNotContain(laxLog.Messages, message =>
+            message.Contains("slow-hook threshold", StringComparison.Ordinal)
         );
     }
 
@@ -256,9 +250,8 @@ public sealed class HookRunnerTimingTests
         Assert.Equal(0, timings.SlowCount);
         Assert.True(timings.MaxMs < 50, $"max was {timings.MaxMs}");
         Assert.Equal(2, handler.ConsumeCalls);
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("slow-hook threshold", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("slow-hook threshold", StringComparison.Ordinal)
         );
     }
 

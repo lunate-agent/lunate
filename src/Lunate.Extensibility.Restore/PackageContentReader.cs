@@ -25,8 +25,7 @@ internal static class PackageContentReader
         }
 
         string manifestPath = $"{folder}/extension.json";
-        string? json =
-            archive.ReadText(manifestPath)
+        string? json = archive.ReadText(manifestPath)
             ?? throw new InvalidDataException(
                 $"{label}: the 'extension' folder '{folder}' has no extension.json; an extension "
                     + "folder carries its manifest at its root. Add it or remove 'extension' from "

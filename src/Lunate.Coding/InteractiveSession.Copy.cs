@@ -23,8 +23,7 @@ internal sealed partial class InteractiveSession
 
         try
         {
-            ITextClipboard clipboard =
-                _options.TextClipboard
+            ITextClipboard clipboard = _options.TextClipboard
                 ?? new ClipboardWriter(_environment, writeTerminal: _console.Write);
             ClipboardCopy copy = await clipboard
                 .WriteAsync(answer, cancellationToken)

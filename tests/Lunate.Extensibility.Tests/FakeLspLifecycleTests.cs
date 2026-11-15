@@ -55,12 +55,10 @@ public sealed class FakeLspLifecycleTests
         await host.StartAsync(Ct);
 
         Assert.Equal(0, server.StartCount);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'lsp'", StringComparison.Ordinal)
-                && message.Contains("'ext/lsp/server'", StringComparison.Ordinal)
-                && message.Contains("failed to start", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'lsp'", StringComparison.Ordinal)
+            && message.Contains("'ext/lsp/server'", StringComparison.Ordinal)
+            && message.Contains("failed to start", StringComparison.Ordinal)
         );
     }
 
@@ -77,11 +75,9 @@ public sealed class FakeLspLifecycleTests
 
         Assert.Equal(1, server.StartCount);
         Assert.Equal(0, server.StopCount);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'lsp'", StringComparison.Ordinal)
-                && message.Contains("failed to stop", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'lsp'", StringComparison.Ordinal)
+            && message.Contains("failed to stop", StringComparison.Ordinal)
         );
     }
 }

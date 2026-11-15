@@ -61,9 +61,8 @@ public sealed class AcpTimeoutTests
 
         Assert.False(approved);
         Assert.Single(runtime.State.PermissionRequests);
-        Assert.Contains(
-            log,
-            line => line.Contains("no answer within 5s", StringComparison.Ordinal)
+        Assert.Contains(log, line =>
+            line.Contains("no answer within 5s", StringComparison.Ordinal)
         );
     }
 
@@ -277,11 +276,9 @@ public sealed class AcpTimeoutTests
         }
 
         Assert.Equal(0, tool.Executions);
-        Assert.Contains(
-            events,
-            agentEvent =>
-                agentEvent is ToolCallResult { IsError: true } result
-                && result.Output.Contains("Denied", StringComparison.Ordinal)
+        Assert.Contains(events, agentEvent =>
+            agentEvent is ToolCallResult { IsError: true } result
+            && result.Output.Contains("Denied", StringComparison.Ordinal)
         );
         Assert.Contains(events, agentEvent => agentEvent is RunFinished);
     }

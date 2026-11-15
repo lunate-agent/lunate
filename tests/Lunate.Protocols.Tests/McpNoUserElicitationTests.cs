@@ -33,9 +33,8 @@ public sealed class McpNoUserElicitationTests
             result.Output,
             StringComparison.Ordinal
         );
-        Assert.Contains(
-            TestMcpServer.MarkerLines(marker),
-            line => line == "elicitation action=cancel;content=empty"
+        Assert.Contains(TestMcpServer.MarkerLines(marker), line =>
+            line == "elicitation action=cancel;content=empty"
         );
     }
 }

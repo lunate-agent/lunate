@@ -89,11 +89,9 @@ public sealed class RemoteCommandHostTests
 
         CommandResult cancelled = await invocation.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         Assert.Null(cancelled.Message);
-        Assert.Contains(
-            workspace.Notices,
-            notice =>
-                notice.Contains("command ext:remote-sample:wait", StringComparison.Ordinal)
-                && notice.Contains("extension 'remote-sample'", StringComparison.Ordinal)
+        Assert.Contains(workspace.Notices, notice =>
+            notice.Contains("command ext:remote-sample:wait", StringComparison.Ordinal)
+            && notice.Contains("extension 'remote-sample'", StringComparison.Ordinal)
         );
         // The drain is bounded by the hook-handler timeout (five seconds by default); a cancelled
         // invocation returns far sooner.
@@ -232,13 +230,11 @@ public sealed class RemoteCommandHostTests
 
         Assert.Equal("remote-sample", loaded.Id);
         Assert.Equal(RemoteExtensionState.Failed, loader.RemoteStatus("remote-sample")!.State);
-        Assert.Contains(
-            workspace.Log.Warnings,
-            warning =>
-                warning.Contains(
-                    "could not start while its declared commands were being listed",
-                    StringComparison.Ordinal
-                )
+        Assert.Contains(workspace.Log.Warnings, warning =>
+            warning.Contains(
+                "could not start while its declared commands were being listed",
+                StringComparison.Ordinal
+            )
         );
         Assert.Equal(["ping"], loader.DeclaredNotProvidedCommands("remote-sample"));
         // The source is registered, but it offers nothing: the command it declares is reported,
@@ -280,11 +276,9 @@ public sealed class RemoteCommandHostTests
         Assert.Equal(RemoteExtensionState.Ready, loader.RemoteStatus("remote-sample")!.State);
         Assert.Empty(loader.CommandSources.List().SelectMany(registered => registered.Descriptors));
         Assert.Equal(["ghost"], loader.DeclaredNotProvidedCommands("remote-sample"));
-        Assert.Contains(
-            workspace.Log.Warnings,
-            warning =>
-                warning.Contains("/ghost", StringComparison.Ordinal)
-                && warning.Contains("not runnable", StringComparison.Ordinal)
+        Assert.Contains(workspace.Log.Warnings, warning =>
+            warning.Contains("/ghost", StringComparison.Ordinal)
+            && warning.Contains("not runnable", StringComparison.Ordinal)
         );
     }
 }

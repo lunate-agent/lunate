@@ -67,14 +67,12 @@ public sealed class AcpFileSystemTests
         Assert.Equal(StopReason.EndTurn, response.StopReason);
         AcpSessionContext context = Assert.Single(contexts);
         Assert.NotNull(context.FileAccess);
-        Assert.Contains(
-            ReadResults(model),
-            result => result.Contains("buffer content", StringComparison.Ordinal)
+        Assert.Contains(ReadResults(model), result =>
+            result.Contains("buffer content", StringComparison.Ordinal)
         );
         Assert.Equal("disk content\n", File.ReadAllText(temp.File("buffer.txt")));
-        Assert.Contains(
-            runtime.State.FileReads,
-            read => read.Path == Path.Combine(root, "buffer.txt")
+        Assert.Contains(runtime.State.FileReads, read =>
+            read.Path == Path.Combine(root, "buffer.txt")
         );
         WriteTextFileRequest write = Assert.Single(runtime.State.FileWrites);
         Assert.Equal(Path.Combine(root, "w.txt"), write.Path);
@@ -131,9 +129,8 @@ public sealed class AcpFileSystemTests
         Assert.Null(Assert.Single(contexts).FileAccess);
         Assert.Empty(runtime.State.FileReads);
         Assert.Empty(runtime.State.FileWrites);
-        Assert.Contains(
-            ReadResults(model),
-            result => result.Contains("disk content", StringComparison.Ordinal)
+        Assert.Contains(ReadResults(model), result =>
+            result.Contains("disk content", StringComparison.Ordinal)
         );
         Assert.Equal(
             "local write\n".ReplaceLineEndings(Environment.NewLine),
@@ -166,10 +163,8 @@ public sealed class AcpFileSystemTests
     {
         using var temp = new TempDirectory();
 
-        string result = await ReadThroughClientAsync(
-            temp,
-            ReadScript("buffer.txt"),
-            runtime => runtime.State.FileReadHandler = _ => "a\0b"
+        string result = await ReadThroughClientAsync(temp, ReadScript("buffer.txt"), runtime =>
+            runtime.State.FileReadHandler = _ => "a\0b"
         );
 
         Assert.Equal("buffer.txt is a binary file (3 bytes); read handles text files", result);
@@ -190,13 +185,10 @@ public sealed class AcpFileSystemTests
     {
         using var temp = new TempDirectory();
 
-        string result = await ReadThroughClientAsync(
-            temp,
-            ReadScript("missing.txt"),
-            runtime =>
-                runtime.State.FileReadError = RequestErrorException.InternalError(
-                    additionalMessage: "boom"
-                )
+        string result = await ReadThroughClientAsync(temp, ReadScript("missing.txt"), runtime =>
+            runtime.State.FileReadError = RequestErrorException.InternalError(
+                additionalMessage: "boom"
+            )
         );
 
         Assert.StartsWith("could not be read: ", result, StringComparison.Ordinal);
@@ -208,13 +200,10 @@ public sealed class AcpFileSystemTests
     {
         using var temp = new TempDirectory();
 
-        string result = await ReadThroughClientAsync(
-            temp,
-            ReadScript("missing.txt"),
-            runtime =>
-                runtime.State.FileReadError = RequestErrorException.InternalError(
-                    additionalMessage: "the buffer is not found"
-                )
+        string result = await ReadThroughClientAsync(temp, ReadScript("missing.txt"), runtime =>
+            runtime.State.FileReadError = RequestErrorException.InternalError(
+                additionalMessage: "the buffer is not found"
+            )
         );
 
         Assert.Equal("could not be read: Internal error: the buffer is not found", result);
@@ -225,11 +214,8 @@ public sealed class AcpFileSystemTests
     {
         using var temp = new TempDirectory();
 
-        string result = await ReadThroughClientAsync(
-            temp,
-            ReadScript("missing.txt"),
-            runtime =>
-                runtime.State.FileReadError = new RequestErrorException(0, "ENOENT: no such file")
+        string result = await ReadThroughClientAsync(temp, ReadScript("missing.txt"), runtime =>
+            runtime.State.FileReadError = new RequestErrorException(0, "ENOENT: no such file")
         );
 
         Assert.Equal("file not found: missing.txt", result);

@@ -110,9 +110,8 @@ public sealed class AnthropicTurnMergeTests
 
         Assert.Single(document.Exchanges);
         Assert.False(throwing.Called);
-        Assert.Contains(
-            updates.SelectMany(update => update.Contents).OfType<TextContent>(),
-            text => !string.IsNullOrWhiteSpace(text.Text)
+        Assert.Contains(updates.SelectMany(update => update.Contents).OfType<TextContent>(), text =>
+            !string.IsNullOrWhiteSpace(text.Text)
         );
     }
 

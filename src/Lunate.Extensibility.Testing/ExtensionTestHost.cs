@@ -60,8 +60,7 @@ public sealed class ExtensionTestHost : IAsyncDisposable
             {
                 StorePath = StorePath,
                 Log = Log,
-                ClientFactory =
-                    options.ClientFactory
+                ClientFactory = options.ClientFactory
                     ?? new ChatClientFactory(
                         Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance
                     ),

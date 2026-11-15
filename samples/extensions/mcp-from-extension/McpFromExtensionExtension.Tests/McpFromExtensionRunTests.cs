@@ -35,9 +35,8 @@ public sealed class McpFromExtensionRunTests
         await host.ComposeMcpServersAsync(Ct);
 
         Assert.Contains(host.Tools.Declarations, declaration => declaration.Name == "fake__echo");
-        Assert.DoesNotContain(
-            host.Tools.Declarations,
-            declaration => declaration.Name == "fake__secret"
+        Assert.DoesNotContain(host.Tools.Declarations, declaration =>
+            declaration.Name == "fake__secret"
         );
         Assert.Equal(
             ToolRisk.Execute,
@@ -112,9 +111,8 @@ public sealed class McpFromExtensionRunTests
 
         await host.ComposeMcpServersAsync(Ct);
         Assert.Contains(host.Tools.Tools, tool => tool.Name == "fake__secret");
-        Assert.DoesNotContain(
-            host.Tools.Declarations,
-            declaration => declaration.Name == "fake__secret"
+        Assert.DoesNotContain(host.Tools.Declarations, declaration =>
+            declaration.Name == "fake__secret"
         );
 
         await host.RunAsync(client, "try the secret", Ct);
@@ -126,9 +124,8 @@ public sealed class McpFromExtensionRunTests
             probe.Nested.Output,
             StringComparison.Ordinal
         );
-        Assert.DoesNotContain(
-            TestSupport.MarkerLines(marker),
-            line => line.Contains("secret", StringComparison.Ordinal)
+        Assert.DoesNotContain(TestSupport.MarkerLines(marker), line =>
+            line.Contains("secret", StringComparison.Ordinal)
         );
     }
 
@@ -158,12 +155,10 @@ public sealed class McpFromExtensionRunTests
             statuses.Single(status => status.Name == "broken").State
         );
         Assert.Contains(host.Tools.Tools, tool => tool.Name == "fake__echo");
-        Assert.Contains(
-            host.Log.Entries,
-            entry =>
-                entry.Message.Contains("'broken'", StringComparison.Ordinal)
-                && entry.Message.Contains("broken-extension", StringComparison.Ordinal)
-                && entry.Message.Contains("continues", StringComparison.Ordinal)
+        Assert.Contains(host.Log.Entries, entry =>
+            entry.Message.Contains("'broken'", StringComparison.Ordinal)
+            && entry.Message.Contains("broken-extension", StringComparison.Ordinal)
+            && entry.Message.Contains("continues", StringComparison.Ordinal)
         );
     }
 

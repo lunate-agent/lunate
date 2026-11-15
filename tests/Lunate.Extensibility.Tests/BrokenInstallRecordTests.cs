@@ -32,9 +32,8 @@ public sealed class BrokenInstallRecordTests
         Assert.Contains("broken", refused.Message, StringComparison.Ordinal);
         Assert.Contains("lunate packages --verify", refused.Message, StringComparison.Ordinal);
         Assert.Contains("reinstall", refused.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("created hello instance", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("created hello instance", StringComparison.Ordinal)
         );
     }
 
@@ -66,9 +65,8 @@ public sealed class BrokenInstallRecordTests
         Assert.Contains(record, refused.Message, StringComparison.Ordinal);
         Assert.Contains("broken", refused.Message, StringComparison.Ordinal);
         Assert.Contains("integrity", refused.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("created hello instance", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("created hello instance", StringComparison.Ordinal)
         );
     }
 

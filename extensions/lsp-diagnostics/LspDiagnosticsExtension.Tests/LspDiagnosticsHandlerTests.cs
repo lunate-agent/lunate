@@ -66,9 +66,8 @@ public sealed class LspDiagnosticsHandlerTests
         );
 
         Assert.Equal("original", result.Output);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("outside the workspace", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("outside the workspace", StringComparison.Ordinal)
         );
     }
 }

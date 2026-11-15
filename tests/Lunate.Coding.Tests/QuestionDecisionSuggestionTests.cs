@@ -64,9 +64,8 @@ public sealed class QuestionDecisionSuggestionTests
 
         ToolCallResult result = Assert.Single(host.Events.OfType<ToolCallResult>());
         Assert.Contains("unanswered: user skipped", result.Output, StringComparison.Ordinal);
-        Assert.Contains(
-            host.Events.OfType<DecisionEvaluated>(),
-            evaluated => evaluated.QuestionId == "question-1" && evaluated.Answer == "Flexible"
+        Assert.Contains(host.Events.OfType<DecisionEvaluated>(), evaluated =>
+            evaluated.QuestionId == "question-1" && evaluated.Answer == "Flexible"
         );
         host.Console.Complete();
         await run;

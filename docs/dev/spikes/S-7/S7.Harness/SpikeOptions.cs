@@ -30,11 +30,9 @@ internal sealed record SpikeOptions
             Mode = mode,
             Engine = Environment.GetEnvironmentVariable("S7_ENGINE") ?? "podman",
             Container = Environment.GetEnvironmentVariable("S7_CONTAINER") ?? "lunate-s7-evidence",
-            Workspace =
-                Environment.GetEnvironmentVariable("S7_WORKSPACE")
+            Workspace = Environment.GetEnvironmentVariable("S7_WORKSPACE")
                 ?? Directory.GetCurrentDirectory(),
-            Image =
-                Environment.GetEnvironmentVariable("S7_IMAGE")
+            Image = Environment.GetEnvironmentVariable("S7_IMAGE")
                 ?? "docker.io/library/debian:stable-slim",
             Runs = int.Parse(
                 Environment.GetEnvironmentVariable("S7_RUNS") ?? "15",

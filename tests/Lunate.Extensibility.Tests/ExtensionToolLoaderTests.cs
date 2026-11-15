@@ -301,11 +301,9 @@ public sealed class ExtensionToolLoaderTests
         await loader.Load("tools", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
         Assert.Equal(["tools__echo"], loader.Tools.List().Select(tool => tool.Name));
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'ghost'", StringComparison.Ordinal)
-                && message.Contains("dropped", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'ghost'", StringComparison.Ordinal)
+            && message.Contains("dropped", StringComparison.Ordinal)
         );
     }
 

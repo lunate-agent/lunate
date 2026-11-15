@@ -52,13 +52,8 @@ public sealed class NarrowFrameInvariantTests
 
         RenderedFrame frame = LiveAreaRenderer.Render(state);
 
-        Assert.All(
-            frame.Lines,
-            line =>
-                Assert.True(
-                    CellText.Width(line) <= width,
-                    $"'{line}' is wider than {width} columns"
-                )
+        Assert.All(frame.Lines, line =>
+            Assert.True(CellText.Width(line) <= width, $"'{line}' is wider than {width} columns")
         );
     }
 
@@ -90,13 +85,8 @@ public sealed class NarrowFrameInvariantTests
             // The console may emit SGR styling (ANSI on some runners): measure the visible text.
             .Select(line => Regex.Replace(line, "\u001b\\[[0-9;]*m", ""))
             .ToArray();
-        Assert.All(
-            lines,
-            line =>
-                Assert.True(
-                    CellText.Width(line) <= width,
-                    $"'{line}' is wider than {width} columns"
-                )
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= width, $"'{line}' is wider than {width} columns")
         );
     }
 

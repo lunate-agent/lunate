@@ -47,17 +47,12 @@ public sealed class AcpSubagentFilterTests
         [
             .. runtime.State.Updates.Select(notification => notification.Update),
         ];
-        Assert.DoesNotContain(
-            updates,
-            update =>
-                update is AgentMessageChunk { Content: TextContent text }
-                && text.Text == "streamed secret"
+        Assert.DoesNotContain(updates, update =>
+            update is AgentMessageChunk { Content: TextContent text }
+            && text.Text == "streamed secret"
         );
-        Assert.Contains(
-            updates,
-            update =>
-                update is AgentMessageChunk { Content: TextContent text }
-                && text.Text == "parent text"
+        Assert.Contains(updates, update =>
+            update is AgentMessageChunk { Content: TextContent text } && text.Text == "parent text"
         );
         Assert.Contains(updates, update => update is ToolCallStartUpdate { Title: "spawn" });
         // The child's own tool call (same call id) never became a second tool call on the wire.

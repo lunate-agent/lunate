@@ -95,9 +95,8 @@ public sealed class SettingsStoreReadRaceTests
         // partial document. Both saves being observed is deliberately not required — a reader
         // starved by load may only ever read the last save's value.
         Assert.DoesNotContain("<defaults>", observed.Keys);
-        Assert.All(
-            observed.Keys,
-            key => Assert.Contains(key, new[] { string.Join(", ", One), string.Join(", ", Two) })
+        Assert.All(observed.Keys, key =>
+            Assert.Contains(key, new[] { string.Join(", ", One), string.Join(", ", Two) })
         );
 
         // The last save, once the reader is gone, leaves exactly one complete document behind.

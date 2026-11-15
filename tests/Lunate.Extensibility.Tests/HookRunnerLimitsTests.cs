@@ -40,9 +40,8 @@ public sealed class HookRunnerLimitsTests
         Assert.True(second.RequestContinuation);
         Assert.False(third.RequestContinuation);
         Assert.True(otherRun.RequestContinuation);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("run-1") && message.Contains("continuation")
+        Assert.Contains(log.Messages, message =>
+            message.Contains("run-1") && message.Contains("continuation")
         );
 
         static TestTurnEndedHandler Requesting() =>
@@ -93,9 +92,8 @@ public sealed class HookRunnerLimitsTests
 
         Assert.Equal(20, Assert.Single(result.AddedMessages).Text.Length);
         Assert.Equal("small", result.AddedMessages[0].Source);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("big") && message.Contains("budget")
+        Assert.Contains(log.Messages, message =>
+            message.Contains("big") && message.Contains("budget")
         );
 
         static TestContextBuildingHandler Add(string text) =>
@@ -121,9 +119,8 @@ public sealed class HookRunnerLimitsTests
         );
 
         Assert.Equal("123456789012", Assert.Single(result.AddedMessages).Text);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("ext") && message.Contains("budget")
+        Assert.Contains(log.Messages, message =>
+            message.Contains("ext") && message.Contains("budget")
         );
 
         static TestContextBuildingHandler Add(string text) =>
@@ -172,9 +169,8 @@ public sealed class HookRunnerLimitsTests
 
         PromptSectionEdit edit = Assert.Single(result.SectionEdits);
         Assert.Equal("system", edit.Name);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("big") && message.Contains("budget")
+        Assert.Contains(log.Messages, message =>
+            message.Contains("big") && message.Contains("budget")
         );
     }
 

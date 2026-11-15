@@ -128,13 +128,11 @@ public sealed class TranscriptViewerRendererTests
 
         string[] frame = Viewer().Lines(model, new ConsoleSize(60, 20), 0).Select(Text).ToArray();
 
-        Assert.Contains(
-            frame,
-            line => line.Contains("weigh the options", StringComparison.Ordinal)
+        Assert.Contains(frame, line =>
+            line.Contains("weigh the options", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            frame,
-            line => line.Contains("thought for", StringComparison.Ordinal)
+        Assert.DoesNotContain(frame, line =>
+            line.Contains("thought for", StringComparison.Ordinal)
         );
     }
 
@@ -146,9 +144,8 @@ public sealed class TranscriptViewerRendererTests
 
         string[] frame = Viewer().Lines(model, new ConsoleSize(60, 20), 0).Select(Text).ToArray();
 
-        Assert.Contains(
-            frame,
-            line => line.Contains("\u2726 thought for 12s", StringComparison.Ordinal)
+        Assert.Contains(frame, line =>
+            line.Contains("\u2726 thought for 12s", StringComparison.Ordinal)
         );
     }
 
@@ -226,10 +223,8 @@ public sealed class TranscriptViewerRendererTests
 
         var frame = viewer.Lines(model, new ConsoleSize(60, 12), 0);
 
-        Assert.Contains(
-            frame,
-            line =>
-                Text(line).Contains("\u2026/TranscriptViewerRenderer.cs", StringComparison.Ordinal)
+        Assert.Contains(frame, line =>
+            Text(line).Contains("\u2026/TranscriptViewerRenderer.cs", StringComparison.Ordinal)
         );
         Assert.All(frame, line => Assert.True(CellText.Width(Text(line)) <= 60));
     }

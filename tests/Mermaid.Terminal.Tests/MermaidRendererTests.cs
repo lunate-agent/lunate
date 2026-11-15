@@ -32,9 +32,8 @@ public sealed class MermaidRendererTests
             Assert.Equal(line.Text, string.Concat(line.Spans.Select(static span => span.Text)));
         }
 
-        Assert.Contains(
-            result.Lines.SelectMany(static line => line.Spans),
-            static span => span.Kind == MermaidSpanKind.Label && span.Text.Contains("One")
+        Assert.Contains(result.Lines.SelectMany(static line => line.Spans), static span =>
+            span.Kind == MermaidSpanKind.Label && span.Text.Contains("One")
         );
     }
 
@@ -111,10 +110,8 @@ public sealed class MermaidRendererTests
     {
         Assembly library = typeof(MermaidRenderer).Assembly;
 
-        Assert.DoesNotContain(
-            library.GetReferencedAssemblies(),
-            static reference =>
-                reference.Name?.StartsWith("Lunate", StringComparison.Ordinal) == true
+        Assert.DoesNotContain(library.GetReferencedAssemblies(), static reference =>
+            reference.Name?.StartsWith("Lunate", StringComparison.Ordinal) == true
         );
 
         string project = File.ReadAllText(
@@ -125,11 +122,9 @@ public sealed class MermaidRendererTests
                 "Mermaid.Terminal.csproj"
             )
         );
-        Assert.DoesNotContain(
-            project.Split('\n'),
-            static line =>
-                line.Contains("<ProjectReference", StringComparison.Ordinal)
-                && line.Contains("Lunate.", StringComparison.Ordinal)
+        Assert.DoesNotContain(project.Split('\n'), static line =>
+            line.Contains("<ProjectReference", StringComparison.Ordinal)
+            && line.Contains("Lunate.", StringComparison.Ordinal)
         );
     }
 

@@ -35,9 +35,8 @@ public sealed class RemoteConformanceTests
             Ct
         );
 
-        RemoteConformanceStep childToHost = Assert.Single(
-            report.Steps,
-            step => step.Name == "service call child -> host"
+        RemoteConformanceStep childToHost = Assert.Single(report.Steps, step =>
+            step.Name == "service call child -> host"
         );
         Assert.False(childToHost.Passed);
         Assert.False(childToHost.Required);
@@ -61,18 +60,16 @@ public sealed class RemoteConformanceTests
         );
 
         Assert.True(report.Succeeded, report.Summary);
-        RemoteConformanceStep listing = Assert.Single(
-            report.Steps,
-            step => step.Name == "command listing"
+        RemoteConformanceStep listing = Assert.Single(report.Steps, step =>
+            step.Name == "command listing"
         );
         Assert.Contains(
             "advertises the commands capability",
             listing.Detail,
             StringComparison.Ordinal
         );
-        RemoteConformanceStep invoke = Assert.Single(
-            report.Steps,
-            step => step.Name == "command invoke"
+        RemoteConformanceStep invoke = Assert.Single(report.Steps, step =>
+            step.Name == "command invoke"
         );
         Assert.True(invoke.Passed, invoke.Detail);
         Assert.Contains("pong conformance", invoke.Detail, StringComparison.Ordinal);
@@ -98,9 +95,8 @@ public sealed class RemoteConformanceTests
         );
 
         Assert.True(report.Succeeded, report.Summary);
-        RemoteConformanceStep listing = Assert.Single(
-            report.Steps,
-            step => step.Name == "command listing"
+        RemoteConformanceStep listing = Assert.Single(report.Steps, step =>
+            step.Name == "command listing"
         );
         Assert.True(listing.Passed);
         Assert.Contains("declared, not provided", listing.Detail, StringComparison.Ordinal);

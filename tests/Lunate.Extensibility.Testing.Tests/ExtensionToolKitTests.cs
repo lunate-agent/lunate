@@ -45,9 +45,8 @@ public sealed class ExtensionToolKitTests
             Ct
         );
 
-        ToolCallResult call = Assert.Single(
-            result.Events.OfType<ToolCallResult>(),
-            candidate => candidate.ParentToolCallId is null
+        ToolCallResult call = Assert.Single(result.Events.OfType<ToolCallResult>(), candidate =>
+            candidate.ParentToolCallId is null
         );
         Assert.False(call.IsError);
         Assert.Contains("""args={"q":"hello"}""", call.Output, StringComparison.Ordinal);
@@ -124,9 +123,8 @@ public sealed class ExtensionToolKitTests
             ],
             changes.Select(change => change.RunId)
         );
-        Assert.DoesNotContain(
-            host.Log.Entries,
-            entry => entry.Message.Contains("a drain has begun", StringComparison.Ordinal)
+        Assert.DoesNotContain(host.Log.Entries, entry =>
+            entry.Message.Contains("a drain has begun", StringComparison.Ordinal)
         );
     }
 
@@ -146,9 +144,8 @@ public sealed class ExtensionToolKitTests
             Ct
         );
 
-        ToolCallStart nested = Assert.Single(
-            result.Events.OfType<ToolCallStart>(),
-            start => start.ParentToolCallId is not null
+        ToolCallStart nested = Assert.Single(result.Events.OfType<ToolCallStart>(), start =>
+            start.ParentToolCallId is not null
         );
         Assert.Equal("call-1/1", nested.CallId);
         Assert.Equal("call-1", nested.ParentToolCallId);
@@ -158,9 +155,8 @@ public sealed class ExtensionToolKitTests
             candidate => candidate.ParentToolCallId is not null
         );
         Assert.Equal("call-1/1", nestedResult.CallId);
-        ToolCallResult call = Assert.Single(
-            result.Events.OfType<ToolCallResult>(),
-            candidate => candidate.ParentToolCallId is null
+        ToolCallResult call = Assert.Single(result.Events.OfType<ToolCallResult>(), candidate =>
+            candidate.ParentToolCallId is null
         );
         Assert.Equal("nested read: contents", call.Output);
     }
@@ -198,9 +194,8 @@ public sealed class ExtensionToolKitTests
         Assert.Contains(
             "nested tools__programmatic: echo:",
             Assert
-                .Single(
-                    programmatic.Events.OfType<ToolCallResult>(),
-                    candidate => candidate.ParentToolCallId is null
+                .Single(programmatic.Events.OfType<ToolCallResult>(), candidate =>
+                    candidate.ParentToolCallId is null
                 )
                 .Output,
             StringComparison.Ordinal
@@ -269,9 +264,8 @@ public sealed class ExtensionToolKitTests
             Ct
         );
 
-        ToolCallResult call = Assert.Single(
-            result.Events.OfType<ToolCallResult>(),
-            candidate => candidate.ParentToolCallId is null
+        ToolCallResult call = Assert.Single(result.Events.OfType<ToolCallResult>(), candidate =>
+            candidate.ParentToolCallId is null
         );
         Assert.True(call.IsError);
         Assert.Contains(
@@ -318,9 +312,8 @@ public sealed class ExtensionToolKitTests
         await host.UnloadAsync(Ct);
         ExtensionRunResult result = await run;
 
-        ToolCallResult call = Assert.Single(
-            result.Events.OfType<ToolCallResult>(),
-            candidate => candidate.ParentToolCallId is null
+        ToolCallResult call = Assert.Single(result.Events.OfType<ToolCallResult>(), candidate =>
+            candidate.ParentToolCallId is null
         );
         Assert.True(call.IsError);
         Assert.Contains("unloaded", call.Output, StringComparison.Ordinal);

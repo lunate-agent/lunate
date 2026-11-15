@@ -245,11 +245,9 @@ public sealed class SkillIndexTests
         Assert.Contains("- greek:", index.Text, StringComparison.Ordinal);
         Assert.Contains("- ext-00:", index.Text, StringComparison.Ordinal);
         Assert.True(index.NotIndexed.Count > 0);
-        Assert.Contains(
-            logs,
-            entry =>
-                entry.Contains("extension 'hello'", StringComparison.Ordinal)
-                && entry.Contains("100", StringComparison.Ordinal)
+        Assert.Contains(logs, entry =>
+            entry.Contains("extension 'hello'", StringComparison.Ordinal)
+            && entry.Contains("100", StringComparison.Ordinal)
         );
     }
 }

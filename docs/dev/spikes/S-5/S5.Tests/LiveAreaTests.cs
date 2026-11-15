@@ -19,16 +19,11 @@ public abstract class LiveAreaTests
 
         Assert.True(result.QuitRequested);
         Assert.True(result.CancelRequested);
-        Assert.Contains(
-            result.Scrollback,
-            block => block.Contains("bash ok: 48 passed", StringComparison.Ordinal)
+        Assert.Contains(result.Scrollback, block =>
+            block.Contains("bash ok: 48 passed", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            session.Terminal.Frames,
-            frame =>
-                frame.Lines.Any(line =>
-                    line.Contains("run cancelled (user)", StringComparison.Ordinal)
-                )
+        Assert.Contains(session.Terminal.Frames, frame =>
+            frame.Lines.Any(line => line.Contains("run cancelled (user)", StringComparison.Ordinal))
         );
         Assert.Contains(
             "queued: also check the tests",

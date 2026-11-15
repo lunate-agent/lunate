@@ -174,19 +174,16 @@ public sealed class ProjectSettingsSecurityTests
     {
         var factory = new CountingFactory();
         int environmentCredentialReads = 0;
-        using var host = new InteractiveSessionHost(
-            factory: factory,
-            environment: name =>
+        using var host = new InteractiveSessionHost(factory: factory, environment: name =>
+        {
+            if (name == "OPENAI_API_KEY")
             {
-                if (name == "OPENAI_API_KEY")
-                {
-                    environmentCredentialReads++;
-                    return "fixture-only-secret";
-                }
-
-                return null;
+                environmentCredentialReads++;
+                return "fixture-only-secret";
             }
-        );
+
+            return null;
+        });
         File.WriteAllText(
             host.Temp.File("settings.json"),
             """{ "schemaVersion": 2, "model": "gpt-4o-mini" }"""

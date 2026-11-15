@@ -21,29 +21,24 @@ public sealed class ExtensionTestHostTests
         Assert.Equal(1, host.Trust.Calls);
         Assert.Equal(1, host.Trust.Approvals);
         Assert.True(File.Exists(Path.Combine(host.StorePath, "trust.json")));
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("hello service started", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("hello service started", StringComparison.Ordinal)
         );
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("hello session started", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("hello session started", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            host.Log.Entries,
-            entry => entry.Message.Contains("hello service stopped", StringComparison.Ordinal)
+        Assert.DoesNotContain(host.Log.Entries, entry =>
+            entry.Message.Contains("hello service stopped", StringComparison.Ordinal)
         );
 
         await host.StopAsync(Ct);
         await host.StopAsync(Ct);
 
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("hello service stopped", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("hello service stopped", StringComparison.Ordinal)
         );
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("hello session ended", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("hello session ended", StringComparison.Ordinal)
         );
     }
 
@@ -109,9 +104,8 @@ public sealed class ExtensionTestHostTests
         );
 
         string line = Assert
-            .Single(
-                host.Log.Entries,
-                entry => entry.Message.Contains("hello file changed:", StringComparison.Ordinal)
+            .Single(host.Log.Entries, entry =>
+                entry.Message.Contains("hello file changed:", StringComparison.Ordinal)
             )
             .Message;
         Assert.Contains("relative=published.cs", line, StringComparison.Ordinal);

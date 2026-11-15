@@ -33,18 +33,10 @@ public sealed class ExtensionsViewSingleFileTests
         SingleFileExtension candidate = SingleFile(state: SingleFileExtensionState.Built);
 
         string segment = Assert.Single(
-            ExtensionsView.Segments(
-                [],
-                [],
-                NoCounts,
-                singleFile: [candidate],
-                ignoredCopies: id =>
-                    string.Equals(id, "acme-tools", StringComparison.Ordinal)
-                        ? new IgnoredHostCopy(
-                            ["Lunate.Extensibility.Abstractions"],
-                            ["Acme.Contracts"]
-                        )
-                        : null
+            ExtensionsView.Segments([], [], NoCounts, singleFile: [candidate], ignoredCopies: id =>
+                string.Equals(id, "acme-tools", StringComparison.Ordinal)
+                    ? new IgnoredHostCopy(["Lunate.Extensibility.Abstractions"], ["Acme.Contracts"])
+                    : null
             )
         );
 

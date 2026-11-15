@@ -212,19 +212,15 @@ public sealed class ApprovalPromptRendererTests
             StringComparison.Ordinal
         );
         Assert.All(lines, line => Assert.True(CellText.Width(line.Text) <= 40));
-        Assert.Contains(
-            lines,
-            line => line.Part == ApprovalPart.Detail && line.Text == "  in ~/worktree-b"
+        Assert.Contains(lines, line =>
+            line.Part == ApprovalPart.Detail && line.Text == "  in ~/worktree-b"
         );
-        Assert.Contains(
-            lines,
-            line => line.Part == ApprovalPart.Question && line.Text == "Allow bash?"
+        Assert.Contains(lines, line =>
+            line.Part == ApprovalPart.Question && line.Text == "Allow bash?"
         );
-        Assert.Contains(
-            lines,
-            line =>
-                line.Part == ApprovalPart.Question
-                && line.Text == "[y]es  > [n]o  [a]lways this session"
+        Assert.Contains(lines, line =>
+            line.Part == ApprovalPart.Question
+            && line.Text == "[y]es  > [n]o  [a]lways this session"
         );
     }
 

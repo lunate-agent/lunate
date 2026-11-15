@@ -88,8 +88,7 @@ public static class ExtensionDirectives
         ArgumentNullException.ThrowIfNull(header);
         ArgumentException.ThrowIfNullOrWhiteSpace(manifestField);
 
-        _ =
-            ForManifestField(manifestField)
+        _ = ForManifestField(manifestField)
             ?? throw new ArgumentOutOfRangeException(
                 nameof(manifestField),
                 manifestField,

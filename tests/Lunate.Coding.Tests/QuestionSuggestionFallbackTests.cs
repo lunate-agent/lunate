@@ -68,9 +68,8 @@ public sealed class QuestionSuggestionFallbackTests
                 .Events.OfType<DecisionUnavailable>()
                 .Any(decision => decision.QuestionId == "question-1")
         );
-        Assert.Contains(
-            host.Events.OfType<DecisionUnavailable>(),
-            decision => decision.QuestionId == "question-1"
+        Assert.Contains(host.Events.OfType<DecisionUnavailable>(), decision =>
+            decision.QuestionId == "question-1"
         );
         if (expectedWarning is not null)
         {
@@ -79,9 +78,8 @@ public sealed class QuestionSuggestionFallbackTests
                     notice.Text.Contains(expectedWarning, StringComparison.Ordinal)
                 )
             );
-            Assert.Contains(
-                notices.Entries,
-                notice => notice.Text.Contains(expectedWarning, StringComparison.Ordinal)
+            Assert.Contains(notices.Entries, notice =>
+                notice.Text.Contains(expectedWarning, StringComparison.Ordinal)
             );
         }
 

@@ -28,12 +28,10 @@ public sealed class ExtensionMcpServersTests
         IReadOnlyList<ITool> tools = await servers.ListToolsAsync(Ct);
 
         Assert.Empty(tools);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'broken'", StringComparison.Ordinal)
-                && message.Contains("broken-extension", StringComparison.Ordinal)
-                && message.Contains("continues", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'broken'", StringComparison.Ordinal)
+            && message.Contains("broken-extension", StringComparison.Ordinal)
+            && message.Contains("continues", StringComparison.Ordinal)
         );
     }
 

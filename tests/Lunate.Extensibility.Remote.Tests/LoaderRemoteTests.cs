@@ -145,9 +145,8 @@ public sealed class LoaderRemoteTests
 
         // The failure policy applies: ToolCalling blocks fail-safe; nothing throws into the run.
         Assert.IsType<ToolCallingResult.Block>(result);
-        Assert.Contains(
-            workspace.Log.Errors,
-            entry => entry.Contains("was refused", StringComparison.Ordinal)
+        Assert.Contains(workspace.Log.Errors, entry =>
+            entry.Contains("was refused", StringComparison.Ordinal)
         );
         Assert.Equal(RemoteExtensionState.Refused, loader.RemoteStatus("remote-sample")!.State);
     }

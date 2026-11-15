@@ -17,15 +17,12 @@ public sealed class RoslynBackendSyncTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var backend = new RoslynBackend(
-            temp.Root,
-            () =>
-            {
-                entered.TrySetResult();
-                release.Task.Wait(TimeSpan.FromSeconds(30));
-                return new BootstrapResult(false, "no sdk");
-            }
-        );
+        using var backend = new RoslynBackend(temp.Root, () =>
+        {
+            entered.TrySetResult();
+            release.Task.Wait(TimeSpan.FromSeconds(30));
+            return new BootstrapResult(false, "no sdk");
+        });
 
         Task<WorkspaceLoadResult> load = Task.Run(() => backend.LoadAsync(ct).AsTask(), ct);
         try
@@ -77,10 +74,8 @@ public sealed class RoslynBackendSyncTests
             diagnostics.ScopeDescription,
             StringComparison.Ordinal
         );
-        Assert.Contains(
-            diagnostics.Items,
-            item =>
-                item.Id == "CS0103" && item.File.EndsWith("Calculator.cs", StringComparison.Ordinal)
+        Assert.Contains(diagnostics.Items, item =>
+            item.Id == "CS0103" && item.File.EndsWith("Calculator.cs", StringComparison.Ordinal)
         );
     }
 
@@ -108,10 +103,8 @@ public sealed class RoslynBackendSyncTests
             diagnostics.ScopeDescription,
             StringComparison.Ordinal
         );
-        Assert.Contains(
-            diagnostics.Items,
-            item =>
-                item.Id == "CS0103" && item.File.EndsWith("Calculator.cs", StringComparison.Ordinal)
+        Assert.Contains(diagnostics.Items, item =>
+            item.Id == "CS0103" && item.File.EndsWith("Calculator.cs", StringComparison.Ordinal)
         );
     }
 
@@ -215,19 +208,15 @@ public sealed class RoslynBackendSyncTests
         RoslynBackend backend = null!;
         try
         {
-            backend = new RoslynBackend(
-                fixture.Root,
-                MsBuildBootstrap.EnsureInitialized,
-                path =>
+            backend = new RoslynBackend(fixture.Root, MsBuildBootstrap.EnsureInitialized, path =>
+            {
+                if (path == target && !injected)
                 {
-                    if (path == target && !injected)
-                    {
-                        injected = true;
-                        File.AppendAllText(calculator, "\nclass Raced { int Y => Missing6; }\n");
-                        backend.NotifyFileChanged(calculator);
-                    }
+                    injected = true;
+                    File.AppendAllText(calculator, "\nclass Raced { int Y => Missing6; }\n");
+                    backend.NotifyFileChanged(calculator);
                 }
-            );
+            });
             await backend.LoadAsync(CancellationToken.None);
 
             File.AppendAllText(calculator, "\nclass Broken { int X => Missing5; }\n");

@@ -73,13 +73,11 @@ public sealed class CsOutlineGateTests(ITestOutputHelper output)
         );
         Assert.Equal(10, outline.TotalItemCount);
         Assert.False(outline.Truncated);
-        Assert.DoesNotContain(
-            outline.Items,
-            item => item.Signature.Contains("_sides = sides", StringComparison.Ordinal)
+        Assert.DoesNotContain(outline.Items, item =>
+            item.Signature.Contains("_sides = sides", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            outline.Items,
-            item => item.Signature.Contains("Invoke", StringComparison.Ordinal)
+        Assert.DoesNotContain(outline.Items, item =>
+            item.Signature.Contains("Invoke", StringComparison.Ordinal)
         );
     }
 
@@ -113,9 +111,8 @@ public sealed class CsOutlineGateTests(ITestOutputHelper output)
             CancellationToken.None
         );
 
-        Assert.Contains(
-            outline.Items,
-            item => item.Kind == "namespace" && item.Name == "ConsoleApp"
+        Assert.Contains(outline.Items, item =>
+            item.Kind == "namespace" && item.Name == "ConsoleApp"
         );
         Assert.Contains(outline.Items, item => item.Kind == "class" && item.Name == "Broken");
         Assert.Contains(outline.Items, item => item.Kind == "field" && item.Name == "Value");
@@ -158,14 +155,11 @@ public sealed class CsOutlineGateTests(ITestOutputHelper output)
         using var directory = new TempDirectory();
         File.WriteAllText(directory.File("Loose.cs"), "public class Loose { }\n");
         var bootstrapCalls = 0;
-        using var backend = new RoslynBackend(
-            directory.Root,
-            () =>
-            {
-                bootstrapCalls++;
-                return new BootstrapResult(false, "no .NET SDK could be located");
-            }
-        );
+        using var backend = new RoslynBackend(directory.Root, () =>
+        {
+            bootstrapCalls++;
+            return new BootstrapResult(false, "no .NET SDK could be located");
+        });
 
         var outline = await backend.OutlineAsync("Loose.cs", CancellationToken.None);
 

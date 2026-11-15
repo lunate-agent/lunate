@@ -17,19 +17,15 @@ public sealed class RemoteCommandDispatchTests
     [Fact]
     public async Task A_completed_handler_answers_completed_with_its_output()
     {
-        JsonElement notice = await InvokeAsync(
-            "ping",
-            "hello",
-            (_, argument, _) => ValueTask.FromResult(CommandResult.Notice("pong " + argument))
+        JsonElement notice = await InvokeAsync("ping", "hello", (_, argument, _) =>
+            ValueTask.FromResult(CommandResult.Notice("pong " + argument))
         );
         Assert.Equal("completed", RemoteCommandWireTests.Disposition(notice));
         Assert.Equal("pong hello", notice.GetProperty("output").GetString());
         Assert.Equal(JsonValueKind.Null, notice.GetProperty("error").ValueKind);
 
-        JsonElement silent = await InvokeAsync(
-            "quiet",
-            string.Empty,
-            (_, _, _) => ValueTask.FromResult(CommandResult.None)
+        JsonElement silent = await InvokeAsync("quiet", string.Empty, (_, _, _) =>
+            ValueTask.FromResult(CommandResult.None)
         );
         Assert.Equal("completed", RemoteCommandWireTests.Disposition(silent));
         Assert.Equal(JsonValueKind.Null, silent.GetProperty("output").ValueKind);
@@ -38,10 +34,8 @@ public sealed class RemoteCommandDispatchTests
     [Fact]
     public async Task A_throwing_handler_answers_failed_carrying_its_message()
     {
-        JsonElement reply = await InvokeAsync(
-            "explode",
-            string.Empty,
-            (_, _, _) => throw new InvalidOperationException("the extension cannot ping right now")
+        JsonElement reply = await InvokeAsync("explode", string.Empty, (_, _, _) =>
+            throw new InvalidOperationException("the extension cannot ping right now")
         );
 
         Assert.Equal("failed", RemoteCommandWireTests.Disposition(reply));
@@ -52,10 +46,8 @@ public sealed class RemoteCommandDispatchTests
     [Fact]
     public async Task An_error_result_answers_failed_with_the_same_message()
     {
-        JsonElement reply = await InvokeAsync(
-            "refuse",
-            string.Empty,
-            (_, _, _) => ValueTask.FromResult(CommandResult.Error("no arguments were given"))
+        JsonElement reply = await InvokeAsync("refuse", string.Empty, (_, _, _) =>
+            ValueTask.FromResult(CommandResult.Error("no arguments were given"))
         );
 
         Assert.Equal("failed", RemoteCommandWireTests.Disposition(reply));

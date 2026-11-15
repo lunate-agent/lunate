@@ -17,9 +17,8 @@ public sealed class DecisionApprovalEscalationTests
 
         DecisionEvaluated[] decisions = [.. run.Events.OfType<DecisionEvaluated>()];
         Assert.Equal(4, decisions.Length);
-        DecisionEvaluated decision = Assert.Single(
-            decisions,
-            item => item.QuestionId == "writes_outside_workspace"
+        DecisionEvaluated decision = Assert.Single(decisions, item =>
+            item.QuestionId == "writes_outside_workspace"
         );
         RecordingApprover approver = Assert.IsType<RecordingApprover>(run.Approver);
         ApprovalRequest request = Assert.Single(approver.PromptRequests);
@@ -40,11 +39,9 @@ public sealed class DecisionApprovalEscalationTests
 
         Assert.Equal(0, approver.Calls);
         Assert.Equal(0, run.Executions);
-        Assert.Contains(
-            run.Events.OfType<ToolCallResult>(),
-            result =>
-                result.Output.Contains("decision escalated", StringComparison.OrdinalIgnoreCase)
-                && result.Output.Contains("no user was present", StringComparison.OrdinalIgnoreCase)
+        Assert.Contains(run.Events.OfType<ToolCallResult>(), result =>
+            result.Output.Contains("decision escalated", StringComparison.OrdinalIgnoreCase)
+            && result.Output.Contains("no user was present", StringComparison.OrdinalIgnoreCase)
         );
     }
 
@@ -164,9 +161,8 @@ public sealed class DecisionApprovalEscalationTests
         Assert.Single(run.Decision.Requests);
         DecisionEvaluated[] decisions = [.. run.Events.OfType<DecisionEvaluated>()];
         Assert.Equal(4, decisions.Length);
-        Assert.Contains(
-            decisions,
-            decision => decision.QuestionId == signal && decision.Answer == "yes"
+        Assert.Contains(decisions, decision =>
+            decision.QuestionId == signal && decision.Answer == "yes"
         );
         Assert.True(
             Assert

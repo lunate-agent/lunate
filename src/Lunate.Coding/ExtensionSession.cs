@@ -207,8 +207,7 @@ internal sealed class ExtensionSession : IAsyncDisposable
             // A composed host knows its workspace, so this is the one place every extension
             // composition — interactive, print, ACP, a build subcommand — refuses a store the
             // repository itself could write to.
-            StorePath =
-                seams.StorePath
+            StorePath = seams.StorePath
                 ?? LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot),
             Log = log,
             Notify = seams.Notice,

@@ -17,21 +17,18 @@ public sealed class ExtensionLoaderServiceTests
 
         await loader.Load("hello", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello service started", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello service started", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("hello service stopped", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("hello service stopped", StringComparison.Ordinal)
         );
 
         await loader.EndSessionAsync(Ct);
         await loader.EndSessionAsync(Ct);
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello service stopped", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello service stopped", StringComparison.Ordinal)
         );
     }
 
@@ -48,9 +45,8 @@ public sealed class ExtensionLoaderServiceTests
 
         await loader.Unload("hello");
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello service stopped", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello service stopped", StringComparison.Ordinal)
         );
 
         await loader.Load("hello", temp.Root, "repo", prompt, Ct);
@@ -77,9 +73,8 @@ public sealed class ExtensionLoaderServiceTests
 
         await loader.Load("hello", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello service started", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello service started", StringComparison.Ordinal)
         );
     }
 }

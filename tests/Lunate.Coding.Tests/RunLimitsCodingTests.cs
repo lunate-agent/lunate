@@ -38,9 +38,8 @@ public sealed class RunLimitsCodingTests
             errors.Split('\n', StringSplitOptions.RemoveEmptyEntries)[^1]
         );
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
-        JsonElement limit = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "cost_limit_reached"
+        JsonElement limit = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "cost_limit_reached"
         );
         Assert.Equal(1m, limit.GetProperty("maxCostUsd").GetDecimal());
         Assert.Equal(1m, limit.GetProperty("spendUsd").GetDecimal());
@@ -78,9 +77,8 @@ public sealed class RunLimitsCodingTests
             errors.Split('\n', StringSplitOptions.RemoveEmptyEntries)[^1]
         );
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
-        JsonElement limit = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "time_limit_reached"
+        JsonElement limit = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "time_limit_reached"
         );
         Assert.Equal(5d, limit.GetProperty("maxTimeSeconds").GetDouble());
         Assert.Equal(5d, limit.GetProperty("elapsedSeconds").GetDouble());
@@ -181,16 +179,14 @@ public sealed class RunLimitsCodingTests
         (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
 
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
-        JsonElement usage = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "usage_updated"
+        JsonElement usage = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "usage_updated"
         );
         Assert.Equal("shared-wire", usage.GetProperty("modelId").GetString());
         Assert.Equal(0.5m, usage.GetProperty("costUsd").GetDecimal());
         Assert.Equal(3, exitCode);
-        JsonElement limit = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "cost_limit_reached"
+        JsonElement limit = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "cost_limit_reached"
         );
         Assert.Equal(0.5m, limit.GetProperty("spendUsd").GetDecimal());
     }

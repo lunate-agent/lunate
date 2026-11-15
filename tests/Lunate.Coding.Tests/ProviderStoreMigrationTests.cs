@@ -47,9 +47,8 @@ public sealed class ProviderStoreMigrationTests
         string authPath = temp.File("auth.json");
         File.Copy(Fixture("legacy-auth.json"), authPath);
 
-        AuthStore auth = AuthStore.Load(
-            authPath,
-            name => name == "OPENAI_API_KEY" ? "ci-openai-key" : null
+        AuthStore auth = AuthStore.Load(authPath, name =>
+            name == "OPENAI_API_KEY" ? "ci-openai-key" : null
         );
 
         Assert.Equal("ci-openai-key", auth.TryGet("openai"));

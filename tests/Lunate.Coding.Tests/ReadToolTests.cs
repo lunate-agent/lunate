@@ -21,9 +21,8 @@ public sealed class ReadToolTests
         Assert.Equal("read", tool.Name);
         Assert.Equal(ToolRisk.ReadOnly, tool.Risk);
         var schema = tool.ParametersSchema;
-        Assert.Contains(
-            schema.GetProperty("required").EnumerateArray(),
-            element => element.GetString() == "path"
+        Assert.Contains(schema.GetProperty("required").EnumerateArray(), element =>
+            element.GetString() == "path"
         );
         var properties = schema.GetProperty("properties");
         Assert.True(properties.TryGetProperty("path", out _));

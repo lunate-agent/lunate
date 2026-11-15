@@ -54,17 +54,15 @@ public sealed class SingleFileLoopRefusalTests
         host.Console.SendText("use the tool");
         host.Console.SendEnter();
         await host.Client.WaitForCallAsync(1);
-        Assert.DoesNotContain(
-            host.Client.RequestOptions[0]!.Tools!.OfType<AIFunction>(),
-            tool => tool.Name == "acme-tools__whoami"
+        Assert.DoesNotContain(host.Client.RequestOptions[0]!.Tools!.OfType<AIFunction>(), tool =>
+            tool.Name == "acme-tools__whoami"
         );
         await host.WaitUntilAsync(
             () => host.Events.OfType<ToolCallResult>().Any(result => result.CallId == "call-1"),
             SingleFileLoopSession.CompileWait
         );
-        ToolCallResult refusal = Assert.Single(
-            host.Events.OfType<ToolCallResult>(),
-            result => result.CallId == "call-1"
+        ToolCallResult refusal = Assert.Single(host.Events.OfType<ToolCallResult>(), result =>
+            result.CallId == "call-1"
         );
         Assert.True(refusal.IsError);
         Assert.Contains(
@@ -93,9 +91,8 @@ public sealed class SingleFileLoopRefusalTests
         host.Console.SendText("try again");
         host.Console.SendEnter();
         await host.Client.WaitForCallAsync(3);
-        Assert.DoesNotContain(
-            host.Client.RequestOptions[2]!.Tools!.OfType<AIFunction>(),
-            tool => tool.Name == "acme-tools__whoami"
+        Assert.DoesNotContain(host.Client.RequestOptions[2]!.Tools!.OfType<AIFunction>(), tool =>
+            tool.Name == "acme-tools__whoami"
         );
 
         host.Console.SendText("/quit");
@@ -209,9 +206,8 @@ public sealed class SingleFileLoopRefusalTests
             () => host.Events.OfType<ToolCallResult>().Any(result => result.CallId == "call-3"),
             SingleFileLoopSession.CompileWait
         );
-        ToolCallResult answer = Assert.Single(
-            host.Events.OfType<ToolCallResult>(),
-            result => result.CallId == "call-3"
+        ToolCallResult answer = Assert.Single(host.Events.OfType<ToolCallResult>(), result =>
+            result.CallId == "call-3"
         );
         Assert.False(answer.IsError, answer.Output);
         Assert.Equal("hello from the package: first", answer.Output);

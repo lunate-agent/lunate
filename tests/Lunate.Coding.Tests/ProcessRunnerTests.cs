@@ -124,8 +124,8 @@ public sealed class ProcessRunnerTests
         {
             // Windows cannot start a process without SystemRoot (DLL resolution); it is supplied
             // explicitly like any other caller-chosen variable — nothing else leaks in.
-            environment["SystemRoot"] =
-                Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
+            environment["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot")
+                ?? @"C:\Windows";
         }
 
         var request = NodeRequest(
@@ -151,8 +151,8 @@ public sealed class ProcessRunnerTests
         var environment = new Dictionary<string, string> { ["LUNATE_SESSION"] = "unset" };
         if (OperatingSystem.IsWindows())
         {
-            environment["SystemRoot"] =
-                Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
+            environment["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot")
+                ?? @"C:\Windows";
         }
 
         var request = NodeRequest(

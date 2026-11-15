@@ -83,15 +83,13 @@ public sealed class InteractiveSessionTuiSettingsTests
     [Fact]
     public async Task The_mono_theme_drops_every_attribute_from_the_live_frame()
     {
-        using var host = new InteractiveSessionHost(
-            interactiveConsole: true,
-            environment: name =>
-                name switch
-                {
-                    "COLORTERM" => "truecolor",
-                    "OPENAI_API_KEY" => "test-key",
-                    _ => PrintModeTestSupport.Environment()(name),
-                }
+        using var host = new InteractiveSessionHost(interactiveConsole: true, environment: name =>
+            name switch
+            {
+                "COLORTERM" => "truecolor",
+                "OPENAI_API_KEY" => "test-key",
+                _ => PrintModeTestSupport.Environment()(name),
+            }
         );
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);

@@ -57,8 +57,7 @@ internal static class Proc
         }
 
         var stopwatch = Stopwatch.StartNew();
-        using var process =
-            Process.Start(info)
+        using var process = Process.Start(info)
             ?? throw new InvalidOperationException($"could not start {fileName}");
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();

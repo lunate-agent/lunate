@@ -20,8 +20,9 @@ internal static class CodeModeScript
 
     private static string LoadRuntime()
     {
-        using Stream stream =
-            typeof(CodeModeScript).Assembly.GetManifestResourceStream(RuntimeResourceName)
+        using Stream stream = typeof(CodeModeScript).Assembly.GetManifestResourceStream(
+            RuntimeResourceName
+        )
             ?? throw new InvalidOperationException(
                 $"the embedded code-mode runtime '{RuntimeResourceName}' is missing from the extension assembly"
             );

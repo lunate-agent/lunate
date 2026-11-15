@@ -69,9 +69,8 @@ public sealed class ImageInputPrintModeTests
 
         Assert.Equal(0, exitCode);
         Assert.Empty(errors);
-        ChatMessage user = Assert.Single(
-            Assert.Single(client.Requests),
-            message => message.Role == ChatRole.User
+        ChatMessage user = Assert.Single(Assert.Single(client.Requests), message =>
+            message.Role == ChatRole.User
         );
         Assert.Contains("[image 640x480]", user.Text, StringComparison.Ordinal);
         Assert.Single(user.Contents.OfType<DataContent>());

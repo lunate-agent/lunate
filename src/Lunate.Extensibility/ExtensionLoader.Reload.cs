@@ -99,8 +99,7 @@ public sealed partial class ExtensionLoader
                 Reloaded = false,
                 Build = built,
                 LoadedBuildKey = LoadedSingleFileKey(id),
-                Reason =
-                    built.Reason
+                Reason = built.Reason
                     ?? built.Extension.Reason
                     ?? "the build did not produce an assembly",
             };

@@ -380,9 +380,8 @@ public sealed class SettingsStoreTests
             """
         );
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("settings.json"),
-            name => name == StartupHeaderVariable ? "1" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), name =>
+            name == StartupHeaderVariable ? "1" : null
         );
 
         Assert.True(settings.StartupHeader);
@@ -393,9 +392,8 @@ public sealed class SettingsStoreTests
     {
         using var temp = new TempDirectory();
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("missing.json"),
-            name => name == StartupHeaderVariable ? "0" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("missing.json"), name =>
+            name == StartupHeaderVariable ? "0" : null
         );
 
         Assert.False(settings.StartupHeader);
@@ -429,9 +427,8 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == StartupHeaderVariable ? "maybe" : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == StartupHeaderVariable ? "maybe" : null
             )
         );
 
@@ -463,9 +460,8 @@ public sealed class SettingsStoreTests
     {
         using var temp = new TempDirectory();
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("missing.json"),
-            name => name == UpdateCheckVariable ? "0" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("missing.json"), name =>
+            name == UpdateCheckVariable ? "0" : null
         );
 
         Assert.False(settings.UpdateCheck);
@@ -498,9 +494,8 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == UpdateCheckVariable ? "maybe" : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == UpdateCheckVariable ? "maybe" : null
             )
         );
 
@@ -547,16 +542,14 @@ public sealed class SettingsStoreTests
             """
         );
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("settings.json"),
-            name =>
-                name switch
-                {
-                    ModelVariable => "env-model",
-                    ApprovalVariable => "ask",
-                    LimitVariable => "999",
-                    _ => null,
-                }
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), name =>
+            name switch
+            {
+                ModelVariable => "env-model",
+                ApprovalVariable => "ask",
+                LimitVariable => "999",
+                _ => null,
+            }
         );
 
         Assert.Equal("env-model", settings.Model);
@@ -614,16 +607,14 @@ public sealed class SettingsStoreTests
     {
         using var temp = new TempDirectory();
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("missing.json"),
-            name =>
-                name switch
-                {
-                    SubagentConcurrencyVariable => "7",
-                    SubagentTokenBudgetVariable => "12345",
-                    SubagentTreeTokenBudgetVariable => "unlimited",
-                    _ => null,
-                }
+        AgentSettings settings = SettingsStore.Resolve(temp.File("missing.json"), name =>
+            name switch
+            {
+                SubagentConcurrencyVariable => "7",
+                SubagentTokenBudgetVariable => "12345",
+                SubagentTreeTokenBudgetVariable => "unlimited",
+                _ => null,
+            }
         );
 
         Assert.Equal(
@@ -642,9 +633,8 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == SubagentConcurrencyVariable ? value : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == SubagentConcurrencyVariable ? value : null
             )
         );
 
@@ -723,9 +713,8 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == ApprovalVariable ? value : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == ApprovalVariable ? value : null
             )
         );
 
@@ -762,9 +751,8 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == ApprovalVariable ? "yolo" : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == ApprovalVariable ? "yolo" : null
             )
         );
 
@@ -783,9 +771,8 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == LimitVariable ? value : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == LimitVariable ? value : null
             )
         );
 
@@ -874,9 +861,8 @@ public sealed class SettingsStoreTests
             """
         );
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("settings.json"),
-            name => name == ToolDetailsVariable ? "collapsed" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), name =>
+            name == ToolDetailsVariable ? "collapsed" : null
         );
 
         Assert.Equal(ToolDetails.Collapsed, settings.ToolDetails);
@@ -887,9 +873,8 @@ public sealed class SettingsStoreTests
     {
         using var temp = new TempDirectory();
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("missing.json"),
-            name => name == ToolDetailsVariable ? "expanded" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("missing.json"), name =>
+            name == ToolDetailsVariable ? "expanded" : null
         );
 
         Assert.Equal(ToolDetails.Expanded, settings.ToolDetails);
@@ -901,9 +886,8 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == ToolDetailsVariable ? "full" : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == ToolDetailsVariable ? "full" : null
             )
         );
 

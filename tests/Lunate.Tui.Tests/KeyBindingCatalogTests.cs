@@ -5,9 +5,8 @@ public sealed class KeyBindingCatalogTests
     [Fact]
     public void Every_row_has_a_description()
     {
-        Assert.All(
-            KeyBindingCatalog.All,
-            row => Assert.False(string.IsNullOrWhiteSpace(row.Description), row.Key.ToString())
+        Assert.All(KeyBindingCatalog.All, row =>
+            Assert.False(string.IsNullOrWhiteSpace(row.Description), row.Key.ToString())
         );
     }
 

@@ -233,9 +233,8 @@ public sealed class SingleFileExtensionRestoreTests
         Assert.Equal(1, factory.Creations);
         Assert.Equal(1, engine.Requests);
         Assert.Empty(outcome.Changes);
-        Assert.Contains(
-            outcome.RebuildReasons,
-            reason => reason.Contains("10.0.14", StringComparison.Ordinal)
+        Assert.Contains(outcome.RebuildReasons, reason =>
+            reason.Contains("10.0.14", StringComparison.Ordinal)
         );
 
         ExtensionLock rebuilt = ExtensionLockJson.TryParse(File.ReadAllText(lockPath), out _)!;
@@ -340,9 +339,8 @@ public sealed class SingleFileExtensionRestoreTests
 
         Assert.Equal(SingleFileRestoreStatus.Denied, outcome.Status);
         Assert.Equal(1, prompt.Calls);
-        Assert.Contains(
-            prompt.Requests[0].LockChanges,
-            change => change.Contains("14.1.0", StringComparison.Ordinal)
+        Assert.Contains(prompt.Requests[0].LockChanges, change =>
+            change.Contains("14.1.0", StringComparison.Ordinal)
         );
         Assert.Equal(locked, File.ReadAllText(lockPath));
     }

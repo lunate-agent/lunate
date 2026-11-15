@@ -36,13 +36,8 @@ public sealed class SkillSourceRegistryTests
 
         RegisteredSkillSource registered = Assert.Single(registry.List());
         Assert.Equal("second", registered.ExtensionId);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains(
-                    "replaces the source from extension 'first'",
-                    StringComparison.Ordinal
-                )
+        Assert.Contains(log.Messages, message =>
+            message.Contains("replaces the source from extension 'first'", StringComparison.Ordinal)
         );
     }
 

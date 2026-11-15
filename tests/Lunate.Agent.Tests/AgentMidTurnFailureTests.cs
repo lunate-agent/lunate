@@ -67,12 +67,10 @@ public sealed class AgentMidTurnFailureTests
         Assert.IsType<RunFinished>(next[^1]);
         IReadOnlyList<ChatMessage> followUpRequest = client.Requests[^1].Messages;
         Assert.Equal(2, followUpRequest.Count(message => message.Role == ChatRole.User));
-        Assert.Contains(
-            followUpRequest,
-            message =>
-                message
-                    .Contents.OfType<FunctionResultContent>()
-                    .Any(result => result.CallId == "call-1")
+        Assert.Contains(followUpRequest, message =>
+            message
+                .Contents.OfType<FunctionResultContent>()
+                .Any(result => result.CallId == "call-1")
         );
     }
 

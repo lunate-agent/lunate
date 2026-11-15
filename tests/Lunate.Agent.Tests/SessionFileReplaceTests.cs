@@ -156,9 +156,8 @@ public sealed class SessionFileReplaceTests
     private static void AssertNoTemporaryFiles(string path)
     {
         string directory = Path.GetDirectoryName(path)!;
-        Assert.DoesNotContain(
-            Directory.GetFiles(directory),
-            file => file.EndsWith(".tmp", StringComparison.Ordinal)
+        Assert.DoesNotContain(Directory.GetFiles(directory), file =>
+            file.EndsWith(".tmp", StringComparison.Ordinal)
         );
     }
 }

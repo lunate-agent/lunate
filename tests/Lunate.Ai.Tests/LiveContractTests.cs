@@ -110,13 +110,11 @@ public sealed class LiveContractTests
         }
 
         ChatMessage assistant = first.ToChatResponse().Messages[0];
-        Assert.Contains(
-            assistant.Contents.OfType<TextReasoningContent>(),
-            reasoning => !string.IsNullOrEmpty(reasoning.Text)
+        Assert.Contains(assistant.Contents.OfType<TextReasoningContent>(), reasoning =>
+            !string.IsNullOrEmpty(reasoning.Text)
         );
-        Assert.Contains(
-            assistant.Contents.OfType<TextReasoningContent>(),
-            reasoning => !string.IsNullOrEmpty(reasoning.ProtectedData)
+        Assert.Contains(assistant.Contents.OfType<TextReasoningContent>(), reasoning =>
+            !string.IsNullOrEmpty(reasoning.ProtectedData)
         );
         FunctionCallContent call = Assert.Single(assistant.Contents.OfType<FunctionCallContent>());
 
@@ -311,9 +309,8 @@ public sealed class LiveContractTests
         }
 
         Assert.NotEmpty(updates);
-        Assert.Contains(
-            updates.SelectMany(update => update.Contents).OfType<TextContent>(),
-            text => !string.IsNullOrWhiteSpace(text.Text)
+        Assert.Contains(updates.SelectMany(update => update.Contents).OfType<TextContent>(), text =>
+            !string.IsNullOrWhiteSpace(text.Text)
         );
         Assert.NotNull(updates[^1].FinishReason);
     }

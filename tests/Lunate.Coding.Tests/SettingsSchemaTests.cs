@@ -205,15 +205,13 @@ public sealed partial class SettingsSchemaTests
     [Fact]
     public void The_schema_marks_every_scope_as_either_user_or_project()
     {
-        Assert.All(
-            SettingsSchema.All,
-            entry =>
-                Assert.True(
-                    string.Equals(entry.Scope, "user", StringComparison.Ordinal)
-                        || string.Equals(entry.Scope, "user, project", StringComparison.Ordinal),
-                    $"{entry.Name} declares scope '{entry.Scope}'; a settings key is either 'user' "
-                        + "or 'user, project'"
-                )
+        Assert.All(SettingsSchema.All, entry =>
+            Assert.True(
+                string.Equals(entry.Scope, "user", StringComparison.Ordinal)
+                    || string.Equals(entry.Scope, "user, project", StringComparison.Ordinal),
+                $"{entry.Name} declares scope '{entry.Scope}'; a settings key is either 'user' "
+                    + "or 'user, project'"
+            )
         );
     }
 
@@ -616,10 +614,8 @@ public sealed partial class SettingsSchemaTests
             return null;
         }
 
-        int opening = Array.FindIndex(
-            lines,
-            start,
-            line => line.Contains('{', StringComparison.Ordinal)
+        int opening = Array.FindIndex(lines, start, line =>
+            line.Contains('{', StringComparison.Ordinal)
         );
         Assert.True(opening >= 0, $"parser method {name} has no body");
         int depth = 0;

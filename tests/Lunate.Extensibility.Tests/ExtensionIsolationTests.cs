@@ -44,13 +44,11 @@ public sealed class ExtensionIsolationTests
         Assert.NotNull(loaded.Extension);
         Assert.Contains(typeof(IExtension), loaded.Extension.GetType().GetInterfaces());
 
-        string warning = Assert.Single(
-            log.Messages,
-            message =>
-                message.Contains(
-                    "ignored the copy of Lunate.Extensibility.Abstractions",
-                    StringComparison.Ordinal
-                )
+        string warning = Assert.Single(log.Messages, message =>
+            message.Contains(
+                "ignored the copy of Lunate.Extensibility.Abstractions",
+                StringComparison.Ordinal
+            )
         );
         Assert.Contains("hello", warning, StringComparison.Ordinal);
         Assert.Contains(directory, warning, StringComparison.Ordinal);
@@ -90,20 +88,16 @@ public sealed class ExtensionIsolationTests
             loaded.Extension.GetType().Assembly
         )!;
         Assert.NotSame(AssemblyLoadContext.Default, context);
-        Assert.DoesNotContain(
-            context.Assemblies,
-            assembly =>
-                string.Equals(
-                    assembly.GetName().Name,
-                    typeof(ToolContext).Assembly.GetName().Name,
-                    StringComparison.Ordinal
-                )
+        Assert.DoesNotContain(context.Assemblies, assembly =>
+            string.Equals(
+                assembly.GetName().Name,
+                typeof(ToolContext).Assembly.GetName().Name,
+                StringComparison.Ordinal
+            )
         );
 
-        string warning = Assert.Single(
-            log.Messages,
-            message =>
-                message.Contains("ignored the copy of Lunate.Contracts", StringComparison.Ordinal)
+        string warning = Assert.Single(log.Messages, message =>
+            message.Contains("ignored the copy of Lunate.Contracts", StringComparison.Ordinal)
         );
         Assert.Equal(
             $"warn: extension 'tools': ignored the copy of Lunate.Contracts shipped by its directory '{directory}'; the host owns that assembly, so the host's copy is the one loaded.",
@@ -158,13 +152,11 @@ public sealed class ExtensionIsolationTests
 
         Assert.Equal(1, prompt.Calls);
         Assert.Contains(typeof(IExtension), loaded.Extension.GetType().GetInterfaces());
-        string warning = Assert.Single(
-            log.Messages,
-            message =>
-                message.Contains(
-                    "ignored the copy of Lunate.Extensibility.Abstractions",
-                    StringComparison.Ordinal
-                )
+        string warning = Assert.Single(log.Messages, message =>
+            message.Contains(
+                "ignored the copy of Lunate.Extensibility.Abstractions",
+                StringComparison.Ordinal
+            )
         );
         Assert.Contains(installed, warning, StringComparison.Ordinal);
     }

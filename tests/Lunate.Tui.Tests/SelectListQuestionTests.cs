@@ -48,22 +48,14 @@ public sealed class SelectListQuestionTests
 
             IReadOnlyList<string> lines = SelectListRenderer.QuestionLines(question);
 
-            Assert.Contains(
-                lines,
-                line =>
-                    line.Contains(
-                        "Plan A (suggested · decision model 0.82)",
-                        StringComparison.Ordinal
-                    )
+            Assert.Contains(lines, line =>
+                line.Contains("Plan A (suggested · decision model 0.82)", StringComparison.Ordinal)
             );
-            Assert.Contains(
-                lines,
-                line => line.Contains("Plan B (recommended)", StringComparison.Ordinal)
+            Assert.Contains(lines, line =>
+                line.Contains("Plan B (recommended)", StringComparison.Ordinal)
             );
-            Assert.DoesNotContain(
-                lines,
-                line =>
-                    line.Contains("Plan B (suggested · decision model", StringComparison.Ordinal)
+            Assert.DoesNotContain(lines, line =>
+                line.Contains("Plan B (suggested · decision model", StringComparison.Ordinal)
             );
         }
         finally

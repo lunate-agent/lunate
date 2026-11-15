@@ -136,9 +136,8 @@ public sealed class CsRenameGateTests(ITestOutputHelper output)
     public async Task A_missing_sdk_status_is_passed_through()
     {
         using var fixture = Fixtures.CopySolution("console-app");
-        using var backend = new RoslynBackend(
-            fixture.Root,
-            () => new BootstrapResult(false, "install the .NET SDK")
+        using var backend = new RoslynBackend(fixture.Root, () =>
+            new BootstrapResult(false, "install the .NET SDK")
         );
         var load = await backend.LoadAsync(CancellationToken.None);
         Assert.Equal(WorkspaceStatus.NoSdk, load.Status);

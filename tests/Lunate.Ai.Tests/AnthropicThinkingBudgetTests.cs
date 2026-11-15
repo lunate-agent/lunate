@@ -84,13 +84,11 @@ public sealed class AnthropicThinkingBudgetTests
         (_, List<ChatResponseUpdate> updates) = await SendAsync(ThinkingLevel.Medium);
 
         List<AIContent> contents = [.. updates.SelectMany(update => update.Contents)];
-        Assert.Contains(
-            contents.OfType<TextReasoningContent>(),
-            reasoning => reasoning.Text == "weighing"
+        Assert.Contains(contents.OfType<TextReasoningContent>(), reasoning =>
+            reasoning.Text == "weighing"
         );
-        Assert.Contains(
-            contents.OfType<TextReasoningContent>(),
-            reasoning => reasoning.ProtectedData == "sig-1"
+        Assert.Contains(contents.OfType<TextReasoningContent>(), reasoning =>
+            reasoning.ProtectedData == "sig-1"
         );
     }
 
@@ -145,20 +143,17 @@ public sealed class AnthropicThinkingBudgetTests
         Assert.Equal("Hi", TextOf(messages[0]));
 
         JsonElement[] assistant = [.. messages[1].GetProperty("content").EnumerateArray()];
-        JsonElement thinking = Assert.Single(
-            assistant,
-            block => block.GetProperty("type").GetString() == "thinking"
+        JsonElement thinking = Assert.Single(assistant, block =>
+            block.GetProperty("type").GetString() == "thinking"
         );
         Assert.Equal("weighing", thinking.GetProperty("thinking").GetString());
         Assert.Equal("sig-1", thinking.GetProperty("signature").GetString());
-        JsonElement text = Assert.Single(
-            assistant,
-            block => block.GetProperty("type").GetString() == "text"
+        JsonElement text = Assert.Single(assistant, block =>
+            block.GetProperty("type").GetString() == "text"
         );
         Assert.Equal("visible answer", text.GetProperty("text").GetString());
-        JsonElement call = Assert.Single(
-            assistant,
-            block => block.GetProperty("type").GetString() == "tool_use"
+        JsonElement call = Assert.Single(assistant, block =>
+            block.GetProperty("type").GetString() == "tool_use"
         );
         Assert.Equal("call-1", call.GetProperty("id").GetString());
         Assert.Equal("echo", call.GetProperty("name").GetString());

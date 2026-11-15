@@ -104,11 +104,9 @@ public sealed class TuiInteractionTests
         });
         Assert.DoesNotContain("flaky-widget", host.Frames, StringComparison.Ordinal);
         Assert.Equal(1, flaky.Calls);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.StartsWith("error:", StringComparison.Ordinal)
-                && message.Contains("ext.flaky", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.StartsWith("error:", StringComparison.Ordinal)
+            && message.Contains("ext.flaky", StringComparison.Ordinal)
         );
 
         host.Console.SendText("go");

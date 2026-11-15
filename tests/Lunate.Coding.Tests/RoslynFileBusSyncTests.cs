@@ -184,15 +184,12 @@ public sealed class RoslynFileBusSyncTests
         RoslynFixtureSupport.Restore(fixture, "ConsoleApp.slnx");
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var backend = new RoslynBackend(
-            fixture.Root,
-            () =>
-            {
-                entered.TrySetResult();
-                release.Task.Wait(WaitBudgets.InProcess);
-                return MsBuildBootstrap.EnsureInitialized();
-            }
-        );
+        using var backend = new RoslynBackend(fixture.Root, () =>
+        {
+            entered.TrySetResult();
+            release.Task.Wait(WaitBudgets.InProcess);
+            return MsBuildBootstrap.EnsureInitialized();
+        });
         using var services = new WorkspaceServices(1, root => backend);
         var bus = new FileChangeBus(fixture.Root);
         services.Connect(bus);
@@ -527,11 +524,9 @@ public sealed class RoslynFileBusSyncTests
             );
         Assert.False(made.IsError, made.Output);
         await host.FileChanges.DrainAsync(Ct);
-        Assert.Contains(
-            changes,
-            change =>
-                change.RelativePath == "src/ConsoleApp/ConsoleApp.csproj"
-                && change.WorkspaceId == workspace.WorktreeRoot
+        Assert.Contains(changes, change =>
+            change.RelativePath == "src/ConsoleApp/ConsoleApp.csproj"
+            && change.WorkspaceId == workspace.WorktreeRoot
         );
         Assert.False(
             log.Contains("bash change scan timed out"),

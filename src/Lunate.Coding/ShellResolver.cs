@@ -58,8 +58,8 @@ public sealed class ShellResolver
 
     private ResolvedShell? ResolveUnix()
     {
-        var bash =
-            _probe.FindOnPath("bash") ?? (_probe.FileExists("/bin/bash") ? "/bin/bash" : null);
+        var bash = _probe.FindOnPath("bash")
+            ?? (_probe.FileExists("/bin/bash") ? "/bin/bash" : null);
         if (bash is not null)
         {
             return new ResolvedShell(ShellKind.Bash, bash, "bash", BashArguments);

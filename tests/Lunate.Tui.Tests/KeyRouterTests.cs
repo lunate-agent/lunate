@@ -244,13 +244,11 @@ public sealed class KeyRouterTests
             KeyContext.Running | KeyContext.HasQueue,
         ];
 
-        Assert.All(
-            contexts,
-            context =>
-                Assert.Equal(
-                    RoutedKey.Editor,
-                    KeyRouter.Route(Key(KeyKind.Character, "g", ctrl: true), context)
-                )
+        Assert.All(contexts, context =>
+            Assert.Equal(
+                RoutedKey.Editor,
+                KeyRouter.Route(Key(KeyKind.Character, "g", ctrl: true), context)
+            )
         );
     }
 

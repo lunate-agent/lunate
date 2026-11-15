@@ -109,14 +109,11 @@ public sealed class SubagentWorkspaceTests
 
         // The ask carries the asking run's workspace root: the child's. The parent's own ask keeps
         // the parent's root.
-        Assert.Contains(
-            approver.Requests,
-            request =>
-                request.Tool.Name == "child-probe" && request.WorkspaceRoot == canonicalWorktree
+        Assert.Contains(approver.Requests, request =>
+            request.Tool.Name == "child-probe" && request.WorkspaceRoot == canonicalWorktree
         );
-        Assert.Contains(
-            approver.Requests,
-            request => request.Tool.Name == "spawn" && request.WorkspaceRoot == canonicalMain
+        Assert.Contains(approver.Requests, request =>
+            request.Tool.Name == "spawn" && request.WorkspaceRoot == canonicalMain
         );
         Assert.Contains(events.OfType<RunStarted>(), start => start.ParentRunId is not null);
     }
@@ -165,12 +162,10 @@ public sealed class SubagentWorkspaceTests
         List<AgentEvent> events = await Run(harness);
 
         Assert.Null(parentWrite.ReceivedContext);
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result =>
-                result.IsError
-                && result.RunId != events.OfType<RunStarted>().First().RunId
-                && result.Output.Contains("Unknown tool", StringComparison.Ordinal)
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.IsError
+            && result.RunId != events.OfType<RunStarted>().First().RunId
+            && result.Output.Contains("Unknown tool", StringComparison.Ordinal)
         );
     }
 

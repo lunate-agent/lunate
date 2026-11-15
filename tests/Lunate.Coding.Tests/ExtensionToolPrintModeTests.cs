@@ -39,9 +39,8 @@ public sealed class ExtensionToolPrintModeTests
         Assert.Equal(0, exitCode);
         Assert.Equal($"lunate: {PrintMode.YoloWarning}\n", errors);
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
-        JsonElement call = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement call = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.False(call.GetProperty("isError").GetBoolean());
         string toolOutput = call.GetProperty("output").GetString()!;
@@ -81,9 +80,8 @@ public sealed class ExtensionToolPrintModeTests
 
         Assert.Equal(0, exitCode);
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
-        JsonElement call = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement call = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.True(call.GetProperty("isError").GetBoolean());
         Assert.Contains(

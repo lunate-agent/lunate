@@ -130,9 +130,8 @@ public sealed class InteractiveSessionTreeTests
 
         string[] files = SessionFiles(host);
         Assert.Equal(2, files.Length);
-        string fork = Assert.Single(
-            files,
-            file => !string.Equals(file, source, StringComparison.Ordinal)
+        string fork = Assert.Single(files, file =>
+            !string.Equals(file, source, StringComparison.Ordinal)
         );
         Session loaded = Session.Load(fork);
         Assert.Equal(
@@ -215,9 +214,8 @@ public sealed class InteractiveSessionTreeTests
         await SendLineAsync(host, "/fork e_03");
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "forked at e_03");
 
-        string fork = Assert.Single(
-            SessionFiles(host),
-            file => !string.Equals(file, source, StringComparison.Ordinal)
+        string fork = Assert.Single(SessionFiles(host), file =>
+            !string.Equals(file, source, StringComparison.Ordinal)
         );
         Session loaded = Session.Load(fork);
         Assert.Equal(
@@ -254,9 +252,8 @@ public sealed class InteractiveSessionTreeTests
 
         string[] files = SessionFiles(host);
         Assert.Equal(2, files.Length);
-        string fork = Assert.Single(
-            files,
-            file => !string.Equals(file, source, StringComparison.Ordinal)
+        string fork = Assert.Single(files, file =>
+            !string.Equals(file, source, StringComparison.Ordinal)
         );
         SessionHeaderEntry header = Session.Load(fork).Header;
         Assert.Equal(new SessionOrigin(Session.Load(source).SessionId, "e_01"), header.Origin);
@@ -304,9 +301,8 @@ public sealed class InteractiveSessionTreeTests
         await SendLineAsync(host, "/clone");
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "cloned ");
 
-        string clonePath = Assert.Single(
-            SessionFiles(host),
-            file => !string.Equals(file, source, StringComparison.Ordinal)
+        string clonePath = Assert.Single(SessionFiles(host), file =>
+            !string.Equals(file, source, StringComparison.Ordinal)
         );
         Session clone = Session.Load(clonePath);
         Assert.Equal(

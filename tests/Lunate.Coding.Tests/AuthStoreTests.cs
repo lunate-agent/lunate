@@ -49,16 +49,12 @@ public sealed class AuthStoreTests
             """
         );
 
-        AuthStore store = AuthStore.Load(
-            temp.File("auth.json"),
-            name =>
-                name switch
-                {
-                    OpenAiVariable => "env-openai",
-                    AnthropicVariable => "env-anthropic",
-                    _ => null,
-                }
-        );
+        AuthStore store = AuthStore.Load(temp.File("auth.json"), name => name switch
+            {
+                OpenAiVariable => "env-openai",
+                AnthropicVariable => "env-anthropic",
+                _ => null,
+            });
 
         Assert.Equal("env-openai", store.TryGet("openai"));
         Assert.Equal("env-anthropic", store.TryGet("anthropic"));
@@ -90,9 +86,8 @@ public sealed class AuthStoreTests
             """
         );
 
-        AuthStore store = AuthStore.Load(
-            temp.File("auth.json"),
-            name => name == variable ? "env-value" : null
+        AuthStore store = AuthStore.Load(temp.File("auth.json"), name =>
+            name == variable ? "env-value" : null
         );
 
         Assert.Equal("env-value", store.TryGet(provider));
@@ -107,9 +102,8 @@ public sealed class AuthStoreTests
             """{ "schemaVersion": 1, "keys": { "google": "file-value" } }"""
         );
 
-        AuthStore store = AuthStore.Load(
-            temp.File("auth.json"),
-            name => name == "GEMINI_API_KEY" ? "alias-value" : null
+        AuthStore store = AuthStore.Load(temp.File("auth.json"), name =>
+            name == "GEMINI_API_KEY" ? "alias-value" : null
         );
 
         Assert.Equal("alias-value", store.TryGet("google"));
@@ -131,9 +125,8 @@ public sealed class AuthStoreTests
             """{ "schemaVersion": 1, "keys": { "openai": "file-key" } }"""
         );
 
-        AuthStore store = AuthStore.Load(
-            temp.File("auth.json"),
-            name => name == OpenAiVariable ? "   " : null
+        AuthStore store = AuthStore.Load(temp.File("auth.json"), name =>
+            name == OpenAiVariable ? "   " : null
         );
 
         Assert.Equal("file-key", store.TryGet("openai"));
@@ -148,9 +141,8 @@ public sealed class AuthStoreTests
             """{ "schemaVersion": 1, "keys": { "google": "file-key" } }"""
         );
 
-        AuthStore store = AuthStore.Load(
-            temp.File("auth.json"),
-            name => name == "GEMINI_API_KEY" ? "   " : null
+        AuthStore store = AuthStore.Load(temp.File("auth.json"), name =>
+            name == "GEMINI_API_KEY" ? "   " : null
         );
 
         Assert.Equal("file-key", store.TryGet("google"));

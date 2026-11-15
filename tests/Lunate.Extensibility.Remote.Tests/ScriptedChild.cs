@@ -259,9 +259,9 @@ internal sealed class ScriptedChild : IAsyncDisposable
         {
             if (method == RemoteProtocol.InitializeMethod)
             {
-                InitializeRequest request =
-                    parameters!.Value.Deserialize<InitializeRequest>(Options)
-                    ?? throw new InvalidOperationException("the initialize request did not parse");
+                InitializeRequest request = parameters!.Value.Deserialize<InitializeRequest>(
+                    Options
+                ) ?? throw new InvalidOperationException("the initialize request did not parse");
                 _child.LastHandshake = request;
                 InitializeResult result = _child.Handshake(request);
                 if (_child.OnStarted is { } started)
@@ -281,18 +281,17 @@ internal sealed class ScriptedChild : IAsyncDisposable
 
             if (method == RemoteProtocol.ServiceCallMethod)
             {
-                ServiceCallEnvelope envelope =
-                    parameters!.Value.Deserialize<ServiceCallEnvelope>(Options)
-                    ?? throw new InvalidOperationException(
-                        "the service-call envelope did not parse"
-                    );
+                ServiceCallEnvelope envelope = parameters!.Value.Deserialize<ServiceCallEnvelope>(
+                    Options
+                ) ?? throw new InvalidOperationException("the service-call envelope did not parse");
                 return _child.ServiceAnswers(envelope);
             }
 
             if (method == RemoteProtocol.CommandInvokeMethod)
             {
-                CommandInvokeRequest request =
-                    parameters!.Value.Deserialize<CommandInvokeRequest>(Options)
+                CommandInvokeRequest request = parameters!.Value.Deserialize<CommandInvokeRequest>(
+                    Options
+                )
                     ?? throw new InvalidOperationException(
                         "the command invoke request did not parse"
                     );

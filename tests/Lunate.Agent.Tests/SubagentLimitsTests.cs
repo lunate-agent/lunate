@@ -76,10 +76,8 @@ public sealed class SubagentLimitsTests
         Assert.Equal(12, result.TokensUsed);
         // Pre-call timing: the child's second model call never happened (parent, child, parent).
         Assert.Equal(3, client.Requests.Count);
-        Assert.Contains(
-            events.OfType<RunFinished>(),
-            finished =>
-                finished.ParentRunId is not null && finished.StopReason == StopReasons.TokenLimit
+        Assert.Contains(events.OfType<RunFinished>(), finished =>
+            finished.ParentRunId is not null && finished.StopReason == StopReasons.TokenLimit
         );
         Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
     }
@@ -180,12 +178,10 @@ public sealed class SubagentLimitsTests
         Assert.Null(captured[1].RunId);
         Assert.Contains("subagents.concurrency", captured[1].Output, StringComparison.Ordinal);
         // The refusal never reached the model; only the held child and the parent ran.
-        Assert.DoesNotContain(
-            client.Requests,
-            request =>
-                request.Messages.Any(message =>
-                    message.Text?.Contains("two", StringComparison.Ordinal) == true
-                )
+        Assert.DoesNotContain(client.Requests, request =>
+            request.Messages.Any(message =>
+                message.Text?.Contains("two", StringComparison.Ordinal) == true
+            )
         );
     }
 

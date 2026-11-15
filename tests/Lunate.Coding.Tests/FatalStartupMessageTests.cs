@@ -112,9 +112,8 @@ public sealed class FatalStartupMessageTests
         }
 
         IReadOnlyList<string> lines = screen.Lines;
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line) <= 40, $"'{line}' overflows 40 columns")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= 40, $"'{line}' overflows 40 columns")
         );
 
         // The reason wraps across physical rows (the first also carries the "lunate: " prefix), so

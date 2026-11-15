@@ -165,10 +165,8 @@ public sealed class ChatClientFactoryFamilyTests
             AuthRef = "opencode-go",
         };
 
-        string credential = ChatClientFactory.ResolveApiKey(
-            model,
-            preset,
-            namedKeySource: name => name == "opencode-go" ? "stored-key" : null
+        string credential = ChatClientFactory.ResolveApiKey(model, preset, namedKeySource: name =>
+            name == "opencode-go" ? "stored-key" : null
         );
 
         Assert.Equal("stored-key", credential);

@@ -133,8 +133,7 @@ internal static class ModelSelectionResolver
 
     private static ProviderEntry DefaultProvider(string kind)
     {
-        ProviderPreset preset =
-            ProviderPresets.Find(kind)
+        ProviderPreset preset = ProviderPresets.Find(kind)
             ?? throw new InvalidOperationException($"Unknown provider kind '{kind}'.");
         return new ProviderEntry(preset.Id, preset.Id, preset.BaseUrl, $"auth:{preset.Id}");
     }

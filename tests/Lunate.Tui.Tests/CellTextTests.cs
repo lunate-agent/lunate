@@ -104,13 +104,11 @@ public sealed class CellTextTests
         IReadOnlyList<string> lines = CellText.Wrap("\u001b]52;c;AAA\u0007clear\there", 20);
 
         Assert.Equal(["]52;c;AAAclear here"], lines);
-        Assert.All(
-            lines,
-            line =>
-                Assert.True(
-                    !line.Any(static c => char.IsControl(c) || (c >= '\u007f' && c <= '\u009f')),
-                    $"'{line}' still carries a control byte"
-                )
+        Assert.All(lines, line =>
+            Assert.True(
+                !line.Any(static c => char.IsControl(c) || (c >= '\u007f' && c <= '\u009f')),
+                $"'{line}' still carries a control byte"
+            )
         );
     }
 
@@ -126,9 +124,8 @@ public sealed class CellTextTests
         IReadOnlyList<string> lines = CellText.Wrap(Path, 10);
 
         Assert.Equal(Path, string.Concat(lines));
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line) <= 10, $"'{line}' exceeds 10 cells")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= 10, $"'{line}' exceeds 10 cells")
         );
     }
 

@@ -21,9 +21,8 @@ public sealed class AgentSpansTests
 
         await Run(harness);
 
-        Activity run = Assert.Single(
-            listener.Activities,
-            activity => activity.DisplayName == "invoke_agent lunate"
+        Activity run = Assert.Single(listener.Activities, activity =>
+            activity.DisplayName == "invoke_agent lunate"
         );
         Assert.Equal("Lunate.Agent", run.Source.Name);
         Assert.Equal(ActivityKind.Internal, run.Kind);
@@ -39,9 +38,8 @@ public sealed class AgentSpansTests
         Assert.Equal(2, modelSpans.Count);
         Assert.All(modelSpans, span => Assert.Equal(run.SpanId, span.ParentSpanId));
 
-        Activity tool = Assert.Single(
-            listener.Activities,
-            activity => activity.DisplayName == "execute_tool read"
+        Activity tool = Assert.Single(listener.Activities, activity =>
+            activity.DisplayName == "execute_tool read"
         );
         Assert.Equal(run.SpanId, tool.ParentSpanId);
         Assert.Equal("execute_tool", tool.GetTagItem("gen_ai.operation.name"));
@@ -66,9 +64,8 @@ public sealed class AgentSpansTests
 
         await Run(harness);
 
-        Activity tool = Assert.Single(
-            listener.Activities,
-            activity => activity.DisplayName == "execute_tool read"
+        Activity tool = Assert.Single(listener.Activities, activity =>
+            activity.DisplayName == "execute_tool read"
         );
         Assert.Equal(true, tool.GetTagItem("lunate.tool.is_error"));
     }

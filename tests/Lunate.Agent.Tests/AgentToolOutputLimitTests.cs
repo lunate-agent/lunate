@@ -38,9 +38,8 @@ public sealed class AgentToolOutputLimitTests
         Assert.Equal(ToolOutput.Truncate(longOutput, 100), result.Output);
         Assert.Contains("characters truncated", result.Output, StringComparison.Ordinal);
         Assert.True(result.Output.Length < longOutput.Length);
-        ChatMessage toolMessage = Assert.Single(
-            client.Requests[1].Messages,
-            message => message.Role == ChatRole.Tool
+        ChatMessage toolMessage = Assert.Single(client.Requests[1].Messages, message =>
+            message.Role == ChatRole.Tool
         );
         FunctionResultContent functionResult = Assert.IsType<FunctionResultContent>(
             Assert.Single(toolMessage.Contents)
@@ -68,9 +67,8 @@ public sealed class AgentToolOutputLimitTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult nested = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "call_1/1"
+        ToolCallResult nested = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "call_1/1"
         );
         Assert.Contains("characters truncated", nested.Output, StringComparison.Ordinal);
         Assert.True(nested.Output.Length < longOutput.Length);
@@ -81,8 +79,7 @@ public sealed class AgentToolOutputLimitTests
         var tool = new ScriptedTool(name, $"Calls {nestedName}.", """{"type":"object"}""");
         tool.OnExecuteAsync = async (_, ctx, ct) =>
         {
-            var execute =
-                ctx.ExecuteToolAsync
+            var execute = ctx.ExecuteToolAsync
                 ?? throw new InvalidOperationException("The context has no nested executor.");
             ToolResult nested = await execute(nestedName, EmptyArgs(), ct);
             return new ToolResult($"outer saw: {nested.Output}", IsError: nested.IsError);

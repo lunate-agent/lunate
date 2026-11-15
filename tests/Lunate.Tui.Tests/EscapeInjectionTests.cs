@@ -13,9 +13,8 @@ public sealed class EscapeInjectionTests
 
     /// <summary>None of the hostile payloads survives into the rendered line.</summary>
     private static void CarriesNoPayload(string line) =>
-        Assert.All(
-            Payloads,
-            payload => Assert.DoesNotContain(payload, line, StringComparison.Ordinal)
+        Assert.All(Payloads, payload =>
+            Assert.DoesNotContain(payload, line, StringComparison.Ordinal)
         );
 
     [Fact]

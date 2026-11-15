@@ -35,9 +35,8 @@ public sealed class FileChangeIntegrationTests
         Assert.Equal(2, handler.Payloads.Count);
         string canonical = Path.Combine(workspace.WorktreeRoot, "src", "a.txt");
         Assert.All(handler.Payloads, payload => Assert.Equal(canonical, payload.Path));
-        Assert.All(
-            handler.Payloads,
-            payload => Assert.Equal(workspace.WorktreeRoot, payload.WorkspaceId)
+        Assert.All(handler.Payloads, payload =>
+            Assert.Equal(workspace.WorktreeRoot, payload.WorkspaceId)
         );
         Assert.All(handler.Payloads, payload => Assert.Equal("src/a.txt", payload.RelativePath));
         Assert.All(handler.Payloads, payload => Assert.Equal("run_test", payload.RunId));
@@ -113,9 +112,8 @@ public sealed class FileChangeIntegrationTests
         var workspace = new Workspace(temp.Root);
         using var bus = new FileChangeBus(workspace.WorktreeRoot, log);
         bus.Subscribe(
-            new TestFileChangedHandler(
-                0,
-                (_, _) => throw new InvalidOperationException("handler exploded")
+            new TestFileChangedHandler(0, (_, _) =>
+                throw new InvalidOperationException("handler exploded")
             )
         );
 
@@ -128,9 +126,8 @@ public sealed class FileChangeIntegrationTests
 
         Assert.False(result.IsError);
         Assert.True(File.Exists(temp.File("a.txt")));
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("failed", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("failed", StringComparison.Ordinal)
         );
     }
 
@@ -141,16 +138,11 @@ public sealed class FileChangeIntegrationTests
         var workspace = new Workspace(temp.Root);
         using var bus = new FileChangeBus(workspace.WorktreeRoot);
         string? observed = null;
-        bus.Subscribe(
-            new TestFileChangedHandler(
-                0,
-                (payload, _) =>
-                {
-                    observed = File.ReadAllText(payload.Path);
-                    return ValueTask.CompletedTask;
-                }
-            )
-        );
+        bus.Subscribe(new TestFileChangedHandler(0, (payload, _) =>
+            {
+                observed = File.ReadAllText(payload.Path);
+                return ValueTask.CompletedTask;
+            }));
 
         ToolResult result = await new WriteTool(workspace).ExecuteAsync(
             Args("""{"path":"a.txt","content":"hello\nworld\n"}"""),

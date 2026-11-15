@@ -28,21 +28,14 @@ internal static class StartupEvidence
         {
             (
                 "bash tool, local shell",
-                await SamplesAsync(
-                    options.Runs,
-                    () => local.ExecuteAsync(Tooling.BashArgs("true"), ctx, CancellationToken.None)
+                await SamplesAsync(options.Runs, () =>
+                    local.ExecuteAsync(Tooling.BashArgs("true"), ctx, CancellationToken.None)
                 )
             ),
             (
                 "bash tool, container through the shim",
-                await SamplesAsync(
-                    options.Runs,
-                    () =>
-                        container.ExecuteAsync(
-                            Tooling.BashArgs("true"),
-                            ctx,
-                            CancellationToken.None
-                        )
+                await SamplesAsync(options.Runs, () =>
+                    container.ExecuteAsync(Tooling.BashArgs("true"), ctx, CancellationToken.None)
                 )
             ),
             (
@@ -51,29 +44,26 @@ internal static class StartupEvidence
             ),
             (
                 "engine exec: client + true (no shell)",
-                Timed(
-                    options.Runs,
-                    () => Proc.Run(options.Engine, ["exec", options.Container, "true"])
+                Timed(options.Runs, () =>
+                    Proc.Run(options.Engine, ["exec", options.Container, "true"])
                 )
             ),
             (
                 "engine exec: client + /bin/bash -c true, -w workspace",
-                Timed(
-                    options.Runs,
-                    () =>
-                        Proc.Run(
-                            options.Engine,
-                            [
-                                "exec",
-                                "-i",
-                                "-w",
-                                options.Workspace,
-                                options.Container,
-                                "/bin/bash",
-                                "-c",
-                                "true",
-                            ]
-                        )
+                Timed(options.Runs, () =>
+                    Proc.Run(
+                        options.Engine,
+                        [
+                            "exec",
+                            "-i",
+                            "-w",
+                            options.Workspace,
+                            options.Container,
+                            "/bin/bash",
+                            "-c",
+                            "true",
+                        ]
+                    )
                 )
             ),
         };

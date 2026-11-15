@@ -28,8 +28,8 @@ public sealed class CustomProviderClientTests
 
         AgentSettings settings = SettingsStore.Resolve(settingsPath, _ => null);
         ModelCatalog catalog = HarnessFactory.LoadCatalog(settings, modelsPath);
-        ModelInfo model =
-            catalog.Find(provider.CatalogName) ?? throw new InvalidOperationException("not found");
+        ModelInfo model = catalog.Find(provider.CatalogName)
+            ?? throw new InvalidOperationException("not found");
         var factory = new ChatClientFactory(
             NullLoggerFactory.Instance,
             enableOpenTelemetry: false,

@@ -202,17 +202,11 @@ var serverOptions = new McpServerOptions
     // or sent but not acted on.
     Handlers = new McpServerHandlers
     {
-        NotificationHandlers =
-        [
-            new(
-                NotificationMethods.CancelledNotification,
-                (_, _) =>
-                {
-                    Mark("cancel_notice");
-                    return default;
-                }
-            ),
-        ],
+        NotificationHandlers = [new(NotificationMethods.CancelledNotification, (_, _) =>
+            {
+                Mark("cancel_notice");
+                return default;
+            })],
     },
 };
 if (slowListMs > 0)

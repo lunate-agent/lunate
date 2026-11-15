@@ -60,8 +60,8 @@ internal static class PackagesCommand
     {
         string working = workingDirectory ?? Environment.CurrentDirectory;
         var workspace = new Workspace(working);
-        string storeRoot =
-            (seams ?? new ExtensionSeams()).StorePath ?? ExtensionHostOptions.Default.StorePath;
+        string storeRoot = (seams ?? new ExtensionSeams()).StorePath
+            ?? ExtensionHostOptions.Default.StorePath;
         IReadOnlyList<InstalledPackageView> installed = Read(
             storeRoot,
             workspace.WorktreeRoot,

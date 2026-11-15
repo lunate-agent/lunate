@@ -253,8 +253,9 @@ public sealed partial class ModelRegistry : IModelRegistry
     public IChatClient Resolve(string modelId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
-        object entry =
-            Find(modelId) ?? (object?)FindCatalog(modelId) ?? throw UnknownModel(modelId);
+        object entry = Find(modelId)
+            ?? (object?)FindCatalog(modelId)
+            ?? throw UnknownModel(modelId);
         return Compose(ResolveEntry(modelId, entry), ModelMiddlewareSlot.BeforeRouting);
     }
 

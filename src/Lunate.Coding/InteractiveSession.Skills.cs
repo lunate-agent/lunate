@@ -197,8 +197,8 @@ internal sealed partial class InteractiveSession
     /// <summary>The <c>/context</c> skills segment.</summary>
     private string SkillsContextSegment()
     {
-        SkillIndex.Composed index =
-            _skills?.Index ?? new SkillIndex.Composed(string.Empty, 0, 0, []);
+        SkillIndex.Composed index = _skills?.Index
+            ?? new SkillIndex.Composed(string.Empty, 0, 0, []);
         string advice =
             index.EstimatedTokens > index.SoftTokens && index.NotIndexed.Count == 0
                 ? "; above the soft index budget — set skills.indexBudget (a token budget or 'unlimited') to silence this"

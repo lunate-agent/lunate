@@ -30,10 +30,8 @@ public sealed class CommandShadowTests
             host.RegisteredCounts("beta", registry.Shadowed).ShadowedCommandOwners
         );
         string beta = Assert.Single(
-            ExtensionsView.Segments(
-                host.Descriptors,
-                host.LoadResults,
-                id => host.RegisteredCounts(id, registry.Shadowed)
+            ExtensionsView.Segments(host.Descriptors, host.LoadResults, id =>
+                host.RegisteredCounts(id, registry.Shadowed)
             ),
             segment => segment.StartsWith("beta ", StringComparison.Ordinal)
         );
@@ -44,9 +42,8 @@ public sealed class CommandShadowTests
         );
 
         // Help lists the live entry only — the shadowed one is not a live command.
-        Assert.Single(
-            HelpView.Lines(registry.Descriptors),
-            line => line.Contains("/ping", StringComparison.Ordinal)
+        Assert.Single(HelpView.Lines(registry.Descriptors), line =>
+            line.Contains("/ping", StringComparison.Ordinal)
         );
         await host.DisposeAsync();
     }
@@ -78,11 +75,9 @@ public sealed class CommandShadowTests
                 .Split('\n')
                 .Count(line => line.Contains("/ping — Ping the server", StringComparison.Ordinal))
         );
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("ext:beta:ping", StringComparison.Ordinal)
-                && message.Contains("ext:alpha:ping", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("ext:beta:ping", StringComparison.Ordinal)
+            && message.Contains("ext:alpha:ping", StringComparison.Ordinal)
         );
 
         host.Console.SendText("/quit");

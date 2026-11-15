@@ -28,10 +28,8 @@ public sealed class ModelExtensionFactory : IExtensionFactory
             new VirtualModelRegistration("auto", ["fixture-model"], _ => "fixture-model")
         );
         context.RegisterVirtualModel(
-            new VirtualModelRegistration(
-                "broken",
-                ["ext/model-fixture/missing"],
-                _ => "ext/model-fixture/missing"
+            new VirtualModelRegistration("broken", ["ext/model-fixture/missing"], _ =>
+                "ext/model-fixture/missing"
             )
         );
         return new ModelExtension();

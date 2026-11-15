@@ -52,9 +52,8 @@ public sealed class UiRegistryTests
 
         Assert.True(rendered);
         Assert.Equal("second", Assert.Single(segments).Text);
-        string conflict = Assert.Single(
-            log.Messages,
-            message => message.Contains("replaces", StringComparison.Ordinal)
+        string conflict = Assert.Single(log.Messages, message =>
+            message.Contains("replaces", StringComparison.Ordinal)
         );
         Assert.StartsWith("warn:", conflict, StringComparison.Ordinal);
         Assert.Contains("ext.first", conflict, StringComparison.Ordinal);
@@ -74,12 +73,10 @@ public sealed class UiRegistryTests
         );
         Assert.Empty(first);
         Assert.Equal(1, renderer.Calls);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.StartsWith("error:", StringComparison.Ordinal)
-                && message.Contains("renderer", StringComparison.Ordinal)
-                && message.Contains("ext.a", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.StartsWith("error:", StringComparison.Ordinal)
+            && message.Contains("renderer", StringComparison.Ordinal)
+            && message.Contains("ext.a", StringComparison.Ordinal)
         );
 
         Assert.True(
@@ -112,12 +109,10 @@ public sealed class UiRegistryTests
         registry.Register("ext.b", new FixedWidget([Segment("steady")]));
 
         Assert.Equal(["steady"], registry.Segments(Status()).Select(segment => segment.Text));
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.StartsWith("error:", StringComparison.Ordinal)
-                && message.Contains("widget", StringComparison.Ordinal)
-                && message.Contains("ext.a", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.StartsWith("error:", StringComparison.Ordinal)
+            && message.Contains("widget", StringComparison.Ordinal)
+            && message.Contains("ext.a", StringComparison.Ordinal)
         );
 
         Assert.Equal(
@@ -158,13 +153,11 @@ public sealed class UiRegistryTests
 
         await loader.Load("hello", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("hello renderer rendered", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("hello renderer rendered", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("hello widget contributed", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("hello widget contributed", StringComparison.Ordinal)
         );
         Assert.True(
             loader.ToolResultRenderers.TryRender(

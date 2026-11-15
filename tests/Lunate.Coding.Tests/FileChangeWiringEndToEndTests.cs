@@ -104,13 +104,11 @@ public sealed class FileChangeWiringEndToEndTests
         string absolute = Path.Combine(workspace.WorktreeRoot, "src", "a.cs");
         string prefix =
             $"hello file changed: path={absolute}, relative=src/a.cs, workspace={workspace.WorktreeRoot}, run=";
-        string created = Assert.Single(
-            changed,
-            message => message.Contains(", kind=created", StringComparison.Ordinal)
+        string created = Assert.Single(changed, message =>
+            message.Contains(", kind=created", StringComparison.Ordinal)
         );
-        string modified = Assert.Single(
-            changed,
-            message => message.Contains(", kind=modified", StringComparison.Ordinal)
+        string modified = Assert.Single(changed, message =>
+            message.Contains(", kind=modified", StringComparison.Ordinal)
         );
         Assert.StartsWith(prefix, created, StringComparison.Ordinal);
         Assert.StartsWith(prefix, modified, StringComparison.Ordinal);

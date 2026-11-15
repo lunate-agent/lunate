@@ -27,8 +27,7 @@ internal sealed class ProbeWriteTool : ITool
         CancellationToken ct
     )
     {
-        var execute =
-            ctx.ExecuteToolAsync
+        var execute = ctx.ExecuteToolAsync
             ?? throw new InvalidOperationException("The context has no nested executor.");
         Nested = await execute("write", args, ct);
         return new ToolResult(Nested.Output, Nested.IsError, Nested.Details);

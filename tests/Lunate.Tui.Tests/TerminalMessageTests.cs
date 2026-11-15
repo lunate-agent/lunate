@@ -11,9 +11,8 @@ public sealed class TerminalMessageTests
         IReadOnlyList<string> lines = TerminalMessage.Lines(Guard, 40);
 
         Assert.True(lines.Count > 1, "the guard sentence was not wrapped");
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line) <= 40, $"'{line}' exceeds 40 cells")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= 40, $"'{line}' exceeds 40 cells")
         );
         Assert.Equal(Guard, string.Join(" ", lines.Select(static line => line.Trim())));
     }
@@ -27,9 +26,8 @@ public sealed class TerminalMessageTests
         IReadOnlyList<string> lines = TerminalMessage.Lines(Message, 20);
 
         Assert.True(lines.Count > 4, "the message was capped at the notice slot's four lines");
-        Assert.DoesNotContain(
-            lines,
-            static line => line.Contains('…') || line.Contains("...", StringComparison.Ordinal)
+        Assert.DoesNotContain(lines, static line =>
+            line.Contains('…') || line.Contains("...", StringComparison.Ordinal)
         );
         Assert.Equal(Message, string.Concat(lines));
     }

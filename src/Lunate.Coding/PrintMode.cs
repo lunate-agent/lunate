@@ -692,8 +692,8 @@ internal static class PrintMode
 
         if (launch.Session is null && !launch.Continue)
         {
-            string directory =
-                options.SessionDirectory ?? HarnessFactory.DefaultSessionDirectory(workspace);
+            string directory = options.SessionDirectory
+                ?? HarnessFactory.DefaultSessionDirectory(workspace);
             Session created = HarnessFactory.CreateSession(directory, workspace);
             SystemPrompt.Record(created, launch);
             return (created, null);

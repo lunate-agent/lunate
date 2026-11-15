@@ -39,8 +39,8 @@ internal static class ProductVersion
     {
         var assembly = typeof(ProductVersion).Assembly;
         return assembly
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-                ?.InformationalVersion
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
             ?? assembly.GetName().Version?.ToString()
             ?? "unknown";
     }

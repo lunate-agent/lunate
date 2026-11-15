@@ -190,8 +190,7 @@ internal static partial class SessionFormat
             );
         }
 
-        ChatMessage message =
-            messageElement.Deserialize<ChatMessage>(SessionJson.Options)
+        ChatMessage message = messageElement.Deserialize<ChatMessage>(SessionJson.Options)
             ?? throw new InvalidDataException("Session message line has a null 'message'.");
 
         string rawMessageJson = messageElement.GetRawText();

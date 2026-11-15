@@ -217,13 +217,11 @@ public sealed class PrintModeTests
             lines.Select(PrintModeTestSupport.TypeOf)
         );
         string sessionId = PrintModeTestSupport.SingleSessionId(temp);
-        Assert.All(
-            lines,
-            line => Assert.Equal(sessionId, line.GetProperty("sessionId").GetString())
+        Assert.All(lines, line =>
+            Assert.Equal(sessionId, line.GetProperty("sessionId").GetString())
         );
-        JsonElement result = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement result = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.True(result.GetProperty("details").GetProperty("created").GetBoolean());
         Assert.Equal("hi", File.ReadAllText(temp.File("note.txt")));
@@ -268,9 +266,8 @@ public sealed class PrintModeTests
             lines.Select(PrintModeTestSupport.TypeOf)
         );
         string sessionId = PrintModeTestSupport.SingleSessionId(temp);
-        Assert.All(
-            lines,
-            line => Assert.Equal(sessionId, line.GetProperty("sessionId").GetString())
+        Assert.All(lines, line =>
+            Assert.Equal(sessionId, line.GetProperty("sessionId").GetString())
         );
         JsonElement start = lines[1];
         string messageId = start.GetProperty("messageId").GetString()!;
@@ -648,9 +645,8 @@ public sealed class PrintModeTests
         Assert.Equal(2, exitCode);
         string[] diagnostics = errors.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(51, diagnostics.Length);
-        Assert.All(
-            diagnostics[..^1],
-            line => Assert.Equal("tool 'read' failed: file not found: missing.txt", line)
+        Assert.All(diagnostics[..^1], line =>
+            Assert.Equal("tool 'read' failed: file not found: missing.txt", line)
         );
         Assert.Equal("lunate: step limit reached (50 steps)", diagnostics[^1]);
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
@@ -679,15 +675,13 @@ public sealed class PrintModeTests
         Assert.Equal(2, exitCode);
         string[] diagnostics = errors.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(56, diagnostics.Length);
-        Assert.All(
-            diagnostics[..^1],
-            line => Assert.Equal("tool 'read' failed: file not found: missing.txt", line)
+        Assert.All(diagnostics[..^1], line =>
+            Assert.Equal("tool 'read' failed: file not found: missing.txt", line)
         );
         Assert.Equal("lunate: step limit reached (55 steps)", diagnostics[^1]);
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
-        JsonElement limit = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "step_limit_reached"
+        JsonElement limit = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "step_limit_reached"
         );
         Assert.Equal(55, limit.GetProperty("maxSteps").GetInt32());
         JsonElement last = lines[^1];
@@ -714,9 +708,8 @@ public sealed class PrintModeTests
         Assert.Equal(2, exitCode);
         Assert.EndsWith("lunate: step limit reached (3 steps)\n", errors, StringComparison.Ordinal);
         List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
-        JsonElement limit = Assert.Single(
-            lines,
-            line => PrintModeTestSupport.TypeOf(line) == "step_limit_reached"
+        JsonElement limit = Assert.Single(lines, line =>
+            PrintModeTestSupport.TypeOf(line) == "step_limit_reached"
         );
         Assert.Equal(3, limit.GetProperty("maxSteps").GetInt32());
     }

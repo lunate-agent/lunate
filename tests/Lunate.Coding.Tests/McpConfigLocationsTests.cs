@@ -152,9 +152,8 @@ public sealed class McpConfigLocationsTests
         )!;
 
         Assert.Empty(Assert.Single(set.Statuses).MissingVariables!);
-        Assert.DoesNotContain(
-            notices,
-            notice => notice.Message.Contains("LUNATE_TEST_UNSET_5c1d", StringComparison.Ordinal)
+        Assert.DoesNotContain(notices, notice =>
+            notice.Message.Contains("LUNATE_TEST_UNSET_5c1d", StringComparison.Ordinal)
         );
     }
 

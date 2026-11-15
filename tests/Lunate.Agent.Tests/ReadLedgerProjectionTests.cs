@@ -87,9 +87,8 @@ public sealed class ReadLedgerProjectionTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult stale = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "stale-edit"
+        ToolCallResult stale = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "stale-edit"
         );
         Assert.True(stale.IsError);
         Assert.Contains(
@@ -115,15 +114,13 @@ public sealed class ReadLedgerProjectionTests
         );
         Assert.Contains("[stale:", priorRead.Result!.ToString(), StringComparison.Ordinal);
         Assert.DoesNotContain("     1|", priorRead.Result.ToString(), StringComparison.Ordinal);
-        Assert.Contains(
-            session.Entries.OfType<SessionMessageEntry>(),
-            entry =>
-                entry
-                    .Message.Contents.OfType<FunctionResultContent>()
-                    .Any(result =>
-                        result.CallId == "read-call"
-                        && result.Result!.ToString()!.Contains("     1|", StringComparison.Ordinal)
-                    )
+        Assert.Contains(session.Entries.OfType<SessionMessageEntry>(), entry =>
+            entry
+                .Message.Contents.OfType<FunctionResultContent>()
+                .Any(result =>
+                    result.CallId == "read-call"
+                    && result.Result!.ToString()!.Contains("     1|", StringComparison.Ordinal)
+                )
         );
         string originalRead = session
             .Entries.OfType<SessionMessageEntry>()

@@ -303,15 +303,16 @@ internal sealed class NuGetDependencyWalker(NuGetPackageFeed feed, NuGetFramewor
         NuGetVersion fallback
     )
     {
-        NuGetVersion suggestion =
-            Best(available, constraints, highest: false) ?? HighestMinimum(constraints) ?? fallback;
+        NuGetVersion suggestion = Best(available, constraints, highest: false)
+            ?? HighestMinimum(constraints)
+            ?? fallback;
 
         // A hint has to name something a restore can fetch: the highest minimum is not published
         // when the feed skips a patch.
         if (!available.Contains(suggestion))
         {
-            suggestion =
-                available.FirstOrDefault(version => version >= suggestion) ?? available[^1];
+            suggestion = available.FirstOrDefault(version => version >= suggestion)
+                ?? available[^1];
         }
 
         return FormattableString.Invariant(

@@ -25,18 +25,14 @@ public sealed class InteractiveSessionBashConversationTests
         host.Console.SendEnter();
         await host.Client.WaitForCallAsync(1);
 
-        ChatMessage report = Assert.Single(
-            host.Client.Requests[0],
-            message =>
-                message.Role == ChatRole.User
-                && Text(message).Contains("echo conversation", StringComparison.Ordinal)
+        ChatMessage report = Assert.Single(host.Client.Requests[0], message =>
+            message.Role == ChatRole.User
+            && Text(message).Contains("echo conversation", StringComparison.Ordinal)
         );
         Assert.Contains("conversation", Text(report), StringComparison.Ordinal);
-        Assert.Contains(
-            host.Client.Requests[0],
-            message =>
-                message.Role == ChatRole.User
-                && Text(message).Contains("next", StringComparison.Ordinal)
+        Assert.Contains(host.Client.Requests[0], message =>
+            message.Role == ChatRole.User
+            && Text(message).Contains("next", StringComparison.Ordinal)
         );
 
         host.Console.Complete();
@@ -78,9 +74,8 @@ public sealed class InteractiveSessionBashConversationTests
             baseline,
             JsonSerializer.Serialize(messages.Take(baselineCount), SessionJson.Options)
         );
-        Assert.DoesNotContain(
-            messages,
-            message => Text(message).Contains("secret", StringComparison.Ordinal)
+        Assert.DoesNotContain(messages, message =>
+            Text(message).Contains("secret", StringComparison.Ordinal)
         );
         // The header commits with the result the wait above saw; the wait is the assertion.
         await host.WaitForScrollbackAsync("\u2713 bash  echo secret \u00b7 exit 0");

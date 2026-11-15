@@ -210,8 +210,7 @@ internal static class SetupWizardCommit
     internal static ProviderEntry StagedEntry(SetupWizardModel model)
     {
         ArgumentNullException.ThrowIfNull(model);
-        WizardProviderChoice provider =
-            model.Provider
+        WizardProviderChoice provider = model.Provider
             ?? throw new InvalidDataException(
                 "setup: the provider step has no answer; no provider entry can be built."
             );
