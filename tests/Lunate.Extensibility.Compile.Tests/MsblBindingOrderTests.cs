@@ -3,6 +3,7 @@ using System.Reflection;
 using Lunate.Extensibility;
 using Lunate.Extensibility.Restore;
 using Lunate.Roslyn;
+using Lunate.TestSupport;
 
 namespace Lunate.Extensibility.Compile.Tests;
 
@@ -15,7 +16,9 @@ namespace Lunate.Extensibility.Compile.Tests;
 /// would otherwise be decided by the other.
 /// <para>
 /// Hermetic: a temporary <c>HOME</c>, a temporary <c>NUGET_PACKAGES</c>, a local folder feed built in
-/// the test, and a package-free workspace restored against a cleared source list. The assertions are
+/// the test, and a package-free workspace restored against a cleared source list — the machine's NuGet
+/// cache is that restore's one fallback folder, so the SDK's targeting packs resolve without a feed
+/// (see <see cref="FixtureRestore"/>). The assertions are
 /// behavioural on both sides — a type compiled into the extension is invoked and a symbol in the
 /// workspace is found — so a binding conflict that only breaks one of them cannot pass as "the load
 /// returned a result".
@@ -290,23 +293,15 @@ public sealed class MsblBindingOrderTests
     }
 
     /// <summary>
-    /// <c>dotnet restore</c> for the workspace, offline: a cleared source list, its own packages and
-    /// CLI home, and the audit off (an audit would ask a feed for advisory data).
+    /// <c>dotnet restore</c> for the workspace, offline: the gate's own configuration
+    /// (<see cref="FixtureRestore.OfflineNuGetConfig"/> — cleared sources, the machine's cache as a
+    /// read-only fallback folder so the SDK's targeting packs resolve), its own packages and CLI home,
+    /// and the audit off (an audit would ask a feed for advisory data).
     /// </summary>
     private static void Restore(string root)
     {
         string config = Path.Combine(root, "NuGet.config");
-        File.WriteAllText(
-            config,
-            """
-            <?xml version="1.0" encoding="utf-8"?>
-            <configuration>
-              <packageSources>
-                <clear />
-              </packageSources>
-            </configuration>
-            """
-        );
+        File.WriteAllText(config, FixtureRestore.OfflineNuGetConfig());
 
         var start = new ProcessStartInfo(DotNetPath())
         {
@@ -450,6 +445,10 @@ public sealed class MsblBindingOrderTests
         start.Environment[MarkerVariable] = marker;
         start.Environment["HOME"] = home;
         start.Environment["NUGET_PACKAGES"] = Path.Combine(home, "packages");
+        // The probe's own packages folder is fresh, so the machine's cache has to be named for it:
+        // an SDK that does not bundle the product's targeting packs resolves them from there (#895).
+        start.Environment[FixtureRestore.MachinePackagesVariable] =
+            FixtureRestore.MachinePackagesFolder();
         start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
         return Process.Start(start)!;
     }

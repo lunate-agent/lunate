@@ -1,6 +1,12 @@
 # The SDK pin is exact (global.json, rollForward: disable), because the pinned SDK decides the
 # runtime bundled into the self-contained binary as well as what the gate installs. Patches
 # therefore arrive as reviewed pull requests, each of which runs the full gate.
+#
+# An SDK bump belongs in one pull request with the gate's proof of it: an SDK bundles targeting packs
+# only for its own framework, so a bump can turn the gate's offline fixture restores red (SDK 11 asks
+# for the net10.0 packs, #895) on exactly the operating systems a pull request does not run. #892
+# landed alone and failed on macOS and Windows; #895 carries the bump and the fixture-restore fix
+# together. The bump's own pull request is that one change: do not split the fix out of it.
 version: 2
 updates:
   - package-ecosystem: "dotnet-sdk"

@@ -36,6 +36,13 @@ namespace Lunate.TestSupport;
 /// bounds fixture restores to one at a time across every test process on the machine, which the
 /// in-process semaphore beside it cannot see.
 /// </para>
+/// <para>
+/// Isolation is about the folders the child *writes* (<see cref="ChildEnvironment"/>) and about
+/// naming no feed; the one thing it may read is the machine's own NuGet cache, as the fallback folder
+/// of <see cref="OfflineNuGetConfig"/> — an SDK that bundles targeting packs only for its own
+/// framework asks a feed for the product's packs, and a cleared source list would turn that into
+/// <c>NU1101</c> (#895).
+/// </para>
 /// </remarks>
 public static class FixtureRestore
 {
@@ -49,14 +56,98 @@ public static class FixtureRestore
     public static int Restores => Volatile.Read(ref _restores);
 
     /// <summary>The offline configuration every fixture restore uses: no package sources at all.</summary>
-    private const string Config = """
-        <?xml version="1.0" encoding="utf-8"?>
-        <configuration>
-          <packageSources>
-            <clear />
-          </packageSources>
-        </configuration>
-        """;
+    /// <remarks>
+    /// An SDK bundles targeting packs only for its own framework. A fixture that targets the product's
+    /// <c>net10.0</c> under a newer SDK therefore asks a feed for <c>Microsoft.NETCore.App.Ref</c> —
+    /// plus the AspNetCore ref and apphost packs — at the version that SDK pins, and with the source
+    /// list cleared that request has nowhere to go: that is the <c>NU1101</c> which turned the SDK 11
+    /// bump red on macOS and Windows while Ubuntu stayed green (#895). The packages the SDK asks for
+    /// are the ones this repository's own build restores into the machine's global packages folder, so
+    /// the fixture names that folder as a <em>fallback</em> folder: read in place, never written, no
+    /// feed named. It is named only when it exists, because NuGet answers a missing fallback folder
+    /// with <c>NU1301</c> instead of falling through to "the package is missing".
+    /// </remarks>
+    internal static string ConfigText(string? machinePackagesFolder)
+    {
+        const string NoFallback = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <configuration>
+              <packageSources>
+                <clear />
+              </packageSources>
+            </configuration>
+            """;
+
+        if (
+            string.IsNullOrWhiteSpace(machinePackagesFolder)
+            || !Directory.Exists(machinePackagesFolder)
+        )
+        {
+            return NoFallback;
+        }
+
+        string folder =
+            System.Security.SecurityElement.Escape(machinePackagesFolder) ?? string.Empty;
+        return $$"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <configuration>
+              <packageSources>
+                <clear />
+              </packageSources>
+              <fallbackPackageFolders>
+                <clear />
+                <add key="machine" value="{{folder}}" />
+              </fallbackPackageFolders>
+            </configuration>
+            """;
+    }
+
+    /// <summary>
+    /// The configuration a fixture restore writes into its tree: <see cref="ConfigText"/> for this
+    /// machine's <see cref="MachinePackagesFolder"/>.
+    /// </summary>
+    public static string OfflineNuGetConfig() => ConfigText(MachinePackagesFolder());
+
+    /// <summary>
+    /// The folder a restore may take packages from without a feed: NuGet's global packages folder of
+    /// this machine — <see cref="MachinePackagesVariable"/> first, then <c>NUGET_PACKAGES</c> when the
+    /// test host has it, otherwise <c>~/.nuget/packages</c> — which the repository's own build fills
+    /// with the targeting packs the SDK asks for. The child's own package folder stays the fixture's;
+    /// this one is only read.
+    /// </summary>
+    public static string MachinePackagesFolder()
+    {
+        string? inherited = Environment.GetEnvironmentVariable(MachinePackagesVariable);
+        if (!string.IsNullOrWhiteSpace(inherited))
+        {
+            return Path.GetFullPath(inherited);
+        }
+
+        string? configured = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return Path.GetFullPath(configured);
+        }
+
+        return Path.GetFullPath(
+            Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.UserProfile,
+                    Environment.SpecialFolderOption.DoNotVerify
+                ),
+                ".nuget",
+                "packages"
+            )
+        );
+    }
+
+    /// <summary>
+    /// Carries the machine's package folder across a boundary that repoints <c>NUGET_PACKAGES</c> at a
+    /// folder of its own — the MSBL order test's probe child does, so its world is not the suite's.
+    /// Without it the child would look for a fallback folder in its own empty folder and could not
+    /// resolve the SDK's targeting packs (#895).
+    /// </summary>
+    public const string MachinePackagesVariable = "LUNATE_TEST_MACHINE_PACKAGES";
 
     /// <summary>
     /// Restores <paramref name="solutionFileName"/> in <paramref name="root"/>, or copies the artifacts
@@ -92,7 +183,7 @@ public static class FixtureRestore
         }
 
         string configPath = Path.Combine(root, "NuGet.config");
-        File.WriteAllText(configPath, Config);
+        File.WriteAllText(configPath, OfflineNuGetConfig());
         string solutionPath = Path.Combine(root, solutionFileName);
         string key = RestoreCache.Key(root, solutionFileName);
 

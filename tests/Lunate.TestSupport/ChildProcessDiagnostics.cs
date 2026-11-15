@@ -63,6 +63,18 @@ internal static class ChildProcessDiagnostics
             lines.Add(string.Create(CultureInfo.InvariantCulture, $"{name}={value ?? "<unset>"}"));
         }
 
+        // The one folder the restore may read from without a feed. A missing pack and a missing cache
+        // look alike in NU1101, and this line is what tells the two apart.
+        string machinePackages = FixtureRestore.MachinePackagesFolder();
+        lines.Add(
+            $"NuGet fallback folder: {machinePackages}"
+                + (
+                    Directory.Exists(machinePackages)
+                        ? string.Empty
+                        : " (missing: the configuration named none)"
+                )
+        );
+
         return string.Join(Environment.NewLine, lines);
     }
 }
