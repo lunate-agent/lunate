@@ -478,22 +478,21 @@ public sealed partial class AgentHarness
         ?? _options.Model
         ?? (_options.ModelId is { } id ? FindModel(id) : null);
 
-    private ModelInfo? FindModel(string? modelId)
-    {
-        if (string.IsNullOrWhiteSpace(modelId))
-        {
-            return null;
-        }
+    /// <summary>
+    /// The provider the run selected, which is what tells two presets serving the same bare wire id
+    /// apart. A provider echoes its wire id on a usage record, so the spend lookup resolves the
+    /// record's id in this scope; it never recurses through <see cref="SelectedModel"/>.
+    /// </summary>
+    private string? UsageProvider() =>
+        ResolveUsageModel(_options.Usage)?.Model.Provider ?? _options.Model?.Provider;
 
-        try
-        {
-            return _options.ModelCatalog?.Find(modelId);
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
+    /// <summary>
+    /// The entry that prices a recorded model id: the selected provider's entry first (a provider's
+    /// echoed wire id resolves to the preset the run called), then the catalogue-wide rules. Null
+    /// for an unknown or still-ambiguous id, because an unpriced record is never zero.
+    /// </summary>
+    private ModelInfo? FindModel(string? modelId) =>
+        _options.ModelCatalog?.FindUsageModel(modelId, UsageProvider());
 
     private void AddSpend(
         decimal? reportedCost,

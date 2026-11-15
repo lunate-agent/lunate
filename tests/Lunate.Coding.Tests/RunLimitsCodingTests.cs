@@ -143,6 +143,58 @@ public sealed class RunLimitsCodingTests
         Assert.Empty(errors);
     }
 
+    [Fact]
+    public async Task A_wire_id_usage_is_priced_and_counts_towards_the_cost_limit()
+    {
+        using var temp = new TempDirectory();
+        // The run selects the beta preset; the provider echoes only the wire id the two presets
+        // share, so the selected preset is what prices the record and enforces the limit.
+        File.WriteAllText(
+            temp.File("models.json"),
+            """
+            {
+              "schemaVersion": 2,
+              "models": [
+                { "id": "alpha/shared", "provider": "alpha", "wireId": "shared-wire", "contextWindow": 1000, "supportsTools": true, "pricing": { "input": 1000, "output": 0 } },
+                { "id": "beta/shared", "provider": "beta", "wireId": "shared-wire", "contextWindow": 1000, "supportsTools": true, "pricing": { "input": 500, "output": 0 } }
+              ]
+            }
+            """
+        );
+        ChatResponseUpdate usageUpdate = Scripts.Usage(1000, 0);
+        usageUpdate.ModelId = "shared-wire";
+        var client = new ScriptedChatClient().Enqueue(
+            usageUpdate,
+            Scripts.Text("Done"),
+            Scripts.Stop()
+        );
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Go",
+            Json = true,
+            Launch = new LaunchOptions { Model = "beta/shared", MaxCostUsd = 0.5m },
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
+        JsonElement usage = Assert.Single(
+            lines,
+            line => PrintModeTestSupport.TypeOf(line) == "usage_updated"
+        );
+        Assert.Equal("shared-wire", usage.GetProperty("modelId").GetString());
+        Assert.Equal(0.5m, usage.GetProperty("costUsd").GetDecimal());
+        Assert.Equal(3, exitCode);
+        JsonElement limit = Assert.Single(
+            lines,
+            line => PrintModeTestSupport.TypeOf(line) == "cost_limit_reached"
+        );
+        Assert.Equal(0.5m, limit.GetProperty("spendUsd").GetDecimal());
+    }
+
     private sealed class AdvancingChatClient(ManualTimeProvider clock, TimeSpan advance)
         : IChatClient
     {
