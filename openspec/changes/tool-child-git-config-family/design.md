@@ -20,7 +20,7 @@ key is missing (`error: missing config key GIT_CONFIG_KEY_0`), so the tool child
 the change scan's `git status` fails the same way (#871). ADR-0036's Consequences already name
 `GIT_CONFIG_KEY_0` as a false positive it accepted; this change pays that one back.
 
-```
+```text
 ChildProcess.BuildEnvironment(request)
         │  EnvironmentScrubber.Build(Inherited, strip, passthrough, set)
         ▼

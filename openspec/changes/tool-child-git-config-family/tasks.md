@@ -37,8 +37,8 @@
 
 - [x] 4.1 Focused test classes green: `EnvironmentScrubberTests`,
       `ChildProcessToolEnvironmentTests`, `BashChangeTrackerTests`, `ChildEnvironmentGuardTests`.
-- [ ] 4.2 `dotnet csharpier format .` then `check`, Release builds of the touched projects (the test
+- [x] 4.2 `dotnet csharpier format .` then `check`, Release builds of the touched projects (the test
       projects included), the fast gate's documentation and ADR checks, and
       `openspec validate --all --strict`.
-- [ ] 4.3 Write `changes/<pr>.md`, sync the delta spec into `openspec/specs/`, and archive the change
+- [x] 4.3 Write `changes/<pr>.md`, sync the delta spec into `openspec/specs/`, and archive the change
       as the final commit.
