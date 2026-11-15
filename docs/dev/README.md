@@ -7,6 +7,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Project entry point | [`../../README.md`](../../README.md) | What Lunate is, why it exists, install, the three-step start and what it can do |
 | Documentation entry point | [`../index.md`](../index.md) | The user path: every task group, and the page that owns each task |
 | Usage | [`../usage.md`](../usage.md) | The interactive session: input, turns, tools, approvals, thinking, forks and long sessions, and trust |
+| Mermaid diagrams | [`../mermaid.md`](../mermaid.md) | The `mermaid` fence: which flowchart and sequence diagrams are drawn, what the three fallback lines say, and how the glyphs follow the terminal |
 | Project instructions | [`../agents-md.md`](../agents-md.md) | The `AGENTS.md` chain from the repository root to the launch directory, and what reaches the system prompt |
 | Skills | [`../skills.md`](../skills.md) | Agent Skills: the scopes Lunate reads, `/skills`, `/skill:<name>`, the index budget and the trust decision |
 | MCP servers | [`../mcp-servers.md`](../mcp-servers.md) | The MCP client: where `mcpServers` is read, how a server starts, and what its child process inherits |

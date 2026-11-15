@@ -24,6 +24,7 @@ docs/
   quickstart.md               install, first run, first task
   how-lunate-works.md         loop, tools, context, sessions, modes (no internals)
   usage.md                    the interactive session
+  mermaid.md                  Mermaid fences drawn as box diagrams
   models-and-providers.md     choose a model, provider, profile and credential
   decisions.md                the optional decision layer
   export-copy-debug.md        /copy, /export, /debug, diagnostics
@@ -67,7 +68,7 @@ docs/
 | Group | Pages | Owns |
 | --- | --- | --- |
 | Get started | `index.md`, `quickstart.md`, `how-lunate-works.md` | What Lunate is, install and first run, the mental model |
-| Use it | `usage.md`, `models-and-providers.md`, `decisions.md`, `export-copy-debug.md`, `terminal-setup.md` | The daily session and the terminal |
+| Use it | `usage.md`, `mermaid.md`, `models-and-providers.md`, `decisions.md`, `export-copy-debug.md`, `terminal-setup.md` | The daily session and the terminal |
 | Customize | `configuration.md`, `agents-md.md`, `skills.md`, `mcp-servers.md`, `themes.md`, `themes-and-keys.md`, `full-screen.md` | User-owned configuration and resources |
 | Build on it | `extensions/`, `extensions-remote.md`, `mcp-roslyn.md` | Extension authoring, the wire contract, the C# tools from another host |
 | Automate | `print.md`, `json-events.md`, `acp.md`, `ci.md` | One-shot, machine-readable, editor and unattended use |

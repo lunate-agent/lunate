@@ -16,6 +16,7 @@ New here? [Quickstart](quickstart.md) installs Lunate and walks the first run, a
   - [How Lunate works](how-lunate-works.md)
 - **Use it**
   - [Use the terminal](usage.md)
+  - [Mermaid diagrams](mermaid.md)
   - [Models and providers](models-and-providers.md)
   - [Decisions](decisions.md)
   - [Copy, export and debug](export-copy-debug.md)

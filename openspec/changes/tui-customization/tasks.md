@@ -34,17 +34,17 @@ change archives only when the last part lands.
 
 ## 4. Mermaid diagrams
 
-- [ ] 4.1 Parser for `flowchart`/`graph` (`TD`/`TB`/`LR`, labelled nodes, edges with and without
+- [x] 4.1 Parser for `flowchart`/`graph` (`TD`/`TB`/`LR`, labelled nodes, edges with and without
       labels) and `sequenceDiagram` (participants, `->`, `-->`, `->>`, `Note`); everything else
       classified as unsupported.
-- [ ] 4.2 Flowchart layout and renderer with the box-drawing set; sequence renderer with lifelines and
+- [x] 4.2 Flowchart layout and renderer with the box-drawing set; sequence renderer with lifelines and
       message labels.
-- [ ] 4.3 Fallback rules: unsupported type, parse failure and width overflow each render the source
+- [x] 4.3 Fallback rules: unsupported type, parse failure and width overflow each render the source
       with the exact one-line note from the design; never a partial diagram.
-- [ ] 4.4 ASCII mode swaps the glyph set without changing geometry.
-- [ ] 4.5 Route a ```mermaid fence from the Markdown renderer to the diagram renderer; unsupported
+- [x] 4.4 ASCII mode swaps the glyph set without changing geometry.
+- [x] 4.5 Route a ```mermaid fence from the Markdown renderer to the diagram renderer; unsupported
       constructs in ordinary fences keep their current behaviour.
-- [ ] 4.6 Tests: one golden per supported diagram type (TD, LR, sequence), the three fallbacks, ASCII
+- [x] 4.6 Tests: one golden per supported diagram type (TD, LR, sequence), the three fallbacks, ASCII
       mode, and a document mixing a diagram with code fences and prose.
 
 ## 5. Docs and gate

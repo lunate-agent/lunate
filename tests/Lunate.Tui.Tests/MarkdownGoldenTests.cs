@@ -340,4 +340,25 @@ public sealed class MarkdownGoldenTests
             console.Output
         );
     }
+
+    [Fact]
+    public void A_diagram_wider_than_the_terminal_falls_back_to_its_source()
+    {
+        // Task 4.6 names three fallbacks as goldens: the unsupported type and the parse failure
+        // are in the theory above, and this is the width one — 64 columns drawn on 58.
+        string markdown = """
+            ```mermaid
+            flowchart TD
+                A[XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX] --> B[Two]
+            ```
+            """;
+        var console = new TestConsole();
+        console.Profile.Width = 80;
+        console.Write(new MarkdownRenderer().Render(markdown, maxWidth: 58));
+
+        GoldenFiles.AssertMatchesText(
+            Path.Combine(GoldensDirectory, "mermaid-fallback-width.txt"),
+            console.Output
+        );
+    }
 }
