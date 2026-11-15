@@ -83,6 +83,70 @@ public sealed class BashGuardToolTests
     }
 
     [Fact]
+    public async Task A_nested_sandbox_is_named_once_per_session_and_never_in_the_output()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return; // /bin/bash below; the Windows leg of the guard is covered elsewhere.
+        }
+
+        using var temp = new TempDirectory();
+        string workspace = Directory.CreateDirectory(temp.File("workspace")).FullName;
+        string state = Directory.CreateDirectory(temp.File("state")).FullName;
+        string prefix = Directory.CreateDirectory(temp.File("prefix")).FullName;
+        var target = new GuardTarget(state, Path.Combine(state, "auth.json"), prefix, temp.Root);
+        GuardProbe probe = Fake.Unix(macOs: true, sandboxExec: true) with
+        {
+            Run = (_, _) => (1, "sandbox-exec: sandbox_apply: Operation not permitted"),
+        };
+        var log = new RecordingExtensionLog();
+        var tool = new BashTool(
+            new Workspace(workspace),
+            null,
+            null,
+            log,
+            new BashGuard(target, probe)
+        );
+
+        ToolResult first = await tool.ExecuteAsync(
+            CommandArgs("echo first"),
+            Context,
+            CancellationToken.None
+        );
+        ToolResult second = await tool.ExecuteAsync(
+            CommandArgs("echo second"),
+            Context,
+            CancellationToken.None
+        );
+
+        // The command still produces its honest result, and the notice never rides in its bytes.
+        Assert.False(first.IsError);
+        Assert.False(second.IsError);
+        Assert.Equal("first\nexit code: 0", first.Output);
+        Assert.DoesNotContain("sandbox", first.Output, StringComparison.Ordinal);
+
+        // One notice for the session: the first command logs it, the second stays silent.
+        Assert.Contains(
+            log.Messages,
+            message => message.Contains("already runs inside a sandbox", StringComparison.Ordinal)
+        );
+        Assert.Contains(
+            log.Messages,
+            message => message.Contains("state-root", StringComparison.Ordinal)
+        );
+        Assert.DoesNotContain(
+            log.Messages,
+            message => message.Contains("unconfined", StringComparison.Ordinal)
+        );
+        Assert.Equal(
+            1,
+            log.Messages.Count(message =>
+                message.Contains("already runs inside a sandbox", StringComparison.Ordinal)
+            )
+        );
+    }
+
+    [Fact]
     public async Task A_disabled_guard_skips_the_probe_and_is_named_in_the_result()
     {
         using var temp = new TempDirectory();
