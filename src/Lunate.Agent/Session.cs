@@ -515,7 +515,7 @@ public sealed partial class Session
         SessionCompactionEntry? compaction = SessionTree.CompactionOn(path);
         HashSet<string>? replaced = compaction is null
             ? null
-            : [with(StringComparer.Ordinal), .. compaction.Replaces];
+            : new HashSet<string>(compaction.Replaces, StringComparer.Ordinal);
         List<SessionHistoryItem> items = [];
         if (compaction is not null)
         {

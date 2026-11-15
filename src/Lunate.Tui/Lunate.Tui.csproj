@@ -1,4 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <!--
+            The output excerpt builds its line lists with `[with(...)]` collection-expression
+            arguments, which is C# 15 syntax. SDK 11 compiles it for `net10.0` once the language
+            version is set; targeting `net11.0` selects C# 15 by default, so this line goes with the
+            framework move. The SDK itself is pinned in `global.json`.
+        -->
+        <LangVersion>15.0</LangVersion>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="Markdig" Version="1.4.0" />
         <PackageReference

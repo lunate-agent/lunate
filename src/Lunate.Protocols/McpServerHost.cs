@@ -309,8 +309,8 @@ public sealed class McpServerHost : IAsyncDisposable
         var listed = await client!.ListToolsAsync(cancellationToken: ct).ConfigureAwait(false);
         var callTimeout = options.CallTimeout ?? DefaultCallTimeout;
         var namespaceName = options.NamespaceName ?? options.Name;
-        HashSet<string>? unmatched = options.ExposureOverrides is { } overrides
-            ? [with(StringComparer.Ordinal), .. overrides.Keys]
+        var unmatched = options.ExposureOverrides is { } overrides
+            ? new HashSet<string>(overrides.Keys, StringComparer.Ordinal)
             : null;
         var wrapped = new List<ITool>(listed.Count);
 

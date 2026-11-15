@@ -105,9 +105,7 @@ constructor, while keeping the element list in one expression.
 
 **Runtime / BCL.** Compiler-only. The probes compiled and ran on `net10.0`; the only requirement is
 SDK 11 with `LangVersion=15.0` (targeting `net11.0` selects C# 15 by default). No new BCL type is
-involved for the `List<T>`/`HashSet<T>` cases. The repository sets `LangVersion` 15.0 in
-[`Directory.Build.props`](../../Directory.Build.props), so the refactor slices can use the construct
-while the tree still targets `net10.0`.
+involved for the `List<T>`/`HashSet<T>` cases.
 
 **Analyzer and tooling support.** CSharpier `1.3.0` already parses and formats `[with(...)]`; the
 checked-in build and the PublicApiAnalyzers probe compile the expression normally, and the syntax
