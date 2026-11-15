@@ -27,6 +27,9 @@ internal sealed record LaunchOptions
     /// <summary>The thinking level for this run; null keeps the resolved setting.</summary>
     public ThinkingLevel? Thinking { get; init; }
 
+    /// <summary>The model-call ceiling for this run; null keeps the resolved setting.</summary>
+    public int? MaxSteps { get; init; }
+
     /// <summary>The cost limit for this run in US dollars; null keeps the resolved setting.</summary>
     public decimal? MaxCostUsd { get; init; }
 
@@ -117,6 +120,7 @@ internal sealed record LaunchOptions
         string? appendSystemPrompt = null;
         string? maxCostFlag = null;
         string? maxTimeFlag = null;
+        string? maxStepsFlag = null;
         ThinkingLevel? thinking = null;
         List<string> positional = [];
 
@@ -181,6 +185,21 @@ internal sealed record LaunchOptions
                     break;
                 case "--allow-unpriced":
                     allowUnpriced = true;
+                    break;
+                case "--max-steps":
+                    if (
+                        !TryValue(
+                            args,
+                            ref index,
+                            "--max-steps",
+                            inline,
+                            out maxStepsFlag,
+                            out error
+                        )
+                    )
+                    {
+                        return false;
+                    }
                     break;
                 case "--max-cost":
                     if (
@@ -301,6 +320,19 @@ internal sealed record LaunchOptions
             return false;
         }
 
+        int? maxSteps = null;
+        if (maxStepsFlag is not null)
+        {
+            if (!RunLimits.TryParseSteps(maxStepsFlag, out int parsedSteps))
+            {
+                error =
+                    $"option '--max-steps' expects a positive integer, but was '{maxStepsFlag}'";
+                return false;
+            }
+
+            maxSteps = parsedSteps;
+        }
+
         decimal? maxCost = null;
         if (maxCostFlag is not null)
         {
@@ -382,6 +414,7 @@ internal sealed record LaunchOptions
             NoSession = noSession,
             Model = model,
             Thinking = thinking,
+            MaxSteps = maxSteps,
             MaxCostUsd = maxCost,
             MaxTime = maxTime,
             AllowUnpriced = allowUnpriced,
