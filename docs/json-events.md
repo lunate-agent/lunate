@@ -99,6 +99,11 @@ decision profile emits none of the three decision types.
 count. A reported zero is treated as unknown and omitted, so the two are never synthetic zeros.
 `costUsd` is a number when the record's model is in the catalog and every token lane with a positive
 count has a known price, and the field is absent for an unknown or unpriced model rather than `0`.
+The model is resolved in the scope of the provider the run selected, so the wire id a provider echoes
+on the record (`deepseek-v4.1-flash` for `opencode-go/deepseek-v4.1-flash`) prices as that provider's
+entry even when another preset serves the same wire id; `modelId` on the line stays what the
+provider reported. An id that still names no entry, or that stays ambiguous outside the selected
+provider, keeps the field absent rather than guessing an entry.
 
 ## Related
 
