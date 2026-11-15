@@ -91,6 +91,19 @@ public sealed class ThemeColorTests
         Assert.Equal(sixteen, color.Sgr(ColorSystemSupport.Standard));
     }
 
+    [Theory]
+    [InlineData("red")]
+    [InlineData("bright-blue")]
+    [InlineData("colour:208")]
+    public void Every_colour_form_collapses_to_no_colour_when_the_session_has_none(string value)
+    {
+        Assert.True(ThemeColor.TryParse(value, out ThemeColor color, out string? error));
+        Assert.Null(error);
+
+        Assert.Null(color.Sgr(ColorSystemSupport.NoColors));
+        Assert.Null(color.MarkupColor(ColorSystemSupport.NoColors));
+    }
+
     [Fact]
     public void A_hex_value_renders_as_rgb_markup_and_downgrades_at_the_console()
     {

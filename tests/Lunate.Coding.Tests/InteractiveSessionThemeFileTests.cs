@@ -78,6 +78,40 @@ public sealed class InteractiveSessionThemeFileTests
     }
 
     [Fact]
+    public async Task No_color_beats_a_theme_file_that_colours_every_token()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            environment: NoColorEnvironment
+        );
+        WriteHomeTheme(
+            host,
+            """
+            {
+              "accent": "#ff0000", "muted": "#ff0000", "error": "#ff0000",
+              "success": "#ff0000", "warning": "#ff0000", "code": "#ff0000",
+              "diff.add": "#ff0000", "diff.remove": "#ff0000",
+              "prompt": "#ff0000", "notice": "#ff0000"
+            }
+            """
+        );
+
+        Task run = host.RunAsync();
+
+        // NO_COLOR decides the detection, and a theme plan can only lower the depth: even the
+        // file's prompt token — the marker the frame always paints — ends up colourless.
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.LastFrame.Contains("> Ask anything", StringComparison.Ordinal)
+                && !host.LastFrame.Contains("\u001b[38;", StringComparison.Ordinal);
+        });
+        Assert.DoesNotContain("\u001b[38;2;255;0;0m", host.Frames, StringComparison.Ordinal);
+
+        await QuitAsync(host, run);
+    }
+
+    [Fact]
     public async Task The_theme_flag_name_wins_over_the_tui_theme_setting()
     {
         using var host = new InteractiveSessionHost(
@@ -272,6 +306,12 @@ public sealed class InteractiveSessionThemeFileTests
         host.Console.SendEnter();
         await run;
     }
+
+    /// <summary>The true-colour environment with <c>NO_COLOR</c> set, so detection overrides it.</summary>
+    private static string? NoColorEnvironment(string name) =>
+        string.Equals(name, "NO_COLOR", StringComparison.Ordinal)
+            ? "1"
+            : TrueColorEnvironment(name);
 
     private static string? TrueColorEnvironment(string name) =>
         name switch
