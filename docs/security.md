@@ -30,8 +30,12 @@ the state root (`~/.lunate`, `LUNATE_HOME`) and the install prefix and read-deni
 `sandbox-exec` on macOS, bubblewrap on Linux with `setpriv`'s Landlock rules as the fallback, so Lunate
 guards its own state at the OS level. When the mechanism cannot start (for example Ubuntu
 23.10+'s AppArmor restriction), the command still runs with a visible notice and the result says
-so. Windows has no mechanism yet and reports it rather than running unconfined silently.
-That does not make it a sandbox: the guard does not stop a reachable Docker socket, a
+so. Windows has no mechanism yet and reports it rather than running unconfined silently. A session
+that already runs inside a sandbox is the nested case: macOS refuses to apply a second, nested
+`sandbox-exec` profile (`sandbox_apply: Operation not permitted`), so Lunate cannot add its own
+state-root, install-prefix and `auth.json` rules there. The guard says that once per session and
+does not claim the command runs unconfined — the outer sandbox still applies. None of the guard
+mechanisms makes Lunate a sandbox: the guard does not stop a reachable Docker socket, a
 pre-existing hardlink into the state root, or anything inside the workspace. `bashGuard: false`
 turns it off, and the header and tool results name that state.
 
@@ -67,7 +71,7 @@ it arrives it will replace neither the approval panel nor the guard.
 | --- | --- | --- | --- |
 | Approval panel | Did you intend this command? | Shows the command or diff and applies the approval policy; a command that changes trust or writes the state root always asks. | Does not limit what the command can reach once you say yes. |
 | Workspace boundary | Are the file tools inside the workspace? | Resolves real paths and refuses anything outside the working directory. | Does not apply to `bash`. |
-| BashGuard | Can the command write Lunate's host state or read the key? | OS-level deny on the state root and install prefix and an `auth.json` read-deny; wraps the host process and names itself on refusal. | Does not follow an inner container command; Windows has no mechanism yet. |
+| BashGuard | Can the command write Lunate's host state or read the key? | OS-level deny on the state root and install prefix and an `auth.json` read-deny; wraps the host process and names itself on refusal. | Does not follow an inner container command; Windows has no mechanism yet; a process already under `sandbox-exec` cannot take a nested profile, so the guard's own rules are absent there (it says so, once). |
 | Verified edits | Was a host-side write correct? | Runs the verifier pipeline on `write` and `edit`, with `verify` as `block`, `warn` or `off`. | Does not verify arbitrary files a `bash` command writes. |
 | File-change bus | What did this call change? | Publishes `write`/`edit` changes and the host post-call scan of `bash` changes, including a container Bash write through the mount. | Does not see files that exist only inside the image. |
 | Container boundary — planned (#627), not in 0.4.0 | What can the command reach? | Mounts only the workspace (plus the image and runtime), so the state root, install prefix and credentials are absent. | Does not replace the approval panel or the guard, and is not a jail. |

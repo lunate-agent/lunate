@@ -169,7 +169,7 @@ public sealed class AutocompleteRendererTests
     [Theory]
     [InlineData(ColorSystemSupport.TrueColor, "\u001b[38;2;95;215;215m")]
     [InlineData(ColorSystemSupport.EightBit, "\u001b[38;5;80m")]
-    [InlineData(ColorSystemSupport.Detect, "\u001b[36m")]
+    [InlineData(ColorSystemSupport.Standard, "\u001b[36m")]
     public void A_selected_command_renders_its_name_in_the_accent_tone(
         ColorSystemSupport color,
         string sgr

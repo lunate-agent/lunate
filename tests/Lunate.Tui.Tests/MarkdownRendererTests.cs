@@ -1,3 +1,4 @@
+using Spectre.Console;
 using Spectre.Console.Testing;
 
 namespace Lunate.Tui.Tests;
@@ -94,7 +95,7 @@ public sealed class MarkdownRendererTests
     }
 
     [Fact]
-    public void Inline_code_uses_the_aqua_ansi_style() =>
+    public void Inline_code_uses_the_theme_code_token() =>
         Assert.Contains("\u001b[38;5;14m", RenderAnsi("`code`"));
 
     [Fact]
@@ -109,19 +110,19 @@ public sealed class MarkdownRendererTests
     ) => Assert.Equal(expected, Render(markdown));
 
     [Fact]
-    public void CSharp_keywords_use_the_blue_ansi_style() =>
-        Assert.Contains("\u001b[38;5;12m", RenderAnsi("```csharp\nvar x = 1;\n```"));
+    public void CSharp_keywords_use_the_theme_accent_token() =>
+        Assert.Contains("\u001b[38;5;6m", RenderAnsi("```csharp\nvar x = 1;\n```"));
 
     [Fact]
-    public void CSharp_comments_use_the_grey_ansi_style() =>
+    public void CSharp_comments_use_the_theme_muted_token() =>
         Assert.Contains("\u001b[38;5;8m", RenderAnsi("```csharp\n// note\n```"));
 
     [Fact]
-    public void Json_keys_use_the_blue_ansi_style() =>
-        Assert.Contains("\u001b[38;5;12m", RenderAnsi("```json\n{\"k\": \"v\"}\n```"));
+    public void Json_keys_use_the_theme_code_token() =>
+        Assert.Contains("\u001b[38;5;14m", RenderAnsi("```json\n{\"k\": \"v\"}\n```"));
 
     [Fact]
-    public void Shell_variables_use_the_yellow_ansi_style() =>
+    public void Shell_variables_use_the_theme_warning_token() =>
         Assert.Contains("\u001b[38;5;11m", RenderAnsi("```sh\necho $HOME\n```"));
 
     private const string WideDiagram = """
@@ -224,7 +225,12 @@ public sealed class MarkdownRendererTests
         var console = new TestConsole();
         console.Profile.Width = 80;
         console.EmitAnsiSequences = true;
-        console.Write(new MarkdownRenderer().Render(markdown));
+        // The assertions name the sixteen-colour tones, the depth the default palette pins.
+        console.Write(
+            new MarkdownRenderer(
+                new TerminalCapabilities(ColorSystemSupport.Standard, Unicode: true)
+            ).Render(markdown)
+        );
         return console.Output;
     }
 }

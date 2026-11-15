@@ -130,7 +130,7 @@ public sealed class TrustPromptRendererTests
     [Fact]
     public void Question_marker_is_yellow() =>
         Assert.Contains(
-            "\u001b[38;5;11m?",
+            "\u001b[38;2;255;255;0m?",
             RenderAnsi(new TrustPromptModel("Load extension", [], 0, 0))
         );
 

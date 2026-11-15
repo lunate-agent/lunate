@@ -91,7 +91,7 @@ public sealed class ThinkingCommitRendererTests
         console.EmitAnsiSequences = true;
         console.Profile.Capabilities.ColorSystem = ColorSystem.Standard;
         console.Write(
-            new ThinkingCommitRenderer().Render(commit, width: 40, ColorSystemSupport.Detect)
+            new ThinkingCommitRenderer().Render(commit, width: 40, ColorSystemSupport.Standard)
         );
 
         Assert.Equal(

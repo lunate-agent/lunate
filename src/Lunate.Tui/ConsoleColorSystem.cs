@@ -26,6 +26,14 @@ internal static class ConsoleColorSystem
             _ => ColorSystem.EightBit,
         };
 
+    /// <summary>
+    /// The concrete capability a detection resolves to, for a renderer that composes its own SGR
+    /// instead of writing through a console: <c>Detect</c> is the 256-colour fallback, so a token
+    /// paints there exactly as it does at an explicit <see cref="ColorSystemSupport.EightBit"/>.
+    /// </summary>
+    public static ColorSystemSupport Depth(ColorSystemSupport color) =>
+        color == ColorSystemSupport.Detect ? ColorSystemSupport.EightBit : color;
+
     /// <summary>The console a Lunate surface writes through: ANSI per the console, the resolved colour system, no interaction.</summary>
     public static IAnsiConsole Create(ColorSystemSupport color, TextWriter output, bool ansi = true)
     {

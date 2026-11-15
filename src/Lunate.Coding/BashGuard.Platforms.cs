@@ -11,6 +11,10 @@ internal sealed partial class BashGuard
     private const string SandboxExecutable = "/usr/bin/sandbox-exec";
     private const string AppArmorSysctl = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
 
+    /// <summary>The marker in a <c>sandbox-exec</c> probe failure that means this process already
+    /// has a profile, so macOS refuses to apply a nested one.</summary>
+    private const string NestedSandboxMarker = "sandbox_apply";
+
     /// <summary>
     /// The rule budget. A typical Linux system lands in the low hundreds of allow rules (one per
     /// top-level directory, plus the branches past a denied target), about 30 KB of argv per
@@ -23,6 +27,9 @@ internal sealed partial class BashGuard
 
     private const string UnknownMacNotice =
         "the bash guard could not start: no /usr/bin/sandbox-exec; this command runs unconfined";
+
+    private static string NestedSandboxNotice(string reason) =>
+        $"the bash guard is not applied: this process already runs inside a sandbox (sandbox-exec probe failed: {reason}); the outer sandbox still applies, but Lunate's own state-root, install-prefix and auth.json rules are not applied";
 
     private GuardCommand ResolveMacOs(ResolvedShell shell)
     {
@@ -48,6 +55,14 @@ internal sealed partial class BashGuard
                 output.Length > 0
                     ? output
                     : string.Create(CultureInfo.InvariantCulture, $"exit code {exitCode}");
+            // sandbox_apply is the Seatbelt entry point that installs a profile; macOS refuses it
+            // inside a process that already has one. That is not "unconfined": the outer sandbox
+            // still applies, but this guard's rule set was never added.
+            if (output.Contains(NestedSandboxMarker, StringComparison.Ordinal))
+            {
+                return Unwrapped(shell, "none", NestedSandboxNotice(reason), probeState: "failure");
+            }
+
             return Unwrapped(
                 shell,
                 "none",
