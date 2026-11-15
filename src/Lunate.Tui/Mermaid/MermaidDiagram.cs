@@ -1,190 +1,75 @@
 using System.Globalization;
+using Mermaid.Terminal;
 
 namespace Lunate.Tui;
 
-/// <summary>Why a diagram could not be drawn; the phrasing becomes the one fallback line.</summary>
-internal sealed record MermaidFailure(string Reason);
-
-/// <summary>Either the drawn grid or the reason it was refused; never both, never neither.</summary>
-internal readonly record struct MermaidResult(MermaidCanvas? Canvas, MermaidFailure? Failure)
-{
-    internal static MermaidResult Ok(MermaidCanvas canvas) => new(canvas, null);
-
-    internal static MermaidResult Fail(string reason) => new(null, new MermaidFailure(reason));
-}
-
 /// <summary>
-/// The Mermaid fence entry point: it classifies the first meaningful line, hands the statements
-/// to the renderer for the one type the line names, and falls back to the source with a single
-/// note line whenever the type is unsupported, the parse fails or the drawing does not fit the
-/// terminal. Rendering never throws and never leaves a partial diagram: a diagram leaves whole
-/// or its source leaves whole.
+/// The Mermaid fence adapter: the drawing, parsing and fallback reasons belong to
+/// <c>Mermaid.Terminal</c> (ADR-0039). This keeps only what the TUI owns — the fence's label line,
+/// the dim frame versus plain labels, and trimming the drawing's padded line ends.
 /// </summary>
 internal static class MermaidDiagram
 {
-    internal const int MinimumWidth = 40;
-
     public static IReadOnlyList<StyledLine> RenderFence(
         IReadOnlyList<string> source,
         TerminalCapabilities capabilities,
         int terminalWidth
     )
     {
-        MermaidResult result = ClassifyAndDraw(
-            source,
-            capabilities,
+        MermaidRenderResult result = MermaidRenderer.Render(
+            string.Join('\n', source),
             terminalWidth,
-            out string? unsupportedType
+            capabilities.Unicode ? MermaidGlyphSet.Unicode : MermaidGlyphSet.Ascii
         );
-        if (result.Canvas is null)
+        if (result is MermaidFallbackResult fallback)
         {
-            return Fallback(
-                source,
-                unsupportedType is null
-                    ? result.Failure!.Reason
-                    : $"unsupported diagram type '{unsupportedType}'"
-            );
+            return Fallback(fallback.Source, fallback.Reason);
         }
 
         var lines = new List<StyledLine> { Label() };
-        lines.AddRange(result.Canvas.ToLines());
+        foreach (MermaidLine line in ((MermaidDiagramResult)result).Lines)
+        {
+            lines.Add(Styled(line));
+        }
+
         return lines;
     }
 
-    private static MermaidResult ClassifyAndDraw(
-        IReadOnlyList<string> source,
-        TerminalCapabilities capabilities,
-        int terminalWidth,
-        out string? unsupportedType
-    )
-    {
-        unsupportedType = null;
-        (int Number, string Text)? first = SignificantLine(source);
-        if (first is null)
-        {
-            return MermaidResult.Fail("the fence has no diagram");
-        }
-
-        string verb = Verb(first.Value.Text);
-        MermaidResult result = verb switch
-        {
-            "flowchart" or "graph" => MermaidFlowchart.TryDraw(source, capabilities.Unicode, verb),
-            "sequenceDiagram" => MermaidSequence.TryDraw(source, capabilities.Unicode),
-            _ => MermaidResult.Ok(null!),
-        };
-        if (result.Canvas is not null && !Fits(result.Canvas.Width, terminalWidth))
-        {
-            return WidthFailure(result.Canvas.Width, terminalWidth);
-        }
-
-        unsupportedType = result.Canvas is null && result.Failure is null ? verb ?? "" : null;
-        return result;
-    }
-
-    /// <summary>
-    /// The width gate: the widest drawn line must fit the terminal and the terminal itself must
-    /// be at least <see cref="MinimumWidth"/> columns; a call without a width (<see
-    /// cref="int.MaxValue"/>) renders ungated.
-    /// </summary>
-    private static bool Fits(int diagramWidth, int terminalWidth) =>
-        terminalWidth >= int.MaxValue
-        || (terminalWidth >= MinimumWidth && diagramWidth <= Math.Max(terminalWidth, MinimumWidth));
-
-    private static MermaidResult WidthFailure(int diagramWidth, int terminalWidth)
-    {
-        string reason =
-            terminalWidth < MinimumWidth
-                ? string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"this terminal has {terminalWidth} columns, {MinimumWidth} is the minimum"
-                )
-                : string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"diagram is {diagramWidth} columns wide, this terminal has {terminalWidth}"
-                );
-        return MermaidResult.Fail(reason);
-    }
-
-    private static (int Number, string Text)? SignificantLine(IReadOnlyList<string> source)
-    {
-        for (var index = 0; index < source.Count; index++)
-        {
-            string text = source[index].Trim();
-            if (text.Length > 0)
-            {
-                return (index + 1, text);
-            }
-        }
-
-        return null;
-    }
-
-    private static string Verb(string firstLine)
-    {
-        int end = firstLine.IndexOf(' ');
-        return end < 0 ? firstLine : firstLine[..end];
-    }
-
-    internal static StyledLine Label()
+    private static StyledLine Label()
     {
         var label = new StyledLine();
         label.Add("mermaid", SpanStyle.Dim);
         return label;
     }
 
-    /// <summary>
-    /// A node label's lines: the <c>&lt;br/&gt;</c> breaks kind inside a node label split it, and
-    /// the remaining text keeps its characters (label text is drawn verbatim, one column a rune).
-    /// </summary>
-    internal static IReadOnlyList<string> LabelLines(string raw)
+    /// <summary>The drawing's runs, trimmed at the line end the way a host prints them.</summary>
+    private static StyledLine Styled(MermaidLine line)
     {
-        var lines = new List<string>();
-        int cursor = 0;
-        while (cursor < raw.Length)
-        {
-            int br = FindBr(raw, cursor);
-            if (br < 0)
-            {
-                lines.Add(raw[cursor..]);
-                return lines;
-            }
-
-            lines.Add(raw[cursor..br]);
-            cursor = BrEnd(raw, br);
-        }
-
-        return lines;
-    }
-
-    private static int FindBr(string text, int from)
-    {
-        int index = from - 1;
-        while ((index = text.IndexOf('<', index + 1)) >= 0)
-        {
-            int close = text.IndexOf('>', index + 1);
-            if (close < 0 || close - index > 6)
-            {
-                continue;
-            }
-
-            string tag = text[index..(close + 1)];
-            if (
-                tag.Equals("<br>", StringComparison.OrdinalIgnoreCase)
-                || tag.Equals("<br/>", StringComparison.OrdinalIgnoreCase)
-                || tag.Equals("<br />", StringComparison.OrdinalIgnoreCase)
+        var runs = line
+            .Spans.Select(static span =>
+                (
+                    Text: span.Text,
+                    Style: span.Kind == MermaidSpanKind.Label ? SpanStyle.Plain : SpanStyle.Dim
+                )
             )
-            {
-                return index;
-            }
+            .ToList();
+        while (runs.Count > 0 && runs[^1].Text.TrimEnd(' ').Length == 0)
+        {
+            runs.RemoveAt(runs.Count - 1);
         }
 
-        return -1;
-    }
+        if (runs.Count > 0)
+        {
+            runs[^1] = (runs[^1].Text.TrimEnd(' '), runs[^1].Style);
+        }
 
-    private static int BrEnd(string text, int br)
-    {
-        int close = text.IndexOf('>', br);
-        return close < 0 ? text.Length : close + 1;
+        var styled = new StyledLine();
+        foreach ((string text, SpanStyle style) in runs)
+        {
+            styled.Add(text, style);
+        }
+
+        return styled;
     }
 
     private static List<StyledLine> Fallback(IReadOnlyList<string> source, string reason)

@@ -43,32 +43,38 @@ flowchart TD
 is drawn as:
 
 ```text
-╭────────────────╮
-│ The executable │
-╰────────────────╯
+┌────────────────┐
+│                │
+│ The executable ├┄requests┄┄┬──┐
+│                │           ┆  │
+└────────┬───────┘           └┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┐
+         │                      │                ┆
+         │                      │                ┆
+         │                      │                ┆
+         │                      │                ┆
+         ▼                      ▼                ▼
+┌────────────────┐           ┌─────┐     ┌───────────────┐
+│                │           │     │     │               │
+│   Agent loop   │◄────┐     │ TUI │  ┌──┤ Provider APIs │
+│                │     │     │     │  │  │               │
+└────────┬───────┘     │     └─────┘  │  └───────────────┘
+         │             │              │
+         │             │              │
+         │             └──────────────┘
          │
-   ╮─────┴requests┄╭
-   ▾     │         ▾
-╭─────╮  │ ╭───────────────╮
-│ TUI │  │ │ Provider APIs │
-╰─────╯  │ ╰───────────────╯
-         │         │
-       ╮─╯─────────╯
-       ▾
-╭────────────╮
-│ Agent loop │
-╰────────────╯
-       │
-      ╮╯
-      ▾
-╭───────────╮
-│ Lunate.Ai │
-╰───────────╯
+         ▼
+┌────────────────┐
+│                │
+│   Lunate.Ai    │
+│                │
+└────────────────┘
 ```
 
-The fence keeps its `mermaid` label line the way every fenced block in an answer does. The frame is
-drawn with the terminal's dim attribute and the labels are plain text, so the drawing reads in every
-theme.
+The layout and drawing are a C# port of the MIT-licensed
+[mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) renderer, in the `Mermaid.Terminal`
+package; see [third-party licences](third-party-licences.md). The fence keeps its `mermaid` label line
+the way every fenced block in an answer does. The frame is drawn with the terminal's dim attribute
+and the labels are plain text, so the drawing reads in every theme.
 
 ## When it does not draw
 
@@ -87,12 +93,12 @@ unchanged and can be copied into another renderer.
 
 ## Glyphs follow the terminal
 
-A terminal that reports Unicode gets the box-drawing set — `╭ ╮ ╰ ╯ │ ─ ▸ ▾ ◂` and the dashed
-`┄` — and a terminal that reports no Unicode gets `+`, `-` and `|` for the frame and `<`, `>`, `^`
-and `v` for the arrowheads. Only the glyphs change: the layout, the column widths and the number of
-lines are the same, so a diagram that fits the terminal at one depth of glyph support fits it at the
-other. A theme never changes the glyphs — the tokens paint text, and the drawing keeps its dim
-frame.
+A terminal that reports Unicode gets mermaid-ascii's light box-drawing set — `┌ ┐ └ ┘ ─ │ ├ ┤ ┬ ┴
+┼`, the dotted `┄` and `┆`, and the filled heads `► ▼ ◄ ▲` — and a terminal that reports no Unicode
+gets `+`, `-` and `|` for the frame and `<`, `>`, `^` and `v` for the arrowheads. Only the glyphs
+change: the layout, the column widths and the number of lines are the same, so a diagram that fits
+the terminal at one depth of glyph support fits it at the other. A theme never changes the glyphs —
+the tokens paint text, and the drawing keeps its dim frame.
 
 ## Where diagrams appear
 

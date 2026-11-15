@@ -145,7 +145,7 @@ public sealed class MarkdownRendererTests
             output
         );
         Assert.Contains("A[XXXX", output);
-        Assert.DoesNotContain("╭", output);
+        Assert.DoesNotContain("┌", output);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class MarkdownRendererTests
             "mermaid: this terminal has 39 columns, 40 is the minimum — showing the source",
             output
         );
-        Assert.DoesNotContain("╭", output);
+        Assert.DoesNotContain("┌", output);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public sealed class MarkdownRendererTests
         console.Profile.Width = 80;
         console.Write(new MarkdownRenderer().Render(markdown, maxWidth: 41));
 
-        Assert.Contains("╭", console.Output);
+        Assert.Contains("┌", console.Output);
         Assert.DoesNotContain("mermaid:", console.Output);
     }
 
@@ -207,7 +207,7 @@ public sealed class MarkdownRendererTests
 
         string output = Render(markdown);
 
-        Assert.Contains("╭", output);
+        Assert.Contains("┌", output);
         Assert.Contains("tool model", output);
         Assert.DoesNotContain("mermaid:", output);
     }
@@ -240,7 +240,7 @@ public sealed class MarkdownRendererTests
         Assert.Contains("-", drawing);
         Assert.Contains("|", drawing);
         Assert.Contains(">", drawing);
-        Assert.DoesNotContain("╭", drawing);
+        Assert.DoesNotContain("┌", drawing);
     }
 
     private static string Render(string markdown)

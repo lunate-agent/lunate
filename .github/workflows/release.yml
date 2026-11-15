@@ -202,6 +202,11 @@ jobs:
       - name: Pack tool
         run: dotnet pack src/Lunate.Coding/Lunate.Coding.csproj -c Release -o dist --nologo
 
+      # The Mermaid renderer is its own package (ADR-0039), consumed by the TUI as a project
+      # reference and usable by any host that knows nothing about Lunate.
+      - name: Pack the Mermaid renderer
+        run: dotnet pack src/Mermaid.Terminal/Mermaid.Terminal.csproj -c Release -o dist --nologo
+
       # The extension package is a release artifact on the same tag as the tool: the release smoke
       # installs it by id from nuget.org, and `lunate install` is only as proven as the last package
       # a feed actually served. The sample is the reference extension — the one a user wants first.
@@ -246,6 +251,9 @@ jobs:
           preview_version="${PREVIEW}"
           bash scripts/check-package-metadata.sh "dist/lunate.${version}.nupkg" --id lunate
           bash scripts/check-package-metadata.sh \
+            "dist/Mermaid.Terminal.${version}.nupkg" \
+            --id Mermaid.Terminal
+          bash scripts/check-package-metadata.sh \
             "dist/Lunate.Extensions.Subagents.${version}.nupkg" \
             --id Lunate.Extensions.Subagents
           bash scripts/check-package-metadata.sh "dist/Lunate.Contracts.${contract_version}.nupkg" --id Lunate.Contracts
@@ -266,7 +274,7 @@ jobs:
 
       # Contracts first: Lunate.Extensibility.Abstractions declares a dependency on Lunate.Contracts,
       # so the feed must already carry the package its nuspec names before the dependent one lands.
-      # Named files, not a glob — the six packages are the release, in the order the ADR describes.
+      # Named files, not a glob — the seven packages are the release, in the order the ADR describes.
       - name: Push the packages to nuget.org
         if: github.event_name == 'push'
         env:
@@ -281,6 +289,7 @@ jobs:
           push "dist/Lunate.Extensibility.Abstractions.${CONTRACTS}.nupkg"
           push "dist/Lunate.Agent.${PREVIEW}.nupkg"
           push "dist/Lunate.Extensibility.Testing.${PREVIEW}.nupkg"
+          push "dist/Mermaid.Terminal.${TOOL}.nupkg"
           push "dist/Lunate.Extensions.Subagents.${TOOL}.nupkg"
           push "dist/lunate.${TOOL}.nupkg"
 
