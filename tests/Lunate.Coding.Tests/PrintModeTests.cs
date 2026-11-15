@@ -661,6 +661,67 @@ public sealed class PrintModeTests
     }
 
     [Fact]
+    public async Task A_higher_step_limit_passes_50_steps_and_stops_at_the_configured_one()
+    {
+        using var temp = new TempDirectory();
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(new LoopingChatClient())
+        ) with
+        {
+            Prompt = "Loop past fifty.",
+            Json = true,
+            Launch = new LaunchOptions { MaxSteps = 55 },
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(2, exitCode);
+        string[] diagnostics = errors.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(56, diagnostics.Length);
+        Assert.All(
+            diagnostics[..^1],
+            line => Assert.Equal("tool 'read' failed: file not found: missing.txt", line)
+        );
+        Assert.Equal("lunate: step limit reached (55 steps)", diagnostics[^1]);
+        List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
+        JsonElement limit = Assert.Single(
+            lines,
+            line => PrintModeTestSupport.TypeOf(line) == "step_limit_reached"
+        );
+        Assert.Equal(55, limit.GetProperty("maxSteps").GetInt32());
+        JsonElement last = lines[^1];
+        Assert.Equal("run_finished", PrintModeTestSupport.TypeOf(last));
+        Assert.Equal("step_limit", last.GetProperty("stopReason").GetString());
+    }
+
+    [Fact]
+    public async Task The_maxSteps_setting_sets_a_print_runs_step_limit()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(temp.File("settings.json"), """{"schemaVersion":2,"maxSteps":3}""");
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(new LoopingChatClient())
+        ) with
+        {
+            Prompt = "Loop three times.",
+            Json = true,
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(2, exitCode);
+        Assert.EndsWith("lunate: step limit reached (3 steps)\n", errors, StringComparison.Ordinal);
+        List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
+        JsonElement limit = Assert.Single(
+            lines,
+            line => PrintModeTestSupport.TypeOf(line) == "step_limit_reached"
+        );
+        Assert.Equal(3, limit.GetProperty("maxSteps").GetInt32());
+    }
+
+    [Fact]
     public async Task Cancellation_exits_130()
     {
         using var temp = new TempDirectory();

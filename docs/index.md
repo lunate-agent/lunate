@@ -16,6 +16,7 @@ New here? [Quickstart](quickstart.md) installs Lunate and walks the first run, a
   - [How Lunate works](how-lunate-works.md)
 - **Use it**
   - [Use the terminal](usage.md)
+  - [Mermaid diagrams](mermaid.md)
   - [Models and providers](models-and-providers.md)
   - [Decisions](decisions.md)
   - [Copy, export and debug](export-copy-debug.md)
@@ -26,7 +27,9 @@ New here? [Quickstart](quickstart.md) installs Lunate and walks the first run, a
   - [Project instructions](agents-md.md)
   - [Skills](skills.md)
   - [MCP servers](mcp-servers.md)
+  - [Themes](themes.md)
   - [Themes and keys](themes-and-keys.md)
+  - [Full screen](full-screen.md)
 - **Build on it**
   - [Extension authoring](extensions/README.md)
   - **Contributions**

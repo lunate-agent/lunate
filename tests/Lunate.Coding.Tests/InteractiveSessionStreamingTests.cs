@@ -148,6 +148,56 @@ public sealed class InteractiveSessionStreamingTests
     }
 
     [Fact]
+    public async Task A_settings_step_limit_shows_a_notice()
+    {
+        using var host = new InteractiveSessionHost(
+            settingsJson: """{"schemaVersion":2,"maxSteps":1}"""
+        );
+        File.WriteAllText(host.Temp.File("a.txt"), "contents");
+        host.Client.Enqueue(
+            Scripts.Call("call-1", "read", Scripts.Args(("path", "a.txt"))),
+            Scripts.ToolCalls()
+        );
+        Task run = host.RunAsync();
+
+        host.Console.SendText("go");
+        host.Console.SendEnter();
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.Frames.Contains("step limit reached (1 steps)", StringComparison.Ordinal);
+        });
+
+        Assert.Contains("step limit reached (1 steps)", host.Frames, StringComparison.Ordinal);
+        host.Console.Complete();
+        await run;
+    }
+
+    [Fact]
+    public async Task A_step_limit_flag_sets_the_interactive_run_ceiling()
+    {
+        using var host = new InteractiveSessionHost(launch: new LaunchOptions { MaxSteps = 1 });
+        File.WriteAllText(host.Temp.File("a.txt"), "contents");
+        host.Client.Enqueue(
+            Scripts.Call("call-1", "read", Scripts.Args(("path", "a.txt"))),
+            Scripts.ToolCalls()
+        );
+        Task run = host.RunAsync();
+
+        host.Console.SendText("go");
+        host.Console.SendEnter();
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.Frames.Contains("step limit reached (1 steps)", StringComparison.Ordinal);
+        });
+
+        Assert.Contains("step limit reached (1 steps)", host.Frames, StringComparison.Ordinal);
+        host.Console.Complete();
+        await run;
+    }
+
+    [Fact]
     public async Task A_consumed_input_starts_nothing_and_shows_a_notice()
     {
         var runner = new HookRunner();

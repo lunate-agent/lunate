@@ -150,7 +150,7 @@ public sealed class LiveAreaActivityRendererTests
         "\u001b[38;5;140m⠹ thinking… 3s\u001b[0m · ↑1.2k ↓180 · esc to interrupt"
     )]
     [InlineData(
-        ColorSystemSupport.Detect,
+        ColorSystemSupport.Standard,
         "\u001b[35m⠹ thinking… 3s\u001b[0m · ↑1.2k ↓180 · esc to interrupt"
     )]
     [InlineData(ColorSystemSupport.NoColors, "⠹ thinking… 3s · ↑1.2k ↓180 · esc to interrupt")]

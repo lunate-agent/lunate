@@ -891,6 +891,7 @@ internal static class PrintMode
             // The same redactor masks the model-facing text whether or not a session exists.
             ToolOutputMask = redaction.Redact,
             SubagentLimits = settings.Subagents,
+            MaxSteps = settings.MaxSteps,
             MaxCostUsd = settings.MaxCostUsd,
             MaxTime = settings.MaxTime,
             AllowUnpricedCost = options.Launch.AllowUnpriced,

@@ -34,7 +34,7 @@ The agent loop contract: one run as an event stream (`AgentHarness.RunAsync`), t
 - **THEN** it fails with an actionable error naming the sequential-runs rule
 
 ### Requirement: Turn semantics
-A turn SHALL: append the user message and emit `RunStarted`; build the request from the optional system prompt, the history and the registry's tool declarations; stream text as events; treat function calls as complete (the factory pipeline's accumulator; the harness expects a pipeline-wrapped client); append the assistant message; with no calls, emit `RunFinished` with the mapped stop reason. With calls, each call SHALL emit `ToolCallStart`, `ToolCallArgs` (the complete arguments JSON, or the raw argument text when assembly failed), `ToolCallEnd`, then either execute the tool and emit `ToolCallResult` or, for arguments that cannot be assembled, emit an error `ToolCallResult` — appending the tool message in both cases — and the loop SHALL continue until a model answer has no calls or `MaxSteps` (default 50) is reached. Transient provider failures SHALL retry up to the configured limit with backoff, emitting `Retrying` per attempt, before the turn fails; only attempts that emitted no events retry. Provider usage reports SHALL emit `UsageUpdated`. When a session is attached to the harness options, every message the loop appends to the history SHALL also be appended to the session — the user message, each assistant message with model and usage when known, and each tool result including repaired synthetic ones; a resumed session SHALL seed the history before the run.
+A turn SHALL: append the user message and emit `RunStarted`; build the request from the optional system prompt, the history and the registry's tool declarations; stream text as events; treat function calls as complete (the factory pipeline's accumulator; the harness expects a pipeline-wrapped client); append the assistant message; with no calls, emit `RunFinished` with the mapped stop reason. With calls, each call SHALL emit `ToolCallStart`, `ToolCallArgs` (the complete arguments JSON, or the raw argument text when assembly failed), `ToolCallEnd`, then either execute the tool and emit `ToolCallResult` or, for arguments that cannot be assembled, emit an error `ToolCallResult` — appending the tool message in both cases — and the loop SHALL continue until a model answer has no calls or the run's step ceiling is reached. The step ceiling SHALL resolve from the `maxSteps` setting (a positive integer, default 50), overridden for the invocation by `--max-steps <n>`; a value that is not a positive integer SHALL be refused at launch, and the harness SHALL refuse a step ceiling below 1 at construction. Transient provider failures SHALL retry up to the configured limit with backoff, emitting `Retrying` per attempt, before the turn fails; only attempts that emitted no events retry. Provider usage reports SHALL emit `UsageUpdated`. When a session is attached to the harness options, every message the loop appends to the history SHALL also be appended to the session — the user message, each assistant message with model and usage when known, and each tool result including repaired synthetic ones; a resumed session SHALL seed the history before the run.
 
 #### Scenario: One tool call then a final answer
 - **GIVEN** a scripted provider that calls a tool once and then answers
@@ -43,8 +43,13 @@ A turn SHALL: append the user message and emit `RunStarted`; build the request f
 
 #### Scenario: Step limit ends the run
 - **GIVEN** a provider that keeps calling tools
-- **WHEN** the run reaches `MaxSteps`
-- **THEN** `StepLimitReached` is emitted, followed by `RunFinished(step_limit)`
+- **WHEN** the run reaches its resolved step ceiling
+- **THEN** `StepLimitReached` is emitted with that ceiling, followed by `RunFinished(step_limit)`
+
+#### Scenario: The configured step ceiling replaces the default
+- **GIVEN** a provider that keeps calling tools and a resolved step ceiling above 50
+- **WHEN** the run executes
+- **THEN** it passes 50 model calls and stops only at the configured ceiling, with `StepLimitReached` carrying that value and `RunFinished(step_limit)`
 
 #### Scenario: A transient failure retries and succeeds
 - **GIVEN** a provider that fails transiently once and then answers
@@ -463,10 +468,14 @@ Both SHALL be off when unset.
 The cost limit SHALL be a positive US-dollar amount. The loop SHALL price every usage record it
 accounts — the run's own model calls, routed calls, decision calls and nested calls — from the
 catalog when the provider does not report an amount, and from the provider-reported amount when it
-does. A usage record that cannot be fully priced SHALL NOT be counted as zero: the record is
-unpriced. With a cost limit configured and unpriced accounting present, the run SHALL refuse to
-start unless the host set `AllowUnpricedCost`; with that option, unpriced records contribute
-nothing and the limit applies to the priced spend only.
+does. The record's model id SHALL be resolved in the scope of the provider the run selected before
+it is priced, so the id a provider echoes on the wire prices as the selected preset instead of
+falling to an unpriced bare-id lookup; an id that names no entry, or whose bare wire id several
+presets serve outside that scope, remains unpriced rather than guessed. A usage record that cannot
+be fully priced SHALL NOT be counted as zero: the record is unpriced. With a cost limit configured
+and unpriced accounting present, the run SHALL refuse to start unless the host set
+`AllowUnpricedCost`; with that option, unpriced records contribute nothing and the limit applies to
+the priced spend only.
 
 The limit SHALL be checked after every accounted usage and before every model request. The run
 SHALL end when the cumulative spend is greater than or equal to the limit; the exact boundary
@@ -481,7 +490,9 @@ reached.
 
 When a session is attached, the limit end SHALL be recorded in that session in a form a resume can
 read back. A resumed run SHALL seed its spend from the session's recorded usages, so the cost limit
-applies to the session's cumulative spend rather than resetting at restart.
+applies to the session's cumulative spend rather than resetting at restart. The seed SHALL use the
+same provider-scoped resolution, so a session whose entries name the provider's wire id keeps its
+spend across the resume.
 
 #### Scenario: The cost limit triggers exactly at the boundary
 
@@ -524,3 +535,9 @@ applies to the session's cumulative spend rather than resetting at restart.
 - **GIVEN** a session recording a priced usage and a resumed harness whose cost limit equals that spent amount
 - **WHEN** the resumed run starts
 - **THEN** it ends with `cost_limit` before any model request, and the event's spend equals the recorded spend
+
+#### Scenario: A wire-id usage counts towards the limit
+
+- **GIVEN** a harness on a catalog model whose wire id differs from its catalog id, a provider that echoes that wire id with its usage, and a cost limit equal to the record's catalog cost
+- **WHEN** the run accounts the usage
+- **THEN** `CostLimitReached` carries that spend, so the limit counts what the JSON stream prices

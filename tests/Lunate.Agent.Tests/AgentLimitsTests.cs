@@ -263,6 +263,90 @@ public sealed class AgentLimitsTests
         Assert.Contains("AllowUnpricedCost", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task The_cost_limit_counts_a_usage_named_by_an_ambiguous_wire_id()
+    {
+        (ModelInfo selected, ModelInfo other) = SharedWireModels();
+        ChatResponseUpdate usage = LoopScripts.Usage(1, 0);
+        usage.ModelId = "priced-wire";
+        var client = new ScriptedChatClient().Enqueue(
+            usage,
+            LoopScripts.Call("call_1", "read", LoopScripts.Args(("path", "a.txt"))),
+            LoopScripts.ToolCalls()
+        );
+        var harness = new AgentHarness(
+            client,
+            Registry(ReadTool("contents")),
+            new AgentHarnessOptions
+            {
+                Model = selected,
+                ModelId = selected.Id,
+                ModelCatalog = ModelCatalog.Single(selected, other),
+                MaxCostUsd = 1m,
+            }
+        );
+
+        List<AgentEvent> events = await Run(harness);
+
+        // The record names only the wire id both presets serve; the selected preset prices it, so
+        // the limit counts the same amount the JSON stream reports as costUsd.
+        CostLimitReached limit = Assert.Single(events.OfType<CostLimitReached>());
+        Assert.Equal(1m, limit.SpendUsd);
+        Assert.Equal(StopReasons.CostLimit, Assert.IsType<RunFinished>(events[^1]).StopReason);
+    }
+
+    [Fact]
+    public async Task A_resumed_session_keeps_the_spend_of_a_wire_id_usage()
+    {
+        using var temp = new TempDirectory();
+        (ModelInfo selected, ModelInfo other) = SharedWireModels();
+        Session created = Session.Create(
+            temp.File("s.jsonl"),
+            "/work",
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch)
+        );
+        created.AppendMessage(
+            new ChatMessage(ChatRole.Assistant, "earlier"),
+            "priced-wire",
+            new SessionUsage(1, 0)
+        );
+        Session loaded = Session.Load(temp.File("s.jsonl"));
+
+        var client = new ScriptedChatClient();
+        var harness = new AgentHarness(
+            client,
+            new ToolRegistry(),
+            new AgentHarnessOptions
+            {
+                Session = loaded,
+                Model = selected,
+                ModelId = selected.Id,
+                ModelCatalog = ModelCatalog.Single(selected, other),
+                MaxCostUsd = 1m,
+            }
+        );
+
+        List<AgentEvent> events = await Run(harness);
+
+        Assert.Empty(client.Requests);
+        CostLimitReached limit = Assert.Single(events.OfType<CostLimitReached>());
+        Assert.Equal(1m, limit.SpendUsd);
+    }
+
+    private static (ModelInfo Selected, ModelInfo Other) SharedWireModels() =>
+        (
+            new ModelInfo("fixture/priced", "fixture", null, 1_000, true)
+            {
+                WireId = "priced-wire",
+                Pricing = new ModelPricing(Input: 1_000_000m, Output: 0m),
+            },
+            new ModelInfo("other/priced", "other", null, 1_000, true)
+            {
+                WireId = "priced-wire",
+                Pricing = new ModelPricing(Input: 2_000_000m, Output: 0m),
+            }
+        );
+
     private static ModelInfo PricedModel() =>
         new("priced", "fixture", null, 1_000, true)
         {

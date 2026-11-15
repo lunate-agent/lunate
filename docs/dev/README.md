@@ -7,10 +7,13 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Project entry point | [`../../README.md`](../../README.md) | What Lunate is, why it exists, install, the three-step start and what it can do |
 | Documentation entry point | [`../index.md`](../index.md) | The user path: every task group, and the page that owns each task |
 | Usage | [`../usage.md`](../usage.md) | The interactive session: input, turns, tools, approvals, thinking, forks and long sessions, and trust |
+| Mermaid diagrams | [`../mermaid.md`](../mermaid.md) | The `mermaid` fence: which flowchart and sequence diagrams are drawn, what the three fallback lines say, and how the glyphs follow the terminal |
 | Project instructions | [`../agents-md.md`](../agents-md.md) | The `AGENTS.md` chain from the repository root to the launch directory, and what reaches the system prompt |
 | Skills | [`../skills.md`](../skills.md) | Agent Skills: the scopes Lunate reads, `/skills`, `/skill:<name>`, the index budget and the trust decision |
 | MCP servers | [`../mcp-servers.md`](../mcp-servers.md) | The MCP client: where `mcpServers` is read, how a server starts, and what its child process inherits |
-| Themes and keys | [`../themes-and-keys.md`](../themes-and-keys.md) | The colour-depth policy, the key remaps `/settings` persists, and why `keys.json` stays the only declaration |
+| Themes | [`../themes.md`](../themes.md) | The built-in themes, the ten semantic tokens, the user `theme.json` and the colour downgrade |
+| Themes and keys | [`../themes-and-keys.md`](../themes-and-keys.md) | The `/settings` rows for the theme and the key remaps, and why `keys.json` stays the only declaration |
+| Full screen | [`../full-screen.md`](../full-screen.md) | The opt-in alternate screen for the session: the flag and the setting, what moves to the alternate buffer and how every exit path leaves it |
 | Execution environments | [`../execution-environments.md`](../execution-environments.md) | Run tool calls in a container: where commands and file tools run, the Docker/Podman flag and settings, what is mounted, and the measured cost and platform limits |
 | Configuration | [`../configuration.md`](../configuration.md) | How to configure a session: decision profiles, custom provider entries, thinking, the welcome header and update check, and recording |
 | Print mode | [`../print.md`](../print.md) | One prompt to completion: the final answer as the only thing on stdout, the exit codes, the approval mapping and the cost and time caps |

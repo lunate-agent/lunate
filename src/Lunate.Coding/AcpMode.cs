@@ -421,6 +421,7 @@ internal static class AcpMode
             // The same redactor masks the model-facing text for ACP runs, which always have a session.
             ToolOutputMask = redaction.Redact,
             SubagentLimits = effective.Subagents,
+            MaxSteps = effective.MaxSteps,
             MaxCostUsd = effective.MaxCostUsd,
             MaxTime = effective.MaxTime,
             AllowUnpricedCost = directives.AllowUnpriced,

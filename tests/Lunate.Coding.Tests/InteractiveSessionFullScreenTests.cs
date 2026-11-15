@@ -117,6 +117,52 @@ public sealed class InteractiveSessionFullScreenTests
     }
 
     [Fact]
+    public async Task Full_screen_mode_leaves_the_alternate_screen_on_a_ctrl_c_quit()
+    {
+        using var host = new InteractiveSessionHost(launch: Launch());
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+        host.Advance(33);
+        Assert.True(host.Console.InAlternateScreen);
+
+        // Ctrl+C on the empty idle prompt is the second quit path: the first press arms,
+        // the second leaves the session and its screen.
+        host.Console.SendCtrlC();
+        await host.WaitForFrameAsync("press Ctrl+C again to quit");
+        host.Console.SendCtrlC();
+        await run;
+
+        Assert.False(host.Console.InAlternateScreen);
+        string writes = string.Concat(host.Console.Writes);
+        Assert.Equal(1, CountAll(writes, AlternateScreen.EnterSequence));
+        Assert.Equal(1, CountAll(writes, AlternateScreen.LeaveSequence));
+        Assert.Equal(1, host.Console.AlternateScreenEntries);
+        Assert.EndsWith(AlternateScreen.LeaveSequence, writes, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Full_screen_mode_leaves_the_alternate_screen_on_a_thrown_exception()
+    {
+        using var host = new InteractiveSessionHost(launch: Launch());
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+        host.Advance(33);
+        Assert.True(host.Console.InAlternateScreen);
+
+        // The session's key source fails hard: the exception escapes the run, and the leave
+        // sequence must be written before it does — an alternate buffer is never left behind.
+        host.Console.Fail(new InvalidOperationException("the terminal reader failed"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => run);
+
+        Assert.False(host.Console.InAlternateScreen);
+        string writes = string.Concat(host.Console.Writes);
+        Assert.Equal(1, CountAll(writes, AlternateScreen.EnterSequence));
+        Assert.Equal(1, CountAll(writes, AlternateScreen.LeaveSequence));
+        Assert.Equal(1, host.Console.AlternateScreenEntries);
+        Assert.EndsWith(AlternateScreen.LeaveSequence, writes, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task The_transcript_viewer_borrows_the_screen_and_returns_it_on_leave()
     {
         using var host = new InteractiveSessionHost(launch: Launch());

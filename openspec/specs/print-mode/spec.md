@@ -11,7 +11,9 @@ Print mode is the non-interactive frontend: it runs one prompt to completion and
 
 `--max-cost <usd>` and `--max-time <duration>` SHALL set the run's cost and wall-clock limits for
 that invocation, overriding the corresponding settings. `--max-time` SHALL accept integer seconds or
-a suffix (`s`, `m`, `h`). `--allow-unpriced` SHALL permit a run with a cost limit and a model the
+a suffix (`s`, `m`, `h`). `--max-steps <n>` SHALL set the run's step ceiling for that invocation,
+overriding the `maxSteps` setting (default 50); a missing, non-integer, zero or negative value SHALL
+be a usage error (exit 2). `--allow-unpriced` SHALL permit a run with a cost limit and a model the
 catalog cannot price. A cost limit on an unpriced model without that flag SHALL be a launch refusal
 (exit 2) naming the model and the flag, before any model request.
 
@@ -32,6 +34,18 @@ catalog cannot price. A cost limit on an unpriced model without that flag SHALL 
 - **GIVEN** a scripted run that reaches the step limit
 - **WHEN** print mode finishes
 - **THEN** the exit code is 2 and the run's `step_limit_reached` event appears in the JSON stream
+
+#### Scenario: A higher step limit lets the run pass 50 steps
+
+- **GIVEN** a looping scripted run and `--max-steps` above 50
+- **WHEN** print mode runs with `--json`
+- **THEN** the run performs more than 50 model calls, and its `step_limit_reached` event carries the configured ceiling before `run_finished` with `stopReason: step_limit` and exit 2
+
+#### Scenario: A non-positive step limit is a usage error
+
+- **GIVEN** `--max-steps` with a missing value, a non-integer, zero or a negative number
+- **WHEN** the invocation is parsed
+- **THEN** it exits 2 with a message on stderr and nothing on stdout, and no model request is made
 
 #### Scenario: Cost limit exits 3
 
@@ -127,7 +141,7 @@ With `--json`, a `usage_updated` object SHALL carry the provider's prompt-cache 
 
 ### Requirement: Cost in JSON output
 
-With `--json`, a `usage_updated` object SHALL carry a numeric `costUsd` when the record's model is in the catalog and every token lane with a positive count has a known price. The value SHALL be the record's cost in US dollars, computed with `decimal` and invariant arithmetic. A record whose model is unknown or unpriced SHALL omit the field rather than emit `0`; a zero-token priced record MAY carry `0`. The existing `usage` object and the cache fields SHALL keep their shape. The field SHALL be absent from the non-JSON output, which still carries only the final answer on stdout.
+With `--json`, a `usage_updated` object SHALL carry a numeric `costUsd` when the record's model is in the catalog and every token lane with a positive count has a known price. The record's model id SHALL be resolved in the scope of the provider the run selected before it is priced: the id a provider echoes on the wire is priced as that provider's own catalog entry when the entry's wire id matches, and an id that names no entry, or whose bare wire id several presets serve outside that scope, SHALL be treated as unknown rather than guessed. The value SHALL be the record's cost in US dollars, computed with `decimal` and invariant arithmetic. A record whose model is unknown or unpriced SHALL omit the field rather than emit `0`; a zero-token priced record MAY carry `0`. The existing `usage` object and the cache fields SHALL keep their shape. The field SHALL be absent from the non-JSON output, which still carries only the final answer on stdout.
 
 #### Scenario: A priced record carries its cost
 
@@ -152,6 +166,18 @@ With `--json`, a `usage_updated` object SHALL carry a numeric `costUsd` when the
 - **GIVEN** print mode without `--json`
 - **WHEN** a run reports priced usage
 - **THEN** stdout still carries only the final assistant text and no cost field
+
+#### Scenario: A provider's wire id prices as the selected preset
+
+- **GIVEN** a run whose selected model has a catalog id different from its wire id, a second preset serving the same wire id at another price, and a `usage_updated` record naming only that wire id
+- **WHEN** `--json` serializes the record
+- **THEN** the line carries `costUsd` computed from the selected preset's prices
+
+#### Scenario: A wire id outside the selected provider stays unpriced
+
+- **GIVEN** a `usage_updated` record naming a bare wire id that no entry of the selected provider serves and that several other presets serve
+- **WHEN** `--json` serializes the record
+- **THEN** the line has no `costUsd` field
 
 ### Requirement: Questions do not block without a user
 

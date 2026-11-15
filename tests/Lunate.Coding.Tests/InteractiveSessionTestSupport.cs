@@ -97,6 +97,12 @@ internal sealed class ScriptedConsoleIO : IConsoleIO
 
     public void Complete() => _keys.Writer.TryComplete();
 
+    /// <summary>
+    /// Ends the key stream with a failure: the reader throws it at the session's pump, the way a
+    /// terminal whose input cannot be read does. The exception is the pump's, not the test's.
+    /// </summary>
+    public void Fail(Exception error) => _keys.Writer.TryComplete(error);
+
     public async IAsyncEnumerable<KeyEvent> ReadKeysAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken
     )
@@ -595,11 +601,16 @@ internal sealed class InteractiveSessionHost : IDisposable
         HttpMessageHandler? discoveryTransport = null,
         bool freshInstall = false,
         bool unifiedScrollback = false,
-        TimeSpan? pollInterval = null
+        TimeSpan? pollInterval = null,
+        string? settingsJson = null
     )
     {
         _eventObserverSuffix = eventObserverSuffix;
         _pollInterval = pollInterval ?? WaitBudgets.PollInterval;
+        if (settingsJson is not null)
+        {
+            File.WriteAllText(Temp.File("settings.json"), settingsJson);
+        }
         Scrollback = new TestConsole();
         Scrollback.Profile.Width = 80;
         Scrollback.Profile.Height = 24;

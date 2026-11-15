@@ -699,6 +699,24 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Launch_options_parse_a_step_limit()
+    {
+        Assert.Equal(55, Parse("--max-steps", "55").MaxSteps);
+        Assert.Equal(55, Parse("--max-steps=55").MaxSteps);
+    }
+
+    [Theory]
+    [InlineData("--max-steps")]
+    [InlineData("--max-steps", "0")]
+    [InlineData("--max-steps", "-1")]
+    [InlineData("--max-steps", "many")]
+    public void Launch_options_refuse_an_invalid_step_limit(params string[] args)
+    {
+        Assert.False(LaunchOptions.TryParse(args, out _, out string? error));
+        Assert.Contains("--max-steps", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Launch_options_parse_run_limits()
     {
         LaunchOptions options = Parse("--max-cost", "1.25", "--max-time", "5m", "--allow-unpriced");
@@ -823,6 +841,15 @@ public sealed class CliTests
         // Inline remains the default; the flag opts the one run into the alternate screen.
         Assert.False(Parse().Fullscreen);
         Assert.True(Parse("--fullscreen").Fullscreen);
+    }
+
+    [Fact]
+    public void Launch_options_parse_the_theme_name_or_path()
+    {
+        // No flag keeps the resolved tui.theme setting; the flag names a built-in or a token file.
+        Assert.Null(Parse().Theme);
+        Assert.Equal("ansi16", Parse("--theme", "ansi16").Theme);
+        Assert.Equal("mine.json", Parse("--theme=mine.json").Theme);
     }
 
     [Theory]
@@ -1028,6 +1055,8 @@ public sealed class CliTests
         Assert.Contains("--tools <list>", help, StringComparison.Ordinal);
         Assert.Contains("--no-tools", help, StringComparison.Ordinal);
         Assert.Contains("--offline", help, StringComparison.Ordinal);
+        Assert.Contains("--fullscreen", help, StringComparison.Ordinal);
+        Assert.Contains("--theme <name|path>", help, StringComparison.Ordinal);
         Assert.Contains("--system-prompt <text>", help, StringComparison.Ordinal);
         Assert.Contains("--append-system-prompt <text>", help, StringComparison.Ordinal);
         Assert.Contains("--flag=value", help, StringComparison.Ordinal);

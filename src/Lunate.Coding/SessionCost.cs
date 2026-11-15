@@ -92,8 +92,15 @@ internal static partial class UsageCost
     /// One record's cost, or null when the model id is absent, the model is unknown or unpriced, a
     /// lane count is negative, a used lane has no rate, or the id is ambiguous. Ambiguity and
     /// corruption are swallowed because the cost is display-only and must never break the report.
+    /// <paramref name="provider"/> is the provider the run selected: a record naming a bare wire id
+    /// prices as that provider's entry when it serves the id.
     /// </summary>
-    public static decimal? ForRecord(ModelCatalog catalog, string? modelId, UsageLanes lanes)
+    public static decimal? ForRecord(
+        ModelCatalog catalog,
+        string? modelId,
+        UsageLanes lanes,
+        string? provider = null
+    )
     {
         ArgumentNullException.ThrowIfNull(catalog);
         if (HasNegativeLane(lanes))
@@ -101,7 +108,10 @@ internal static partial class UsageCost
             return null;
         }
 
-        if (string.IsNullOrEmpty(modelId) || Find(catalog, modelId) is not { } model)
+        if (
+            string.IsNullOrEmpty(modelId)
+            || catalog.FindUsageModel(modelId, provider) is not { } model
+        )
         {
             return null;
         }
@@ -225,7 +235,7 @@ internal static partial class UsageCost
                     continue;
                 }
 
-                ModelInfo? model = Find(catalog, modelId);
+                ModelInfo? model = catalog.FindUsageModel(modelId, provider: null);
                 if (model?.Pricing is { } pricing)
                 {
                     if (pricing.CacheRead is not null || pricing.CacheWrite is not null)
@@ -242,16 +252,4 @@ internal static partial class UsageCost
     /// <summary>A negative lane is corrupted input, never a price: the record is unpriced.</summary>
     private static bool HasNegativeLane(UsageLanes lanes) =>
         lanes.Input < 0 || lanes.Output < 0 || lanes.CacheRead < 0 || lanes.CacheWrite < 0;
-
-    private static ModelInfo? Find(ModelCatalog catalog, string modelId)
-    {
-        try
-        {
-            return catalog.Find(modelId);
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
 }

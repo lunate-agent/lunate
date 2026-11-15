@@ -356,6 +356,71 @@ public sealed class EnvironmentScrubberTests
     }
 
     [Fact]
+    public void Git_environment_configuration_survives_the_shape_rule_whole()
+    {
+        var parent = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["GIT_CONFIG_COUNT"] = "3",
+            ["GIT_CONFIG_KEY_0"] = "credential.helper",
+            ["GIT_CONFIG_VALUE_0"] = "",
+            ["GIT_CONFIG_KEY_1"] = "gc.auto",
+            ["GIT_CONFIG_VALUE_1"] = "0",
+            ["GIT_CONFIG_KEY_2"] = "maintenance.auto",
+            ["GIT_CONFIG_VALUE_2"] = "false",
+            ["GITHUB_TOKEN"] = "ghp_ambient",
+            ["NPM_TOKEN"] = "npm_ambient",
+            ["AWS_SECRET_ACCESS_KEY"] = "aws-ambient",
+            ["OPENAI_API_KEY"] = "sk-ambient",
+            // A name that only looks like a member of the family is not one: the exemption is
+            // the three documented spellings, not a prefix or a pattern.
+            ["GIT_CONFIG_KEY_EXTRA"] = "not-an-index",
+            ["GIT_KEY_0"] = "not-git-config",
+        };
+
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            inherited: parent
+        );
+
+        // Git reads the key/value pairs 0..COUNT-1 from the environment and refuses the whole run
+        // when a key is missing, so the family reaches the child together or not at all (#871).
+        Assert.Equal(7, environment.Count);
+        Assert.Equal("3", environment["GIT_CONFIG_COUNT"]);
+        Assert.Equal("credential.helper", environment["GIT_CONFIG_KEY_0"]);
+        Assert.Equal("", environment["GIT_CONFIG_VALUE_0"]);
+        Assert.Equal("gc.auto", environment["GIT_CONFIG_KEY_1"]);
+        Assert.Equal("0", environment["GIT_CONFIG_VALUE_1"]);
+        Assert.Equal("maintenance.auto", environment["GIT_CONFIG_KEY_2"]);
+        Assert.Equal("false", environment["GIT_CONFIG_VALUE_2"]);
+        // The exemption is the family, not the whole rule: real credentials stay withheld.
+        Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
+        Assert.DoesNotContain("NPM_TOKEN", environment.Keys);
+        Assert.DoesNotContain("AWS_SECRET_ACCESS_KEY", environment.Keys);
+        Assert.DoesNotContain("OPENAI_API_KEY", environment.Keys);
+        Assert.DoesNotContain("GIT_CONFIG_KEY_EXTRA", environment.Keys);
+        Assert.DoesNotContain("GIT_KEY_0", environment.Keys);
+    }
+
+    [Fact]
+    public void A_declared_git_configuration_name_is_not_withheld_by_the_shape_rule()
+    {
+        IReadOnlyDictionary<string, string> environment = EnvironmentScrubber.Build(
+            ChildEnvironmentPolicy.Inherited,
+            set: new Dictionary<string, string>
+            {
+                ["GIT_CONFIG_KEY_0"] = "credential.helper",
+                ["GITHUB_TOKEN"] = "re-added",
+            },
+            inherited: new Dictionary<string, string>()
+        );
+
+        // A spawn site that declares the family is not silently half-broken, while the shape deny
+        // stays a deny for every other name.
+        Assert.Equal("credential.helper", environment["GIT_CONFIG_KEY_0"]);
+        Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
+    }
+
+    [Fact]
     public void The_scrubbed_policy_ignores_the_strip()
     {
         // A strip list is an inherited-policy instrument; the scrubbed policy already cannot carry

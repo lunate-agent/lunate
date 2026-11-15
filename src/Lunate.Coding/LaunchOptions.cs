@@ -27,6 +27,9 @@ internal sealed record LaunchOptions
     /// <summary>The thinking level for this run; null keeps the resolved setting.</summary>
     public ThinkingLevel? Thinking { get; init; }
 
+    /// <summary>The model-call ceiling for this run; null keeps the resolved setting.</summary>
+    public int? MaxSteps { get; init; }
+
     /// <summary>The cost limit for this run in US dollars; null keeps the resolved setting.</summary>
     public decimal? MaxCostUsd { get; init; }
 
@@ -75,6 +78,12 @@ internal sealed record LaunchOptions
     /// </summary>
     public string? Keymap { get; init; }
 
+    /// <summary>
+    /// The theme for this run: a built-in name (<c>default</c>, <c>ansi16</c>, <c>mono</c>) or the
+    /// path of a token file. Null keeps the resolved <c>tui.theme</c> setting, then <c>default</c>.
+    /// </summary>
+    public string? Theme { get; init; }
+
     /// <summary>The print-mode prompt; null outside print mode.</summary>
     public string? Prompt { get; init; }
 
@@ -103,6 +112,7 @@ internal sealed record LaunchOptions
         var offline = false;
         var fullscreen = false;
         string? keymap = null;
+        string? theme = null;
         var resume = false;
         var noSession = false;
         var noTools = false;
@@ -116,6 +126,7 @@ internal sealed record LaunchOptions
         string? appendSystemPrompt = null;
         string? maxCostFlag = null;
         string? maxTimeFlag = null;
+        string? maxStepsFlag = null;
         ThinkingLevel? thinking = null;
         ExecutionEnvironmentSelection? environment = null;
         List<string> positional = [];
@@ -161,6 +172,12 @@ internal sealed record LaunchOptions
                         return false;
                     }
                     break;
+                case "--theme":
+                    if (!TryValue(args, ref index, "--theme", inline, out theme, out error))
+                    {
+                        return false;
+                    }
+                    break;
                 case "-c" or "--continue":
                     options = options with { Continue = true };
                     break;
@@ -175,6 +192,21 @@ internal sealed record LaunchOptions
                     break;
                 case "--allow-unpriced":
                     allowUnpriced = true;
+                    break;
+                case "--max-steps":
+                    if (
+                        !TryValue(
+                            args,
+                            ref index,
+                            "--max-steps",
+                            inline,
+                            out maxStepsFlag,
+                            out error
+                        )
+                    )
+                    {
+                        return false;
+                    }
                     break;
                 case "--max-cost":
                     if (
@@ -316,6 +348,19 @@ internal sealed record LaunchOptions
             return false;
         }
 
+        int? maxSteps = null;
+        if (maxStepsFlag is not null)
+        {
+            if (!RunLimits.TryParseSteps(maxStepsFlag, out int parsedSteps))
+            {
+                error =
+                    $"option '--max-steps' expects a positive integer, but was '{maxStepsFlag}'";
+                return false;
+            }
+
+            maxSteps = parsedSteps;
+        }
+
         decimal? maxCost = null;
         if (maxCostFlag is not null)
         {
@@ -397,6 +442,7 @@ internal sealed record LaunchOptions
             NoSession = noSession,
             Model = model,
             Thinking = thinking,
+            MaxSteps = maxSteps,
             MaxCostUsd = maxCost,
             MaxTime = maxTime,
             AllowUnpriced = allowUnpriced,
@@ -411,6 +457,7 @@ internal sealed record LaunchOptions
             Offline = offline,
             Fullscreen = fullscreen,
             Keymap = keymap,
+            Theme = theme,
             Prompt = print ? positional[0] : null,
             Environment = environment,
         };

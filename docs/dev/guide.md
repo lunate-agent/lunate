@@ -736,6 +736,12 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
   (`DATABASE_URL` with a password in it, `PGPASSWORD`) still arrives. A model-chosen command cannot
   read the user's provider key out of its environment, the same boundary the bash guard's
   `auth.json` read-deny draws for files ([ADR-0036](../../adr/0036-tool-child-credential-shape-strip.md)).
+  One name family is exempt from the name rule and reaches a tool child whole: git's environment
+  configuration — `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>` for a numeric
+  `<n>`. Git reads the key/value pairs `0..GIT_CONFIG_COUNT-1` and refuses the whole run when one
+  key is missing, so withholding the `KEY`-named third alone breaks every git command in the child
+  — and in the post-bash change scan — instead of protecting a credential
+  ([ADR-0038](../../adr/0038-tool-child-git-config-family.md)).
 - `toolEnvironment.passthrough` in `~/.lunate/settings.json` names the exact variables to admit into
   tool children after those denies, including one the name rule withheld:
   `{"toolEnvironment": {"passthrough": ["GITHUB_TOKEN"]}}`.

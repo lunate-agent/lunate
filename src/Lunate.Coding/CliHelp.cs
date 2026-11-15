@@ -188,6 +188,9 @@ internal static class CliHelp
         );
         output.WriteLine("  --no-tools                     expose no tools for the run");
         output.WriteLine(
+            "  --max-steps <n>                stop the run after n model calls (default 50)"
+        );
+        output.WriteLine(
             "  --max-cost <usd>               stop the run at this cumulative session spend"
         );
         output.WriteLine(
@@ -205,6 +208,16 @@ internal static class CliHelp
         output.WriteLine("                                 over the environment setting");
         output.WriteLine(
             "  --offline                      skip the daily update check for this run"
+        );
+        output.WriteLine(
+            "  --fullscreen                   run the session on the alternate screen; inline is"
+        );
+        output.WriteLine("                                 the default");
+        output.WriteLine(
+            "  --theme <name|path>            paint with default, ansi16 or mono, or read the"
+        );
+        output.WriteLine(
+            "                                 token file at <path> instead of the user's theme.json"
         );
         output.WriteLine(
             "  --system-prompt <text>         replace the composed system prompt wholesale,"

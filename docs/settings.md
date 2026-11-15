@@ -34,6 +34,7 @@ shown are the documented defaults the store applies when a key is missing.
 | `environment` | string | unset | user | The container environment process-backed tool commands run in: `docker:<image>` or `podman:<image>`; unset keeps host execution. The workspace is mounted at its host absolute path, while the state root, install prefix and `auth.json` are never mounted. `--env` overrides it for the run; `--acp` refuses a saved selection instead of running tool commands on the host. There is no environment-variable override. |
 | `favorites` | string array | [] | user | The ordered favourite model ids, at most eight unique entries; schema 2 and later. |
 | `maxCost` | number | unset | user | The cumulative cost ceiling of a session in US dollars; off when unset. A resumed session seeds its spend from its recorded usages. A cost limit over a model the catalog cannot price refuses to start unless `--allow-unpriced` is passed. Print mode can override it with `--max-cost`. |
+| `maxSteps` | integer | 50 | user | The maximum number of model calls in one run; defaults to 50. `--max-steps <n>` overrides it for the invocation. |
 | `maxTime` | integer | unset | user | The wall-clock ceiling of one run in seconds; off when unset. Print mode can override it with `--max-time`. |
 | `model` | string | unset | user | The default model id. `LUNATE_MODEL` overrides it. |
 | `output.spillThresholdTokens` | integer | 2000 | user, project | The estimated-token threshold (UTF-8 bytes / 4) above which a tool result is spilled. A project file may lower it, never raise it. `LUNATE_TOOL_SPILL_THRESHOLD` overrides it. |
@@ -76,7 +77,7 @@ shown are the documented defaults the store applies when a key is missing.
 | `tools.extra` | string array | [] | user | Optional search tools to register beside the core set; empty means none. `LUNATE_EXTRA_TOOLS` overrides it. Values: `grep`, `find`, `ls`. |
 | `tui.fullscreen` | boolean | false | user | Starts the interactive session in the full-screen workspace. |
 | `tui.keys.<id>` | array of key specs | unset | user | A binding id (see the keybindings reference) remapped to its declared keys, persisted so it survives a restart. |
-| `tui.theme` | string | default | user | The colour-depth policy applied to the transcript and status line; a theme can only lower the depth, so `NO_COLOR` still wins. Values: `default`, `ansi16`, `mono`. |
+| `tui.theme` | string | default | user | The theme applied to the transcript and status line: `default` keeps the detected colour depth, `ansi16` names the sixteen colours, `mono` drops every attribute. A theme can only lower the depth, so `NO_COLOR` still wins; a theme file overlays the selected theme's tokens. Values: `default`, `ansi16`, `mono`. |
 | `updateCheck` | boolean | true | user | Checks GitHub Releases at most once a day and links a newer release's changelog. `LUNATE_UPDATE_CHECK` overrides it. |
 | `usages.chat` | string | unset | user, project | The chat profile; the usage every other usage falls back to when unassigned. |
 | `usages.compaction` | string | unset | user, project | The profile used to compact a session; used only when assigned. |

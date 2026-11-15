@@ -1,3 +1,4 @@
+using Spectre.Console;
 using Spectre.Console.Testing;
 
 namespace Lunate.Tui.Tests;
@@ -319,7 +320,7 @@ public sealed class ToolBlockRendererTests
             )
         );
 
-        Assert.Contains("\u001b[38;5;14mbash", ansi);
+        Assert.Contains("\u001b[38;5;6mbash", ansi);
         Assert.Contains("\u001b[2m  dotnet build", ansi);
     }
 
@@ -741,7 +742,7 @@ public sealed class ToolBlockRendererTests
         string ansi = RenderAnsi(DiffModel("exact"));
 
         Assert.Contains("\u001b[2m--- a/src/x.cs", ansi);
-        Assert.Contains("\u001b[2;38;5;14m@@ -1,3 +1,3 @@", ansi);
+        Assert.Contains("\u001b[2;38;5;6m@@ -1,3 +1,3 @@", ansi);
     }
 
     [Fact]
@@ -907,7 +908,12 @@ public sealed class ToolBlockRendererTests
         var console = new TestConsole();
         console.Profile.Width = 80;
         console.EmitAnsiSequences = true;
-        console.Write(new ToolBlockRenderer().Render(block, int.MaxValue, ToolDetails.Expanded));
+        // The tone assertions name the sixteen-colour palette entries the default theme pins.
+        console.Write(
+            new ToolBlockRenderer(
+                new TerminalCapabilities(ColorSystemSupport.Standard, Unicode: true)
+            ).Render(block, int.MaxValue, ToolDetails.Expanded)
+        );
         return console.Output;
     }
 
@@ -916,7 +922,11 @@ public sealed class ToolBlockRendererTests
         var console = new TestConsole();
         console.Profile.Width = 80;
         console.EmitAnsiSequences = true;
-        console.Write(new ToolBlockRenderer().Render(block, int.MaxValue, ToolDetails.Collapsed));
+        console.Write(
+            new ToolBlockRenderer(
+                new TerminalCapabilities(ColorSystemSupport.Standard, Unicode: true)
+            ).Render(block, int.MaxValue, ToolDetails.Collapsed)
+        );
         return console.Output;
     }
 

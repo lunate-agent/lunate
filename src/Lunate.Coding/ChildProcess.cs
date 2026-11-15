@@ -58,7 +58,8 @@ internal abstract class ChildProcess : IExecutionProcess
     /// must not see is a credential: a model-chosen command reading the user's provider key, or the
     /// <c>GITHUB_TOKEN</c> Lunate never resolved, out of the environment is the leak the bash guard's
     /// <c>auth.json</c> read-deny closes for files. The credential-shape rule lives in the builder
-    /// (ADR-0036); this method names only the policy and the names. <paramref name="passthrough"/> is
+    /// (ADR-0036); this method names only the policy and the names, and the builder keeps git's
+    /// environment configuration whole among them (ADR-0038). <paramref name="passthrough"/> is
     /// the caller's list when it states one, otherwise the process-wide configured list is read here,
     /// where the policy is built — never at a spawn site. <c>ChildEnvironmentGuardTests</c> pins all
     /// of it.

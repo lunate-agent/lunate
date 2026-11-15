@@ -25,6 +25,10 @@
           "path": "usage.md"
         },
         {
+          "title": "Mermaid diagrams",
+          "path": "mermaid.md"
+        },
+        {
           "title": "Models and providers",
           "path": "models-and-providers.md"
         },
@@ -66,8 +70,16 @@
           "path": "mcp-servers.md"
         },
         {
+          "title": "Themes",
+          "path": "themes.md"
+        },
+        {
           "title": "Themes and keys",
           "path": "themes-and-keys.md"
+        },
+        {
+          "title": "Full screen",
+          "path": "full-screen.md"
         }
       ]
     },
@@ -278,6 +290,10 @@
       "reason": "Mental-model page; each mode it names has an owning page with the runnable example."
     },
     {
+      "path": "mermaid.md",
+      "reason": "Prose-only; a diagram is drawn inside a live session, not by a command the checker can run unattended."
+    },
+    {
       "path": "configuration.md",
       "reason": "Prose-only; every key it names is generated in the settings reference, and its examples live on the pages that own them."
     },
@@ -388,6 +404,10 @@
     {
       "path": "mcp-servers.md",
       "reason": "Prose-only; its host configuration is a JSON file the checker cannot run unattended."
+    },
+    {
+      "path": "themes.md",
+      "reason": "Prose-only; a theme file is a user configuration file and --theme is a session option, so no command runs unattended."
     },
     {
       "path": "themes-and-keys.md",

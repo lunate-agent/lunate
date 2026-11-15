@@ -212,6 +212,78 @@ public sealed class ModelCatalogTests
     }
 
     [Fact]
+    public void FindUsageModel_resolves_a_bare_wire_id_in_the_providers_scope()
+    {
+        string directory = CreateTempDirectory();
+        try
+        {
+            string userFile = WriteUserFile(
+                directory,
+                """
+                {
+                  "schemaVersion": 2,
+                  "models": [
+                    { "id": "groq/shared", "provider": "groq", "wireId": "shared-model", "contextWindow": 1, "supportsTools": true },
+                    { "id": "openrouter/shared", "provider": "openrouter", "wireId": "shared-model", "contextWindow": 1, "supportsTools": true }
+                  ]
+                }
+                """
+            );
+            ModelCatalog catalog = ModelCatalog.Load(userFile);
+
+            Assert.Equal(
+                "openrouter/shared",
+                catalog.FindUsageModel("shared-model", "openrouter")?.Id
+            );
+            Assert.Equal("groq/shared", catalog.FindUsageModel("shared-model", "groq")?.Id);
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public void FindUsageModel_answers_ambiguity_outside_the_scope_with_null()
+    {
+        string directory = CreateTempDirectory();
+        try
+        {
+            string userFile = WriteUserFile(
+                directory,
+                """
+                {
+                  "schemaVersion": 2,
+                  "models": [
+                    { "id": "groq/shared", "provider": "groq", "wireId": "shared-model", "contextWindow": 1, "supportsTools": true },
+                    { "id": "openrouter/shared", "provider": "openrouter", "wireId": "shared-model", "contextWindow": 1, "supportsTools": true }
+                  ]
+                }
+                """
+            );
+            ModelCatalog catalog = ModelCatalog.Load(userFile);
+
+            // Two presets serve the id and neither is in scope: no guess, and no exception.
+            Assert.Null(catalog.FindUsageModel("shared-model", "openai"));
+            Assert.Null(catalog.FindUsageModel("shared-model", null));
+        }
+        finally
+        {
+            DeleteTempDirectory(directory);
+        }
+    }
+
+    [Fact]
+    public void FindUsageModel_returns_null_for_an_unknown_or_missing_id()
+    {
+        ModelCatalog catalog = ModelCatalog.Load(MissingUserFile());
+
+        Assert.Null(catalog.FindUsageModel("nope-9000", "groq"));
+        Assert.Null(catalog.FindUsageModel(null, "groq"));
+        Assert.Null(catalog.FindUsageModel("", "groq"));
+    }
+
+    [Fact]
     public void Load_with_user_override_uses_user_definition_at_embedded_position()
     {
         string directory = CreateTempDirectory();

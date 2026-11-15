@@ -344,6 +344,50 @@ public sealed class PrintEventJsonTests
     }
 
     [Fact]
+    public void Usage_prices_a_bare_wire_id_as_the_selected_providers_entry()
+    {
+        using var temp = new TempDirectory();
+        // Two presets echo the same wire id at different prices: the run's selected provider is
+        // the only thing that says which entry the record belongs to.
+        ModelCatalog catalog = Catalog(
+            temp,
+            """
+            { "id": "alpha/shared", "provider": "alpha", "wireId": "shared-wire", "contextWindow": 1000, "supportsTools": true, "pricing": { "input": 1000, "output": 0 } },
+            { "id": "beta/shared", "provider": "beta", "wireId": "shared-wire", "contextWindow": 1000, "supportsTools": true, "pricing": { "input": 500, "output": 0 } }
+            """
+        );
+        var usage = new UsageUpdated("run_1", Details(1000, 0)) { ModelId = "shared-wire" };
+
+        using JsonDocument line = JsonDocument.Parse(
+            PrintEventJson.Serialize(usage, catalog, "beta/shared")
+        );
+
+        Assert.Equal(0.5m, line.RootElement.GetProperty("costUsd").GetDecimal());
+    }
+
+    [Fact]
+    public void Usage_omits_the_cost_for_a_wire_id_the_selected_provider_does_not_serve()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = Catalog(
+            temp,
+            """
+            { "id": "alpha/shared", "provider": "alpha", "wireId": "shared-wire", "contextWindow": 1000, "supportsTools": true, "pricing": { "input": 1000, "output": 0 } },
+            { "id": "beta/shared", "provider": "beta", "wireId": "shared-wire", "contextWindow": 1000, "supportsTools": true, "pricing": { "input": 500, "output": 0 } },
+            { "id": "gamma/other", "provider": "gamma", "wireId": "gamma-wire", "contextWindow": 1000, "supportsTools": true, "pricing": { "input": 1000, "output": 0 } }
+            """
+        );
+        var usage = new UsageUpdated("run_1", Details(1000, 0)) { ModelId = "shared-wire" };
+
+        using JsonDocument line = JsonDocument.Parse(
+            PrintEventJson.Serialize(usage, catalog, "gamma/other")
+        );
+
+        // Still ambiguous outside the selected provider: unpriced, never a guessed entry.
+        Assert.False(line.RootElement.TryGetProperty("costUsd", out _));
+    }
+
+    [Fact]
     public void Usage_omits_the_cost_when_no_catalog_is_supplied()
     {
         using JsonDocument line = JsonDocument.Parse(
