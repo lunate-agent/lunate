@@ -34,8 +34,9 @@ required.
 - The direct file tools, ripgrep/grep, approvals, the bash guard, verified edits and the bash
   post-call change scan stay on the host. The image carries nothing from Lunate: the state root, the
   install prefix, `auth.json` and the container engine socket are not mounted or copied.
-- `--env` is a usage error with `--acp` in this change: ACP keeps the host path, and a selection must
-  never be silently ignored.
+- `--env` is a usage error with `--acp` in this change, and a user-scope `environment` selection
+  refuses the ACP serve start (exit 2, naming the setting): ACP keeps the host path, and a selection
+  must never be silently ignored.
 - A container end-to-end test runs where it can: Linux with a reachable engine (the Linux CI leg).
   Every other host skips it, and the platform claims stay limited to what ran.
 - Docs updated: `docs/execution-environments.md` and `docs/security.md` drop the "pending sign-off"

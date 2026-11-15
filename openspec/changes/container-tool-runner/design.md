@@ -128,7 +128,9 @@ environment normally, because it needs `PATH`, `HOME`, `XDG_RUNTIME_DIR`, `DOCKE
 shape for the `environment` key and `ApplyLaunch` gives the flag precedence. The resolved value is
 an internal property on `AgentSettings`, so no public type or member is added. `--acp` refuses
 `--env` rather than ignoring it, because a selection that is silently dropped is exactly the silent
-fallback this change forbids.
+fallback this change forbids; the stored `environment` selection reaches ACP without that flag, so
+the serve start refuses it with exit 2 and the per-session harness refuses it again instead of
+serving a session whose commands would run on the host.
 
 ### Container execution is wired at tool composition, not through `ProcessRunner`
 

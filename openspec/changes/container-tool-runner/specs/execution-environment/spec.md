@@ -111,8 +111,11 @@ launch flag `--env` and from the user-scope settings key `environment`. Both eng
 supported and SHALL differ only in the executable the runner starts. `--env` SHALL win over the
 settings key for that run. A value that is not one of the two accepted shapes SHALL be refused with
 the accepted shapes, in the flag and in the settings file alike, and a selected environment SHALL
-NOT fall back silently to the host. `--env` SHALL be a usage error with `--acp`, which keeps host
-execution in this change.
+NOT fall back silently to the host. `--env` SHALL be a usage error with `--acp`, and a user-scope
+`environment` selection SHALL refuse the ACP serve start with exit code 2 and a message naming the
+setting, because ACP keeps host execution in this change and a stored selection it dropped would be
+the same silent host fallback. The per-session harness SHALL refuse the same selection, so no
+editor session is ever served with tool commands running on the host against the user's selection.
 
 #### Scenario: The flag selects a Docker or Podman container
 
@@ -138,6 +141,14 @@ execution in this change.
 - **GIVEN** `--acp` combined with `--env`
 - **WHEN** the launch options parse
 - **THEN** it is a usage error naming ACP, never a silently ignored selection
+
+#### Scenario: A stored selection refuses ACP instead of running on the host
+
+- **GIVEN** an `environment` setting that selects a container, and `lunate --acp` without `--env`
+- **WHEN** the serve start resolves the settings, or a session harness resolves them again
+- **THEN** the serve start exits 2 with a message naming the `environment` setting and the modes
+  that can run it, and a session harness refuses the same selection, so no session is served whose
+  tool commands would run on the host
 
 ### Requirement: One container per session, mounted only at the workspace
 

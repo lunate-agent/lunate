@@ -49,6 +49,9 @@ not fatal.
 - `/copy` and `/export` do not exist in print or ACP mode; the editor owns the transcript.
 - A project extension, `mcp.json` server or skill that still needs a trust answer is refused and named;
   print and ACP sessions never auto-approve repository code.
+- Tool commands always run on the host in ACP. `--env` is a usage error there, and a saved user-scope
+  `environment` selection refuses the ACP start (exit 2, naming the setting) instead of silently
+  running on the host; unset it, or use the interactive or print mode, for container-backed commands.
 
 ## Related
 

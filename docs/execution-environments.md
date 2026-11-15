@@ -81,7 +81,9 @@ selection, neither line gains an environment segment.
 
 A value that is not the accepted `docker:<image>` or `podman:<image>` shape is refused with the
 accepted shapes; a selected environment never falls back silently to the host. ACP keeps the host
-path in this change.
+path in this change: `--env` is a usage error there, and a saved `environment` selection refuses the
+ACP start (exit code 2, naming the setting and the modes that can run it) rather than running tool
+commands on the host.
 
 ## What runs where
 

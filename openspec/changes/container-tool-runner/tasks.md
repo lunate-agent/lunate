@@ -65,3 +65,13 @@
 - [x] 6.2 `dotnet csharpier format .` then `check`, a Release build of the touched projects,
       `openspec validate --all --strict`.
 - [x] 6.3 Archive with `openspec archive container-tool-runner --yes` as the last commit.
+
+## 7. Rework: the stored selection in ACP (review of #861)
+
+- [x] 7.1 Add failing tests for the ACP refusal: a user-scope `environment` value refuses the serve
+      start (exit 2, nothing on the protocol stream) and the per-session harness refuses the same
+      selection, naming the setting and the two modes that can run it.
+- [x] 7.2 Refuse it in `AcpMode.Run` before anything composes and again in `AcpMode.CreateHarness`,
+      which resolves settings per `session/new`, so a selection never falls back silently to the
+      host; state the refusal in the delta spec, `design.md`, `proposal.md`,
+      `docs/execution-environments.md`, `docs/acp.md` and the settings description.

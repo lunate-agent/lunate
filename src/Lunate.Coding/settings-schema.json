@@ -81,7 +81,7 @@
       "type": "string",
       "default": "unset",
       "scope": "user",
-      "description": "The container environment process-backed tool commands run in: `docker:<image>` or `podman:<image>`; unset keeps host execution. The workspace is mounted at its host absolute path, while the state root, install prefix and `auth.json` are never mounted. `--env` overrides it for the run. There is no environment-variable override."
+      "description": "The container environment process-backed tool commands run in: `docker:<image>` or `podman:<image>`; unset keeps host execution. The workspace is mounted at its host absolute path, while the state root, install prefix and `auth.json` are never mounted. `--env` overrides it for the run; `--acp` refuses a saved selection instead of running tool commands on the host. There is no environment-variable override."
     },
     {
       "name": "favorites",
