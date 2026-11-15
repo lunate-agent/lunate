@@ -40,6 +40,10 @@ provider and model ids without a network call.
 | `features/bash.gif` | kept in the set, not embedded | [`tapes/features-bash.tape`](../media/tapes/features-bash.tape) |
 | `features/follow-up.gif` | kept in the set, not embedded | [`tapes/features-follow-up.tape`](../media/tapes/features-follow-up.tape) |
 | `setup-wizard.gif` | [`quickstart.md`](../quickstart.md) — the keyless first-run walk | [`tapes/setup-wizard.tape`](../media/tapes/setup-wizard.tape) |
+| `mermaid/flowchart-td.png` | [`mermaid.md`](../mermaid.md) and the `Mermaid.Terminal` README — the documented TD example | [`mermaid/tapes/flowchart-td.tape`](../media/mermaid/tapes/flowchart-td.tape) |
+| `mermaid/flowchart-lr.png` | [`mermaid.md`](../mermaid.md) and the `Mermaid.Terminal` README — a left-to-right flowchart | [`mermaid/tapes/flowchart-lr.tape`](../media/mermaid/tapes/flowchart-lr.tape) |
+| `mermaid/sequence.png` | [`mermaid.md`](../mermaid.md) — a sequence diagram | [`mermaid/tapes/sequence.tape`](../media/mermaid/tapes/sequence.tape) |
+| `mermaid/fallback.png` | [`mermaid.md`](../mermaid.md) — an unsupported type's source and reason | [`mermaid/tapes/fallback.tape`](../media/mermaid/tapes/fallback.tape) |
 | `first-run.gif` | not on disk yet — see [`quickstart.md`](../quickstart.md) | recorded by hand with a real key |
 
 A note on the logo and social preview: the brand files do not live in this media set — the
@@ -72,6 +76,22 @@ stub logs every request to `$TMPDIR/lunate-setup-wizard-demo/provider.log`, whic
 proof that no real provider was called. Override the binary with
 `LUNATE_BIN=/path/to/lunate`; v0.3.0's asset was recorded from the published release
 binary. Nothing in the recording reaches a real provider or reads a real key.
+
+## Mermaid example stills
+
+The four `mermaid/*.png` stills are static, not GIFs: each embeds the Unicode drawing (or, for
+`fallback`, the source and its reason line) that `docs/mermaid.md` and the library README describe.
+The tapes live under `../media/mermaid/tapes/` and drive `tests/tools/MermaidTape`, so the capture
+renders the examples through `Mermaid.Terminal` rather than a copied text fixture. Render them with
+`scripts/render-mermaid-media.sh`; it needs vhs, ttyd, ffmpeg and a Release build of the tape
+renderer.
+
+`.github/workflows/mermaid-media.yml` renders the same tapes with VHS on Linux for every pull
+request that touches the docs, the renderer or the tapes, uploads the PNGs as the
+`mermaid-examples` artifact and links that artifact from the pull request. It is evidence, not a
+required check: it is deliberately not part of `ci-ok`, so a rendering problem cannot block a
+merge. The ASCII glyph version stays a text code block in both pages; only the Unicode drawings are
+captured.
 
 ## Narrow-width captures
 

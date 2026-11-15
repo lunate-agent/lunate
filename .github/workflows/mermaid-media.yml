@@ -1,0 +1,101 @@
+name: Mermaid media
+
+# Render the documented Mermaid examples through Mermaid.Terminal with VHS, on Linux, and upload
+# the PNGs as an artifact linked from the pull request. This is evidence, not a gate: the workflow
+# is deliberately separate from ci.yml and is not part of `ci-ok`, so a rendering problem here never
+# blocks a merge. docs/media/mermaid/*.png holds the committed stills the docs and the library
+# README embed, rendered from the same tapes by scripts/render-mermaid-media.sh.
+on:
+  pull_request:
+    paths:
+      - 'docs/mermaid.md'
+      - 'docs/media/mermaid/**'
+      - 'src/Mermaid.Terminal/**'
+      - 'tests/tools/MermaidTape/**'
+      - 'scripts/mermaid-tape.sh'
+      - 'scripts/render-mermaid-media.sh'
+      - '.github/workflows/mermaid-media.yml'
+  workflow_dispatch:
+
+# Supersede only a pull request's older run: the latest push owns the artifact it links.
+concurrency:
+  group: mermaid-media-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  render:
+    name: render (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Build.props
+            **/*.csproj
+
+      # VHS needs ttyd to drive the terminal and ffmpeg to encode the frames; both come from the
+      # runner's package archive. VHS itself is pinned and checked like the other downloaded tools.
+      - name: Install VHS
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ffmpeg ttyd
+          version=0.12.1
+          asset="vhs_${version}_Linux_x86_64.tar.gz"
+          curl -fsSL -o "${RUNNER_TEMP}/${asset}" \
+            "https://github.com/charmbracelet/vhs/releases/download/v${version}/${asset}"
+          printf '%s  %s\n' \
+            eb33787a5b1cebf91fe0b18bd231e2d71d36c1ff4babd99ddac1a6ab411efd10 \
+            "${RUNNER_TEMP}/${asset}" | sha256sum -c -
+          tar -xzf "${RUNNER_TEMP}/${asset}" -C "${RUNNER_TEMP}"
+          sudo install "${RUNNER_TEMP}/vhs_${version}_Linux_x86_64/vhs" /usr/local/bin/vhs
+          vhs --version
+          ttyd --version
+          ffmpeg -version | head -1
+
+      - name: Build the tape renderer
+        shell: bash
+        run: dotnet build tests/tools/MermaidTape/MermaidTape.csproj -c Release --nologo
+
+      - name: Render the examples
+        shell: bash
+        run: bash scripts/render-mermaid-media.sh
+
+      - name: Upload the PNGs
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: mermaid-examples
+          path: artifacts/mermaid/*.png
+          if-no-files-found: error
+          retention-days: 14
+
+      # The card asks for the images to be linked in the pull request. The comment is advisory,
+      # so a missing comment permission never turns this job into a failing check.
+      - name: Link the images in the pull request
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh pr comment "${PR_NUMBER}" --body "$(printf \
+            'Mermaid examples rendered by VHS on Linux: %s\n\nWorkflow run: %s\n\nThis is evidence, not a required check.' \
+            "${ARTIFACT_URL}" "${RUN_URL}")"
