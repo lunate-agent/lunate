@@ -77,6 +77,12 @@ Alternatives:
 writes the same text instead of its own copy, so the two cannot drift: a change to the offline recipe
 changes both tests at once.
 
+The MSBL order test's probe child repoints `NUGET_PACKAGES` at a folder of its own, so the helper would
+read the probe's empty folder as the machine cache. `FixtureRestore.MachinePackagesVariable`
+(`LUNATE_TEST_MACHINE_PACKAGES`) carries the parent's folder across that one boundary; without it the
+probe's restore would name its own empty folder and the SDK's targeting packs would go missing exactly
+as they did before this change.
+
 ### The fallback folder is named only when it exists
 
 NuGet answers a missing fallback folder with `NU1301` ("Source ... does not exist") for every project,
