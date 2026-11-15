@@ -36,9 +36,9 @@ property and conversions.
 **Two real examples.**
 
 - [`LiveArea.cs`](../../src/Lunate.Tui/LiveArea.cs) — `LiveArea.LiveAreaInput` is a private abstract
-  record with sixteen sealed cases (`KeyInput`, `ResizeInput`, `SpinnerTick`, `ApprovalInput`, …).
-  A union removes the abstract base and the private-constructor ceremony, and the one dispatch
-  method becomes an exhaustive match over the cases.
+  record with more than a dozen sealed cases (`KeyInput`, `ResizeInput`, `SpinnerTick`,
+  `ApprovalInput`, …). A union removes the abstract base and the private-constructor ceremony, and the
+  one dispatch method becomes an exhaustive match over the cases.
 - [`SequenceParser.cs`](../../src/Mermaid.Terminal/SequenceParser.cs) — `SequenceStatement` is an
   internal abstract record with `SequenceMessage` and `SequenceNote`; `SequenceDraw` pattern-matches
   it. A union makes the two variants closed and deletes the base record.
@@ -107,8 +107,8 @@ SDK 11 with `LangVersion=15.0` (targeting `net11.0` selects C# 15 by default). N
 involved for the `List<T>`/`HashSet<T>` cases.
 
 **Analyzer and tooling support.** CSharpier `1.3.0` already parses and formats `[with(...)]`; the
-checked-in build and analyzers compile the expression normally. The .NET 11 SDK's style analyzer
-suite is unaffected because this is expression syntax, not a new symbol.
+checked-in build and the PublicApiAnalyzers probe compile the expression normally, and the syntax
+introduces no new symbol for an analyzer to understand.
 
 ## Labeled break and continue
 
@@ -171,7 +171,9 @@ motivating `AgentEvent`/hook-result unions are therefore the last slice, after a
 `ExtensionApi` decision; the internal `Lunate.Tui`/`Mermaid.Terminal` types go first.
 
 Dropping `net10.0` from a published contract package is a breaking change for every existing
-extension: it needs an ADR entry and a deprecation window, never a silent target-framework bump.
+extension: it needs an ADR entry and a deprecation window, never a silent target-framework bump. The
+extension template and the samples compile against both assets; that is the proof the net10 floor
+still works.
 
 ## Tooling steps before the first syntax commit
 
