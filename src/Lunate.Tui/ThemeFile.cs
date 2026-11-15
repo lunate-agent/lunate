@@ -93,8 +93,10 @@ internal static class ThemeFile
                 if (!ThemeTokens.TryParse(property.Name, out ThemeToken token))
                 {
                     return ThemeOutcome.Failed(
-                        $"theme: {path} names the unknown token '{property.Name}'; "
-                            + $"the valid tokens are {ThemeTokens.List}"
+                        // the token first and the path last: the live area caps a notice at four
+                        // lines, so a long path can only lose its own tail, never the token (#888)
+                        $"theme: unknown token '{property.Name}'; "
+                            + $"the valid tokens are {ThemeTokens.List}; the file is {path}"
                     );
                 }
 

@@ -83,7 +83,12 @@ public sealed class ThemeFileTests
         ThemeOutcome outcome = Read("""{"highlight":"red"}""");
 
         Assert.NotNull(outcome.Error);
-        Assert.Contains("unknown token 'highlight'", outcome.Error, StringComparison.Ordinal);
+        Assert.StartsWith(
+            "theme: unknown token 'highlight'; the valid tokens are ",
+            outcome.Error,
+            StringComparison.Ordinal
+        );
+        Assert.Matches(@"; the file is \S+theme-[0-9a-f]{32}\.json$", outcome.Error);
         foreach (ThemeToken token in ThemeTokens.All)
         {
             Assert.Contains(ThemeTokens.Name(token), outcome.Error, StringComparison.Ordinal);

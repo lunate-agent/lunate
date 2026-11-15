@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Lunate.Extensibility;
 using Lunate.Extensibility.Abstractions;
@@ -173,27 +174,89 @@ public sealed class InteractiveSessionThemeFileTests
         await QuitAsync(host, run);
     }
 
-    [Fact]
-    public async Task An_unknown_token_warns_and_the_built_in_theme_stands()
+    /// <summary>
+    /// The warning names the token first and the theme file's path last. The live area caps a
+    /// notice at four lines (<c>LiveAreaRenderer.MaxNoticeLines</c>), so a long path can only lose
+    /// its own tail; before, the path came first and macOS's long <c>/var/folders/…/T</c> temp root
+    /// pushed the token out of the capped frame (#888). The file sits under a short and under a
+    /// deliberately long directory, and the test asserts on the token, a single word no wrapping
+    /// splits, whatever the platform's temp root.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_unknown_token_warns_and_the_built_in_theme_stands(bool longPath)
     {
-        using var host = new InteractiveSessionHost(
-            interactiveConsole: true,
-            environment: TrueColorEnvironment
-        );
-        WriteHomeTheme(host, """{"highlight":"red"}""");
+        const int Columns = 80;
+        // the long part alone outgrows the four-line cap, whatever the temp root under it
+        string own = longPath
+            ? Path.Combine([.. Enumerable.Repeat(LongSegment, 6)])
+            : string.Create(CultureInfo.InvariantCulture, $"t{Guid.NewGuid():N}");
+        if (longPath)
+        {
+            Assert.True(own.Length > Lunate.Tui.LiveAreaRenderer.MaxNoticeLines * Columns);
+        }
 
-        Task run = host.RunAsync();
+        string directory = Path.Combine(Path.GetTempPath(), own);
+        string themeFile = Path.Combine(
+            directory,
+            string.Create(CultureInfo.InvariantCulture, $"theme-{Guid.NewGuid():N}.json")
+        );
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(themeFile, """{"highlight":"red"}""");
+        try
+        {
+            using var host = new InteractiveSessionHost(
+                interactiveConsole: true,
+                environment: TrueColorEnvironment,
+                launch: new LaunchOptions { Theme = themeFile }
+            );
+            host.Console.Size = new Lunate.Tui.ConsoleSize(Columns, 24);
+
+            Task run = host.RunAsync();
+
+            string warning = await PostedNoticeAsync(host, "theme: unknown token 'highlight'; ");
+            Assert.EndsWith("; the file is " + themeFile, warning, StringComparison.Ordinal);
+
+            await host.WaitUntilAsync(() =>
+            {
+                host.Advance(33);
+                return host.Frames.Contains("'highlight';", StringComparison.Ordinal);
+            });
+
+            // The default prompt tone is still what paints: the file did not half-apply.
+            await host.WaitUntilAsync(Painted(host, "\u001b[38;2;135;175;215m"));
+
+            await QuitAsync(host, run);
+        }
+        finally
+        {
+            Directory.Delete(
+                longPath ? Path.Combine(Path.GetTempPath(), LongSegment) : directory,
+                true
+            );
+        }
+    }
+
+    /// <summary>The first notice the session posted that starts with <paramref name="prefix"/>.</summary>
+    private static async Task<string> PostedNoticeAsync(InteractiveSessionHost host, string prefix)
+    {
+        string? found = null;
         await host.WaitUntilAsync(() =>
         {
             host.Advance(33);
-            return host.Frames.Contains("token 'highlight'", StringComparison.Ordinal);
+            found = host
+                .Notices.Entries.Where(entry => entry.Change == Lunate.Tui.NoticeSlotChange.Posted)
+                .Select(entry => entry.Text)
+                .FirstOrDefault(text => text.StartsWith(prefix, StringComparison.Ordinal));
+            return found is not null;
         });
-
-        // The default prompt tone is still what paints: the file did not half-apply.
-        await host.WaitUntilAsync(Painted(host, "\u001b[38;2;135;175;215m"));
-
-        await QuitAsync(host, run);
+        return found!;
     }
+
+    /// <summary>A 60-character directory name; six of them make a path four 80-column lines cannot hold.</summary>
+    private const string LongSegment =
+        "a-deliberately-long-directory-name-for-the-theme-notice-0888";
 
     /// <summary>Advances the scheduler until the live frame carries <paramref name="sgr"/>.</summary>
     private static Func<bool> Painted(InteractiveSessionHost host, string sgr) =>
@@ -219,11 +282,13 @@ public sealed class InteractiveSessionThemeFileTests
         };
 
     /// <summary>The session home's own theme file: <c>&lt;home&gt;/.lunate/theme.json</c>.</summary>
-    private static void WriteHomeTheme(InteractiveSessionHost host, string json)
+    private static string WriteHomeTheme(InteractiveSessionHost host, string json)
     {
         string store = System.IO.Path.Combine(host.Temp.File("home"), ".lunate");
         Directory.CreateDirectory(store);
-        File.WriteAllText(System.IO.Path.Combine(store, "theme.json"), json);
+        string path = System.IO.Path.Combine(store, "theme.json");
+        File.WriteAllText(path, json);
+        return path;
     }
 
     private static void WriteSettings(InteractiveSessionHost host, string json) =>
