@@ -16,7 +16,7 @@ extensions get the same catalogue through `Lunate.Extensibility.Remote`: interce
 (`docs/extensions-remote.md`).
 
 The observing half is partial. An extension can observe at the hook points that happen to be
-observers — `ProviderStreamEvent`, `SessionStarted`/`SessionEnding`, `Settled`, `ModelChanged`,
+observers — `ProviderStreamEvent`, `SessionStarted`/`SessionEnding`, `RunSettled`, `ModelChanged`,
 `ToolsChanged` — and through `SubscribeFileChanged`. It cannot watch the run. It cannot see a text
 fragment, a tool's arguments, an approval request, a usage update or a retry unless a hook exists for
 that point, and the set of points is not the set of events.
@@ -162,9 +162,9 @@ would grow the session's memory without limit).
 
 ### D5 — Error isolation is per subscription, and completion is explicit
 
-- A throw from `OnNext`, `OnCompleted` or `OnError` is caught at the pump, logged once as an error
-  naming the extension and the event type, and that subscription is disposed. Other subscribers and the
-  run are unaffected.
+- A throw from `OnNext` or `OnCompleted` — the only callbacks the host calls — is caught at the pump,
+  logged once as an error naming the extension and the event type, and that subscription is disposed.
+  Other subscribers and the run are unaffected.
 - `OnError` is never used for a failed run. A failed run is a `RunError` event and the stream continues;
   that is the same rule `--json` follows.
 - `OnCompleted` fires once: at session end, or when the extension unloads. A remote extension whose
