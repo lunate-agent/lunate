@@ -126,3 +126,8 @@ Filled by the apply run: every departure from this design, with the reason, befo
   visual spec chose (a pastel hex has no honest Euclidean nearest — `#af87d7` resolves to silver),
   so `default` at sixteen colours paints the same values it painted before the tokens. (Themes,
   task 2.3.)
+- The Mermaid layout and drawing live in `Mermaid.Terminal`, not `src/Lunate.Tui`: ADR-0039 and the
+  maintainer decision recorded for this card move the Lunate-free renderer — the sequence drawing
+  included — into that library, leaving the TUI only the fence adapter. A sequence message label
+  longer than the room between its two lifelines is clipped with an ellipsis inside the library, so
+  the drawing keeps its width. (Mermaid, tasks 4.1, 4.2 and 4.6.)

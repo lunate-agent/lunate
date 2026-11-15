@@ -74,23 +74,24 @@ sequenceDiagram
 is drawn as:
 
 ```text
-╭──────────╮     ╭──────────────╮
+┌──────────┐     ┌──────────────┐
 │ Consumer │     │ AgentHarness │
-╰──────────╯     ╰──────────────╯
+└─────┬────┘     └───────┬──────┘
       │                  │
-      │──────────────────▸
-      │RunAsync(userInpu…│
+      │ RunAsync(userInp…│
+      ├─────────────────►│
       │                  │
-      ◂┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│
-      │TextMessageStart …│
+      │ TextMessageStart…│
+      │◄┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┤
       │                  │
-      │          ╭───────────────╮
+      │          ┌───────────────┐
       │          │ spans per run │
-      │          ╰───────────────╯
+      │          └───────────────┘
+      │                  │
 ```
 
 The participant boxes sit on the top row and a lifeline runs down from each one. A message arrow
-carries its label on the row below it, cut with an ellipsis when it is longer than the space between
+carries its label on the row below it, cut with an ellipsis when it is longer than the room between
 the two lifelines. A note is a box across the lifelines it names.
 
 ## When it does not draw
