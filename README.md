@@ -46,7 +46,7 @@ agent and at home in polyglot repositories.
 **1. Install.**
 
 <!-- docs-sync: version -->
-The current stable release is [**0.3.0**](https://github.com/lunate-agent/lunate/releases/tag/v0.3.0).
+The current stable release is [**0.4.0**](https://github.com/lunate-agent/lunate/releases/tag/v0.4.0).
 <!-- /docs-sync: version -->
 
 ```bash
