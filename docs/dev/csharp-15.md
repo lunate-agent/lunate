@@ -142,29 +142,29 @@ These features are real C# 15 work, but they have no two real call sites in this
 | Feature | Why not | What would reopen it |
 | --- | --- | --- |
 | Extension indexers | Every indexed access in `src/` already goes through an array, list or dictionary indexer. The repository declares only two extension methods, both `StringBuilder.Line` helpers ([`DiagnosticBundle.cs`](../../src/Lunate.Coding/DiagnosticBundle.cs), [`SessionHtmlWriter.cs`](../../src/Lunate.Coding/SessionHtmlWriter.cs)), and neither is index-like. | An extension surface or package adapter grows a real index-like extension method. |
-| Non-virtual static interface members on older runtimes | No interface in `src/` declares a static member, and every first-party target already runs on `net10.0` or later, whose runtime supports the existing default-interface implementation rules. The feature only relaxes an older-runtime check. | A contract package starts targeting `netstandard2.0` or another runtime without default interface implementations. |
+| Non-virtual static interface members on older runtimes | No interface in `src/` declares a static member, and every first-party target already runs on `net11.0`, whose runtime supports the existing default-interface implementation rules. The feature only relaxes an older-runtime check. | A contract package starts targeting `netstandard2.0` or another runtime without default interface implementations. |
 | Memory-safety preview | It is preview, needs `LangVersion=preview`, `AllowUnsafeBlocks` and the `updated-memory-safety-rules` feature flag. The native code here is P/Invoke and marshalling ([`UnixChildProcess.cs`](../../src/Lunate.Coding/UnixChildProcess.cs), [`SystemConsoleIO.cs`](../../src/Lunate.Tui/SystemConsoleIO.cs)), not pointer-access code with an `unsafe` block to audit. | The feature stabilises, or the native layer starts doing pointer access that needs the new `unsafe`/`safe` contracts. |
 
 ## Target frameworks
 
-**Tool and app: `net11.0`.** Union types and closed hierarchies — two of the four features we want —
-cannot compile for `net10.0`; they need the `net11.0` BCL. The self-contained release binaries are
-the natural place to pay that: they carry their runtime, so the user installs nothing. The startup
-and memory budgets must be re-measured on the new runtime in step (b), not assumed from the .NET 10
-numbers. The first-party projects that use the features (`Lunate.Tui`, `Mermaid.Terminal`,
-`Lunate.Coding`, and whatever else adopts them) move with the app.
+The recommendation above is applied by #902; read [ADR-0040](../../adr/0040-net11-target-frameworks.md)
+for the durable decision and [`guide.md`](guide.md) for the current runtime table.
 
-**The `dotnet tool` package is the exception to the binary story.** It is framework-dependent, so a
-`net11.0` tool asset requires the .NET 11 runtime. `PackAsTool` can carry both `tools/net10.0` and
-`tools/net11.0` (verified with a throwaway pack), which is the shape that keeps
-`dotnet tool install -g lunate` working for people on .NET 10. If the tool's project graph adopts
-union/closed unconditionally, the net10 asset cannot build; step (b) must then either keep the
-net11-only code behind `#if`/outside the tool closure or accept a .NET 11 requirement for the tool
-package and say so in the release note. The self-contained installers are unaffected either way.
+**Tool and app: `net11.0`.** Union types and closed hierarchies — two of the four features we want —
+cannot compile for `net10.0`; they need the `net11.0` BCL. The self-contained release binaries carry
+their runtime, so the user still installs nothing. `Directory.Build.props` sets `net11.0`; the
+first-party projects that use the features (`Lunate.Tui`, `Mermaid.Terminal`, `Lunate.Coding`, and
+whatever else adopts them) build for it. The startup and memory budgets were re-measured on the new
+runtime during #902, not carried over from the .NET 10 numbers.
+
+**The `dotnet tool` package requires .NET 11.** It is framework-dependent, so its one asset is
+`tools/net11.0`. `PackAsTool` can carry both `tools/net10.0` and `tools/net11.0` (verified with a
+throwaway pack), but #192 chose the simpler shape: the tool graph is `net11.0` only and the release
+note states the runtime requirement. The self-contained installers are unaffected.
 
 **Extension contract packages: multi-target `net10.0;net11.0`.** `Lunate.Contracts`,
 `Lunate.Extensibility.Abstractions`, and the published harness packages `Lunate.Agent` and the
-`Lunate.Ai` assemblies it carries should keep a `net10.0` asset as the compatibility floor. Existing
+`Lunate.Ai` assemblies it carries keep a `net10.0` asset as the compatibility floor. Existing
 extensions built against net10 keep compiling and loading on the net11 host; new extensions can
 target net11 if they want the newer compiler. The public API stays identical between the two assets:
 do not put union or closed types on the contract surface while net10 remains a target. The
@@ -173,8 +173,8 @@ motivating `AgentEvent`/hook-result unions are therefore the last slice, after a
 
 Dropping `net10.0` from a published contract package is a breaking change for every existing
 extension: it needs an ADR entry and a deprecation window, never a silent target-framework bump. The
-extension template and the samples compile against both assets; that is the proof the net10 floor
-still works.
+extension template keeps a `net10.0` extension project as the floor proof; its test project is
+`net11.0` because the test kit references the `net11.0` tool graph.
 
 ## Tooling steps before the first syntax commit
 
@@ -187,8 +187,8 @@ still works.
    new public shape. Update `PublicAPI.Unshipped.txt` in the same change as the type.
 3. **`dotnet format`.** SDK 11's formatter ships the C# 15 Roslyn. It could not be exercised in the
    worker sandbox: the MSBuild build host cannot create its named pipe there (`SocketException 13`),
-   which is an environment limit, not a syntax failure. Run `dotnet format style` and
-   `dotnet format analyzers` on a normal runner as part of step (b)'s gate.
+   which is an environment limit, not a syntax failure. #902 ran it on a normal machine as part of
+   step (b)'s gate; the analyzer and style checks stay in the verify gate for step (c).
 
 ## Related
 

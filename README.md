@@ -61,7 +61,8 @@ irm https://raw.githubusercontent.com/lunate-agent/lunate/main/install.ps1 -OutF
 ```
 
 Or through Homebrew (`brew tap lunate-agent/tap`, `brew install lunate`), Scoop, or as a .NET tool
-(`dotnet tool install --global lunate`). Winget follows once its manifest is accepted.
+(`dotnet tool install --global lunate`, which requires the .NET 11 runtime). Winget follows once its
+manifest is accepted.
 
 **2. Run `lunate` in a repository.** On a fresh install the first prompt opens the setup wizard: it
 walks provider, credential, connection test, model, chat profile and an optional decisions layer,

@@ -14,7 +14,7 @@ VHS="${VHS:-vhs}"
 
 command -v "$VHS" >/dev/null || { echo "vhs missing"; exit 1; }
 command -v ffmpeg >/dev/null || { echo "ffmpeg missing"; exit 1; }
-[ -f "$REPO/tests/tools/MermaidTape/bin/Release/net10.0/MermaidTape.dll" ] || {
+[ -f "$REPO/tests/tools/MermaidTape/bin/Release/net11.0/MermaidTape.dll" ] || {
     echo "build first: dotnet build tests/tools/MermaidTape/MermaidTape.csproj -c Release"
     exit 1
 }

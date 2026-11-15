@@ -73,8 +73,11 @@ contract as project references instead — the packages a feed serves may not ex
 release that publishes them, so the template switches on its own: a copy outside this
 repository gets the packages, a copy inside gets the projects, and `LunateUseNuGetContracts=true`
 forces the package shape (the verify gate does, against a feed of freshly packed packages). The
-template inherits its target framework, nullability and implicit usings from the repository's
-`Directory.Build.props`, so a project of your own declares those itself.
+template declares its target framework, nullability and implicit usings itself, so a project of
+your own declares those too. Its extension project stays on `net10.0` while the host runs `net11.0`:
+the contract packages keep a `net10.0` asset as the compatibility floor (ADR-0040), and the template
+is where that floor is proven. Its test project targets `net11.0` because the test kit is `net11.0`
+only.
 
 The host owns `Lunate.Contracts` and `Lunate.Extensibility.Abstractions` — and `Lunate.Agent`,
 which ships as a preview package — and loads them once, so every extension binds to those copies.
@@ -153,7 +156,8 @@ cp bin/Release/net10.0/HelloExtension.dll \
    ~/.lunate/extensions/hello/
 ```
 
-Copy any further dependencies next to the assembly. `Lunate.Contracts`,
+The `net10.0` output path is the extension's own target; the host runs `net11.0` and loads the
+extension from either asset. Copy any further dependencies next to the assembly. `Lunate.Contracts`,
 `Lunate.Extensibility.Abstractions`, `Lunate.Agent`, `Microsoft.Extensions.AI.Abstractions` and
 `System.Text.Json` are shared from the host and are never loaded from the extension folder: a copy
 shipped there anyway is ignored, and `/extensions` and the log say so once, naming what was dropped.

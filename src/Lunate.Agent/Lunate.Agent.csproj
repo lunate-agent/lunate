@@ -9,6 +9,14 @@
         PackOwnAssemblies target below carries the assembly itself.
     -->
     <PropertyGroup>
+        <!--
+            The harness package keeps a net10.0 asset as the compatibility floor (ADR-0040): an
+            extension or host built against the previous LTS keeps working on the net11.0 host.
+            Both assets carry the same public surface; PackOwnAssemblies below writes the carried
+            Lunate.Ai assemblies beside each one.
+        -->
+        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+        <TargetFramework></TargetFramework>
         <IsPackable>true</IsPackable>
         <PackageId>Lunate.Agent</PackageId>
         <Version>$(PreviewVersion)</Version>

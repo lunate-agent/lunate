@@ -458,7 +458,7 @@ if [ "$module_count" -ne "$partition_count" ]; then
   exit 1
 fi
 case "$shard_modules_all" in
-  *"/bin/Release/net10.0/Lunate.Tui.Tests.dll"*) ;;
+  *"/bin/Release/net11.0/Lunate.Tui.Tests.dll"*) ;;
   *)
     echo "gate-tests: FAIL: module expression is not a built-assembly path per project: $shard_modules_all" >&2
     exit 1

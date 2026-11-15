@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using Lunate.Agent;
@@ -29,6 +30,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
         string feed = temp.Subdirectory("contract-feed");
         Pack(repository, feed);
+        AssertContractPackageCarriesBothAssets(feed);
 
         string copy = CopyTemplate(repository, temp.Subdirectory("my-extension"));
         // Both projects a copy carries: the extension a host loads and the test project the
@@ -92,6 +94,15 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
     private const string Configuration = "Release";
     private const string TargetFramework = "net10.0";
+
+    private static void AssertContractPackageCarriesBothAssets(string feed)
+    {
+        string package = Assert.Single(Directory.GetFiles(feed, "Lunate.Contracts.*.nupkg"));
+        using ZipArchive archive = ZipFile.OpenRead(package);
+        string[] entries = [.. archive.Entries.Select(entry => entry.FullName)];
+        Assert.Contains("lib/net10.0/Lunate.Contracts.dll", entries);
+        Assert.Contains("lib/net11.0/Lunate.Contracts.dll", entries);
+    }
 
     private static void Pack(string repository, string feed)
     {

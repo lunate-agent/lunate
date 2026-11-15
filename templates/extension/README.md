@@ -11,7 +11,9 @@ as the place where your extension's behavior is proven.
 
 The two project files are self-contained: they declare `TargetFramework`, `ImplicitUsings` and
 `Nullable` themselves, so a copy builds outside this repository, where the repository's
-`Directory.Build.props` does not follow.
+`Directory.Build.props` does not follow. The extension project targets `net10.0` — the contract's
+compatibility floor — while the test project targets `net11.0`, because the test kit is `net11.0`
+only. The host runs `net11.0` and loads either extension asset.
 
 ## Layout
 

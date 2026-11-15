@@ -105,6 +105,7 @@ internal sealed partial class SingleFileLoopFixture
         fixture = null;
         reason = null;
 
+        string tfm = SingleFileTarget.Current().Tfm;
         List<(string Parent, string Version)> packs = [];
         foreach (string root in PackRoots())
         {
@@ -118,7 +119,7 @@ internal sealed partial class SingleFileLoopFixture
                 string name = Path.GetFileName(directory);
                 if (
                     Version.TryParse(name, out _)
-                    && Directory.Exists(Path.Combine(directory, "ref", "net10.0"))
+                    && Directory.Exists(Path.Combine(directory, "ref", tfm))
                 )
                 {
                     packs.Add((root, name));
@@ -130,7 +131,7 @@ internal sealed partial class SingleFileLoopFixture
         if (ChoosePack(packs, runtime) is not { } pack)
         {
             reason =
-                "no Microsoft.NETCore.App.Ref with ref/net10.0 was found in the NuGet cache or the "
+                $"no Microsoft.NETCore.App.Ref with ref/{tfm} was found in the NuGet cache or the "
                 + "SDK's targeting packs, so a real compile cannot be exercised here";
             return false;
         }
@@ -148,7 +149,6 @@ internal sealed partial class SingleFileLoopFixture
             CopyPack(Path.Combine(pack.Parent, pack.Version), link);
         }
 
-        string tfm = SingleFileTarget.Current().Tfm;
         string rule =
             Version.Parse(pack.Version) == runtime ? ReferencePackRules.Exact
             : Version.Parse(pack.Version) > runtime ? ReferencePackRules.NearestAtLeast
