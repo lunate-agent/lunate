@@ -188,10 +188,16 @@ public sealed class InteractiveSessionThemeFileTests
     public async Task An_unknown_token_warns_and_the_built_in_theme_stands(bool longPath)
     {
         const int Columns = 80;
-        string directory = Path.Combine([
-            Path.GetTempPath(),
-            .. Enumerable.Repeat(longPath ? LongSegment : "t", longPath ? 4 : 1),
-        ]);
+        // the long part alone outgrows the four-line cap, whatever the temp root under it
+        string own = longPath
+            ? Path.Combine([.. Enumerable.Repeat(LongSegment, 6)])
+            : string.Create(CultureInfo.InvariantCulture, $"t{Guid.NewGuid():N}");
+        if (longPath)
+        {
+            Assert.True(own.Length > Lunate.Tui.LiveAreaRenderer.MaxNoticeLines * Columns);
+        }
+
+        string directory = Path.Combine(Path.GetTempPath(), own);
         string themeFile = Path.Combine(
             directory,
             string.Create(CultureInfo.InvariantCulture, $"theme-{Guid.NewGuid():N}.json")
@@ -211,11 +217,6 @@ public sealed class InteractiveSessionThemeFileTests
 
             string warning = await PostedNoticeAsync(host, "theme: unknown token 'highlight'; ");
             Assert.EndsWith("; the file is " + themeFile, warning, StringComparison.Ordinal);
-            if (longPath)
-            {
-                // the long case is the one the cap cuts: more text than four lines can hold
-                Assert.True(warning.Length > Lunate.Tui.LiveAreaRenderer.MaxNoticeLines * Columns);
-            }
 
             await host.WaitUntilAsync(() =>
             {
@@ -253,7 +254,7 @@ public sealed class InteractiveSessionThemeFileTests
         return found!;
     }
 
-    /// <summary>A 60-character directory name; four of them make a path no notice can hold.</summary>
+    /// <summary>A 60-character directory name; six of them make a path four 80-column lines cannot hold.</summary>
     private const string LongSegment =
         "a-deliberately-long-directory-name-for-the-theme-notice-0888";
 
