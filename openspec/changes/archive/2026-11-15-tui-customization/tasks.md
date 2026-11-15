@@ -3,6 +3,9 @@
 Four parts, in this order. Each part is a separate PR and is useful without the ones after it; the
 change archives only when the last part lands.
 
+_The evidence references after each tick were added by #913; the task text and its ticks are as
+archived._
+
 ## 1. Keymap
 
 - [x] 1.1 Load `~/.lunate/keymap.json`, overlaying `keys.json` by binding id; `$LUNATE_KEYMAP` and
