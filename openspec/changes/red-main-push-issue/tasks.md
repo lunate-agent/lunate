@@ -40,8 +40,8 @@
 
 - [x] 5.1 Update `CONTRIBUTING.md` and the CI description to the push-and-nightly reporter, the
   milestone rule and the area label rule.
-- [ ] 5.2 Write the changelog fragment `changes/<pull-request-number>.md` under the release's headings.
-- [ ] 5.3 Run `bash scripts/ci-ok.sh --self-test`, `bash scripts/nightly-issue.sh --self-test`,
+- [x] 5.2 Write the changelog fragment `changes/<pull-request-number>.md` under the release's headings.
+- [x] 5.3 Run `bash scripts/ci-ok.sh --self-test`, `bash scripts/nightly-issue.sh --self-test`,
   `dotnet csharpier check .` and `openspec validate red-main-push-issue --strict`.
 - [ ] 5.4 Run `openspec validate --all --strict`, sync the delta and `openspec archive red-main-push-issue
   --yes` as the final commit.
