@@ -1,6 +1,12 @@
 <Project>
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
+        <!--
+            C# 15 is compiler-only for collection-expression arguments (`[with(...)]`), which the
+            refactor slices use: SDK 11 compiles it for `net10.0`, and the target-framework change
+            to `net11.0` selects C# 15 by default. The SDK is pinned in `global.json`.
+        -->
+        <LangVersion>15.0</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

@@ -33,7 +33,7 @@ public sealed class ExtensionToolRegistry
         : this([]) { }
 
     internal ExtensionToolRegistry(IEnumerable<string> reservedToolNames) =>
-        _reservedToolNames = new HashSet<string>(reservedToolNames, StringComparer.Ordinal);
+        _reservedToolNames = [with(StringComparer.Ordinal), .. reservedToolNames];
 
     /// <summary>Registers one tool for the extension; refusals throw naming the extension and field.</summary>
     public void Register(string extensionId, ExtensionToolRegistration registration) =>
