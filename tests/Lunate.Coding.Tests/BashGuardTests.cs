@@ -63,6 +63,51 @@ public sealed class BashGuardTests
     }
 
     [Fact]
+    public void A_probe_that_cannot_apply_a_nested_profile_says_the_process_is_already_sandboxed()
+    {
+        // Inside a worker harness that already runs the session under sandbox-exec, macOS refuses
+        // the nested profile: the command is not unconfined, and the guard's own rules are absent.
+        using var temp = new TempDirectory();
+        const string probeOutput = "sandbox-exec: sandbox_apply: Operation not permitted";
+        var probe = Fake.Unix(macOs: true, sandboxExec: true) with
+        {
+            Run = (_, _) => (1, probeOutput),
+        };
+        var guard = new BashGuard(Target(temp.Root), probe);
+
+        var launch = guard.Wrap(Shell, temp.Root);
+
+        Assert.False(launch.Wrapped);
+        Assert.Equal("none", launch.Mechanism);
+        Assert.Equal("failure", launch.ProbeState);
+        Assert.Equal("/bin/bash", launch.FileName);
+        Assert.Equal(["-c"], launch.ArgumentsPrefix);
+        string notice = launch.Notice ?? "";
+        Assert.Contains("this process already runs inside a sandbox", notice);
+        Assert.Contains("own state-root, install-prefix and auth.json rules are not", notice);
+        Assert.Contains("outer sandbox still applies", notice);
+        Assert.Contains(probeOutput, notice);
+        Assert.DoesNotContain("unconfined", notice);
+    }
+
+    [Fact]
+    public void A_macos_probe_failure_that_is_not_nesting_still_says_the_command_runs_unconfined()
+    {
+        using var temp = new TempDirectory();
+        var probe = Fake.Unix(macOs: true, sandboxExec: true) with
+        {
+            Run = (_, _) => (1, "sandbox-exec: invalid profile"),
+        };
+        var guard = new BashGuard(Target(temp.Root), probe);
+
+        var launch = guard.Wrap(Shell, temp.Root);
+
+        Assert.False(launch.Wrapped);
+        Assert.Contains("runs unconfined", launch.Notice ?? "");
+        Assert.DoesNotContain("already runs inside a sandbox", launch.Notice ?? "");
+    }
+
+    [Fact]
     public void The_bwrap_plan_keeps_the_root_writable_and_denies_only_the_targets()
     {
         using var temp = new TempDirectory();
