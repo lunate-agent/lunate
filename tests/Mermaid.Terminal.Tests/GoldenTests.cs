@@ -11,8 +11,11 @@ public sealed class GoldenTests
         new()
         {
             "flowchart-td",
+            "flowchart-td-chain",
             "flowchart-tb-fanout",
             "flowchart-lr",
+            "flowchart-lr-backlink",
+            "flowchart-lr-dotted",
             "flowchart-lr-shared",
             "sequence",
             "sequence-note",
