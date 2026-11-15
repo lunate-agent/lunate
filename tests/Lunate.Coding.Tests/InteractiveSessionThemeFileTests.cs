@@ -175,26 +175,22 @@ public sealed class InteractiveSessionThemeFileTests
 
     /// <summary>
     /// The warning names the theme file's path, and the live area caps a notice at four lines
-    /// (<c>LiveAreaRenderer.MaxNoticeLines</c>): a long temp root — macOS's
-    /// <c>/var/folders/…/T</c>, where a Linux runner's <c>/tmp</c> is short — spends them on the
-    /// path, so the frame ends in an ellipsis and the phrase after the path never reaches the
-    /// terminal (#888). The theory runs both path lengths, because the harness's own temp root is
-    /// short everywhere but macOS: the long home stands in for the macOS one.
+    /// (<c>LiveAreaRenderer.MaxNoticeLines</c>): with macOS's long <c>/var/folders/…/T</c> temp root
+    /// the path alone spends them at 80 columns, so the frame ends in an ellipsis and the phrase
+    /// after the path never reaches the terminal (#888). The narrow case spends them with the
+    /// harness's own short temp root, so the guard against reading the capped frame runs on the
+    /// Linux legs too.
     /// </summary>
     [Theory]
-    [InlineData(0)]
-    [InlineData(160)]
-    public async Task An_unknown_token_warns_and_the_built_in_theme_stands(int pathPadding)
+    [InlineData(80)]
+    [InlineData(40)]
+    public async Task An_unknown_token_warns_and_the_built_in_theme_stands(int columns)
     {
-        // Disposed after the host, so the long home outlives the session that reads it.
-        using var padding = pathPadding == 0 ? null : new TempDirectory();
         using var host = new InteractiveSessionHost(
             interactiveConsole: true,
-            environment: TrueColorEnvironment,
-            homeDirectory: padding is null
-                ? null
-                : System.IO.Path.Combine(padding.Root, new string('h', pathPadding), "home")
+            environment: TrueColorEnvironment
         );
+        host.Console.Size = new Lunate.Tui.ConsoleSize(columns, 24);
         string themeFile = WriteHomeTheme(host, """{"highlight":"red"}""");
 
         Task run = host.RunAsync();
@@ -245,10 +241,7 @@ public sealed class InteractiveSessionThemeFileTests
     /// <summary>The session home's own theme file: <c>&lt;home&gt;/.lunate/theme.json</c>.</summary>
     private static string WriteHomeTheme(InteractiveSessionHost host, string json)
     {
-        string store = System.IO.Path.Combine(
-            host.Options.HomeDirectory ?? host.Temp.File("home"),
-            ".lunate"
-        );
+        string store = System.IO.Path.Combine(host.Temp.File("home"), ".lunate");
         Directory.CreateDirectory(store);
         string path = System.IO.Path.Combine(store, "theme.json");
         File.WriteAllText(path, json);
