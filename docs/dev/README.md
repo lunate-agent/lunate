@@ -12,7 +12,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Skills | [`../skills.md`](../skills.md) | Agent Skills: the scopes Lunate reads, `/skills`, `/skill:<name>`, the index budget and the trust decision |
 | MCP servers | [`../mcp-servers.md`](../mcp-servers.md) | The MCP client: where `mcpServers` is read, how a server starts, and what its child process inherits |
 | Themes | [`../themes.md`](../themes.md) | The built-in themes, the ten semantic tokens, the user `theme.json` and the colour downgrade |
-| Themes and keys | [`../themes-and-keys.md`](../themes-and-keys.md) | The `/settings` rows for the theme and the key remaps, and why `keys.json` stays the only declaration |
+| Themes and keys | [`../themes-and-keys.md`](../themes-and-keys.md) | The `/settings` rows for the theme and the key remaps, the keymap file that overlays `keys.json`, and why `keys.json` stays the only declaration |
 | Full screen | [`../full-screen.md`](../full-screen.md) | The opt-in alternate screen for the session: the flag and the setting, what moves to the alternate buffer and how every exit path leaves it |
 | Execution environments | [`../execution-environments.md`](../execution-environments.md) | Run tool calls in a container: where commands and file tools run, the Docker/Podman flag and settings, what is mounted, and the measured cost and platform limits |
 | Configuration | [`../configuration.md`](../configuration.md) | How to configure a session: decision profiles, custom provider entries, thinking, the welcome header and update check, and recording |

@@ -49,7 +49,7 @@ change archives only when the last part lands.
 
 ## 5. Docs and gate
 
-- [ ] 5.1 `docs/` page for the keymap, the theme tokens and the full-screen option; one example file
+- [x] 5.1 `docs/` page for the keymap, the theme tokens and the full-screen option; one example file
       each under `docs/` (not in the repo root).
 - [x] 5.2 `scripts/verify.sh` unchanged; the suites carry the new tests.
 - [x] 5.3 Archive the change into `openspec/specs/tui/spec.md` in the last part's PR.
