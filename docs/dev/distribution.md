@@ -125,6 +125,10 @@ grep -E 'lunate-(osx-arm64|linux-x64|win-x64)' /tmp/lunate-release/SHA256SUMS
 - `packaging/homebrew/lunate.rb`: `SHA256_PLACEHOLDER_OSX_ARM64`, `SHA256_PLACEHOLDER_LINUX_X64`
 - `packaging/scoop/lunate.json`: `SHA256_PLACEHOLDER_WIN_X64`
 - `packaging/winget/wdaniel1993.lunate.installer.yaml`: `InstallerSha256` (uppercase hex)
+- `PackageVersion` in all three winget manifests, set to the tag's version: `packaging/winget/wdaniel1993.lunate.yaml`,
+  `packaging/winget/wdaniel1993.lunate.installer.yaml` and `packaging/winget/wdaniel1993.lunate.locale.en-US.yaml`.
+  winget rejects a manifest set whose versions differ; the 0.4.0 locale file was left at 0.2.1 when
+  this list named only the installer.
 
 ```sh
 git add packaging
@@ -223,7 +227,7 @@ and a version number is never reused for different bytes.
 
 - Assemble the changelog in the release pull request (`scripts/changelog-assemble --write`), promote the unreleased section and delete the consumed fragments (step 1).
 - Tag the new version; the gate, publish, pack and attach jobs do the rest.
-- Fill the three sha values again (step 4) and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
+- Fill the three sha values and the three winget `PackageVersion` lines again (step 4) and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
 - Run the release smoke against the tag (see *Release smoke*) before calling the release done.
 - The Scoop bucket autoupdates itself; winget needs a new `wingetcreate update wdaniel1993.lunate --version <v> --urls <zip-url>` submission.
 - Future work: automate the placeholder rewrite and the tap/bucket updates from the release workflow (a follow-up change); until then the steps above stay manual.
