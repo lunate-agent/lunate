@@ -1037,6 +1037,7 @@ public sealed class CliTests
         Assert.Contains("--tools <list>", help, StringComparison.Ordinal);
         Assert.Contains("--no-tools", help, StringComparison.Ordinal);
         Assert.Contains("--offline", help, StringComparison.Ordinal);
+        Assert.Contains("--fullscreen", help, StringComparison.Ordinal);
         Assert.Contains("--theme <name|path>", help, StringComparison.Ordinal);
         Assert.Contains("--system-prompt <text>", help, StringComparison.Ordinal);
         Assert.Contains("--append-system-prompt <text>", help, StringComparison.Ordinal);
