@@ -362,6 +362,102 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Run_with_print_and_the_end_of_options_without_a_prompt_is_a_usage_error()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = Cli.Run(["-p", "--"], output, error, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, exitCode);
+        Assert.Contains("print mode needs one prompt", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("Usage", error.ToString(), StringComparison.Ordinal);
+        Assert.Empty(output.ToString());
+    }
+
+    [Fact]
+    public void Run_sends_the_prompt_after_the_end_of_options_verbatim()
+    {
+        using var temp = new TempDirectory();
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        );
+        Configure(options);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = Cli.Run(
+            ["-p", "--json", "--", "--not-a-flag"],
+            output,
+            error,
+            TestContext.Current.CancellationToken,
+            options
+        );
+
+        Assert.Equal(0, exitCode);
+        Assert.StartsWith(
+            """{"type":"run_started","runId":""",
+            output.ToString(),
+            StringComparison.Ordinal
+        );
+        Assert.Equal("--not-a-flag", client.Requests[0][^1].Text);
+    }
+
+    [Fact]
+    public void Run_keeps_a_mode_flag_after_the_end_of_options_in_the_prompt()
+    {
+        using var temp = new TempDirectory();
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        );
+        Configure(options);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = Cli.Run(
+            ["-p", "--", "--no-extensions"],
+            output,
+            error,
+            TestContext.Current.CancellationToken,
+            options
+        );
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output.ToString());
+        Assert.Equal("--no-extensions", client.Requests[0][^1].Text);
+    }
+
+    [Fact]
+    public void Run_does_not_start_acp_for_a_prompt_after_the_end_of_options()
+    {
+        using var temp = new TempDirectory();
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        );
+        Configure(options);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = Cli.Run(
+            ["-p", "--", "--acp"],
+            output,
+            error,
+            TestContext.Current.CancellationToken,
+            options
+        );
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output.ToString());
+        Assert.Equal("--acp", client.Requests[0][^1].Text);
+    }
+
+    [Fact]
     public void Run_with_print_and_an_unknown_flag_is_a_usage_error()
     {
         using var output = new StringWriter();
@@ -826,6 +922,53 @@ public sealed class CliTests
         Assert.True(options.Json);
         Assert.True(options.Yolo);
         Assert.Equal("Hi", options.Prompt);
+    }
+
+    [Fact]
+    public void Launch_options_parse_a_dash_prompt_after_the_end_of_options()
+    {
+        LaunchOptions options = Parse("-p", "--", "--not-a-flag");
+
+        Assert.True(options.Print);
+        Assert.Equal("--not-a-flag", options.Prompt);
+    }
+
+    [Fact]
+    public void Launch_options_parse_a_dash_prompt_after_the_end_of_options_with_json()
+    {
+        LaunchOptions options = Parse("-p", "--json", "--", "--not-a-flag");
+
+        Assert.True(options.Json);
+        Assert.Equal("--not-a-flag", options.Prompt);
+    }
+
+    [Fact]
+    public void Launch_options_do_not_read_a_flag_after_the_end_of_options()
+    {
+        LaunchOptions options = Parse("-p", "--", "--yolo");
+
+        Assert.False(options.Yolo);
+        Assert.Equal("--yolo", options.Prompt);
+    }
+
+    [Fact]
+    public void Launch_options_parse_a_second_marker_as_the_prompt()
+    {
+        Assert.Equal("--", Parse("-p", "--", "--").Prompt);
+    }
+
+    [Fact]
+    public void Launch_options_refuse_the_end_of_options_without_a_prompt()
+    {
+        Assert.False(LaunchOptions.TryParse(["-p", "--"], out _, out string? error));
+        Assert.Contains("print mode needs one prompt", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Launch_options_count_a_positional_before_the_end_of_options()
+    {
+        Assert.False(LaunchOptions.TryParse(["-p", "one", "--", "two"], out _, out string? error));
+        Assert.Contains("print mode takes exactly one prompt", error, StringComparison.Ordinal);
     }
 
     [Fact]
