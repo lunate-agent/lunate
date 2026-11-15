@@ -87,6 +87,7 @@
     <Project Path="tests/Mermaid.Terminal.Tests/Mermaid.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/tools/">
+    <Project Path="tests/tools/MermaidTape/MermaidTape.csproj" />
     <Project Path="tests/tools/TestMcpServer/TestMcpServer.csproj" />
   </Folder>
 </Solution>
