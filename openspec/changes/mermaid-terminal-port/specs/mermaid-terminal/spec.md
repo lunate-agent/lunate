@@ -1,3 +1,9 @@
+## Purpose
+
+A Lunate-free terminal renderer for Mermaid flowcharts and sequence diagrams: parse a bounded
+source, lay it out with mermaid-ascii's proven algorithm, and return text lines tagged as frame or
+label, or the documented source-plus-reason fallback.
+
 ## ADDED Requirements
 
 ### Requirement: The renderer has no Lunate dependency
