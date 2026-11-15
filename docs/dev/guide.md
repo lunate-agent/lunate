@@ -71,7 +71,7 @@ Three core projects with strict downward dependencies, like Tau's `tau_coding �
 
 The architecture overview lives in [`architecture.md`](architecture.md) — the component map, the model pipeline, one run and the event path as diagrams.
 
-Arrows point from a project to what it depends on or calls; dashed edges are runtime-only connections — separate processes. `Lunate.Protocols` references `Lunate.Agent` (MCP tools become `ITool`s, ACP drives the loop); `Lunate.Tui` references no other Lunate project. `Lunate.Coding` supplies the Roslyn built-in descriptor to the extension host; the host evaluates the manifest rule for each composition, and `Lunate.Roslyn.BuiltIn` adapts the contract to the Roslyn backend. Roslyn and MSBuild assemblies remain unloaded until the first active C# tool call. See [`architecture.md`](architecture.md) and [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md).
+Arrows point from a project to what it depends on or calls; dashed edges are runtime-only connections — separate processes. `Lunate.Protocols` references `Lunate.Agent` (MCP tools become `ITool`s, ACP drives the loop); `Lunate.Tui` references no other Lunate project and consumes the standalone `Mermaid.Terminal` renderer, a port of mermaid-ascii ([ADR-0039](../../adr/0039-mermaid-terminal-library.md)). `Lunate.Coding` supplies the Roslyn built-in descriptor to the extension host; the host evaluates the manifest rule for each composition, and `Lunate.Roslyn.BuiltIn` adapts the contract to the Roslyn backend. Roslyn and MSBuild assemblies remain unloaded until the first active C# tool call. See [`architecture.md`](architecture.md) and [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md).
 
 **Solution layout**
 
@@ -94,6 +94,7 @@ lunate/
   src/Lunate.Ai/               # IChatClient setup, model catalog, record and replay clients
   src/Lunate.Agent/            # loop on IChatClient, events, ITool, sessions, compaction, extension contract
   src/Lunate.Tui/              # Spectre output, own input line and live area
+  src/Mermaid.Terminal/        # standalone Mermaid renderer package (mermaid-ascii port, ADR-0039)
   src/Lunate.Protocols/        # MCP client and ACP server on the SDKs
   src/Lunate.Roslyn/           # semantic C# backend, behind the extension contract
   src/Lunate.Roslyn.BuiltIn/   # host-supplied roslyn manifest and typed extension factory

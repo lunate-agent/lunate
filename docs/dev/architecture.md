@@ -9,6 +9,7 @@ flowchart TD
     Coding["Lunate.Coding<br/>the lunate executable"] --> Agent["Lunate.Agent<br/>loop, tools, events"]
     Coding --> Protocols["Lunate.Protocols<br/>MCP client, ACP server"]
     Coding --> Tui["Lunate.Tui<br/>terminal UI"]
+    Tui --> Mermaid["Mermaid.Terminal<br/>Mermaid renderer"]
     Coding --> RoslynBuiltIn["Lunate.Roslyn.BuiltIn<br/>manifest + typed factory"]
     Coding --> ExtHost["Lunate.Extensibility<br/>extension host"]
     Coding -. "built-in descriptor" .-> ExtHost
@@ -28,7 +29,7 @@ flowchart TD
     Protocols -. "ACP" .-> Editor(["Editor (ACP client)<br/>separate process"])
 ```
 
-Solid arrows are project references; dashed arrows are runtime composition or connections to separate processes. `Lunate.Coding` is the composition root. It supplies the Roslyn built-in descriptor to the extension host and runs the shared activation filter, which evaluates the manifest rule through the public abstractions API for chat, print, ACP, child runs and MCP. The adapter owns the typed factory and bridges the extension contract to `Lunate.Roslyn`. `Lunate.Coding` references the adapter only to provide the built-in factory list, and neither Roslyn project references upward into the host. The adapter and backend do not load Roslyn/MSBuild assemblies until the first C# tool call. See [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md) and the [extensions spec](../../openspec/specs/extensions/spec.md).
+Solid arrows are project references; dashed arrows are runtime composition or connections to separate processes. `Lunate.Tui` consumes the standalone `Mermaid.Terminal` renderer — a port of mermaid-ascii with no Lunate reference — as its Mermaid adapter ([ADR-0039](../../adr/0039-mermaid-terminal-library.md)). `Lunate.Coding` is the composition root. It supplies the Roslyn built-in descriptor to the extension host and runs the shared activation filter, which evaluates the manifest rule through the public abstractions API for chat, print, ACP, child runs and MCP. The adapter owns the typed factory and bridges the extension contract to `Lunate.Roslyn`. `Lunate.Coding` references the adapter only to provide the built-in factory list, and neither Roslyn project references upward into the host. The adapter and backend do not load Roslyn/MSBuild assemblies until the first C# tool call. See [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md) and the [extensions spec](../../openspec/specs/extensions/spec.md).
 
 ## The model pipeline
 

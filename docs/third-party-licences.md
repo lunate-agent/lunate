@@ -27,6 +27,16 @@ Notes:
 - The transitive closure of these packages may include further Microsoft (MIT) and System (MIT) assemblies; this table records direct references.
 - Spikes under `docs/dev/spikes/` pin their own packages for evaluation only; their licences are recorded in the spike reports.
 
+## Ported renderers
+
+`Mermaid.Terminal` is a source port, not a dependency, of the layout and drawing of
+[`mermaid-ascii`](https://github.com/AlexanderGrooff/mermaid-ascii) by Alexander Grooff. It is MIT
+licensed; the port keeps the upstream copyright notice under the terms of that licence.
+
+| Project | Licence | Used by |
+| --- | --- | --- |
+| mermaid-ascii | MIT | `Mermaid.Terminal` (layout and drawing port) |
+
 ## Related
 
 - [LICENSE](../LICENSE) — Lunate's own MIT licence
