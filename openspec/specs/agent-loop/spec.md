@@ -463,10 +463,14 @@ Both SHALL be off when unset.
 The cost limit SHALL be a positive US-dollar amount. The loop SHALL price every usage record it
 accounts — the run's own model calls, routed calls, decision calls and nested calls — from the
 catalog when the provider does not report an amount, and from the provider-reported amount when it
-does. A usage record that cannot be fully priced SHALL NOT be counted as zero: the record is
-unpriced. With a cost limit configured and unpriced accounting present, the run SHALL refuse to
-start unless the host set `AllowUnpricedCost`; with that option, unpriced records contribute
-nothing and the limit applies to the priced spend only.
+does. The record's model id SHALL be resolved in the scope of the provider the run selected before
+it is priced, so the id a provider echoes on the wire prices as the selected preset instead of
+falling to an unpriced bare-id lookup; an id that names no entry, or whose bare wire id several
+presets serve outside that scope, remains unpriced rather than guessed. A usage record that cannot
+be fully priced SHALL NOT be counted as zero: the record is unpriced. With a cost limit configured
+and unpriced accounting present, the run SHALL refuse to start unless the host set
+`AllowUnpricedCost`; with that option, unpriced records contribute nothing and the limit applies to
+the priced spend only.
 
 The limit SHALL be checked after every accounted usage and before every model request. The run
 SHALL end when the cumulative spend is greater than or equal to the limit; the exact boundary
@@ -481,7 +485,9 @@ reached.
 
 When a session is attached, the limit end SHALL be recorded in that session in a form a resume can
 read back. A resumed run SHALL seed its spend from the session's recorded usages, so the cost limit
-applies to the session's cumulative spend rather than resetting at restart.
+applies to the session's cumulative spend rather than resetting at restart. The seed SHALL use the
+same provider-scoped resolution, so a session whose entries name the provider's wire id keeps its
+spend across the resume.
 
 #### Scenario: The cost limit triggers exactly at the boundary
 
@@ -524,3 +530,9 @@ applies to the session's cumulative spend rather than resetting at restart.
 - **GIVEN** a session recording a priced usage and a resumed harness whose cost limit equals that spent amount
 - **WHEN** the resumed run starts
 - **THEN** it ends with `cost_limit` before any model request, and the event's spend equals the recorded spend
+
+#### Scenario: A wire-id usage counts towards the limit
+
+- **GIVEN** a harness on a catalog model whose wire id differs from its catalog id, a provider that echoes that wire id with its usage, and a cost limit equal to the record's catalog cost
+- **WHEN** the run accounts the usage
+- **THEN** `CostLimitReached` carries that spend, so the limit counts what the JSON stream prices

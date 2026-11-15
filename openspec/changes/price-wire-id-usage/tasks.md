@@ -34,6 +34,6 @@
 ## 4. Docs and close-out
 
 - [x] 4.1 `docs/json-events.md`: state which provider the `costUsd` lookup resolves against.
-- [ ] 4.2 `dotnet csharpier format .`, the fast gate, `openspec validate --all --strict`.
-- [ ] 4.3 Sync the delta specs, archive the change as the last commit, add the `changes/<pr>.md`
+- [x] 4.2 `dotnet csharpier format .`, the fast gate, `openspec validate --all --strict`.
+- [x] 4.3 Sync the delta specs, archive the change as the last commit, add the `changes/<pr>.md`
       changelog line before the archive.
