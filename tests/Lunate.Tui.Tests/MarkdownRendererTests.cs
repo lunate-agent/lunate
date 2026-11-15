@@ -212,11 +212,54 @@ public sealed class MarkdownRendererTests
         Assert.DoesNotContain("mermaid:", output);
     }
 
+    [Fact]
+    public void Ascii_mode_swaps_the_glyphs_without_changing_the_geometry()
+    {
+        // Task 4.4's "identical geometry": the same diagram in both glyph sets, line for line,
+        // column for column — only the characters differ.
+        string markdown = """
+            ```mermaid
+            flowchart LR
+                A[One] --> B[Two]
+                A -.-> C["Three<br/>four"]
+                B --> C
+            ```
+            """;
+
+        string[] unicode = Render(markdown, unicode: true).Split('\n');
+        string[] ascii = Render(markdown, unicode: false).Split('\n');
+
+        Assert.Equal(unicode.Length, ascii.Length);
+        for (var index = 0; index < unicode.Length; index++)
+        {
+            Assert.Equal(unicode[index].Length, ascii[index].Length);
+        }
+
+        string drawing = string.Concat(ascii);
+        Assert.Contains("+", drawing);
+        Assert.Contains("-", drawing);
+        Assert.Contains("|", drawing);
+        Assert.Contains(">", drawing);
+        Assert.DoesNotContain("╭", drawing);
+    }
+
     private static string Render(string markdown)
     {
         var console = new TestConsole();
         console.Profile.Width = 80;
         console.Write(new MarkdownRenderer().Render(markdown));
+        return console.Output;
+    }
+
+    private static string Render(string markdown, bool unicode)
+    {
+        var console = new TestConsole();
+        console.Profile.Width = 80;
+        console.Write(
+            new MarkdownRenderer(
+                new TerminalCapabilities(ColorSystemSupport.NoColors, Unicode: unicode)
+            ).Render(markdown)
+        );
         return console.Output;
     }
 

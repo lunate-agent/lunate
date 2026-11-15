@@ -1,0 +1,4 @@
+mermaid
+flowchart TD
+    A[XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX] --> B[Two]
+mermaid: diagram is 64 columns wide, this terminal has 58 — showing the source
