@@ -41,7 +41,7 @@ not fatal.
 
 - ACP is mutually exclusive with print mode and the TUI; combining them is a usage error (exit 2).
 - The editor owns session creation, so the session selection flags (`--continue`, `--resume`,
-  `--session`, `--no-session`) are usage errors in ACP mode.
+  `--session`, `--session-id`, `--no-session`) are usage errors in ACP mode.
 - Nothing may write to stdout except the protocol. A diagnostic, a notice or a stray `Console.WriteLine`
   would corrupt the connection, so everything else goes to stderr.
 - Print mode, ACP and runs with piped stdin never prompt for a credential: a missing one stays the

@@ -106,6 +106,65 @@ public sealed class InteractiveSessionSessionSelectionTests
     }
 
     [Fact]
+    public async Task Session_id_creates_and_continues_the_named_session()
+    {
+        using var store = new TempDirectory();
+        string sessions = store.File("sessions");
+        using (
+            var host = new InteractiveSessionHost(
+                workingDirectory: store.Root,
+                sessionDirectory: sessions,
+                launch: new LaunchOptions { SessionId = "run-870" }
+            )
+        )
+        {
+            host.Client.Enqueue(Scripts.Text("first answer"), Scripts.Stop());
+            Task run = host.RunAsync();
+            await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+            host.Console.SendText("first question");
+            host.Console.SendEnter();
+            await host.Client.WaitForCallAsync(1);
+            Assert.Contains("first question", RequestTexts(host, 0));
+
+            host.Console.Complete();
+            await run;
+        }
+
+        string path = Path.Combine(sessions, "run-870.jsonl");
+        Assert.True(File.Exists(path), $"expected the caller-chosen session file at '{path}'");
+        Assert.Contains(
+            "\"id\":\"run-870\"",
+            File.ReadLines(path).First(),
+            StringComparison.Ordinal
+        );
+
+        using (
+            var host = new InteractiveSessionHost(
+                workingDirectory: store.Root,
+                sessionDirectory: sessions,
+                launch: new LaunchOptions { SessionId = "run-870" }
+            )
+        )
+        {
+            host.Client.Enqueue(Scripts.Text("second answer"), Scripts.Stop());
+            Task run = host.RunAsync();
+            await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+            host.Console.SendText("second question");
+            host.Console.SendEnter();
+            await host.Client.WaitForCallAsync(1);
+            Assert.Contains("first question", RequestTexts(host, 0));
+            Assert.Contains("second question", RequestTexts(host, 0));
+
+            host.Console.Complete();
+            await run;
+        }
+
+        Assert.Equal(path, Assert.Single(Directory.GetFiles(sessions, "*.jsonl")));
+    }
+
+    [Fact]
     public async Task No_session_writes_no_file_after_a_prompt()
     {
         using var host = new InteractiveSessionHost(launch: new LaunchOptions { NoSession = true });

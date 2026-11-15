@@ -300,18 +300,32 @@ internal static class HarnessFactory
 
     /// <summary>
     /// Creates the session file under the directory with its id as the file name (the store names
-    /// sessions <c>&lt;sessionId&gt;.jsonl</c>): create, rename to the store-assigned id, reload.
+    /// sessions <c>&lt;sessionId&gt;.jsonl</c>): create, rename to the assigned or caller-chosen id,
+    /// reload.
     /// </summary>
-    internal static Session CreateSession(string directory, Workspace workspace) =>
+    internal static Session CreateSession(
+        string directory,
+        Workspace workspace,
+        string? sessionId = null
+    ) =>
         SessionProvisioning.Create(
             directory,
             provisional =>
-                Session.Create(
-                    provisional,
-                    workspace.WorktreeRoot,
-                    workspace.GitCommonDir,
-                    workspace.WorktreeRoot
-                )
+                sessionId is null
+                    ? Session.Create(
+                        provisional,
+                        workspace.WorktreeRoot,
+                        workspace.GitCommonDir,
+                        workspace.WorktreeRoot
+                    )
+                    : Session.Create(
+                        provisional,
+                        workspace.WorktreeRoot,
+                        workspace.GitCommonDir,
+                        workspace.WorktreeRoot,
+                        sessionId,
+                        TimeProvider.System
+                    )
         );
 
     /// <summary>

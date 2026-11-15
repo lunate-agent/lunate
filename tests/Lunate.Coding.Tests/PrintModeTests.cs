@@ -366,6 +366,111 @@ public sealed class PrintModeTests
     }
 
     [Fact]
+    public async Task Session_id_creates_the_named_session_and_emits_it()
+    {
+        using var temp = new TempDirectory();
+        string sessions = temp.File("sessions");
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+            Json = true,
+            Launch = new LaunchOptions { SessionId = "run-870" },
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(errors);
+        string path = Path.Combine(sessions, "run-870.jsonl");
+        Assert.True(File.Exists(path), $"expected the caller-chosen session file at '{path}'");
+        Assert.Contains(
+            "\"id\":\"run-870\"",
+            File.ReadLines(path).First(),
+            StringComparison.Ordinal
+        );
+        List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
+        foreach (string type in (string[])["run_started", "run_finished"])
+        {
+            JsonElement line = Assert.Single(
+                lines,
+                line => PrintModeTestSupport.TypeOf(line) == type
+            );
+            Assert.Equal("run-870", line.GetProperty("sessionId").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task Session_id_continues_an_existing_session()
+    {
+        using var temp = new TempDirectory();
+        string sessions = temp.File("sessions");
+        Session seeded = SeedSessionWithId(
+            sessions,
+            new Workspace(temp.Root).WorktreeRoot,
+            "run-870",
+            "chosen question"
+        );
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+            Launch = new LaunchOptions { SessionId = "run-870" },
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output);
+        Assert.Empty(errors);
+        Assert.Contains(client.Requests[0], message => message.Text == "chosen question");
+        Assert.Equal(seeded.Path, Assert.Single(Directory.GetFiles(sessions, "*.jsonl")));
+        Assert.Equal("run-870", Path.GetFileNameWithoutExtension(seeded.Path));
+    }
+
+    [Fact]
+    public async Task Session_id_ignores_a_same_named_session_in_another_worktree()
+    {
+        using var temp = new TempDirectory();
+        string sessions = temp.File("sessions");
+        string elsewhere = temp.File("elsewhere");
+        Session other = SeedSessionWithId(
+            elsewhere,
+            temp.File("other-worktree"),
+            "run-870",
+            "other worktree question"
+        );
+        DateTime otherWritten = File.GetLastWriteTimeUtc(other.Path);
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+            Launch = new LaunchOptions { SessionId = "run-870" },
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output);
+        Assert.Empty(errors);
+        Assert.DoesNotContain(
+            client.Requests[0],
+            message => message.Text == "other worktree question"
+        );
+        Assert.True(File.Exists(Path.Combine(sessions, "run-870.jsonl")));
+        Assert.Equal(otherWritten, File.GetLastWriteTimeUtc(other.Path));
+    }
+
+    [Fact]
     public async Task Session_flag_with_an_unknown_id_fails_naming_it()
     {
         using var temp = new TempDirectory();
@@ -1103,6 +1208,17 @@ public sealed class PrintModeTests
         string path = Path.Combine(root, SessionPaths.SessionFileName(created.SessionId));
         File.Move(provisional, path);
         File.SetLastWriteTimeUtc(path, modified);
+        return Session.Load(path);
+    }
+
+    private static Session SeedSessionWithId(string root, string cwd, string id, string text)
+    {
+        Directory.CreateDirectory(root);
+        string provisional = Path.Combine(root, Path.GetRandomFileName());
+        Session created = Session.Create(provisional, cwd, null, cwd, id, TimeProvider.System);
+        created.AppendMessage(new ChatMessage(ChatRole.User, text));
+        string path = Path.Combine(root, SessionPaths.SessionFileName(id));
+        File.Move(provisional, path);
         return Session.Load(path);
     }
 }

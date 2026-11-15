@@ -28,6 +28,12 @@ internal sealed partial class InteractiveSession
         }
 
         LaunchOptions launch = _options.Launch;
+        if (launch.SessionId is { } sessionId)
+        {
+            _session = SessionFromId(sessionId);
+            return;
+        }
+
         if (launch.Session is { } value)
         {
             _session = SessionFromValue(value);
@@ -58,6 +64,17 @@ internal sealed partial class InteractiveSession
         }
 
         _session = FreshSession();
+    }
+
+    /// <summary>
+    /// <c>--session-id &lt;id&gt;</c>: the working directory's <c>&lt;id&gt;.jsonl</c> loads when it
+    /// exists; otherwise a fresh session takes the caller's id. A file that cannot load reports the
+    /// id and starts a fresh session with a generated id, never appending to the unreadable file.
+    /// </summary>
+    private Session SessionFromId(string id)
+    {
+        string path = SessionSelection.IdPath(_sessionDirectory, id);
+        return File.Exists(path) ? LoadStartupSession(path, id) : CreateFreshSession(id);
     }
 
     /// <summary>
@@ -137,9 +154,9 @@ internal sealed partial class InteractiveSession
     /// Creates a fresh session and records the launch prompt directives on it, so a later resume
     /// replays the caller's contract without the flags.
     /// </summary>
-    private Session CreateFreshSession()
+    private Session CreateFreshSession(string? sessionId = null)
     {
-        Session created = HarnessFactory.CreateSession(_sessionDirectory, _workspace);
+        Session created = HarnessFactory.CreateSession(_sessionDirectory, _workspace, sessionId);
         WithRedaction(created);
         SystemPrompt.Record(created, _options.Launch);
         return created;

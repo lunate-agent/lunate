@@ -14,6 +14,10 @@ public sealed class CliTests
             { ["--resume", "--session", "s_1"], "--resume", "--session" },
             { ["--session", "s_1", "--no-session"], "--session", "--no-session" },
             { ["--continue", "--no-session"], "--continue", "--no-session" },
+            { ["--session-id", "run-1", "--session", "s_1"], "--session-id", "--session" },
+            { ["--session-id", "run-1", "--continue"], "--session-id", "--continue" },
+            { ["--session-id", "run-1", "--resume"], "--session-id", "--resume" },
+            { ["--session-id", "run-1", "--no-session"], "--session-id", "--no-session" },
             { ["--tools", "bash", "--no-tools"], "--tools", "--no-tools" },
         };
 
@@ -847,6 +851,97 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Launch_options_parse_a_caller_chosen_session_id()
+    {
+        LaunchOptions options = Parse("-p", "--session-id", "run-870", "Hi");
+
+        Assert.Equal("run-870", options.SessionId);
+        Assert.True(options.HasSelection);
+        Assert.Equal("run-870", Parse("-p", "--session-id=run-870", "Hi").SessionId);
+    }
+
+    [Theory]
+    [InlineData("bad/id")]
+    [InlineData("bad\\id")]
+    [InlineData("..")]
+    [InlineData("a..b")]
+    [InlineData(".hidden")]
+    [InlineData("has space")]
+    [InlineData("caf\u00e9")]
+    public void Launch_options_refuse_an_id_outside_the_session_id_grammar(string id)
+    {
+        Assert.False(LaunchOptions.TryParse(["--session-id", id], out _, out string? error));
+        Assert.Contains("--session-id", error, StringComparison.Ordinal);
+        Assert.Contains(id, error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Launch_options_refuse_an_inline_leading_dash_session_id()
+    {
+        Assert.False(
+            LaunchOptions.TryParse(["--session-id=-dash"], out _, out string? error),
+            "a leading dash is outside the session id grammar"
+        );
+        Assert.Contains("--session-id", error, StringComparison.Ordinal);
+        Assert.Contains("-dash", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Launch_options_refuse_an_over_long_session_id()
+    {
+        string id = new('a', 129);
+
+        Assert.False(LaunchOptions.TryParse(["--session-id", id], out _, out string? error));
+        Assert.Contains("--session-id", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Run_with_print_and_an_invalid_session_id_is_a_usage_error()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = Cli.Run(
+            ["-p", "--session-id", "bad/id", "Hi"],
+            output,
+            error,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, exitCode);
+        Assert.Contains("--session-id", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("bad/id", error.ToString(), StringComparison.Ordinal);
+        Assert.Empty(output.ToString());
+    }
+
+    [Fact]
+    public void Run_with_print_and_a_caller_chosen_session_id_creates_it()
+    {
+        using var temp = new TempDirectory();
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        var factory = new FakeChatClientFactory(client);
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(temp, factory);
+        Configure(options);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = Cli.Run(
+            ["-p", "--session-id", "run-870", "Hi"],
+            output,
+            error,
+            TestContext.Current.CancellationToken,
+            options
+        );
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("ok", output.ToString());
+        Assert.Empty(error.ToString());
+        string path = Path.Combine(temp.File("sessions"), "run-870.jsonl");
+        Assert.True(File.Exists(path), $"expected the caller-chosen session file at '{path}'");
+        Assert.Equal("run-870", Path.GetFileNameWithoutExtension(path));
+    }
+
+    [Fact]
     public void Launch_options_parse_a_tool_list()
     {
         Assert.Equal(["bash", "read"], Parse("--tools", "bash, read").Tools);
@@ -1074,8 +1169,28 @@ public sealed class CliTests
         Assert.Empty(output.ToString());
     }
 
+    [Fact]
+    public void Run_with_acp_and_a_caller_chosen_session_id_is_a_usage_error()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = Cli.Run(
+            ["--acp", "--session-id", "run-870"],
+            output,
+            error,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, exitCode);
+        Assert.Contains("--acp", error.ToString(), StringComparison.Ordinal);
+        Assert.Contains("--session-id", error.ToString(), StringComparison.Ordinal);
+        Assert.Empty(output.ToString());
+    }
+
     [Theory]
     [InlineData("--session")]
+    [InlineData("--session-id")]
     [InlineData("--model")]
     [InlineData("--thinking")]
     [InlineData("--tools")]

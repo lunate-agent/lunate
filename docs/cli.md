@@ -78,6 +78,7 @@ These apply to the interactive session and to print mode.
 | `-c`, `--continue` | continue the newest session recorded for this working directory |
 | `-r`, `--resume` | choose a session from the interactive picker; print mode cannot draw it, so use `--session` or `--continue` there |
 | `--session <id\|path>` | load one session by id or file path |
+| `--session-id <id>` | create the session with this id in this working directory, or continue it when it already exists: 1–128 characters from `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, starting with a letter or digit and without `..` |
 | `--no-session` | run without writing a session file |
 | `--model <id>` | use this model for the run (wins over settings) |
 | `--thinking <level>` | `off`, `low`, `medium` or `high` for the run |
@@ -95,10 +96,10 @@ These apply to the interactive session and to print mode.
 | `--system-prompt <text>` | replace the composed system prompt wholesale, including the tool-call conventions: the caller owns them |
 | `--append-system-prompt <text>` | append a section after the composed system prompt |
 
-The session selection flags — `--continue`, `--resume`, `--session` and `--no-session` — are mutually
-exclusive with each other. In ACP the editor owns session creation, so they are usage errors there.
-A launch that cannot start (unknown flags, an unknown `--model`, an unknown tool name, or a print-mode
-session selection that does not resolve) exits 2.
+The session selection flags — `--continue`, `--resume`, `--session`, `--session-id` and `--no-session` —
+are mutually exclusive with each other. In ACP the editor owns session creation, so they are usage
+errors there. A launch that cannot start (unknown flags, an unknown `--model`, an unknown tool name, a
+session id outside the grammar, or a print-mode session selection that does not resolve) exits 2.
 
 A value may also be given as `--flag=value`, which is how a value that begins with `-` is passed. A
 print-mode prompt may be written after `--`, which ends option parsing: everything after the marker

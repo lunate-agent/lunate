@@ -674,10 +674,11 @@ internal static class PrintMode
     }
 
     /// <summary>
-    /// The launch selection: <c>--no-session</c> runs fileless, <c>--session</c> loads by id or
-    /// path, <c>--continue</c> loads the newest session recorded for the workspace, and no flag
-    /// creates a fresh session file as before. A selection that cannot resolve returns the error
-    /// to report instead of starting a harness.
+    /// The launch selection: <c>--no-session</c> runs fileless, <c>--session-id</c> creates or
+    /// continues the caller's id in the working directory's session directory, <c>--session</c>
+    /// loads by id or path, <c>--continue</c> loads the newest session recorded for the workspace,
+    /// and no flag creates a fresh session file as before. A selection that cannot resolve returns
+    /// the error to report instead of starting a harness.
     /// </summary>
     private static (Session? Session, string? Error) ResolveSession(
         PrintModeOptions options,
@@ -690,10 +691,37 @@ internal static class PrintMode
             return (null, null);
         }
 
+        string directory =
+            options.SessionDirectory ?? HarnessFactory.DefaultSessionDirectory(workspace);
+        if (launch.SessionId is { } sessionId)
+        {
+            // The id names a file in this working directory's session directory: present means
+            // continue, absent means create. It is never searched across the store.
+            string path = SessionSelection.IdPath(directory, sessionId);
+            if (File.Exists(path))
+            {
+                return LoadSession(path, sessionId);
+            }
+
+            try
+            {
+                Session created = HarnessFactory.CreateSession(directory, workspace, sessionId);
+                SystemPrompt.Record(created, launch);
+                return (created, null);
+            }
+            catch (Exception exception)
+                when (exception
+                        is IOException
+                            or InvalidDataException
+                            or UnauthorizedAccessException
+                )
+            {
+                return (null, $"could not create session '{sessionId}': {exception.Message}");
+            }
+        }
+
         if (launch.Session is null && !launch.Continue)
         {
-            string directory =
-                options.SessionDirectory ?? HarnessFactory.DefaultSessionDirectory(workspace);
             Session created = HarnessFactory.CreateSession(directory, workspace);
             SystemPrompt.Record(created, launch);
             return (created, null);
@@ -708,14 +736,20 @@ internal static class PrintMode
             return (null, error);
         }
 
+        return LoadSession(choice.Path!, choice.Label);
+    }
+
+    /// <summary>Loads a resolved session file; a failure names the input.</summary>
+    private static (Session? Session, string? Error) LoadSession(string path, string label)
+    {
         try
         {
-            return (Session.Load(choice.Path!), null);
+            return (Session.Load(path), null);
         }
         catch (Exception exception)
             when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            return (null, $"could not load session '{choice.Label}': {exception.Message}");
+            return (null, $"could not load session '{label}': {exception.Message}");
         }
     }
 
