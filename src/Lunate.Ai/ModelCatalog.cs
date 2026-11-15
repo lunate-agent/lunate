@@ -167,6 +167,51 @@ public sealed class ModelCatalog
     /// <summary>The entry with exactly this catalogue id, or null. Never throws.</summary>
     internal ModelInfo? FindById(string id) => _modelsById.GetValueOrDefault(id);
 
+    /// <summary>
+    /// The entry that prices a usage record naming <paramref name="id"/>, given the provider the
+    /// run selected. A provider echoes its own wire id, and a bare wire id that several presets
+    /// serve is not identifiable on its own: <paramref name="provider"/> narrows it to the preset
+    /// the run called (its catalogue id, then its own entry for that wire id) before the
+    /// catalogue-wide rules apply. Null when nothing matches or the id stays ambiguous, because a
+    /// price lookup must never guess — an unknown price is unpriced, never zero.
+    /// </summary>
+    internal ModelInfo? FindUsageModel(string? id, string? provider)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return null;
+        }
+
+        try
+        {
+            if (!string.IsNullOrEmpty(provider))
+            {
+                if ((FindById(id) ?? FindById($"{provider}/{id}")) is { } known)
+                {
+                    return known;
+                }
+
+                ModelInfo[] served =
+                [
+                    .. _models.Where(candidate =>
+                        string.Equals(candidate.Provider, provider, StringComparison.Ordinal)
+                        && string.Equals(candidate.WireId, id, StringComparison.Ordinal)
+                    ),
+                ];
+                if (Single(id, served) is { } scoped)
+                {
+                    return scoped;
+                }
+            }
+
+            return Find(id);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
     private static ModelInfo? Single(string id, ModelInfo[] matches) =>
         matches switch
         {

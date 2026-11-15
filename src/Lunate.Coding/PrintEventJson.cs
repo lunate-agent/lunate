@@ -285,7 +285,12 @@ internal static class PrintEventJson
 
         if (
             catalog is not null
-            && UsageCost.ForRecord(catalog, e.ModelId ?? fallbackModelId, UsageLanes.From(e.Usage))
+            && UsageCost.ForRecord(
+                catalog,
+                e.ModelId ?? fallbackModelId,
+                UsageLanes.From(e.Usage),
+                SelectedProvider(catalog, fallbackModelId)
+            )
                 is decimal cost
         )
         {
@@ -294,6 +299,16 @@ internal static class PrintEventJson
 
         return body;
     }
+
+    /// <summary>
+    /// The provider the run selected, from the fallback model id (always a catalogue id): a
+    /// provider echoes its bare wire id on the usage record, and the selected provider is what
+    /// tells two presets serving the same wire id apart.
+    /// </summary>
+    private static string? SelectedProvider(ModelCatalog catalog, string? fallbackModelId) =>
+        string.IsNullOrEmpty(fallbackModelId)
+            ? null
+            : catalog.FindUsageModel(fallbackModelId, provider: null)?.Provider;
 
     private static JsonObject ToolCallBody(
         string callId,
