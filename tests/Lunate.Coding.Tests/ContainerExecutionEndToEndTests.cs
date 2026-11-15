@@ -42,7 +42,7 @@ public sealed class ContainerExecutionEndToEndTests
             guardEnabled: false,
             containerName: container
         );
-        BashTool tool = Tool(temp.Root, TimeSpan.FromSeconds(90), environment);
+        BashTool tool = Tool(temp.Root, WaitBudgets.ContainerCommand, environment);
 
         ToolResult result = await tool.ExecuteAsync(
             Command(
@@ -62,7 +62,11 @@ public sealed class ContainerExecutionEndToEndTests
         Assert.Equal("shared", ReadBack(temp.Root, "visible.txt").Trim());
 
         // The container's own hostname proves the command ran there, not on the host.
-        (int exitCode, string inspect) = Run(engine, ["inspect", "--format", "{{.Id}}", container]);
+        (int exitCode, string inspect) = Run(
+            engine,
+            ["inspect", "--format", "{{.Id}}", container],
+            WaitBudgets.ContainerEngineCall
+        );
         Assert.Equal(0, exitCode);
         string expected = inspect.Trim()[..12];
         Assert.Equal(expected, ReadBack(temp.Root, "hostname.txt").Trim());
@@ -87,7 +91,7 @@ public sealed class ContainerExecutionEndToEndTests
             guardEnabled: false,
             containerName: container
         );
-        BashTool tool = Tool(temp.Root, TimeSpan.FromSeconds(2), environment);
+        BashTool tool = Tool(temp.Root, WaitBudgets.TreeKillTimeout, environment);
 
         ToolResult timedOut = await tool.ExecuteAsync(
             Command("sleep 60"),
@@ -100,7 +104,7 @@ public sealed class ContainerExecutionEndToEndTests
 
         ToolResult after = await tool.ExecuteAsync(
             Command(
-                "if ps -e -o args 2>/dev/null | grep -q 'sleep 60'; then printf left > left.txt; "
+                "if ps -e -o args= 2>/dev/null | grep -qx 'sleep 60'; then printf left > left.txt; "
                     + "else printf gone > left.txt; fi"
             ),
             Context(temp.Root),
@@ -132,19 +136,27 @@ public sealed class ContainerExecutionEndToEndTests
 
         foreach (string engine in candidates)
         {
-            (int version, _) = Run(engine, ["version"], TimeSpan.FromSeconds(20));
+            (int version, _) = Run(engine, ["version"], WaitBudgets.ContainerEngineCall);
             if (version != 0)
             {
                 continue;
             }
 
-            (int inspect, _) = Run(engine, ["image", "inspect", image], TimeSpan.FromSeconds(20));
+            (int inspect, _) = Run(
+                engine,
+                ["image", "inspect", image],
+                WaitBudgets.ContainerEngineCall
+            );
             if (inspect == 0)
             {
                 return (engine, image);
             }
 
-            (int pull, string output) = Run(engine, ["pull", image], TimeSpan.FromMinutes(3));
+            (int pull, string output) = Run(
+                engine,
+                ["pull", image],
+                WaitBudgets.ContainerImagePull
+            );
             if (pull != 0)
             {
                 Assert.Skip(
@@ -196,7 +208,7 @@ public sealed class ContainerExecutionEndToEndTests
     private static (int ExitCode, string Output) Run(
         string fileName,
         IReadOnlyList<string> arguments,
-        TimeSpan? timeout = null
+        TimeSpan timeout
     )
     {
         var start = new ProcessStartInfo(fileName)
@@ -221,15 +233,19 @@ public sealed class ContainerExecutionEndToEndTests
 
         using (process)
         {
-            string stdout = process.StandardOutput.ReadToEnd();
-            string stderr = process.StandardError.ReadToEnd();
-            if (!process.WaitForExit(timeout ?? TimeSpan.FromSeconds(30)))
+            // Read first, wait second: a blocking read would outlast the ceiling it was given.
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderr = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(timeout))
             {
                 process.Kill(entireProcessTree: true);
                 return (-1, "timed out");
             }
 
-            return (process.ExitCode, stdout + stderr);
+            return (
+                process.ExitCode,
+                stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult()
+            );
         }
     }
 }
