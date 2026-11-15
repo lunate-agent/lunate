@@ -35,20 +35,11 @@ That does not make it a sandbox: the guard does not stop a reachable Docker sock
 pre-existing hardlink into the state root, or anything inside the workspace. `bashGuard: false`
 turns it off, and the header and tool results name that state.
 
-**The container boundary.** Starting Lunate with `--env podman:<image>` or `--env docker:<image>`
-(or the user-scoped `environment` setting) runs `bash` and every process-spawning tool through the
-engine's `exec` in one long-lived container. Only the workspace is mounted, at the same absolute
-path as on the host; the state root (`LUNATE_HOME`), the install prefix and `auth.json` are never
-mounted. `read`, `write` and `edit`, write verification, approvals and the file-change bus stay on
-the host and work on the mounted workspace; a file written by a container command is published by
-the host's post-call scan. The OS-level guard still wraps the host `exec` client and refuses a
-state-root write before the container is touched. It does not follow the command inside the
-container: the mount boundary is what limits that command's reach, and whether that is the accepted
-policy for inner commands is the open sign-off question on
-[#627](https://github.com/lunate-agent/lunate/issues/627). The container is not a jail: the engine
-socket, a pre-existing hardlink and the workspace itself remain reachable.
-[Run tool calls in a container](execution-environments.md) has the flags, the flow and the
-measured limits.
+**The container boundary (planned).** In 0.4.0, `bash` and every process-spawning tool run on the
+host, behind the approval panel and the bash guard; there is no container boundary yet. It arrives
+with [#627](https://github.com/lunate-agent/lunate/issues/627): commands run in one long-lived
+container with only the workspace mounted, while the direct file tools and approvals stay on the host.
+[Run tool calls in a container](execution-environments.md) describes the planned flags and flow.
 
 **Repository-provided code.** A project extension, a project `mcp.json` file, each server it defines
 and a project skill are code from the repository, so each asks once per repository before it runs
@@ -68,9 +59,9 @@ made; project extensions always ask.
 
 ### How the layers compose
 
-The approval panel, the workspace boundary, the bash guard, verified edits, the file-change bus and
-the container boundary answer different questions and compose; the container replaces neither the
-approval panel nor the guard.
+The approval panel, the workspace boundary, the bash guard, verified edits and the file-change bus
+answer different questions and compose. The container boundary is planned (#627), not in 0.4.0; when
+it arrives it will replace neither the approval panel nor the guard.
 
 | Layer | Question it answers | What it does | What it does not do |
 | --- | --- | --- | --- |
@@ -79,13 +70,14 @@ approval panel nor the guard.
 | BashGuard | Can the command write Lunate's host state or read the key? | OS-level deny on the state root and install prefix and an `auth.json` read-deny; wraps the host process and names itself on refusal. | Does not follow an inner container command; Windows has no mechanism yet. |
 | Verified edits | Was a host-side write correct? | Runs the verifier pipeline on `write` and `edit`, with `verify` as `block`, `warn` or `off`. | Does not verify arbitrary files a `bash` command writes. |
 | File-change bus | What did this call change? | Publishes `write`/`edit` changes and the host post-call scan of `bash` changes, including a container Bash write through the mount. | Does not see files that exist only inside the image. |
-| Container boundary | What can the command reach? | Mounts only the workspace (plus the image and runtime), so the state root, install prefix and credentials are absent. | Does not replace the approval panel or the guard, and is not a jail. |
+| Container boundary — planned (#627), not in 0.4.0 | What can the command reach? | Mounts only the workspace (plus the image and runtime), so the state root, install prefix and credentials are absent. | Does not replace the approval panel or the guard, and is not a jail. |
 
-The layers compose: the approval panel supplies intent, the guard protects host state, verified
-edits and the bus keep host-side facts, and the container limits reach. When a container environment
-is active, the bash guard refuses a state-root write on the host before the engine starts; it does
-not constrain the inner `exec` command. That is the honest boundary this page records, not a claim
-that the container is guarded by BashGuard.
+In 0.4.0 the layers that compose are the approval panel, the bash guard, verified edits and the
+file-change bus: the approval panel supplies intent, the guard protects host state, and verified
+edits and the bus keep host-side facts. The container boundary (planned, #627) will add a limit on
+reach; once it ships, the bash guard refuses a state-root write on the host before the engine
+starts and does not constrain the inner `exec` command — not a claim that the container is guarded
+by BashGuard.
 
 ## Secrets
 
@@ -114,8 +106,8 @@ the configured `env` values) are removed from that child's environment unless th
 ## Related
 
 - [Security policy](../SECURITY.md) — how to report a vulnerability
-- [Run tool calls in a container](execution-environments.md) — the container flags, the flow and the
-  measured limits
+- [Run tool calls in a container](execution-environments.md) — planned (#627), not in 0.4.0: the
+  container flags, the flow and the measured limits
 - [Use the terminal](usage.md) — approvals, trust prompts and the modes
 - [Settings reference](settings.md) — `approval`, `bashGuard` and every settings key
 - [Lifecycle and trust](extensions/lifecycle-and-trust.md) — the trust decision for repository code
