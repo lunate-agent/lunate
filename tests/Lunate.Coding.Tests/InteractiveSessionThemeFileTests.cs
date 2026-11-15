@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Lunate.Extensibility;
 using Lunate.Extensibility.Abstractions;
@@ -174,46 +175,87 @@ public sealed class InteractiveSessionThemeFileTests
     }
 
     /// <summary>
-    /// The warning names the theme file's path, and the live area caps a notice at four lines
-    /// (<c>LiveAreaRenderer.MaxNoticeLines</c>): with macOS's long <c>/var/folders/…/T</c> temp root
-    /// the path alone spends them at 80 columns, so the frame ends in an ellipsis and the phrase
-    /// after the path never reaches the terminal (#888). The narrow case spends them with the
-    /// harness's own short temp root, so the guard against reading the capped frame runs on the
-    /// Linux legs too.
+    /// The warning names the token first and the theme file's path last. The live area caps a
+    /// notice at four lines (<c>LiveAreaRenderer.MaxNoticeLines</c>), so a long path can only lose
+    /// its own tail; before, the path came first and macOS's long <c>/var/folders/…/T</c> temp root
+    /// pushed the token out of the capped frame (#888). The file sits under a short and under a
+    /// deliberately long directory, and the test asserts on the token, a single word no wrapping
+    /// splits, whatever the platform's temp root.
     /// </summary>
     [Theory]
-    [InlineData(80)]
-    [InlineData(40)]
-    public async Task An_unknown_token_warns_and_the_built_in_theme_stands(int columns)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_unknown_token_warns_and_the_built_in_theme_stands(bool longPath)
     {
-        using var host = new InteractiveSessionHost(
-            interactiveConsole: true,
-            environment: TrueColorEnvironment
+        const int Columns = 80;
+        string directory = Path.Combine([
+            Path.GetTempPath(),
+            .. Enumerable.Repeat(longPath ? LongSegment : "t", longPath ? 4 : 1),
+        ]);
+        string themeFile = Path.Combine(
+            directory,
+            string.Create(CultureInfo.InvariantCulture, $"theme-{Guid.NewGuid():N}.json")
         );
-        host.Console.Size = new Lunate.Tui.ConsoleSize(columns, 24);
-        string themeFile = WriteHomeTheme(host, """{"highlight":"red"}""");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(themeFile, """{"highlight":"red"}""");
+        try
+        {
+            using var host = new InteractiveSessionHost(
+                interactiveConsole: true,
+                environment: TrueColorEnvironment,
+                launch: new LaunchOptions { Theme = themeFile }
+            );
+            host.Console.Size = new Lunate.Tui.ConsoleSize(Columns, 24);
 
-        Task run = host.RunAsync();
+            Task run = host.RunAsync();
 
-        // The notice slot holds the warning the session posted, and a paint of that notice says a
-        // frame showed it; neither reads the capped frame text, so no terminal width or path
-        // length can hide the phrase this test is about.
-        string warning =
-            $"theme: {themeFile} names the unknown token 'highlight'; the valid tokens are {Lunate.Tui.ThemeTokens.List}";
-        await host.WaitForNoticeAsync(warning);
+            string warning = await PostedNoticeAsync(host, "theme: unknown token 'highlight'; ");
+            Assert.EndsWith("; the file is " + themeFile, warning, StringComparison.Ordinal);
+            if (longPath)
+            {
+                // the long case is the one the cap cuts: more text than four lines can hold
+                Assert.True(warning.Length > Lunate.Tui.LiveAreaRenderer.MaxNoticeLines * Columns);
+            }
+
+            await host.WaitUntilAsync(() =>
+            {
+                host.Advance(33);
+                return host.Frames.Contains("'highlight';", StringComparison.Ordinal);
+            });
+
+            // The default prompt tone is still what paints: the file did not half-apply.
+            await host.WaitUntilAsync(Painted(host, "\u001b[38;2;135;175;215m"));
+
+            await QuitAsync(host, run);
+        }
+        finally
+        {
+            Directory.Delete(
+                longPath ? Path.Combine(Path.GetTempPath(), LongSegment) : directory,
+                true
+            );
+        }
+    }
+
+    /// <summary>The first notice the session posted that starts with <paramref name="prefix"/>.</summary>
+    private static async Task<string> PostedNoticeAsync(InteractiveSessionHost host, string prefix)
+    {
+        string? found = null;
         await host.WaitUntilAsync(() =>
         {
             host.Advance(33);
-            return host
-                .Notices.Changes(Lunate.Tui.NoticeSlotChange.Painted)
-                .Any(entry => string.Equals(entry.Text, warning, StringComparison.Ordinal));
+            found = host
+                .Notices.Entries.Where(entry => entry.Change == Lunate.Tui.NoticeSlotChange.Posted)
+                .Select(entry => entry.Text)
+                .FirstOrDefault(text => text.StartsWith(prefix, StringComparison.Ordinal));
+            return found is not null;
         });
-
-        // The default prompt tone is still what paints: the file did not half-apply.
-        await host.WaitUntilAsync(Painted(host, "\u001b[38;2;135;175;215m"));
-
-        await QuitAsync(host, run);
+        return found!;
     }
+
+    /// <summary>A 60-character directory name; four of them make a path no notice can hold.</summary>
+    private const string LongSegment =
+        "a-deliberately-long-directory-name-for-the-theme-notice-0888";
 
     /// <summary>Advances the scheduler until the live frame carries <paramref name="sgr"/>.</summary>
     private static Func<bool> Painted(InteractiveSessionHost host, string sgr) =>

@@ -59,7 +59,8 @@ A colour is one of three forms:
 
 [The example file](examples/theme.json) sets all ten tokens and uses all three forms.
 
-An unknown token fails the load with the ten valid names listed, and a colour that cannot be read
+An unknown token fails the load with the ten valid names listed, naming the token first and the file
+last so a long path can only lose its own tail in the four-line notice, and a colour that cannot be read
 names the token and the accepted forms. A file that fails anywhere is discarded whole — the selected
 built-in keeps every token and the session starts with one line saying why — so a half-applied theme
 is never in effect.
