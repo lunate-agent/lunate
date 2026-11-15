@@ -108,6 +108,9 @@ internal static class LayeringChecker
             // library's own test project is the only edge it has.
             ("Lunate.Tui", "Mermaid.Terminal"),
             ("Mermaid.Terminal.Tests", "Mermaid.Terminal"),
+            // The VHS tape renderer is a docs tool: it renders the documented examples through the
+            // same Lunate-free library, never through the TUI or a Lunate layer.
+            ("MermaidTape", "Mermaid.Terminal"),
             ("Lunate.Tui.Tests", "Lunate.Tui"),
             ("Lunate.Extensibility.Tests", "Lunate.Agent"),
             ("Lunate.Extensibility.Tests", "Lunate.Coding"),
