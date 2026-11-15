@@ -10,7 +10,9 @@ documents, so the decision is pure and its self-test needs no network. It mirror
   failure; only a conclusion that means the job ran and did not pass is.
 - `--milestones-json FILE` prints the lowest open milestone whose title is a version
   (`MAJOR.MINOR.PATCH`), compared numerically. `backlog` and any other title never match, and a release
-  that closes its milestone removes it from the open list, so no constant names a version here.
+  that closes its milestone removes it from the open list, so no constant names a version here. The list
+  endpoint answers both a bare list and `gh api --paginate --slurp`'s list of pages, where each page of a
+  list endpoint is itself a list.
 - `--log-file FILE --source-root DIR` prints one area label from the failing tests the job logged, or
   nothing when the project does not decide it.
 
@@ -19,7 +21,8 @@ The area label is derived from the failing test's project, not from the red job:
 source names the `Lunate.Tui` namespace and `area/core` otherwise. That second step is what keeps
 `InteractiveSessionThemeFileTests` and the repaint tests — TUI material inside the coding test project —
 out of `area/core`. A red job that names no failing test (a build, format, perf or PowerShell leg), a
-test in a project outside those two, or failing tests that disagree prints nothing rather than a guess.
+test in a project outside those two, or any failing test the project cannot classify prints nothing
+rather than a guess, even when the other failing tests agree.
 """
 
 from __future__ import annotations
@@ -46,7 +49,10 @@ def _records(data, key):
     if isinstance(data, list):
         records = []
         for page in data:
-            if isinstance(page, dict) and isinstance(page.get(key), list):
+            if isinstance(page, list):
+                # A slurped list endpoint pages an array per page: milestones arrives as `[[...], [...]]`.
+                records.extend(page)
+            elif isinstance(page, dict) and isinstance(page.get(key), list):
                 records.extend(page[key])
             elif isinstance(page, dict):
                 records.append(page)
@@ -156,13 +162,14 @@ def _area_of(fqn, source_root, projects):
 
 
 def area_label(log_path, source_root):
-    """The one area label the job's failing tests agree on, or nothing."""
+    """The one area label the job's failing tests agree on, or nothing when any test is unclassifiable."""
     projects = _test_projects(source_root)
     labels = set()
     for fqn in failing_tests(log_path):
         label = _area_of(fqn, source_root, projects)
-        if label:
-            labels.add(label)
+        if not label:
+            return
+        labels.add(label)
     if len(labels) == 1:
         print(labels.pop())
 

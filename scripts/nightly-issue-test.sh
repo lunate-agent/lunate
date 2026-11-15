@@ -3,11 +3,12 @@
 #
 # `gh` is stubbed on PATH, so the production script runs unchanged and the assertions read what it
 # called: a red nightly job and a red push job each file a card naming the leg and the run, the card
-# takes the lowest open version milestone (numerically, never `backlog`) and is filed without one when
-# none is open, the area label follows the failing test's project (`area/tui` for the theme-file failure
-# that lived in the coding test project, `area/core` for a coding test with no TUI in its source, none
-# for a job that does not decide it), an open card is commented on instead of duplicated, and a green
-# run calls nothing at all.
+# takes the lowest open version milestone in both the bare and the `--paginate --slurp` response shape
+# (numerically, never `backlog`) and is filed without one when none is open, the area label follows the
+# failing test's project (`area/tui` for the theme-file failure that lived in the coding test project,
+# `area/core` for a coding test with no TUI in its source, none for a job that does not decide it, and
+# none when any failing test is outside the classified projects), an open card is commented on instead
+# of duplicated, and a green run calls nothing at all.
 
 set -euo pipefail
 
@@ -90,6 +91,11 @@ JSON
 cat >"$tmp/milestones-numeric.json" <<'JSON'
 [{"title":"0.10.0"},{"title":"0.9.0"}]
 JSON
+# `gh api --paginate --slurp` answers the milestones list endpoint with one array per page, so the
+# production document is a list of lists. `0.9.0` is below `0.10.0` and `1.0.0`; `backlog` never matches.
+cat >"$tmp/milestones-slurp.json" <<'JSON'
+[[{"title":"1.0.0"},{"title":"0.10.0"}],[{"title":"backlog"},{"title":"0.9.0"}]]
+JSON
 cat >"$tmp/milestones-backlog.json" <<'JSON'
 [{"title":"backlog"}]
 JSON
@@ -116,6 +122,10 @@ LOG
 cat >"$tmp/logs/31.log" <<'LOG'
   failed Lunate.Coding.Tests.CanonicalJsonTests.A_canonical_form_is_stable (3ms)
   failed Lunate.Coding.Tests.InteractiveSessionThemeFileTests.An_unknown_token_warns_and_the_built_in_theme_stands (12s)
+LOG
+cat >"$tmp/logs/32.log" <<'LOG'
+  failed Lunate.Coding.Tests.CanonicalJsonTests.A_canonical_form_is_stable (3ms)
+  failed Lunate.Agent.Tests.FakeFailure.Case (1ms)
 LOG
 
 CASE_EVENT="schedule"
@@ -224,6 +234,12 @@ _run "a test outside Coding and Tui names no area" 0 \
 _expect_no_gh "another project's test names no area" "--label area/"
 
 _defaults
+_run "an unclassifiable test beside a coding test names no area" 0 \
+    '{"jobs":[{"id":32,"name":"verify (ubuntu-latest, 3/4)","conclusion":"failure"}]}'
+_expect_gh "the mixed job still files a card" "CI failed: verify (ubuntu-latest, 3/4)"
+_expect_no_gh "any unclassifiable test makes the job abstain" "--label area/"
+
+_defaults
 _run "a job with no failing test names no area" 0 \
     '{"jobs":[{"id":29,"name":"verify-powershell (windows-latest)","conclusion":"failure"}]}'
 _expect_gh "the failing PowerShell job still files a card" "CI failed: verify-powershell (windows-latest)"
@@ -239,6 +255,12 @@ CASE_MILESTONES="$tmp/milestones-numeric.json"
 _run "milestones are compared numerically" 0 \
     '{"jobs":[{"id":11,"name":"verify (windows-latest, 1/4)","conclusion":"failure"}]}'
 _expect_gh "0.9.0 is below 0.10.0" "--milestone 0.9.0"
+
+_defaults
+CASE_MILESTONES="$tmp/milestones-slurp.json"
+_run "a slurped milestone response takes the numeric lowest version" 0 \
+    '{"jobs":[{"id":11,"name":"verify (windows-latest, 1/4)","conclusion":"failure"}]}'
+_expect_gh "the slurped page list selects 0.9.0" "--milestone 0.9.0"
 
 _defaults
 CASE_MILESTONES="$tmp/milestones-backlog.json"
