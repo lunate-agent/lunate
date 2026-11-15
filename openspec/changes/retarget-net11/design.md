@@ -104,6 +104,33 @@ Keep the 150 ms local startup default and the 150 MB memory gate when the measur
 headroom; the CI matrix values are re-calibrated from the post-merge/nightly runners, which are the
 only source of their evidence (ADR-0005, ADR-0009).
 
+## Measurements
+
+Taken on the implementation machine (macOS 26.3, osx-arm64, self-contained single-file Release
+publish with ReadyToRun, load average about 5). The .NET 10 baseline is the same publish built from
+`493c401f` (the branch base) in a scratch directory.
+
+| Measurement | .NET 10 baseline | .NET 11 (#902) |
+| --- | --- | --- |
+| Published binary | 377 MiB | 439 MiB |
+| `scripts/perf.sh` startup floor | 122 ms | 131–148 ms (three runs) |
+| `scripts/perf.sh` startup median | 158 ms | 186–202 ms (three runs) |
+| `--version` peak RSS (`/usr/bin/time -l`) | 434 MiB | 537 MiB |
+| Idle `lunate mcp roslyn` peak RSS (10 s, libproc sampler) | 276 MiB | 330 MiB |
+
+The startup floor is the gate's statistic (ADR-0005 addendum); on net11 it is at or below the 150 ms
+local default in all three runs, so the local budget is unchanged. The medians on this machine are
+above 150 ms for the **net10 baseline as well**, so the shared-machine load, not the retarget, is the
+dominant term; a quiet re-calibration and the per-runner CI numbers belong to the post-merge/nightly
+run (ADR-0005).
+
+The idle-TUI memory subject could not be measured in this session: the sandbox denies `openpty`
+(`script: openpty: Operation not permitted`) and `ps` (`/bin/ps: Operation not permitted`), so
+`scripts/memory.sh ci` cannot sample the subject the 150 MB gate is calibrated on. The two RSS rows
+above are supplementary measurements of the published binary; they are not the gate's subject
+(`mcp roslyn` loads Roslyn, the TUI's idle budget does not). `MEMORY_SUBJECT` must be run on a
+normal machine or a runner after merge.
+
 ## Diagram
 
 Deployment view of what this change ships:

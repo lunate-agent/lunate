@@ -17,10 +17,11 @@ public static class TestMcpServer
         ?? "Debug";
 
     /// <summary>The target framework the test host runs, so a build-output path follows the SDK.</summary>
-    public static string TargetFramework { get; } = string.Create(
-        CultureInfo.InvariantCulture,
-        $"net{Environment.Version.Major}.{Environment.Version.Minor}"
-    );
+    public static string TargetFramework { get; } =
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"net{Environment.Version.Major}.{Environment.Version.Minor}"
+        );
 
     /// <summary>The shared TestMcpServer DLL for the current configuration.</summary>
     public static string ServerDll { get; } =

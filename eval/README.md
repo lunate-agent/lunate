@@ -40,7 +40,7 @@ Head-to-head setup: `claude` needs the **C# LSP plugin** (`claude plugin install
 | `--tool <name>` | Which tool to run: `lunate` (default), `claude`, `opencode`, `pi` or `tau`. |
 | `--filter <task>` | Run one task by directory name. |
 | `--phase <n>` | The `phase` column value (default `3`). |
-| `--lunate-bin <path>` | The build to run; a `.dll` is invoked via `dotnet` (default `src/Lunate.Coding/bin/Release/net10.0/lunate.dll`). |
+| `--lunate-bin <path>` | The build to run; a `.dll` is invoked via `dotnet` (default `src/Lunate.Coding/bin/Release/net11.0/lunate.dll`). |
 | `--keep` | Keep every task working copy, also on pass. |
 
 Per task the runner makes a fresh `mktemp -d`, copies `repo/`, runs the selected tool there with stdout in `events.jsonl` and stderr in `run.log`, then runs `check.sh` in the same copy. Working copies are kept on failure (the path is printed) and removed on pass. `LUNATE_EVAL_RESULTS=<path>` overrides the results file (used by the offline stub proof).

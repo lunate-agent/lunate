@@ -2,12 +2,13 @@
 
 Four C# 15 features pay for themselves in first-party code: union types, closed hierarchies,
 collection-expression arguments and labeled `break`/`continue`. The first two need `net11.0` to
-compile and run; the last two need only the SDK 11 compiler. Our recommendation is therefore to move
-the self-contained tool and app to `net11.0`, and to multi-target the extension-facing packages
+compile and run; the last two need only the SDK 11 compiler. The target is therefore the
+self-contained tool and app on `net11.0`, with the extension-facing packages multi-targeting
 `net10.0;net11.0` so an extension built against the previous LTS keeps working.
 
-This is the inventory for step (a) of #192. It records what we want and what it costs; the
-target-framework change itself is step (b), and the refactor slices are step (c).
+This is the inventory for step (a) of #192: it records what we want and what it costs. Step (b), the
+target-framework change, is applied by #902 ([ADR-0040](../../adr/0040-net11-target-frameworks.md));
+the refactor slices are step (c).
 
 ## How this was checked
 
