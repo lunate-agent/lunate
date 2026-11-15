@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""The reporting decision for a red CI run on `main`: the red jobs, the milestone and the area label.
+
+`scripts/nightly-issue.sh` reads the run's jobs (and the open milestones, and one log per red job)
+through the GitHub API and owns the `gh` calls; this file owns what the reporter decides from those
+documents, so the decision is pure and its self-test needs no network. It mirrors
+`scripts/ci-ok-state`.
+
+- `--jobs-json FILE` prints `id<TAB>name` for every red job. A job that did not run (skipped) is not a
+  failure; only a conclusion that means the job ran and did not pass is.
+- `--milestones-json FILE` prints the lowest open milestone whose title is a version
+  (`MAJOR.MINOR.PATCH`), compared numerically. `backlog` and any other title never match, and a release
+  that closes its milestone removes it from the open list, so no constant names a version here.
+- `--log-file FILE --source-root DIR` prints one area label from the failing tests the job logged, or
+  nothing when the project does not decide it.
+
+The area label is derived from the failing test's project, not from the red job: a test in
+`Lunate.Tui.Tests` is `area/tui`, and a test in `Lunate.Coding.Tests` is `area/tui` when the test's own
+source names the `Lunate.Tui` namespace and `area/core` otherwise. That second step is what keeps
+`InteractiveSessionThemeFileTests` and the repaint tests — TUI material inside the coding test project —
+out of `area/core`. A red job that names no failing test (a build, format, perf or PowerShell leg), a
+test in a project outside those two, or failing tests that disagree prints nothing rather than a guess.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+RED = {"failure", "timed_out", "cancelled", "action_required", "startup_failure"}
+VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+# The gate's test runner already reads these lines in `scripts/verify-test-runner.ps1`.
+FAILED_TEST = re.compile(r"^\s*(?:failed|\[FAIL\]|xunit\.v3[^ ]* failed)\s+(\S+)")
+# The two test projects whose failures decide an area, and the default before the TUI check.
+TUI_PROJECT = "Lunate.Tui.Tests"
+CODING = "Lunate.Coding.Tests"
+
+
+def _records(data, key):
+    """The records of a GitHub list endpoint: an object with `key`, a `--paginate --slurp` page list, or a bare list."""
+    if isinstance(data, dict):
+        return list(data.get(key) or [])
+    if isinstance(data, list):
+        records = []
+        for page in data:
+            if isinstance(page, dict) and isinstance(page.get(key), list):
+                records.extend(page[key])
+            elif isinstance(page, dict):
+                records.append(page)
+        return records
+    return []
+
+
+def _load(path):
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def red_jobs(path):
+    """One `id<TAB>name` line per red job, in the order the run lists them, without duplicates."""
+    seen = set()
+    for job in _records(_load(path), "jobs"):
+        name = str(job.get("name") or "").strip()
+        if not name or name in seen:
+            continue
+        if str(job.get("conclusion") or "") not in RED:
+            continue
+        seen.add(name)
+        print(f"{job.get('id') or ''}\t{name}")
+
+
+def lowest_version_milestone(path):
+    """The lowest open `MAJOR.MINOR.PATCH` milestone title, or nothing."""
+    versions = []
+    for milestone in _records(_load(path), "milestones"):
+        title = str(milestone.get("title") or "").strip()
+        match = VERSION.match(title)
+        if match:
+            versions.append((tuple(int(part) for part in match.groups()), title))
+    if versions:
+        print(min(versions)[1])
+
+
+def failing_tests(path):
+    """The fully-qualified names of the tests the job logged as failed, in log order."""
+    tests = []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                match = FAILED_TEST.match(line)
+                if not match:
+                    continue
+                # A theory's name carries its arguments: `Method(1, "x")`.
+                name = match.group(1).split("(", 1)[0]
+                if name and name not in tests:
+                    tests.append(name)
+    except OSError:
+        return []
+    return tests
+
+
+def _test_projects(source_root):
+    tests = source_root / "tests"
+    if not tests.is_dir():
+        return []
+    # Longest name first, so `Lunate.Coding.Tests` wins over a shorter prefix.
+    return sorted(
+        (entry.name for entry in tests.iterdir() if entry.is_dir()),
+        key=len,
+        reverse=True,
+    )
+
+
+def _project_of(fqn, projects):
+    for project in projects:
+        if fqn == project or fqn.startswith(project + "."):
+            return project
+    return ""
+
+
+def _class_of(fqn, project):
+    rest = fqn[len(project) :].lstrip(".")
+    parts = [part for part in rest.split(".") if part]
+    # `Namespace.Class.Method` is the shape: the class is the segment before the method.
+    return parts[-2] if len(parts) >= 2 else ""
+
+
+def _class_source(project_dir, class_name):
+    pattern = re.compile(r"\bclass\s+" + re.escape(class_name) + r"\b")
+    for path in sorted(project_dir.rglob("*.cs")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if pattern.search(text):
+            return text
+    return None
+
+
+def _area_of(fqn, source_root, projects):
+    project = _project_of(fqn, projects)
+    if project == TUI_PROJECT:
+        return "area/tui"
+    if project != CODING:
+        return ""
+    class_name = _class_of(fqn, project)
+    if not class_name:
+        return ""
+    source = _class_source(source_root / "tests" / project, class_name)
+    if source is None:
+        return ""
+    return "area/tui" if re.search(r"\bLunate\.Tui\b", source) else "area/core"
+
+
+def area_label(log_path, source_root):
+    """The one area label the job's failing tests agree on, or nothing."""
+    projects = _test_projects(source_root)
+    labels = set()
+    for fqn in failing_tests(log_path):
+        label = _area_of(fqn, source_root, projects)
+        if label:
+            labels.add(label)
+    if len(labels) == 1:
+        print(labels.pop())
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--jobs-json")
+    parser.add_argument("--milestones-json")
+    parser.add_argument("--log-file")
+    parser.add_argument("--source-root")
+    args = parser.parse_args(argv)
+
+    if args.jobs_json:
+        red_jobs(args.jobs_json)
+        return 0
+    if args.milestones_json:
+        lowest_version_milestone(args.milestones_json)
+        return 0
+    if args.log_file:
+        if not args.source_root:
+            parser.error("--log-file needs --source-root")
+        area_label(args.log_file, Path(args.source_root))
+        return 0
+    parser.error("one of --jobs-json, --milestones-json or --log-file is required")
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
