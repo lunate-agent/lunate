@@ -370,6 +370,7 @@ public sealed class EnvironmentScrubberTests
             ["GITHUB_TOKEN"] = "ghp_ambient",
             ["NPM_TOKEN"] = "npm_ambient",
             ["AWS_SECRET_ACCESS_KEY"] = "aws-ambient",
+            ["OPENAI_API_KEY"] = "sk-ambient",
             // A name that only looks like a member of the family is not one: the exemption is
             // the three documented spellings, not a prefix or a pattern.
             ["GIT_CONFIG_KEY_EXTRA"] = "not-an-index",
@@ -395,6 +396,7 @@ public sealed class EnvironmentScrubberTests
         Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
         Assert.DoesNotContain("NPM_TOKEN", environment.Keys);
         Assert.DoesNotContain("AWS_SECRET_ACCESS_KEY", environment.Keys);
+        Assert.DoesNotContain("OPENAI_API_KEY", environment.Keys);
         Assert.DoesNotContain("GIT_CONFIG_KEY_EXTRA", environment.Keys);
         Assert.DoesNotContain("GIT_KEY_0", environment.Keys);
     }

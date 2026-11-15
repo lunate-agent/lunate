@@ -4,9 +4,9 @@
 
 - [x] 1.1 Add a failing `EnvironmentScrubberTests` case: an `Inherited` build over a parent holding
       `GIT_CONFIG_COUNT=3`, `GIT_CONFIG_KEY_0..2` and `GIT_CONFIG_VALUE_0..2` (with
-      `GIT_CONFIG_VALUE_0` empty) plus `GITHUB_TOKEN`, `NPM_TOKEN` and `AWS_SECRET_ACCESS_KEY` keeps
-      all seven `GIT_CONFIG_*` names and withholds the three credentials. Run it against the current
-      tree and confirm it fails on the withheld `GIT_CONFIG_KEY_<n>`.
+      `GIT_CONFIG_VALUE_0` empty) plus `GITHUB_TOKEN`, `NPM_TOKEN`, `AWS_SECRET_ACCESS_KEY` and
+      `OPENAI_API_KEY` keeps all seven `GIT_CONFIG_*` names and withholds the four credentials. Run
+      it against the current tree and confirm it fails on the withheld `GIT_CONFIG_KEY_<n>`.
 - [x] 1.2 Add a failing `EnvironmentScrubberTests` case for a declared `GIT_CONFIG_KEY_0` value: it
       reaches the child, while a declared `GITHUB_TOKEN` still does not.
 - [x] 1.3 Add a failing `ChildProcessToolEnvironmentTests` case: a real POSIX `bash` child under the
