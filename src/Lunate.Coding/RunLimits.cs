@@ -4,11 +4,20 @@ using Lunate.Ai;
 namespace Lunate.Coding;
 
 /// <summary>
-/// Parsing and display for the cost and wall-clock run limits. Both are off when unset; a set
-/// value must be positive. Durations accept integer seconds or a <c>s</c>/<c>m</c>/<c>h</c> suffix.
+/// Parsing and display for the step, cost and wall-clock run limits. The step limit has a positive
+/// default; the cost and wall-clock limits are off when unset and a set value must be positive.
+/// Durations accept integer seconds or a <c>s</c>/<c>m</c>/<c>h</c> suffix.
 /// </summary>
 internal static class RunLimits
 {
+    internal static bool TryParseSteps(string? value, out int steps)
+    {
+        steps = 0;
+        return value is not null
+            && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out steps)
+            && steps >= 1;
+    }
+
     internal static bool TryParseCost(string? value, out decimal cost)
     {
         cost = 0m;

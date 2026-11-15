@@ -699,6 +699,24 @@ public sealed class CliTests
     }
 
     [Fact]
+    public void Launch_options_parse_a_step_limit()
+    {
+        Assert.Equal(55, Parse("--max-steps", "55").MaxSteps);
+        Assert.Equal(55, Parse("--max-steps=55").MaxSteps);
+    }
+
+    [Theory]
+    [InlineData("--max-steps")]
+    [InlineData("--max-steps", "0")]
+    [InlineData("--max-steps", "-1")]
+    [InlineData("--max-steps", "many")]
+    public void Launch_options_refuse_an_invalid_step_limit(params string[] args)
+    {
+        Assert.False(LaunchOptions.TryParse(args, out _, out string? error));
+        Assert.Contains("--max-steps", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Launch_options_parse_run_limits()
     {
         LaunchOptions options = Parse("--max-cost", "1.25", "--max-time", "5m", "--allow-unpriced");

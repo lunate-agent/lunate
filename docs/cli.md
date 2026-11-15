@@ -84,6 +84,7 @@ These apply to the interactive session and to print mode.
 | `--tools <list>` | expose only these comma-separated tool names |
 | `--extra-tools <list>` | enable optional search tools (`grep`, `find`, `ls`) |
 | `--no-tools` | expose no tools for the run |
+| `--max-steps <n>` | stop the run after `n` model calls (default 50; overrides the `maxSteps` setting) |
 | `--max-cost <usd>` | stop the run at this cumulative session spend |
 | `--max-time <duration>` | stop the run at this wall-clock limit (`30s`, `5m`, `1h`) |
 | `--allow-unpriced` | allow a cost limit over a model with no known price |

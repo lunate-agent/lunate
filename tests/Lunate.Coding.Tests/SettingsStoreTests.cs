@@ -33,6 +33,7 @@ public sealed class SettingsStoreTests
         Assert.Empty(settings.Favorites);
         Assert.Null(settings.MaxCostUsd);
         Assert.Null(settings.MaxTime);
+        Assert.Equal(50, settings.MaxSteps);
     }
 
     [Fact]
@@ -41,16 +42,20 @@ public sealed class SettingsStoreTests
         using var temp = new TempDirectory();
         File.WriteAllText(
             temp.File("settings.json"),
-            """{"schemaVersion":2,"maxCost":1.25,"maxTime":90}"""
+            """{"schemaVersion":2,"maxCost":1.25,"maxTime":90,"maxSteps":55}"""
         );
 
         AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
 
         Assert.Equal(1.25m, settings.MaxCostUsd);
         Assert.Equal(TimeSpan.FromTicks(90 * TimeSpan.TicksPerSecond), settings.MaxTime);
+        Assert.Equal(55, settings.MaxSteps);
     }
 
     [Theory]
+    [InlineData("""{"schemaVersion":2,"maxSteps":0}""", "'maxSteps' must be a positive")]
+    [InlineData("""{"schemaVersion":2,"maxSteps":-1}""", "'maxSteps' must be a positive")]
+    [InlineData("""{"schemaVersion":2,"maxSteps":1.5}""", "'maxSteps' must be a positive")]
     [InlineData("""{"schemaVersion":2,"maxCost":0}""", "'maxCost' must be a positive")]
     [InlineData("""{"schemaVersion":2,"maxTime":0}""", "'maxTime' must be a positive")]
     [InlineData("""{"schemaVersion":2,"maxTime":1.5}""", "'maxTime' must be a positive")]
