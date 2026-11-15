@@ -17,17 +17,10 @@ public sealed class ExtensionsViewJsonTests
         IReadOnlyList<ExtensionLoadResult> results = [Loaded("acme-tools")];
 
         using JsonDocument document = JsonDocument.Parse(
-            ExtensionsView.Json(
-                descriptors,
-                results,
-                NoCounts,
-                ignoredCopies: id =>
-                    string.Equals(id, "acme-tools", StringComparison.Ordinal)
-                        ? new IgnoredHostCopy(
-                            ["Lunate.Extensibility.Abstractions"],
-                            ["Acme.Contracts"]
-                        )
-                        : null
+            ExtensionsView.Json(descriptors, results, NoCounts, ignoredCopies: id =>
+                string.Equals(id, "acme-tools", StringComparison.Ordinal)
+                    ? new IgnoredHostCopy(["Lunate.Extensibility.Abstractions"], ["Acme.Contracts"])
+                    : null
             )
         );
 
@@ -116,11 +109,10 @@ public sealed class ExtensionsViewJsonTests
         IReadOnlyList<ExtensionLoadResult> results = [Loaded("ext-one")];
 
         using JsonDocument document = JsonDocument.Parse(
-            ExtensionsView.Json(
-                descriptors,
-                results,
-                _ => new ExtensionCounts(0, 1, 0, 0) { DeclaredNotProvidedCommands = ["ghost"] }
-            )
+            ExtensionsView.Json(descriptors, results, _ => new ExtensionCounts(0, 1, 0, 0)
+            {
+                DeclaredNotProvidedCommands = ["ghost"],
+            })
         );
 
         JsonElement node = document.RootElement[0];

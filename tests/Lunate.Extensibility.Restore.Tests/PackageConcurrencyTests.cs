@@ -123,9 +123,10 @@ public sealed class PackageConcurrencyTests
             "acme.toolkit",
             PackageInstallRecordJson.FileName
         );
-        PackageInstallRecord record =
-            PackageInstallRecordJson.TryRead(recordPath, out string? problem)
-            ?? throw new InvalidOperationException($"the record did not read: {problem}");
+        PackageInstallRecord record = PackageInstallRecordJson.TryRead(
+            recordPath,
+            out string? problem
+        ) ?? throw new InvalidOperationException($"the record did not read: {problem}");
 
         Assert.Null(problem);
         Assert.True(PackageContentVerifier.Verify(record, store).Clean);

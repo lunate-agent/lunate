@@ -250,9 +250,8 @@ public sealed class ExtensionsCommandTests
         Assert.Equal(ExtensionsCommand.ExitOk, exitCode);
         using JsonDocument document = JsonDocument.Parse(output.ToString());
         // The builtin composes into every listing; this test is about the store extension's row.
-        JsonElement node = Assert.Single(
-            document.RootElement.EnumerateArray(),
-            entry => entry.GetProperty("id").GetString() == "tools"
+        JsonElement node = Assert.Single(document.RootElement.EnumerateArray(), entry =>
+            entry.GetProperty("id").GetString() == "tools"
         );
         JsonElement inactive = node.GetProperty("inactive");
         JsonElement entry = Assert.Single(inactive.EnumerateArray());
@@ -289,9 +288,8 @@ public sealed class ExtensionsCommandTests
         Assert.Empty(errors.ToString());
         using JsonDocument document = JsonDocument.Parse(output.ToString());
         // The builtin composes into every listing; this test is about the store extension's row.
-        JsonElement node = Assert.Single(
-            document.RootElement.EnumerateArray(),
-            entry => entry.GetProperty("id").GetString() == "hello"
+        JsonElement node = Assert.Single(document.RootElement.EnumerateArray(), entry =>
+            entry.GetProperty("id").GetString() == "hello"
         );
         Assert.Equal("hello", node.GetProperty("id").GetString());
         Assert.Equal("0.1.0", node.GetProperty("version").GetString());

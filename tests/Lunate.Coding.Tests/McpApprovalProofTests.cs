@@ -68,9 +68,8 @@ public sealed class McpApprovalProofTests
 
         Assert.Equal(0, exitCode);
         Assert.Equal($"lunate: {PrintMode.YoloWarning}\n", errors);
-        JsonElement result = Assert.Single(
-            PrintModeTestSupport.ParseLines(output),
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement result = Assert.Single(PrintModeTestSupport.ParseLines(output), line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.False(result.GetProperty("isError").GetBoolean());
         Assert.Equal("round trip", result.GetProperty("output").GetString());

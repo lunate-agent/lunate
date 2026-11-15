@@ -37,17 +37,14 @@ public sealed class TrustPromptFrameGoldenTests
 
         GoldenFiles.AssertMatchesLines(Path.Combine(GoldensDirectory, $"trust-{width}.txt"), lines);
 
-        Assert.All(
-            lines,
-            line =>
-                Assert.True(
-                    CellText.Width(line) <= width,
-                    $"{CellText.Width(line)} cells exceed {width}: {line}"
-                )
+        Assert.All(lines, line =>
+            Assert.True(
+                CellText.Width(line) <= width,
+                $"{CellText.Width(line)} cells exceed {width}: {line}"
+            )
         );
-        string headline = Assert.Single(
-            lines,
-            line => line.Contains("[y]es", StringComparison.Ordinal)
+        string headline = Assert.Single(lines, line =>
+            line.Contains("[y]es", StringComparison.Ordinal)
         );
         Assert.EndsWith("[y]es  [n]o", headline, StringComparison.Ordinal);
     }

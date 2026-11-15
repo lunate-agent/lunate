@@ -17,16 +17,13 @@ public sealed class McpExposureTests
         var tools = await host.GetToolsAsync(Ct);
 
         Assert.NotEmpty(tools);
-        Assert.All(
-            tools,
-            tool =>
-            {
-                Assert.Equal("server", tool.Namespace?.Name);
-                Assert.Null(tool.Namespace?.Description);
-                Assert.Null(tool.Namespace?.Instructions);
-                Assert.Equal(ToolExposure.Direct, tool.Exposure);
-            }
-        );
+        Assert.All(tools, tool =>
+        {
+            Assert.Equal("server", tool.Namespace?.Name);
+            Assert.Null(tool.Namespace?.Description);
+            Assert.Null(tool.Namespace?.Instructions);
+            Assert.Equal(ToolExposure.Direct, tool.Exposure);
+        });
     }
 
     [Fact]
@@ -43,9 +40,8 @@ public sealed class McpExposureTests
         var tools = await host.GetToolsAsync(Ct);
 
         Assert.All(tools, tool => Assert.Equal("custom", tool.Namespace?.Name));
-        Assert.All(
-            tools,
-            tool => Assert.StartsWith("server__", tool.Name, StringComparison.Ordinal)
+        Assert.All(tools, tool =>
+            Assert.StartsWith("server__", tool.Name, StringComparison.Ordinal)
         );
     }
 
@@ -78,9 +74,8 @@ public sealed class McpExposureTests
             ToolExposure.Programmatic,
             tools.Single(tool => tool.Name == "server__add").Exposure
         );
-        Assert.All(
-            tools.Where(tool => tool.Name is not ("server__echo" or "server__add")),
-            tool => Assert.Equal(ToolExposure.ModelOnly, tool.Exposure)
+        Assert.All(tools.Where(tool => tool.Name is not ("server__echo" or "server__add")), tool =>
+            Assert.Equal(ToolExposure.ModelOnly, tool.Exposure)
         );
         Assert.Empty(logs);
     }
@@ -105,11 +100,9 @@ public sealed class McpExposureTests
 
         var tools = await host.GetToolsAsync(Ct);
 
-        Assert.Contains(
-            logs,
-            line =>
-                line.Contains("'no-such-tool'", StringComparison.Ordinal)
-                && line.Contains("'server'", StringComparison.Ordinal)
+        Assert.Contains(logs, line =>
+            line.Contains("'no-such-tool'", StringComparison.Ordinal)
+            && line.Contains("'server'", StringComparison.Ordinal)
         );
         Assert.Equal(
             ToolExposure.Hidden,

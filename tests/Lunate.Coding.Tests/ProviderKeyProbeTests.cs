@@ -19,10 +19,8 @@ public sealed class ProviderKeyProbeTests
     [Fact]
     public void A_resolving_environment_key_needs_no_fix() =>
         Assert.Null(
-            ProviderKeyProbe.FixFor(
-                OpenAiModel,
-                EmptyStore(),
-                name => name == "OPENAI_API_KEY" ? "sk-test" : null
+            ProviderKeyProbe.FixFor(OpenAiModel, EmptyStore(), name =>
+                name == "OPENAI_API_KEY" ? "sk-test" : null
             )
         );
 
@@ -41,10 +39,8 @@ public sealed class ProviderKeyProbeTests
     public void An_empty_environment_key_names_the_variable() =>
         Assert.Equal(
             "set OPENAI_API_KEY to a valid key",
-            ProviderKeyProbe.FixFor(
-                OpenAiModel,
-                EmptyStore(),
-                name => name == "OPENAI_API_KEY" ? " " : null
+            ProviderKeyProbe.FixFor(OpenAiModel, EmptyStore(), name =>
+                name == "OPENAI_API_KEY" ? " " : null
             )
         );
 
@@ -100,23 +96,16 @@ public sealed class ProviderKeyProbeTests
     [Fact]
     public void A_resolving_named_reference_needs_no_fix() =>
         Assert.Null(
-            ProviderKeyProbe.FixFor(
-                OpenAiModel with
-                {
-                    AuthRef = "work",
-                },
-                StoreWith("work"),
-                _ => null
+            ProviderKeyProbe.FixFor(OpenAiModel with { AuthRef = "work" }, StoreWith("work"), _ =>
+                null
             )
         );
 
     [Fact]
     public void A_resolving_preset_environment_key_needs_no_fix() =>
         Assert.Null(
-            ProviderKeyProbe.FixFor(
-                GroqModel(),
-                EmptyStore(),
-                name => name == "GROQ_API_KEY" ? "gsk-test" : null
+            ProviderKeyProbe.FixFor(GroqModel(), EmptyStore(), name =>
+                name == "GROQ_API_KEY" ? "gsk-test" : null
             )
         );
 
@@ -135,20 +124,16 @@ public sealed class ProviderKeyProbeTests
     public void An_empty_preset_environment_key_names_the_preset_variable() =>
         Assert.Equal(
             "set GROQ_API_KEY to a valid key",
-            ProviderKeyProbe.FixFor(
-                GroqModel(),
-                EmptyStore(),
-                name => name == "GROQ_API_KEY" ? " " : null
+            ProviderKeyProbe.FixFor(GroqModel(), EmptyStore(), name =>
+                name == "GROQ_API_KEY" ? " " : null
             )
         );
 
     [Fact]
     public void A_whitespace_preset_environment_key_falls_back_to_the_stored_key() =>
         Assert.Null(
-            ProviderKeyProbe.FixFor(
-                GroqModel(),
-                StoreWith("groq"),
-                name => name == "GROQ_API_KEY" ? " " : null
+            ProviderKeyProbe.FixFor(GroqModel(), StoreWith("groq"), name =>
+                name == "GROQ_API_KEY" ? " " : null
             )
         );
 
@@ -162,10 +147,8 @@ public sealed class ProviderKeyProbeTests
     [Fact]
     public void A_whitespace_google_alias_falls_back_to_the_stored_key() =>
         Assert.Null(
-            ProviderKeyProbe.FixFor(
-                GoogleModel(),
-                StoreWith("google"),
-                name => name == "GEMINI_API_KEY" ? " " : null
+            ProviderKeyProbe.FixFor(GoogleModel(), StoreWith("google"), name =>
+                name == "GEMINI_API_KEY" ? " " : null
             )
         );
 
@@ -186,10 +169,8 @@ public sealed class ProviderKeyProbeTests
     [Fact]
     public void The_google_alias_resolves_the_preset_key() =>
         Assert.Null(
-            ProviderKeyProbe.FixFor(
-                GoogleModel(),
-                EmptyStore(),
-                name => name == "GEMINI_API_KEY" ? "gemini-test" : null
+            ProviderKeyProbe.FixFor(GoogleModel(), EmptyStore(), name =>
+                name == "GEMINI_API_KEY" ? "gemini-test" : null
             )
         );
 
@@ -212,9 +193,8 @@ public sealed class ProviderKeyProbeTests
         new("google/deep-research-max-preview-04-2026", "google", null, 131_072, true);
 
     private static AuthStore EmptyStore() =>
-        AuthStore.Load(
-            Path.Combine(Path.GetTempPath(), "lunate-tests-missing-auth.json"),
-            _ => null
+        AuthStore.Load(Path.Combine(Path.GetTempPath(), "lunate-tests-missing-auth.json"), _ =>
+            null
         );
 
     private static AuthStore StoreWith(string name)

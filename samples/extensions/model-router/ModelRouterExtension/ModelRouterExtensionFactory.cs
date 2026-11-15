@@ -37,10 +37,8 @@ public sealed class ModelRouterExtensionFactory : IExtensionFactory
             )
         );
         context.RegisterVirtualModel(
-            new VirtualModelRegistration(
-                "auto",
-                ["fast", "deep"],
-                route => RequestChars(route.Messages) > threshold ? "deep" : "fast"
+            new VirtualModelRegistration("auto", ["fast", "deep"], route =>
+                RequestChars(route.Messages) > threshold ? "deep" : "fast"
             )
         );
 

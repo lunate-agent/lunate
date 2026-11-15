@@ -49,8 +49,7 @@ internal sealed partial class LocalExecutionEnvironment
             startInfo.Environment[name] = value;
         }
 
-        Process process =
-            Process.Start(startInfo)
+        Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("the process did not start");
         var session = new SessionProcess(process, request.MaxLineBytes);
         try

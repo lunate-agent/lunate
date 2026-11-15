@@ -38,9 +38,8 @@ public sealed class CommandRegistryTests
     {
         foreach (string name in new[] { "/name", "/session", "/editor" })
         {
-            BuiltinCommandDescriptor descriptor = Assert.Single(
-                Commands.Descriptors,
-                candidate => candidate.Name == name
+            BuiltinCommandDescriptor descriptor = Assert.Single(Commands.Descriptors, candidate =>
+                candidate.Name == name
             );
             Assert.Equal(CommandGroup.Session, descriptor.Group);
             Assert.Contains(name, DispatchedNames());
@@ -52,9 +51,8 @@ public sealed class CommandRegistryTests
     {
         foreach (string name in new[] { "/auth", "/login", "/logout", "/favorite", "/unfavorite" })
         {
-            BuiltinCommandDescriptor descriptor = Assert.Single(
-                Commands.Descriptors,
-                candidate => candidate.Name == name
+            BuiltinCommandDescriptor descriptor = Assert.Single(Commands.Descriptors, candidate =>
+                candidate.Name == name
             );
             Assert.Equal(CommandGroup.Model, descriptor.Group);
             Assert.Contains(name, DispatchedNames());
@@ -169,12 +167,10 @@ public sealed class CommandRegistryTests
             "command ext:boom:explode failed: explosion — see /extensions for the extension's state",
             result.Message
         );
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("ext:boom:explode", StringComparison.Ordinal)
-                && message.Contains("source 'boom'", StringComparison.Ordinal)
-                && message.Contains("explosion", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("ext:boom:explode", StringComparison.Ordinal)
+            && message.Contains("source 'boom'", StringComparison.Ordinal)
+            && message.Contains("explosion", StringComparison.Ordinal)
         );
     }
 
@@ -195,11 +191,9 @@ public sealed class CommandRegistryTests
         );
 
         Assert.Equal(["kept"], registry.Descriptors.Select(descriptor => descriptor.Name));
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("source 'broken'", StringComparison.Ordinal)
-                && message.Contains("could not describe", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("source 'broken'", StringComparison.Ordinal)
+            && message.Contains("could not describe", StringComparison.Ordinal)
         );
     }
 

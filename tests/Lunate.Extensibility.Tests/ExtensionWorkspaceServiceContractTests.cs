@@ -34,8 +34,8 @@ public sealed class ExtensionWorkspaceServiceContractTests
         );
 
         Assert.Empty(factory.Factory("tracker").Creates);
-        IExtensionContext context =
-            factory.Context ?? throw new InvalidOperationException("the factory never ran");
+        IExtensionContext context = factory.Context
+            ?? throw new InvalidOperationException("the factory never ran");
 
         string rootA = WorkspaceServiceSupport.CreateRoot(temp, "a");
         IWorkspaceServiceLease<TrackedValue> leaseA =

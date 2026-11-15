@@ -110,11 +110,15 @@ fi
 rm -rf "$SHIM_DIR"
 
 FORMAT_DIR=""
+CS15_DIR=""
 SHIPPED_DIR=""
 WAIT_DIR=""
 cleanup() {
   if [ -n "$FORMAT_DIR" ]; then
     rm -rf "$FORMAT_DIR"
+  fi
+  if [ -n "$CS15_DIR" ]; then
+    rm -rf "$CS15_DIR"
   fi
   if [ -n "$SHIPPED_DIR" ]; then
     rm -rf "$SHIPPED_DIR"
@@ -148,6 +152,80 @@ if ! dotnet csharpier check "$FORMAT_DIR" >/dev/null; then
   echo "gate-tests: FAIL: csharpier check failed for a formatted file" >&2
   exit 1
 fi
+
+# C# 15 constructs (#901). The pinned CSharpier (`.config/dotnet-tools.json`,
+# `rollForward: false`) is what fixes how union, closed, labeled-jump and
+# collection-expression-argument syntax is laid out. A formatter below the pin rejects the
+# syntax as a parse error, so the check exits non-zero; pin one sample of each construct
+# here, and pin the trip too, so the gate reports this by exit code and not by a diff.
+CS15_DIR="$(mktemp -d "${SCRIPT_DIR}/../.gate-cs15.XXXXXX")"
+cs15_check() {
+  local name="$1"
+  local formatted="${CS15_DIR}/${name}.cs"
+  if ! dotnet csharpier check "$formatted" >/dev/null; then
+    echo "gate-tests: FAIL: the pinned CSharpier cannot format the C# 15 ${name} construct" >&2
+    dotnet csharpier check "$formatted" >&2 || true
+    exit 1
+  fi
+  mkdir -p "${CS15_DIR}/unformatted"
+  sed 's/^/    /' "$formatted" >"${CS15_DIR}/unformatted/${name}.cs"
+  if dotnet csharpier check "${CS15_DIR}/unformatted/${name}.cs" >/dev/null 2>&1; then
+    echo "gate-tests: FAIL: csharpier check passed for an unformatted C# 15 ${name} file" >&2
+    exit 1
+  fi
+}
+
+cat >"${CS15_DIR}/union.cs" <<'CSHARP'
+public union Pet(Cat, Dog);
+
+public sealed record Cat(string Name);
+
+public sealed record Dog(string Name);
+CSHARP
+
+cat >"${CS15_DIR}/closed.cs" <<'CSHARP'
+public closed class Shape
+{
+    public string Name { get; init; } = "";
+}
+CSHARP
+
+cat >"${CS15_DIR}/labeled-jump.cs" <<'CSHARP'
+public static class Loops
+{
+    public static int Sum(int[][] rows)
+    {
+        var total = 0;
+        rows:
+        foreach (var row in rows)
+        {
+            foreach (var value in row)
+            {
+                if (value < 0)
+                {
+                    continue rows;
+                }
+
+                total += value;
+            }
+        }
+
+        return total;
+    }
+}
+CSHARP
+
+cat >"${CS15_DIR}/collection-expression-arguments.cs" <<'CSHARP'
+public static class Build
+{
+    public static int[] Make(int size) => [with(capacity: size), 1, 2, 3];
+}
+CSHARP
+
+echo "gate-tests: formatting gate must pass on the C# 15 constructs and trip on their unformatted copies"
+for cs15_name in union closed labeled-jump collection-expression-arguments; do
+  cs15_check "$cs15_name"
+done
 
 echo "gate-tests: shipped-API gate must fail for an uncommitted Shipped change"
 SHIPPED_DIR="$(mktemp -d "${SCRIPT_DIR}/../.gate-shipped.XXXXXX")"

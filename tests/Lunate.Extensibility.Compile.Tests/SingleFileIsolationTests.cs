@@ -40,14 +40,12 @@ public sealed class SingleFileIsolationTests
             loaded.Extension.GetType().Assembly
         )!;
         Assert.NotSame(AssemblyLoadContext.Default, context);
-        Assert.DoesNotContain(
-            context.Assemblies,
-            assembly =>
-                string.Equals(
-                    assembly.GetName().Name,
-                    typeof(IExtensionFactory).Assembly.GetName().Name,
-                    StringComparison.Ordinal
-                )
+        Assert.DoesNotContain(context.Assemblies, assembly =>
+            string.Equals(
+                assembly.GetName().Name,
+                typeof(IExtensionFactory).Assembly.GetName().Name,
+                StringComparison.Ordinal
+            )
         );
 
         // The load records the same fact for the row: both packages, once.
@@ -93,14 +91,12 @@ public sealed class SingleFileIsolationTests
             loaded.Extension.GetType().Assembly
         )!;
         Assert.NotSame(AssemblyLoadContext.Default, context);
-        Assert.DoesNotContain(
-            context.Assemblies,
-            assembly =>
-                string.Equals(
-                    assembly.GetName().Name,
-                    typeof(ToolContext).Assembly.GetName().Name,
-                    StringComparison.Ordinal
-                )
+        Assert.DoesNotContain(context.Assemblies, assembly =>
+            string.Equals(
+                assembly.GetName().Name,
+                typeof(ToolContext).Assembly.GetName().Name,
+                StringComparison.Ordinal
+            )
         );
 
         IgnoredHostCopy copy = Assert.IsType<IgnoredHostCopy>(loader.IgnoredHostCopyOf(fixture.Id));

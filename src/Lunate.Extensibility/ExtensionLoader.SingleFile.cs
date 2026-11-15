@@ -48,10 +48,9 @@ public sealed partial class ExtensionLoader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
-        SingleFileExtension snapshot =
-            _singleFile.FirstOrDefault(candidate =>
-                string.Equals(candidate.Id, id, StringComparison.Ordinal)
-            )
+        SingleFileExtension snapshot = _singleFile.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, id, StringComparison.Ordinal)
+        )
             ?? throw new ExtensionLoadException(
                 $"single-file extension '{id}' is not discovered; discovered: {DiscoveredSingleFileIds()}."
             );
@@ -109,8 +108,10 @@ public sealed partial class ExtensionLoader
             );
         }
 
-        SingleFileBuild build =
-            new SingleFileBuildCache(_options.StorePath).Find(id, candidate.BuildKey)
+        SingleFileBuild build = new SingleFileBuildCache(_options.StorePath).Find(
+            id,
+            candidate.BuildKey
+        )
             ?? throw new ExtensionLoadException(
                 $"single-file extension '{id}': the build '{candidate.BuildKey}' recorded for '{candidate.Path}' could not be read at '{candidate.AssemblyPath}'; build it again."
             );

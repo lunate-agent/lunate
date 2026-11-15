@@ -42,8 +42,7 @@ internal static class SessionWriterClaims
             }
 
             string lockPath = SessionFiles.WriterLockPath(path);
-            Claims[key] =
-                FileLock.TryAcquire(lockPath)
+            Claims[key] = FileLock.TryAcquire(lockPath)
                 ?? throw new InvalidOperationException(
                     $"the session file '{path}' is being written by another Lunate process (writer "
                         + $"lock '{lockPath}'); a session file has one writer, so finish that session "

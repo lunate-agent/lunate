@@ -51,9 +51,8 @@ public sealed class RemoteProcessChannelTests
 
         await channel.DisposeAsync();
 
-        Assert.Contains(
-            log.Warnings,
-            warning => warning.Contains("oversized stderr line", StringComparison.Ordinal)
+        Assert.Contains(log.Warnings, warning =>
+            warning.Contains("oversized stderr line", StringComparison.Ordinal)
         );
         Assert.Equal(["extension 'ext': after"], log.Lines);
     }

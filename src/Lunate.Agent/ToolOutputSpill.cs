@@ -26,8 +26,7 @@ internal static class ToolOutputSpill
     internal static string DirectoryFor(Session session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        string sessionDirectory =
-            Path.GetDirectoryName(Path.GetFullPath(session.Path))
+        string sessionDirectory = Path.GetDirectoryName(Path.GetFullPath(session.Path))
             ?? throw new ArgumentException(
                 $"Session path '{session.Path}' has no directory to place spilled output in.",
                 nameof(session)

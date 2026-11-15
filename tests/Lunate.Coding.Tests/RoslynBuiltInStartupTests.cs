@@ -72,9 +72,8 @@ public sealed class RoslynBuiltInStartupTests
             );
 
         Assert.False(result.IsError, result.Output);
-        Assert.Contains(
-            RoslynOrMsBuildAssemblies(),
-            name => name.StartsWith("Microsoft.CodeAnalysis", StringComparison.Ordinal)
+        Assert.Contains(RoslynOrMsBuildAssemblies(), name =>
+            name.StartsWith("Microsoft.CodeAnalysis", StringComparison.Ordinal)
         );
     }
 

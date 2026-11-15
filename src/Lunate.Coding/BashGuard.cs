@@ -33,8 +33,8 @@ internal sealed record GuardTarget(
         string binary = string.IsNullOrWhiteSpace(Environment.ProcessPath)
             ? AppContext.BaseDirectory
             : Environment.ProcessPath;
-        string directory =
-            Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(binary)) ?? LunateHome.Profile;
+        string directory = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(binary))
+            ?? LunateHome.Profile;
         return string.IsNullOrWhiteSpace(directory) ? LunateHome.Profile : directory;
     }
 

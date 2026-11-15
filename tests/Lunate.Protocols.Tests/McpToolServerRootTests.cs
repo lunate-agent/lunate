@@ -144,10 +144,8 @@ public sealed class McpToolServerRootTests
 
         Assert.Equal(1, evaluations);
         Assert.Single(after.GetProperty("result").GetProperty("tools").EnumerateArray());
-        Assert.DoesNotContain(
-            wire.Notifications,
-            notification =>
-                notification.GetProperty("method").GetString() == "notifications/tools/list_changed"
+        Assert.DoesNotContain(wire.Notifications, notification =>
+            notification.GetProperty("method").GetString() == "notifications/tools/list_changed"
         );
     }
 }

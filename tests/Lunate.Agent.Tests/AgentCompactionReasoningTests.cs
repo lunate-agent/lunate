@@ -29,12 +29,10 @@ public sealed class AgentCompactionReasoningTests
         Assert.Equal(["e_01", "e_02"], applied.ReplacedEntryIds);
         Assert.Equal(2, scenario.Client.Requests.Count);
         ScriptedRequest rebuilt = scenario.Client.Requests[1];
-        Assert.DoesNotContain(
-            rebuilt.Messages,
-            message =>
-                message
-                    .Contents.OfType<TextReasoningContent>()
-                    .Any(content => content.Text == ReplacedReasoning)
+        Assert.DoesNotContain(rebuilt.Messages, message =>
+            message
+                .Contents.OfType<TextReasoningContent>()
+                .Any(content => content.Text == ReplacedReasoning)
         );
         Assert.DoesNotContain(rebuilt.Messages, message => message.Text == "noted one");
     }
@@ -47,9 +45,8 @@ public sealed class AgentCompactionReasoningTests
 
         await AgentTestSupport.Run(scenario.Harness);
 
-        ChatMessage surviving = Assert.Single(
-            scenario.Client.Requests[1].Messages,
-            message => message.Text == "noted three"
+        ChatMessage surviving = Assert.Single(scenario.Client.Requests[1].Messages, message =>
+            message.Text == "noted three"
         );
         TextReasoningContent reasoning = Assert.Single(
             surviving.Contents.OfType<TextReasoningContent>()

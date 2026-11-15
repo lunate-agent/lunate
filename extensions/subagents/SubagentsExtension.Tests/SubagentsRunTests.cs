@@ -45,9 +45,8 @@ public sealed class SubagentsRunTests
             .Events.OfType<RunStarted>()
             .Single(start => start.RunId != parentRunId);
         Assert.Equal(parentRunId, childStart.ParentRunId);
-        Assert.Contains(
-            result.Events.OfType<UsageUpdated>(),
-            usage => usage.ParentRunId == parentRunId
+        Assert.Contains(result.Events.OfType<UsageUpdated>(), usage =>
+            usage.ParentRunId == parentRunId
         );
         Assert.Equal(StopReasons.Stop, result.Events.OfType<RunFinished>().Last().StopReason);
         Assert.Equal("child answer", LastToolResult(client, 2));
@@ -128,15 +127,13 @@ public sealed class SubagentsRunTests
             .Events.OfType<RunStarted>()
             .Single(start => start.RunId != parentRunId)
             .RunId;
-        ApprovalRequest spawnAsk = Assert.Single(
-            approver.Requests,
-            request => request.Tool.Name == "subagents__spawn"
+        ApprovalRequest spawnAsk = Assert.Single(approver.Requests, request =>
+            request.Tool.Name == "subagents__spawn"
         );
         Assert.Equal(parentRunId, spawnAsk.RunId);
         Assert.Equal(0, spawnAsk.Depth);
-        ApprovalRequest childAsk = Assert.Single(
-            approver.Requests,
-            request => request.Tool.Name == "child-probe"
+        ApprovalRequest childAsk = Assert.Single(approver.Requests, request =>
+            request.Tool.Name == "child-probe"
         );
         Assert.Equal(childRunId, childAsk.RunId);
         Assert.Equal(parentRunId, childAsk.ParentRunId);
@@ -176,14 +173,11 @@ public sealed class SubagentsRunTests
             // The host's drain observes the cancelled token; the events are already recorded.
         }
 
-        Assert.Contains(
-            host.Events.Events.OfType<RunFinished>(),
-            finished =>
-                finished.ParentRunId is not null && finished.StopReason == StopReasons.Cancelled
+        Assert.Contains(host.Events.Events.OfType<RunFinished>(), finished =>
+            finished.ParentRunId is not null && finished.StopReason == StopReasons.Cancelled
         );
-        Assert.Contains(
-            host.Events.Events.OfType<RunFinished>(),
-            finished => finished.ParentRunId is null && finished.StopReason == StopReasons.Cancelled
+        Assert.Contains(host.Events.Events.OfType<RunFinished>(), finished =>
+            finished.ParentRunId is null && finished.StopReason == StopReasons.Cancelled
         );
     }
 
@@ -219,10 +213,8 @@ public sealed class SubagentsRunTests
 
         Assert.Equal(3, client.Requests.Count);
         Assert.Equal("partial answer", LastToolResult(client, 2));
-        Assert.Contains(
-            result.Events.OfType<RunFinished>(),
-            finished =>
-                finished.ParentRunId is not null && finished.StopReason == StopReasons.TokenLimit
+        Assert.Contains(result.Events.OfType<RunFinished>(), finished =>
+            finished.ParentRunId is not null && finished.StopReason == StopReasons.TokenLimit
         );
     }
 
@@ -289,9 +281,8 @@ public sealed class SubagentsRunTests
             .Events.OfType<RunStarted>()
             .Single(start => start.RunId != parentRunId)
             .RunId;
-        AgentToolCallingContext childCalling = Assert.Single(
-            hooks.ToolCallings,
-            context => context.RunId == childRunId
+        AgentToolCallingContext childCalling = Assert.Single(hooks.ToolCallings, context =>
+            context.RunId == childRunId
         );
         Assert.Equal(parentRunId, childCalling.ParentRunId);
         Assert.Null(

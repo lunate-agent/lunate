@@ -55,9 +55,8 @@ public sealed class ContextStaleReadTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult secondEdit = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "edit-2"
+        ToolCallResult secondEdit = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "edit-2"
         );
         Assert.False(secondEdit.IsError);
         Assert.Equal("changed\nupdated\n", File.ReadAllText(temp.File("small.txt")));
@@ -111,9 +110,8 @@ public sealed class ContextStaleReadTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult refused = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "edit"
+        ToolCallResult refused = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "edit"
         );
         Assert.True(refused.IsError);
         Assert.Contains(
@@ -167,9 +165,8 @@ public sealed class ContextStaleReadTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult refused = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "resume-edit"
+        ToolCallResult refused = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "resume-edit"
         );
         Assert.True(refused.IsError);
         Assert.Contains(

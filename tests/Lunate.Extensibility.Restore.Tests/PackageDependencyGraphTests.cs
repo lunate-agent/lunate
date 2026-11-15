@@ -113,8 +113,7 @@ public sealed class PackageDependencyGraphTests
             "acme-tools",
             ExtensionLock.FileName
         );
-        ExtensionLock @lock =
-            ExtensionLockJson.TryRead(lockPath, out string? problem)
+        ExtensionLock @lock = ExtensionLockJson.TryRead(lockPath, out string? problem)
             ?? throw new InvalidOperationException($"the lock could not be read: {problem}");
 
         // The package stays in the graph — it was resolved — but the assets the resolution would

@@ -281,9 +281,8 @@ public sealed class MsblBindingOrderTests
                 found.Status is SymbolSearchStatus.Loaded or SymbolSearchStatus.Partial,
                 $"the symbol search failed: {found.Status} — {found.Message}"
             );
-            Assert.Contains(
-                found.Matches,
-                match => string.Equals(match.Name, "Class1", StringComparison.Ordinal)
+            Assert.Contains(found.Matches, match =>
+                string.Equals(match.Name, "Class1", StringComparison.Ordinal)
             );
             return load;
         }

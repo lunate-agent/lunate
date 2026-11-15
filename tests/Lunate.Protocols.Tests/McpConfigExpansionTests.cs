@@ -91,10 +91,8 @@ public sealed class McpConfigExpansionTests
     {
         using var temp = new TempDirectory();
 
-        McpConfigResult result = Load(
-            temp,
-            """{ "command": "run", "args": ["${MISSING}"] }""",
-            _ => null
+        McpConfigResult result = Load(temp, """{ "command": "run", "args": ["${MISSING}"] }""", _ =>
+            null
         );
 
         Assert.Equal(["${MISSING}"], Assert.Single(result.Servers).Arguments);

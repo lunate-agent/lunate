@@ -106,14 +106,14 @@ internal static class WizardModelCheck
             );
         }
 
-        ModelInfo modelInfo =
-            WizardModelLookup.Resolve(model.Provider, catalog, model.Model.ModelId).Match
+        ModelInfo modelInfo = WizardModelLookup
+            .Resolve(model.Provider, catalog, model.Model.ModelId)
+            .Match
             ?? new ModelInfo(model.Model.ModelId, model.Provider.Id, null, 0, false);
         return modelInfo with
         {
             Provider = model.Provider.Id,
-            Endpoint =
-                model.Entry.UrlFor(ProviderApiFamily.SystemOne)
+            Endpoint = model.Entry.UrlFor(ProviderApiFamily.SystemOne)
                 ?? preset.UrlFor(ProviderApiFamily.SystemOne)
                 ?? preset.BaseUrl,
             ApiFamily = ProviderApiFamilies.SystemOne,

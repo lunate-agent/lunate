@@ -106,9 +106,8 @@ public sealed class McpConfigCompositionTests
         Assert.Equal(0, exitCode);
         Assert.Contains("lunate: MCP server 'broken' failed", errors, StringComparison.Ordinal);
         Assert.Contains("The session continues", errors, StringComparison.Ordinal);
-        JsonElement result = Assert.Single(
-            PrintModeTestSupport.ParseLines(output),
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement result = Assert.Single(PrintModeTestSupport.ParseLines(output), line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.False(result.GetProperty("isError").GetBoolean());
         Assert.Equal("still works", result.GetProperty("output").GetString());
@@ -186,16 +185,13 @@ public sealed class McpConfigCompositionTests
         Assert.Equal(0, exitCode);
         Assert.True(File.Exists(globalMarker), "the global server must start");
         Assert.False(File.Exists(projectMarker), "an untrusted project server must not start");
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("was not trusted", StringComparison.Ordinal)
-                && message.Contains("interactive", StringComparison.Ordinal)
-                && message.Contains("'lunate trust'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("was not trusted", StringComparison.Ordinal)
+            && message.Contains("interactive", StringComparison.Ordinal)
+            && message.Contains("'lunate trust'", StringComparison.Ordinal)
         );
-        JsonElement result = Assert.Single(
-            PrintModeTestSupport.ParseLines(output),
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement result = Assert.Single(PrintModeTestSupport.ParseLines(output), line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.Equal("from global", result.GetProperty("output").GetString());
     }
@@ -242,9 +238,8 @@ public sealed class McpConfigCompositionTests
         (int exitCode, string output, _) = await PrintModeTestSupport.RunAsync(options);
 
         Assert.Equal(0, exitCode);
-        JsonElement result = Assert.Single(
-            PrintModeTestSupport.ParseLines(output),
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement result = Assert.Single(PrintModeTestSupport.ParseLines(output), line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.False(result.GetProperty("isError").GetBoolean());
         Assert.Equal("from project", result.GetProperty("output").GetString());
@@ -449,9 +444,8 @@ public sealed class McpConfigCompositionTests
         );
 
         Assert.Equal(0, untrustedExit);
-        Assert.Contains(
-            untrustedLog.Messages,
-            message => message.Contains("was not trusted", StringComparison.Ordinal)
+        Assert.Contains(untrustedLog.Messages, message =>
+            message.Contains("was not trusted", StringComparison.Ordinal)
         );
         Assert.DoesNotContain(malformed, untrustedErrors, StringComparison.Ordinal);
 
@@ -529,9 +523,8 @@ public sealed class McpConfigCompositionTests
             "the refusal hint must name the server and both approval paths; log:\n"
                 + string.Join("\n", log.Messages)
         );
-        JsonElement result = Assert.Single(
-            PrintModeTestSupport.ParseLines(output),
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement result = Assert.Single(PrintModeTestSupport.ParseLines(output), line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.Equal("from global", result.GetProperty("output").GetString());
     }

@@ -98,9 +98,8 @@ public sealed class AuthCommandTests
         Assert.Equal(0, exit);
         Assert.Equal(GroqSecret, AuthStore.Load(seams.AuthPath, _ => null).Keys["groq"]);
         Assert.DoesNotContain(GroqSecret, output + errors, StringComparison.Ordinal);
-        Assert.All(
-            prompt.Prompts,
-            label => Assert.DoesNotContain(GroqSecret, label, StringComparison.Ordinal)
+        Assert.All(prompt.Prompts, label =>
+            Assert.DoesNotContain(GroqSecret, label, StringComparison.Ordinal)
         );
     }
 

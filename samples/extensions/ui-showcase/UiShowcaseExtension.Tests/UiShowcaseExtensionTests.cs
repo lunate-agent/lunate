@@ -23,9 +23,8 @@ public sealed class UiShowcaseExtensionTests
         await using var host = CreateHost(temp);
         await host.StartAsync(Ct);
 
-        ITool tool = Assert.Single(
-            host.Runner.Tools.List(),
-            candidate => candidate.Name == "uikit__bars"
+        ITool tool = Assert.Single(host.Runner.Tools.List(), candidate =>
+            candidate.Name == "uikit__bars"
         );
         Assert.Equal(ToolRisk.ReadOnly, tool.Risk);
         Assert.True(

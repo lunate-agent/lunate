@@ -62,9 +62,8 @@ public sealed class InteractiveSessionUsageProfileTests
 
         var request = chat.Requests[0];
         Assert.Contains("decide", request[0].Text, StringComparison.Ordinal);
-        Assert.Contains(
-            chat.RequestOptions[0]!.Tools!,
-            declaration => declaration.Name == "decide"
+        Assert.Contains(chat.RequestOptions[0]!.Tools!, declaration =>
+            declaration.Name == "decide"
         );
 
         host.Console.Complete();
@@ -125,9 +124,8 @@ public sealed class InteractiveSessionUsageProfileTests
         host.Console.SendEnter();
         await host.WaitUntilAsync(() => chat.Requests.Count > 0);
 
-        Assert.DoesNotContain(
-            chat.RequestOptions[0]!.Tools!,
-            declaration => declaration.Name == "decide"
+        Assert.DoesNotContain(chat.RequestOptions[0]!.Tools!, declaration =>
+            declaration.Name == "decide"
         );
 
         host.Console.Complete();
@@ -182,9 +180,8 @@ public sealed class InteractiveSessionUsageProfileTests
         host.Console.SendEnter();
         await host.WaitUntilAsync(() => chat.Requests.Count > 0);
 
-        Assert.DoesNotContain(
-            chat.RequestOptions[0]!.Tools!,
-            declaration => declaration.Name == "decide"
+        Assert.DoesNotContain(chat.RequestOptions[0]!.Tools!, declaration =>
+            declaration.Name == "decide"
         );
 
         host.Console.Complete();

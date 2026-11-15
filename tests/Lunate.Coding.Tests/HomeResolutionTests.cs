@@ -73,11 +73,9 @@ public sealed class HomeResolutionTests
 
         // Nothing in production may set it either: a settings or project loader that wrote the
         // variable would make the environment a suggestion rather than the one source.
-        Assert.DoesNotContain(
-            HomeResolutionChecker.SourceFiles(repositoryRoot),
-            file =>
-                File.ReadAllText(file)
-                    .Contains("SetEnvironmentVariable(\"LUNATE_HOME\"", StringComparison.Ordinal)
+        Assert.DoesNotContain(HomeResolutionChecker.SourceFiles(repositoryRoot), file =>
+            File.ReadAllText(file)
+                .Contains("SetEnvironmentVariable(\"LUNATE_HOME\"", StringComparison.Ordinal)
         );
     }
 
@@ -86,15 +84,12 @@ public sealed class HomeResolutionTests
     {
         string repositoryRoot = RepositoryRoot.Find();
 
-        Assert.DoesNotContain(
-            HomeResolutionChecker.SourceFiles(repositoryRoot),
-            file =>
-            {
-                string text = File.ReadAllText(file);
-                return text.Contains("\".env\"", StringComparison.Ordinal)
-                    || text.Contains("DotNetEnv", StringComparison.Ordinal);
-            }
-        );
+        Assert.DoesNotContain(HomeResolutionChecker.SourceFiles(repositoryRoot), file =>
+        {
+            string text = File.ReadAllText(file);
+            return text.Contains("\".env\"", StringComparison.Ordinal)
+                || text.Contains("DotNetEnv", StringComparison.Ordinal);
+        });
 
         // A package reference is the other way a `.env` loader could arrive.
         Assert.DoesNotContain(

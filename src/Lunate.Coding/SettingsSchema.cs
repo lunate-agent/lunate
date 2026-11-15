@@ -38,8 +38,9 @@ internal static class SettingsSchema
 
     private static IReadOnlyList<SettingEntry> Load()
     {
-        using Stream stream =
-            typeof(SettingsSchema).Assembly.GetManifestResourceStream(ResourceName)
+        using Stream stream = typeof(SettingsSchema).Assembly.GetManifestResourceStream(
+            ResourceName
+        )
             ?? throw new InvalidOperationException(
                 $"the settings resource '{ResourceName}' is missing from the "
                     + $"{typeof(SettingsSchema).Assembly.GetName().Name} assembly; "
@@ -116,8 +117,8 @@ internal static class SettingsSchema
             );
         }
 
-        string description =
-            Text(entry, "description") ?? throw Named(entry, name, "'description'");
+        string description = Text(entry, "description")
+            ?? throw Named(entry, name, "'description'");
         var allowed = new List<string>();
         if (entry.TryGetProperty("allowed", out JsonElement values))
         {

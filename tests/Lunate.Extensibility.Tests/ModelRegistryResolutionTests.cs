@@ -64,10 +64,8 @@ public sealed class ModelRegistryResolutionTests
         registry.RegisterProvider("e", new ExtensionModelProvider("deep-p", ["deep"], () => deep));
         registry.RegisterVirtualModel(
             "e",
-            Virtual(
-                "auto",
-                ["deep", "fast"],
-                context => context.Messages[0].Text.Length > 10 ? "deep" : "fast"
+            Virtual("auto", ["deep", "fast"], context =>
+                context.Messages[0].Text.Length > 10 ? "deep" : "fast"
             )
         );
 
@@ -163,10 +161,8 @@ public sealed class ModelRegistryResolutionTests
         );
         registry.RegisterModelMiddleware(
             "breaker",
-            new ExtensionModelMiddleware(
-                ModelMiddlewareSlot.BeforeRouting,
-                0,
-                _ => throw new InvalidOperationException("middleware exploded")
+            new ExtensionModelMiddleware(ModelMiddlewareSlot.BeforeRouting, 0, _ =>
+                throw new InvalidOperationException("middleware exploded")
             )
         );
 
@@ -403,10 +399,8 @@ public sealed class ModelRegistryResolutionTests
         var registry = new ModelRegistry();
         registry.RegisterProvider(
             "e",
-            new ExtensionModelProvider(
-                "p",
-                ["m"],
-                () => throw new InvalidOperationException("no socket")
+            new ExtensionModelProvider("p", ["m"], () =>
+                throw new InvalidOperationException("no socket")
             )
         );
 

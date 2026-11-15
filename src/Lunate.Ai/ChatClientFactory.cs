@@ -179,8 +179,8 @@ public sealed class ChatClientFactory : IChatClientFactory
         RequestContext? context
     )
     {
-        ProviderPreset preset =
-            ProviderPresets.Find(model.Provider) ?? throw UnsupportedProvider(model.Provider);
+        ProviderPreset preset = ProviderPresets.Find(model.Provider)
+            ?? throw UnsupportedProvider(model.Provider);
         string wireId = WireModelId(model, preset);
         ProviderApiFamily family = ProviderFamilyResolver.Resolve(
             model.ApiFamily,
@@ -476,8 +476,7 @@ public sealed class ChatClientFactory : IChatClientFactory
 
         // A compatible preset routes to its own base URL; the family's URL wins when the preset
         // declares one for it, so per-family settings (openai-responses) select their own entry.
-        Uri? endpoint =
-            model.Endpoint
+        Uri? endpoint = model.Endpoint
             ?? (
                 preset?.Adapter == ProviderAdapter.OpenAiCompatible
                     ? family is ProviderApiFamily resolved
@@ -580,8 +579,7 @@ public sealed class ChatClientFactory : IChatClientFactory
         // segment is the SDK's own path element it appends (v1/messages), so the split hands the
         // SDK the artifact it assembles — the same rule the Google path applies via
         // <see cref="SplitApiVersion"/>.
-        Uri? familyUrl =
-            model.Endpoint
+        Uri? familyUrl = model.Endpoint
             ?? (
                 preset is { Adapter: ProviderAdapter.OpenAiCompatible }
                     ? preset.UrlFor(ProviderApiFamily.AnthropicMessages)
@@ -648,8 +646,7 @@ public sealed class ChatClientFactory : IChatClientFactory
     {
         // A supported preset routes the Google family's own URL; a compatible preset falls back
         // to its base URL, exactly like the compatible OpenAI families above.
-        Uri familyUrl =
-            model.Endpoint
+        Uri familyUrl = model.Endpoint
             ?? (
                 preset.Adapter == ProviderAdapter.OpenAiCompatible
                     ? preset.UrlFor(ProviderApiFamily.Google) ?? preset.BaseUrl

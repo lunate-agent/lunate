@@ -21,9 +21,8 @@ public sealed class WorkspaceServicesBusTests
         string b = CreateRoot(temp, "b");
         var backendA = new FakeWorkspaceBackend(GitIdentity.Canonicalize(a));
         var backendB = new FakeWorkspaceBackend(GitIdentity.Canonicalize(b));
-        using var services = new WorkspaceServices(
-            2,
-            root => root == backendA.Root ? backendA : backendB
+        using var services = new WorkspaceServices(2, root =>
+            root == backendA.Root ? backendA : backendB
         );
         await services.BackendFor(a).LoadAsync(Ct);
         await services.BackendFor(b).LoadAsync(Ct);
@@ -55,14 +54,11 @@ public sealed class WorkspaceServicesBusTests
         string a = CreateRoot(temp, "a");
         string unknown = GitIdentity.Canonicalize(CreateRoot(temp, "unknown"));
         List<string> created = [];
-        using var services = new WorkspaceServices(
-            2,
-            root =>
-            {
-                created.Add(root);
-                return new FakeWorkspaceBackend(root);
-            }
-        );
+        using var services = new WorkspaceServices(2, root =>
+        {
+            created.Add(root);
+            return new FakeWorkspaceBackend(root);
+        });
         await services.BackendFor(a).LoadAsync(Ct);
         var bus = new FileChangeBus(a);
         services.Connect(bus);

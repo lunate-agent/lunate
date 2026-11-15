@@ -26,9 +26,8 @@ public sealed class AgentCompactionHookTests
         Assert.Single(client.Requests);
         Assert.Equal("hooked summary", client.Requests[0].Messages[0].Text);
         AgentCompactingContext context = Assert.Single(hooks.Compactings);
-        Assert.Contains(
-            context.Messages,
-            message => message.Text.StartsWith("one x", StringComparison.Ordinal)
+        Assert.Contains(context.Messages, message =>
+            message.Text.StartsWith("one x", StringComparison.Ordinal)
         );
         SessionCompactionEntry entry = Assert.Single(
             session.Entries.OfType<SessionCompactionEntry>()

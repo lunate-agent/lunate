@@ -63,10 +63,9 @@ public sealed record RequestContext(string? SessionId, string? RunId = null)
     private static string ReadVersion()
     {
         Assembly assembly = typeof(RequestContext).Assembly;
-        string informational =
-            assembly
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-                ?.InformationalVersion
+        string informational = assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
             ?? assembly.GetName().Version?.ToString()
             ?? "unknown";
         int metadata = informational.IndexOf('+', StringComparison.Ordinal);

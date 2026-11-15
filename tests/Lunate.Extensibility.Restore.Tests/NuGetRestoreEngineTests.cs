@@ -55,9 +55,8 @@ public sealed class NuGetRestoreEngineTests
             );
         }
 
-        ExtensionLockPackage tools = Assert.Single(
-            result.Packages,
-            package => package.Id == "Acme.Tools"
+        ExtensionLockPackage tools = Assert.Single(result.Packages, package =>
+            package.Id == "Acme.Tools"
         );
         Assert.True(tools.Direct);
         ExtensionLockDependency edge = Assert.Single(tools.Dependencies);
@@ -83,9 +82,8 @@ public sealed class NuGetRestoreEngineTests
             TestContext.Current.CancellationToken
         );
 
-        ExtensionLockPackage package = Assert.Single(
-            result.Packages,
-            entry => entry.Id == "Acme.Tools"
+        ExtensionLockPackage package = Assert.Single(result.Packages, entry =>
+            entry.Id == "Acme.Tools"
         );
         Assert.Equal("2.0.0", package.Version);
         Assert.Equal("Acme.Tools@[2.0.0,3.0.0)", package.Requested);
@@ -136,10 +134,8 @@ public sealed class NuGetRestoreEngineTests
         Assert.Equal("10.0.4", result.ReferencePack.Version);
         Assert.Equal(ReferencePackRules.Exact, result.ReferencePack.Rule);
         Assert.Contains("ref/net10.0/System.Runtime.dll", result.ReferencePack.Assets);
-        Assert.Contains(
-            first,
-            entry =>
-                entry.StartsWith("download Microsoft.NETCore.App.Ref", StringComparison.Ordinal)
+        Assert.Contains(first, entry =>
+            entry.StartsWith("download Microsoft.NETCore.App.Ref", StringComparison.Ordinal)
         );
 
         List<string> second = [];
@@ -150,13 +146,11 @@ public sealed class NuGetRestoreEngineTests
         );
 
         Assert.Equal("10.0.4", reused.ReferencePack.Version);
-        Assert.DoesNotContain(
-            second,
-            entry => entry.Contains("Microsoft.NETCore.App.Ref", StringComparison.Ordinal)
+        Assert.DoesNotContain(second, entry =>
+            entry.Contains("Microsoft.NETCore.App.Ref", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            second,
-            entry => entry.StartsWith("download", StringComparison.Ordinal)
+        Assert.DoesNotContain(second, entry =>
+            entry.StartsWith("download", StringComparison.Ordinal)
         );
     }
 
@@ -185,9 +179,8 @@ public sealed class NuGetRestoreEngineTests
 
         Assert.Equal("10.0.4", result.ReferencePack.Version);
         Assert.Equal(["ref/net10.0/System.Runtime.dll"], result.ReferencePack.Assets);
-        Assert.DoesNotContain(
-            requests,
-            entry => entry.Contains("Microsoft.NETCore.App.Ref", StringComparison.Ordinal)
+        Assert.DoesNotContain(requests, entry =>
+            entry.Contains("Microsoft.NETCore.App.Ref", StringComparison.Ordinal)
         );
     }
 

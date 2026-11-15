@@ -77,13 +77,11 @@ public sealed class CommandIdentityTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("ext:alpha:ping", StringComparison.Ordinal)
-                && message.Contains("ext:beta:ping", StringComparison.Ordinal)
-                && message.Contains("source 'alpha'", StringComparison.Ordinal)
-                && message.Contains("source 'beta'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("ext:alpha:ping", StringComparison.Ordinal)
+            && message.Contains("ext:beta:ping", StringComparison.Ordinal)
+            && message.Contains("source 'alpha'", StringComparison.Ordinal)
+            && message.Contains("source 'beta'", StringComparison.Ordinal)
         );
     }
 
@@ -112,12 +110,10 @@ public sealed class CommandIdentityTests
             "command ext:acme:ping failed: connection refused — see /extensions for the extension's state",
             result.Message
         );
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("ext:acme:ping", StringComparison.Ordinal)
-                && message.Contains("source 'acme'", StringComparison.Ordinal)
-                && message.Contains("connection refused", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("ext:acme:ping", StringComparison.Ordinal)
+            && message.Contains("source 'acme'", StringComparison.Ordinal)
+            && message.Contains("connection refused", StringComparison.Ordinal)
         );
     }
 
@@ -188,13 +184,11 @@ public sealed class CommandIdentityTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.All(
-            registry.CompletionItems,
-            item => Assert.DoesNotContain("ext:", item.Text, StringComparison.Ordinal)
+        Assert.All(registry.CompletionItems, item =>
+            Assert.DoesNotContain("ext:", item.Text, StringComparison.Ordinal)
         );
-        Assert.All(
-            registry.CompletionItems,
-            item => Assert.DoesNotContain("builtin:", item.Text, StringComparison.Ordinal)
+        Assert.All(registry.CompletionItems, item =>
+            Assert.DoesNotContain("builtin:", item.Text, StringComparison.Ordinal)
         );
     }
 

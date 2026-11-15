@@ -188,8 +188,7 @@ public sealed class AgentNestedCallSessionTests
         var tool = new ScriptedTool(name, $"Calls {nestedName}.", """{"type":"object"}""");
         tool.OnExecuteAsync = async (_, ctx, ct) =>
         {
-            var execute =
-                ctx.ExecuteToolAsync
+            var execute = ctx.ExecuteToolAsync
                 ?? throw new InvalidOperationException("The context has no nested executor.");
             ToolResult nested = await execute(nestedName, nestedArgs ?? EmptyArgs(), ct);
             return new ToolResult($"outer saw: {nested.Output}", IsError: nested.IsError);

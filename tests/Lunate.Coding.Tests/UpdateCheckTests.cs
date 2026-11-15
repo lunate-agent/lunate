@@ -179,9 +179,8 @@ public sealed class UpdateCheckTests
     public void The_environment_variable_disables_the_check()
     {
         using var temp = new TempDirectory();
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("missing.json"),
-            name => name == "LUNATE_UPDATE_CHECK" ? "0" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("missing.json"), name =>
+            name == "LUNATE_UPDATE_CHECK" ? "0" : null
         );
 
         Assert.False(

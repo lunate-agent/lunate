@@ -152,9 +152,8 @@ public sealed class McpToolAdapterTests
             .WaitAsync(TimeSpan.FromSeconds(10), Ct);
 
         Assert.False(sent);
-        Assert.Contains(
-            log,
-            line => line.Contains("notifications/cancelled", StringComparison.Ordinal)
+        Assert.Contains(log, line =>
+            line.Contains("notifications/cancelled", StringComparison.Ordinal)
         );
     }
 

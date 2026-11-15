@@ -43,14 +43,11 @@ public sealed class WorkspaceToolFactoryTests
             "<Project Sdk=\"Microsoft.NET.Sdk\"></Project>\n"
         );
         var created = new List<string>();
-        using var services = new WorkspaceServices(
-            2,
-            root =>
-            {
-                created.Add(root);
-                return new FakeWorkspaceBackend(root);
-            }
-        );
+        using var services = new WorkspaceServices(2, root =>
+        {
+            created.Add(root);
+            return new FakeWorkspaceBackend(root);
+        });
 
         ToolRegistry tools = RoslynTestHarness.CreateTools(
             new Workspace(temp.Root),

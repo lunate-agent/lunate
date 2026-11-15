@@ -62,9 +62,8 @@ public sealed class WriteVerifierPipelineTests
             }
         );
 
-        ToolResult result = await new WriteTool(
-            new Workspace(temp.Root),
-            verifierSelector: _ => verifier
+        ToolResult result = await new WriteTool(new Workspace(temp.Root), verifierSelector: _ =>
+            verifier
         ).ExecuteAsync(Args(new { path = "code.cs", content = "new\n" }), Context(temp.Root), Ct);
 
         Assert.False(result.IsError);
@@ -87,9 +86,8 @@ public sealed class WriteVerifierPipelineTests
             }
         );
 
-        ToolResult result = await new EditTool(
-            new Workspace(temp.Root),
-            verifierSelector: _ => verifier
+        ToolResult result = await new EditTool(new Workspace(temp.Root), verifierSelector: _ =>
+            verifier
         ).ExecuteAsync(
             Args(
                 new
@@ -114,9 +112,8 @@ public sealed class WriteVerifierPipelineTests
         using var temp = new TempDirectory();
         var verifier = new RecordingVerifier((_, _) => Verified());
 
-        ToolResult result = await new WriteTool(
-            new Workspace(temp.Root),
-            verifierSelector: _ => verifier
+        ToolResult result = await new WriteTool(new Workspace(temp.Root), verifierSelector: _ =>
+            verifier
         ).ExecuteAsync(
             Args(new { path = "code.cs", content = "original staged text\n" }),
             Context(temp.Root),
@@ -138,9 +135,8 @@ public sealed class WriteVerifierPipelineTests
                 new WriteVerificationResult(WriteVerificationStatus.Refused, "introduced error")
         );
 
-        ToolResult result = await new WriteTool(
-            new Workspace(temp.Root),
-            verifierSelector: _ => verifier
+        ToolResult result = await new WriteTool(new Workspace(temp.Root), verifierSelector: _ =>
+            verifier
         ).ExecuteAsync(
             Args(new { path = "code.cs", content = "class C { invalid }\n" }),
             Context(temp.Root),
@@ -225,10 +221,8 @@ public sealed class WriteVerifierPipelineTests
                     diagnostics
                 )
         );
-        var tool = new WriteTool(
-            new Workspace(temp.Root),
-            WriteVerificationMode.Block,
-            _ => verifier
+        var tool = new WriteTool(new Workspace(temp.Root), WriteVerificationMode.Block, _ =>
+            verifier
         );
         ToolContext context = Context(temp.Root) with { RunId = "run-1" };
 
@@ -326,9 +320,8 @@ public sealed class WriteVerifierPipelineTests
         using var temp = new TempDirectory();
         var verifier = new RecordingVerifier((_, _) => Verified());
 
-        ToolResult result = await new WriteTool(
-            new Workspace(temp.Root),
-            verifierSelector: _ => null
+        ToolResult result = await new WriteTool(new Workspace(temp.Root), verifierSelector: _ =>
+            null
         ).ExecuteAsync(
             Args(new { path = "code.txt", content = "ordinary text\n" }),
             Context(temp.Root),

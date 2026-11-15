@@ -131,17 +131,14 @@ public sealed class BashGuardToolTests
         Assert.DoesNotContain("sandbox", first.Output, StringComparison.Ordinal);
 
         // One notice for the session: the first command logs it, the second stays silent.
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("already runs inside a sandbox", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("already runs inside a sandbox", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("state-root", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("state-root", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("unconfined", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("unconfined", StringComparison.Ordinal)
         );
         Assert.Equal(
             1,

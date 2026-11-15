@@ -54,13 +54,11 @@ public sealed class OutlineCollectorTests
         Assert.Equal("public class Sample", outlined.Items[1].Signature);
         Assert.Equal("public int Value", outlined.Items[2].Signature);
         Assert.Equal("public int Add(int left, int right)", outlined.Items[3].Signature);
-        Assert.DoesNotContain(
-            outlined.Items,
-            item => item.Signature.Contains("42", StringComparison.Ordinal)
+        Assert.DoesNotContain(outlined.Items, item =>
+            item.Signature.Contains("42", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            outlined.Items,
-            item => item.Signature.Contains("left + right", StringComparison.Ordinal)
+        Assert.DoesNotContain(outlined.Items, item =>
+            item.Signature.Contains("left + right", StringComparison.Ordinal)
         );
         Assert.Equal(1, outlined.Items[0].Line);
         Assert.Equal(3, outlined.Items[1].Line);

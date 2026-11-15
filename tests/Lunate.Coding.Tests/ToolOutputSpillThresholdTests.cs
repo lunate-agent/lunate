@@ -40,9 +40,8 @@ public sealed class ToolOutputSpillThresholdTests
             """{"schemaVersion": 2, "output": {"spillThresholdTokens": 1250}}"""
         );
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("settings.json"),
-            name => name == SpillThresholdVariable ? "800" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), name =>
+            name == SpillThresholdVariable ? "800" : null
         );
 
         Assert.Equal(800, settings.SpillThresholdTokens);
@@ -57,9 +56,8 @@ public sealed class ToolOutputSpillThresholdTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == SpillThresholdVariable ? value : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == SpillThresholdVariable ? value : null
             )
         );
 

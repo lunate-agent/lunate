@@ -34,11 +34,9 @@ public sealed class AgentToolExecutionTests
         Assert.NotNull(tool.ReceivedContext);
         ChatMessage toolMessage = ToolMessage(client.Requests[1]);
         Assert.Equal("file contents", Result(toolMessage).Result);
-        Assert.Contains(
-            client.Requests[1].Messages,
-            message =>
-                message.Role == ChatRole.Assistant
-                && message.Contents.OfType<FunctionCallContent>().Any()
+        Assert.Contains(client.Requests[1].Messages, message =>
+            message.Role == ChatRole.Assistant
+            && message.Contents.OfType<FunctionCallContent>().Any()
         );
     }
 

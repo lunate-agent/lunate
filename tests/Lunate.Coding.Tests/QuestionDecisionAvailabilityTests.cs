@@ -57,9 +57,8 @@ public sealed class QuestionDecisionAvailabilityTests
                 .Events.OfType<DecisionUnavailable>()
                 .Any(unavailable => unavailable.QuestionId == "question-1")
         );
-        Assert.Contains(
-            host.Events.OfType<DecisionUnavailable>(),
-            unavailable => unavailable.QuestionId == "question-1"
+        Assert.Contains(host.Events.OfType<DecisionUnavailable>(), unavailable =>
+            unavailable.QuestionId == "question-1"
         );
         Assert.Empty(host.Events.OfType<DecisionFailed>());
         host.Advance(301);

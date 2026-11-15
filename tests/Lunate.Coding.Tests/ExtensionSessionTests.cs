@@ -593,17 +593,14 @@ public sealed class ExtensionSessionTests
         Assert.Equal(ExtensionLoadState.Loaded, host.LoadResults[2].State);
         Assert.Null(host.LoadResults[2].Message);
         Assert.Equal(ExtensionLoadState.TrustDenied, host.LoadResults[3].State);
-        Assert.All(
-            host.LoadResults,
-            result =>
-            {
-                Assert.True(result.Elapsed >= TimeSpan.Zero);
-                Assert.True(
-                    result.Elapsed < TimeSpan.FromMinutes(1),
-                    "the recorded load time must be this load's elapsed time"
-                );
-            }
-        );
+        Assert.All(host.LoadResults, result =>
+        {
+            Assert.True(result.Elapsed >= TimeSpan.Zero);
+            Assert.True(
+                result.Elapsed < TimeSpan.FromMinutes(1),
+                "the recorded load time must be this load's elapsed time"
+            );
+        });
     }
 
     [Fact]

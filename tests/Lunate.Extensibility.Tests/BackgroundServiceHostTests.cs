@@ -74,11 +74,9 @@ public sealed class BackgroundServiceHostTests
         Assert.Equal(0, after.Starts);
         Assert.Equal(1, other.Starts);
         Assert.Equal(1, before.Stops);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'bad'", StringComparison.Ordinal)
-                && message.Contains("'failing'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'bad'", StringComparison.Ordinal)
+            && message.Contains("'failing'", StringComparison.Ordinal)
         );
 
         await host.StartAsync(Ct);
@@ -101,11 +99,9 @@ public sealed class BackgroundServiceHostTests
 
         Assert.Equal(1, throwing.Stops);
         Assert.Equal(1, other.Stops);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'a'", StringComparison.Ordinal)
-                && message.Contains("'throwing'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'a'", StringComparison.Ordinal)
+            && message.Contains("'throwing'", StringComparison.Ordinal)
         );
     }
 

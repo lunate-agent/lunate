@@ -102,17 +102,15 @@ public sealed class DecideToolTests
 
         List<AgentEvent> events = await AgentTestSupport.Run(harness);
 
-        Assert.Contains(
-            chat.Requests[0].Options!.Tools!,
-            declaration => declaration.Name == "decide"
+        Assert.Contains(chat.Requests[0].Options!.Tools!, declaration =>
+            declaration.Name == "decide"
         );
         Assert.Single(decision.Requests);
         Assert.Equal(["decide", "write"], approver.ToolNames);
         Assert.Equal(0, writes);
 
-        ToolCallResult decideResult = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "decide-call"
+        ToolCallResult decideResult = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "decide-call"
         );
         using JsonDocument response = JsonDocument.Parse(decideResult.Output);
         JsonElement results = response.RootElement.GetProperty("results");
@@ -120,9 +118,8 @@ public sealed class DecideToolTests
         Assert.Equal("yes", results.GetProperty("safe").GetProperty("answer").GetString());
         Assert.Equal(0.8, results.GetProperty("safe").GetProperty("probability").GetDouble());
         Assert.Equal(2, results.GetProperty("risk").GetProperty("distribution").GetArrayLength());
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "write-call" && result.IsError
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "write-call" && result.IsError
         );
     }
 
@@ -219,9 +216,8 @@ public sealed class DecideToolTests
 
         await AgentTestSupport.Run(harness);
 
-        Assert.DoesNotContain(
-            chat.Requests[0].Options!.Tools!,
-            declaration => declaration.Name == "decide"
+        Assert.DoesNotContain(chat.Requests[0].Options!.Tools!, declaration =>
+            declaration.Name == "decide"
         );
     }
 
@@ -256,9 +252,8 @@ public sealed class DecideToolTests
         await AgentTestSupport.Run(harness);
 
         Assert.Empty(decision.Requests);
-        Assert.DoesNotContain(
-            chat.Requests[0].Options!.Tools!,
-            declaration => declaration.Name == "decide"
+        Assert.DoesNotContain(chat.Requests[0].Options!.Tools!, declaration =>
+            declaration.Name == "decide"
         );
     }
 

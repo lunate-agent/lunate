@@ -61,11 +61,8 @@ public sealed class InstallCommandTests
         using var feed = new PackageFeedFixture();
         feed.Bundle(skills: ["greek"]);
 
-        int exit = feed.Run(
-            ["Acme.Toolkit@1.4.2"],
-            out string output,
-            out string errors,
-            name => null
+        int exit = feed.Run(["Acme.Toolkit@1.4.2"], out string output, out string errors, name =>
+            null
         );
 
         Assert.Equal(InstallCommand.ExitOk, exit);

@@ -17,9 +17,8 @@ public sealed class BashToolTests
         Assert.Equal("bash", tool.Name);
         Assert.Equal(ToolRisk.Execute, tool.Risk);
         var schema = tool.ParametersSchema;
-        Assert.Contains(
-            schema.GetProperty("required").EnumerateArray(),
-            element => element.GetString() == "command"
+        Assert.Contains(schema.GetProperty("required").EnumerateArray(), element =>
+            element.GetString() == "command"
         );
         Assert.True(schema.GetProperty("properties").TryGetProperty("command", out _));
     }

@@ -98,9 +98,8 @@ public sealed class SettingsStoreExtraToolsTests
             """
         );
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("settings.json"),
-            name => name == ExtraToolsVariable ? "grep,find" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), name =>
+            name == ExtraToolsVariable ? "grep,find" : null
         );
 
         Assert.Equal(["grep", "find"], settings.Tools.Extra);
@@ -112,9 +111,8 @@ public sealed class SettingsStoreExtraToolsTests
         using var temp = new TempDirectory();
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.Resolve(
-                temp.File("missing.json"),
-                name => name == ExtraToolsVariable ? "grep,wat" : null
+            SettingsStore.Resolve(temp.File("missing.json"), name =>
+                name == ExtraToolsVariable ? "grep,wat" : null
             )
         );
 
@@ -166,9 +164,8 @@ public sealed class SettingsStoreExtraToolsTests
     public void The_launch_tools_override_the_environment()
     {
         using var temp = new TempDirectory();
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("missing.json"),
-            name => name == ExtraToolsVariable ? "grep,find" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("missing.json"), name =>
+            name == ExtraToolsVariable ? "grep,find" : null
         );
 
         AgentSettings resolved = SettingsStore.ApplyLaunch(
@@ -183,9 +180,8 @@ public sealed class SettingsStoreExtraToolsTests
     public void A_launch_without_the_tools_flag_keeps_the_environment()
     {
         using var temp = new TempDirectory();
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("missing.json"),
-            name => name == ExtraToolsVariable ? "grep,find" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("missing.json"), name =>
+            name == ExtraToolsVariable ? "grep,find" : null
         );
 
         AgentSettings resolved = SettingsStore.ApplyLaunch(settings, new LaunchOptions());

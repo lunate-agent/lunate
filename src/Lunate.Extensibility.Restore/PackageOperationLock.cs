@@ -26,13 +26,11 @@ internal static class PackageOperationLock
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(recordPath);
 
-        string recordDirectory =
-            Path.GetDirectoryName(Path.GetFullPath(recordPath))
+        string recordDirectory = Path.GetDirectoryName(Path.GetFullPath(recordPath))
             ?? throw new InvalidOperationException($"'{recordPath}' is not a record file path.");
         // The record directory is <root>/packages/<package-id>/, so its parent holds every package's
         // directory and is where the claims live, beside them but never inside one.
-        string packages =
-            Path.GetDirectoryName(recordDirectory)
+        string packages = Path.GetDirectoryName(recordDirectory)
             ?? throw new InvalidOperationException(
                 $"the record path '{recordPath}' is not under a package directory."
             );

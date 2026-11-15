@@ -156,9 +156,8 @@ public sealed class ShellResolverTests
         var shell = new ShellResolver(null, probe.Build()).Resolve();
 
         Assert.Null(shell);
-        Assert.DoesNotContain(
-            probe.FileExistsCalls,
-            path => path.Contains(@"System32\bash.exe", StringComparison.OrdinalIgnoreCase)
+        Assert.DoesNotContain(probe.FileExistsCalls, path =>
+            path.Contains(@"System32\bash.exe", StringComparison.OrdinalIgnoreCase)
         );
     }
 

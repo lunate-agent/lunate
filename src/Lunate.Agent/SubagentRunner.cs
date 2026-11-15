@@ -405,8 +405,7 @@ internal sealed class SubagentRunner : ISubagentRunner
     )
     {
         AgentHarnessOptions parentOptions = _harness.Options;
-        UsageModelClient? subagentModel =
-            parentOptions.UsageModels?.GetValueOrDefault("subagents")
+        UsageModelClient? subagentModel = parentOptions.UsageModels?.GetValueOrDefault("subagents")
             ?? parentOptions.UsageModels?.GetValueOrDefault("chat");
         AgentHarnessOptions childOptions = parentOptions with
         {
@@ -502,22 +501,19 @@ internal sealed class SubagentRunner : ISubagentRunner
     /// </summary>
     private static Session CreateChildSession(Session parent, ChildWorkspace? workspace)
     {
-        string directory =
-            Path.GetDirectoryName(Path.GetFullPath(parent.Path))
+        string directory = Path.GetDirectoryName(Path.GetFullPath(parent.Path))
             ?? throw new InvalidOperationException(
                 $"The parent session path '{parent.Path}' has no directory to place a child session in."
             );
-        Session child = SessionProvisioning.Create(
-            directory,
-            provisional =>
-                workspace is { } target
-                    ? Session.Create(provisional, target.Root, target.GitCommonDir, target.Root)
-                    : Session.Create(
-                        provisional,
-                        parent.Header.Cwd,
-                        parent.Header.Repo,
-                        parent.Header.Worktree
-                    )
+        Session child = SessionProvisioning.Create(directory, provisional =>
+            workspace is { } target
+                ? Session.Create(provisional, target.Root, target.GitCommonDir, target.Root)
+                : Session.Create(
+                    provisional,
+                    parent.Header.Cwd,
+                    parent.Header.Repo,
+                    parent.Header.Worktree
+                )
         );
         // A child persists what the parent persists: the same credentials are redacted in its file.
         child.Redactor = parent.Redactor;

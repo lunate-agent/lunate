@@ -79,13 +79,11 @@ public sealed class SubagentRunnerTests
         Assert.True(File.Exists(childPath), $"child session '{childPath}' should exist");
         Session childSession = Session.Load(childPath);
         Assert.Equal(temp.Root, childSession.Header.Cwd);
-        Assert.Contains(
-            childSession.Entries.OfType<SessionMessageEntry>(),
-            entry => entry.Message.Role == ChatRole.User && entry.Message.Text == "child prompt"
+        Assert.Contains(childSession.Entries.OfType<SessionMessageEntry>(), entry =>
+            entry.Message.Role == ChatRole.User && entry.Message.Text == "child prompt"
         );
-        Assert.All(
-            childEvents,
-            childEvent => Assert.Equal(link.ChildSessionId, childEvent.SessionId)
+        Assert.All(childEvents, childEvent =>
+            Assert.Equal(link.ChildSessionId, childEvent.SessionId)
         );
         Assert.Equal(15, harness.SubagentUsage.TokensUsed);
         Assert.Equal(0, harness.SubagentUsage.LiveChildren);
@@ -255,13 +253,11 @@ public sealed class SubagentRunnerTests
             context.RunId == childRunId
         );
         Assert.Equal(parentRunId, childCalling.ParentRunId);
-        Assert.All(
-            hooks.ToolCallings.Where(context => context.RunId == parentRunId),
-            context => Assert.Null(context.ParentRunId)
+        Assert.All(hooks.ToolCallings.Where(context => context.RunId == parentRunId), context =>
+            Assert.Null(context.ParentRunId)
         );
-        Assert.Contains(
-            hooks.RunStartings,
-            context => context.RunId == childRunId && context.ParentRunId == parentRunId
+        Assert.Contains(hooks.RunStartings, context =>
+            context.RunId == childRunId && context.ParentRunId == parentRunId
         );
     }
 

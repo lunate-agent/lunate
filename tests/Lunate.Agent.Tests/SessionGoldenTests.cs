@@ -53,9 +53,8 @@ public sealed class SessionGoldenTests
         Assert.Equal(1, header.Schema);
         Assert.Null(header.Repo);
         Assert.Null(header.Worktree);
-        Assert.All(
-            loaded.Entries.OfType<SessionMessageEntry>(),
-            entry => Assert.Null(entry.RawMessageJson)
+        Assert.All(loaded.Entries.OfType<SessionMessageEntry>(), entry =>
+            Assert.Null(entry.RawMessageJson)
         );
     }
 

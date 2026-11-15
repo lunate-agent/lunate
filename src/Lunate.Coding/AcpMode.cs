@@ -69,10 +69,8 @@ internal static class AcpMode
 
             if (settings.BashGuard)
             {
-                StateRootHardlinkScan.Report(
-                    hardlinkScanRoot,
-                    hardlinkScanFileSystem,
-                    warning => errors.WriteLine("lunate: " + warning)
+                StateRootHardlinkScan.Report(hardlinkScanRoot, hardlinkScanFileSystem, warning =>
+                    errors.WriteLine("lunate: " + warning)
                 );
             }
 
@@ -299,9 +297,8 @@ internal static class AcpMode
         // trusted from serve start. The provider entries load only after it, because resolution
         // reads the stores the guard protects.
         LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
-        AuthStore auth = AuthStore.Load(
-            authPath,
-            static name => Environment.GetEnvironmentVariable(name)
+        AuthStore auth = AuthStore.Load(authPath, static name =>
+            Environment.GetEnvironmentVariable(name)
         );
         IReadOnlyList<ProviderEntry> providers = ProviderStore
             .Load(AuthStore.ProviderStoreFilePath(authPath), auth, effective.Providers)

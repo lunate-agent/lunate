@@ -110,23 +110,17 @@ public sealed class WaitDiagnosisTests
 
         IReadOnlyList<string> lines = ProcessTable.Describe(table, 10, "/bin/ps");
 
-        Assert.Contains(
-            lines,
-            line =>
-                line.Contains("pid=10 ", StringComparison.Ordinal)
-                && line.Contains("(this test process)", StringComparison.Ordinal)
+        Assert.Contains(lines, line =>
+            line.Contains("pid=10 ", StringComparison.Ordinal)
+            && line.Contains("(this test process)", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            lines,
-            line =>
-                line.Contains("pid=11 ", StringComparison.Ordinal)
-                && line.Contains("comm=/usr/bin/child with spaces", StringComparison.Ordinal)
+        Assert.Contains(lines, line =>
+            line.Contains("pid=11 ", StringComparison.Ordinal)
+            && line.Contains("comm=/usr/bin/child with spaces", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            lines,
-            line =>
-                line.Contains("pid=12 ", StringComparison.Ordinal)
-                && line.Contains("stat=R+", StringComparison.Ordinal)
+        Assert.Contains(lines, line =>
+            line.Contains("pid=12 ", StringComparison.Ordinal)
+            && line.Contains("stat=R+", StringComparison.Ordinal)
         );
         Assert.DoesNotContain(lines, line => line.Contains("pid=99 ", StringComparison.Ordinal));
     }

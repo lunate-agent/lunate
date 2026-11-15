@@ -87,8 +87,7 @@ internal static class InstallCommand
 
         // Every command that writes the store runs the guard: a LUNATE_HOME inside the repository
         // it governs could have its records written by that repository.
-        string storeRoot =
-            seams?.StorePath
+        string storeRoot = seams?.StorePath
             ?? LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
         string? worktree = request.Project ? workspace.WorktreeRoot : null;
         PackageInstallTarget target = request.Project

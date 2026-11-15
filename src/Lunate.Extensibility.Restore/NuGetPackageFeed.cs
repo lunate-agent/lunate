@@ -120,9 +120,8 @@ internal sealed partial class NuGetPackageFeed
         foreach ((PackageSource source, SourceRepository repository) in _sources)
         {
             _observer?.Invoke($"versions {id} from {source.Name}");
-            FindPackageByIdResource? resource = await GuardedAsync(
-                    source,
-                    () => repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken)
+            FindPackageByIdResource? resource = await GuardedAsync(source, () =>
+                    repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken)
                 )
                 .ConfigureAwait(false);
             if (resource is null)
@@ -130,15 +129,13 @@ internal sealed partial class NuGetPackageFeed
                 continue;
             }
 
-            IEnumerable<NuGetVersion> found = await GuardedAsync(
-                    source,
-                    () =>
-                        resource.GetAllVersionsAsync(
-                            id,
-                            cache,
-                            NuGet.Common.NullLogger.Instance,
-                            cancellationToken
-                        )
+            IEnumerable<NuGetVersion> found = await GuardedAsync(source, () =>
+                    resource.GetAllVersionsAsync(
+                        id,
+                        cache,
+                        NuGet.Common.NullLogger.Instance,
+                        cancellationToken
+                    )
                 )
                 .ConfigureAwait(false);
             foreach (NuGetVersion version in found)
@@ -172,9 +169,8 @@ internal sealed partial class NuGetPackageFeed
         foreach ((PackageSource source, SourceRepository repository) in _sources)
         {
             _observer?.Invoke($"metadata {id} {version.ToNormalizedString()} from {source.Name}");
-            FindPackageByIdResource? resource = await GuardedAsync(
-                    source,
-                    () => repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken)
+            FindPackageByIdResource? resource = await GuardedAsync(source, () =>
+                    repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken)
                 )
                 .ConfigureAwait(false);
             if (resource is null)
@@ -182,16 +178,14 @@ internal sealed partial class NuGetPackageFeed
                 continue;
             }
 
-            FindPackageByIdDependencyInfo? info = await GuardedAsync(
-                    source,
-                    () =>
-                        resource.GetDependencyInfoAsync(
-                            id,
-                            version,
-                            cache,
-                            NuGet.Common.NullLogger.Instance,
-                            cancellationToken
-                        )
+            FindPackageByIdDependencyInfo? info = await GuardedAsync(source, () =>
+                    resource.GetDependencyInfoAsync(
+                        id,
+                        version,
+                        cache,
+                        NuGet.Common.NullLogger.Instance,
+                        cancellationToken
+                    )
                 )
                 .ConfigureAwait(false);
             if (info is not null)
@@ -235,9 +229,8 @@ internal sealed partial class NuGetPackageFeed
         using var cache = new SourceCacheContext();
         foreach ((PackageSource source, SourceRepository repository) in _sources)
         {
-            FindPackageByIdResource? resource = await GuardedAsync(
-                    source,
-                    () => repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken)
+            FindPackageByIdResource? resource = await GuardedAsync(source, () =>
+                    repository.GetResourceAsync<FindPackageByIdResource>(cancellationToken)
                 )
                 .ConfigureAwait(false);
             if (resource is null)
@@ -253,15 +246,13 @@ internal sealed partial class NuGetPackageFeed
                 NuGet.Common.NullLogger.Instance
             );
             var identity = new PackageIdentity(id, version);
-            IPackageDownloader? downloader = await GuardedAsync(
-                    source,
-                    () =>
-                        resource.GetPackageDownloaderAsync(
-                            identity,
-                            cache,
-                            NuGet.Common.NullLogger.Instance,
-                            cancellationToken
-                        )
+            IPackageDownloader? downloader = await GuardedAsync(source, () =>
+                    resource.GetPackageDownloaderAsync(
+                        identity,
+                        cache,
+                        NuGet.Common.NullLogger.Instance,
+                        cancellationToken
+                    )
                 )
                 .ConfigureAwait(false);
             if (downloader is null)

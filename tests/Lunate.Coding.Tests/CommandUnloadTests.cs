@@ -60,11 +60,9 @@ public sealed class CommandUnloadTests
 
         CommandResult cancelled = await invocation.WaitAsync(WaitBudgets.InProcess, Ct);
         Assert.Null(cancelled.Message);
-        Assert.Contains(
-            notices,
-            notice =>
-                notice.Contains("command ext:alpha:ping", StringComparison.Ordinal)
-                && notice.Contains("extension 'alpha'", StringComparison.Ordinal)
+        Assert.Contains(notices, notice =>
+            notice.Contains("command ext:alpha:ping", StringComparison.Ordinal)
+            && notice.Contains("extension 'alpha'", StringComparison.Ordinal)
         );
 
         // The rest of the registry keeps dispatching, and a recomposition no longer offers the

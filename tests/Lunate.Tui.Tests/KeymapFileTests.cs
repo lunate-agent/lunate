@@ -351,9 +351,8 @@ public sealed class KeymapFileTests
             Assert.NotEqual(RoutedKey.Edit, KeyRouter.Route(ctrlJ, turnRunning: false));
 
             // The displaced catalogue binding is named in one startup line, and the file wins.
-            Assert.Contains(
-                outcome.ConflictLines,
-                line => line.Contains("newline.ctrl-j", StringComparison.Ordinal)
+            Assert.Contains(outcome.ConflictLines, line =>
+                line.Contains("newline.ctrl-j", StringComparison.Ordinal)
             );
         }
         finally

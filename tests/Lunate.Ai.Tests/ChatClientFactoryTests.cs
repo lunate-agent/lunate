@@ -148,9 +148,8 @@ public sealed class ChatClientFactoryTests
         Assert.NotNull(recorder);
         IChatClient[] chain = [.. WalkChain(client)];
         Assert.DoesNotContain(chain, candidate => candidate is FunctionInvokingChatClient);
-        int recorderIndex = Array.FindIndex(
-            chain,
-            candidate => ReferenceEquals(candidate, recorder)
+        int recorderIndex = Array.FindIndex(chain, candidate =>
+            ReferenceEquals(candidate, recorder)
         );
         Assert.True(recorderIndex > 0);
         Assert.IsType<StreamAccumulator>(chain[recorderIndex - 1]);
@@ -594,15 +593,11 @@ public sealed class ChatClientFactoryTests
         ModelInfo model = LoadCatalog().Find("groq/allam-2-7b")!;
         bool storeRead = false;
 
-        string credential = ChatClientFactory.ResolveApiKey(
-            model,
-            groq,
-            _ =>
-            {
-                storeRead = true;
-                return "stored-key";
-            }
-        );
+        string credential = ChatClientFactory.ResolveApiKey(model, groq, _ =>
+        {
+            storeRead = true;
+            return "stored-key";
+        });
 
         Assert.Equal("env-key", credential);
         Assert.False(storeRead);
@@ -616,15 +611,11 @@ public sealed class ChatClientFactoryTests
         ModelInfo model = LoadCatalog().Find("groq/allam-2-7b")!;
         string? requested = null;
 
-        string credential = ChatClientFactory.ResolveApiKey(
-            model,
-            groq,
-            name =>
-            {
-                requested = name;
-                return "stored-key";
-            }
-        );
+        string credential = ChatClientFactory.ResolveApiKey(model, groq, name =>
+        {
+            requested = name;
+            return "stored-key";
+        });
 
         Assert.Equal("stored-key", credential);
         Assert.Equal("groq", requested);
@@ -637,10 +628,8 @@ public sealed class ChatClientFactoryTests
         using var environment = new EnvironmentScope((groq.KeyVariable, "env-key"));
         ModelInfo model = LoadCatalog().Find("groq/allam-2-7b")! with { AuthRef = "work" };
 
-        string credential = ChatClientFactory.ResolveApiKey(
-            model,
-            groq,
-            name => name == "work" ? "work-key" : null
+        string credential = ChatClientFactory.ResolveApiKey(model, groq, name =>
+            name == "work" ? "work-key" : null
         );
 
         Assert.Equal("work-key", credential);
@@ -879,9 +868,8 @@ public sealed class ChatClientFactoryTests
             AuthRef: "work"
         );
 
-        AnthropicClient client = ChatClientFactory.CreateAnthropicClient(
-            model,
-            name => name == "work" ? "work-key" : null
+        AnthropicClient client = ChatClientFactory.CreateAnthropicClient(model, name =>
+            name == "work" ? "work-key" : null
         );
 
         // Resolution still goes through the named key source; the SDK object only holds the
@@ -901,9 +889,8 @@ public sealed class ChatClientFactoryTests
             true
         );
 
-        AnthropicClient client = ChatClientFactory.CreateAnthropicClient(
-            model,
-            name => name == "anthropic" ? "stored-key" : null
+        AnthropicClient client = ChatClientFactory.CreateAnthropicClient(model, name =>
+            name == "anthropic" ? "stored-key" : null
         );
 
         Assert.Equal(ChatClientFactory.SentinelCredential, client.ApiKey);

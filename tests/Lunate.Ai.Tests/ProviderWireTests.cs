@@ -346,8 +346,8 @@ internal sealed class CapturingWire
 
     public IEnumerable<string> HeaderValues(string name)
     {
-        HttpRequestMessage request =
-            Last ?? throw new InvalidOperationException("no request captured");
+        HttpRequestMessage request = Last
+            ?? throw new InvalidOperationException("no request captured");
         return request.Headers.TryGetValues(name, out IEnumerable<string>? values)
             ? values!
             : throw new InvalidOperationException(

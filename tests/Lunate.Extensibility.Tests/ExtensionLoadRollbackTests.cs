@@ -41,9 +41,8 @@ public sealed class ExtensionLoadRollbackTests
                 loader.Load("leak", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct)
             );
 
-            Assert.DoesNotContain(
-                log.Messages,
-                message => message.Contains("leak service started", StringComparison.Ordinal)
+            Assert.DoesNotContain(log.Messages, message =>
+                message.Contains("leak service started", StringComparison.Ordinal)
             );
             await AssertEverythingDroppedAsync(loader, log, bus);
         }
@@ -180,16 +179,14 @@ public sealed class ExtensionLoadRollbackTests
 
         bus.Notify(Changes.Event("/work/leak.cs", "leak.cs"));
         await bus.DrainAsync(Ct);
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("leak file changed", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("leak file changed", StringComparison.Ordinal)
         );
 
         // The session-started hook is gone too: dispatching it reaches no handler of the failed load.
         await loader.Hooks.RunSessionStartedAsync(new SessionStartedPayload("/work", "repo"), Ct);
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("leak session started", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("leak session started", StringComparison.Ordinal)
         );
     }
 }

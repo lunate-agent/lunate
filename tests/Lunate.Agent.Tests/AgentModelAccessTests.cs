@@ -50,9 +50,8 @@ public sealed class AgentModelAccessTests
 
         List<AgentEvent> events = await harness.RunAsync("go", Ct).ToListAsync(Ct);
 
-        UsageUpdated usage = Assert.Single(
-            events.OfType<UsageUpdated>(),
-            update => update.ModelId == "cheap"
+        UsageUpdated usage = Assert.Single(events.OfType<UsageUpdated>(), update =>
+            update.ModelId == "cheap"
         );
         Assert.Equal(7L, usage.Usage.InputTokenCount);
         Assert.Equal(3L, usage.Usage.OutputTokenCount);
@@ -144,9 +143,8 @@ public sealed class AgentModelAccessTests
 
         List<AgentEvent> events = await harness.RunAsync("go", Ct).ToListAsync(Ct);
 
-        ToolCallResult result = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            call => call.IsError
+        ToolCallResult result = Assert.Single(events.OfType<ToolCallResult>(), call =>
+            call.IsError
         );
         Assert.Contains("'missing'", result.Output, StringComparison.Ordinal);
     }
@@ -189,9 +187,8 @@ public sealed class AgentModelAccessTests
         Assert.Equal(childRunId, usage.RunId);
         Assert.Equal("cheap", usage.ModelId);
         Assert.Equal(15L, harness.SubagentUsage.TokensUsed);
-        Assert.Contains(
-            events.OfType<RunFinished>(),
-            finished => finished.ParentRunId is not null && finished.RunId == childRunId
+        Assert.Contains(events.OfType<RunFinished>(), finished =>
+            finished.ParentRunId is not null && finished.RunId == childRunId
         );
     }
 

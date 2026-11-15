@@ -66,9 +66,8 @@ public sealed class ExecutionEnvironmentTests
         FileChangeEvent change = Assert.Single(sink.Events);
         Assert.Equal("a.cs", change.RelativePath);
         Assert.Equal(2, environment.Commands.Count);
-        Assert.DoesNotContain(
-            environment.Commands,
-            command => string.Equals(command.Executable, "git", StringComparison.Ordinal)
+        Assert.DoesNotContain(environment.Commands, command =>
+            string.Equals(command.Executable, "git", StringComparison.Ordinal)
         );
     }
 

@@ -219,10 +219,8 @@ public sealed class ModelRegistryRegistrationTests
         {
             registry.RegisterModelMiddleware(
                 "a",
-                new ExtensionModelMiddleware(
-                    ModelMiddlewareSlot.BeforeRouting,
-                    index,
-                    inner => inner
+                new ExtensionModelMiddleware(ModelMiddlewareSlot.BeforeRouting, index, inner =>
+                    inner
                 )
             );
         }

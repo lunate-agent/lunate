@@ -65,8 +65,7 @@ internal sealed partial class SessionImages
     {
         ArgumentNullException.ThrowIfNull(session);
         _ = SessionPaths.SessionFileName(session.SessionId);
-        string directory =
-            Path.GetDirectoryName(Path.GetFullPath(session.Path))
+        string directory = Path.GetDirectoryName(Path.GetFullPath(session.Path))
             ?? throw new ArgumentException(
                 $"Session path '{session.Path}' has no directory to place images in.",
                 nameof(session)

@@ -33,19 +33,16 @@ public sealed class OpenCodeGoCatalogWireTests
         ];
 
         Assert.NotEmpty(models);
-        Assert.All(
-            models,
-            model =>
-            {
-                Assert.True(ProviderApiFamilies.IsKnown(model.ApiFamily), model.Id);
-                Assert.True(
-                    model.ApiFamily == ProviderApiFamilies.SystemOne
-                        ? model.Id == "opencode-go/jev-1.13"
-                        : model.ApiFamily != ProviderApiFamilies.SystemOne,
-                    model.Id
-                );
-            }
-        );
+        Assert.All(models, model =>
+        {
+            Assert.True(ProviderApiFamilies.IsKnown(model.ApiFamily), model.Id);
+            Assert.True(
+                model.ApiFamily == ProviderApiFamilies.SystemOne
+                    ? model.Id == "opencode-go/jev-1.13"
+                    : model.ApiFamily != ProviderApiFamilies.SystemOne,
+                model.Id
+            );
+        });
         Assert.Equal(
             ["anthropic-messages", "google", "openai-chat", "openai-responses", "systemone"],
             models.Select(model => model.ApiFamily!).Distinct().Order()

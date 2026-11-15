@@ -69,11 +69,9 @@ public sealed class RemoteCommandNoticeTests
             "command ext:e2e:explode failed: the extension broke while pinging — see /extensions for the extension's state",
             result.Message
         );
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("ext:e2e:explode", StringComparison.Ordinal)
-                && message.Contains("the extension broke while pinging", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("ext:e2e:explode", StringComparison.Ordinal)
+            && message.Contains("the extension broke while pinging", StringComparison.Ordinal)
         );
     }
 
@@ -96,9 +94,8 @@ public sealed class RemoteCommandNoticeTests
 
         // Not in autocomplete and not dispatchable.
         Assert.DoesNotContain(registry.Descriptors, descriptor => descriptor.Name == "ghost");
-        Assert.DoesNotContain(
-            registry.CompletionItems,
-            item => item.Text.Contains("ghost", StringComparison.Ordinal)
+        Assert.DoesNotContain(registry.CompletionItems, item =>
+            item.Text.Contains("ghost", StringComparison.Ordinal)
         );
         CommandResult result = await registry.InvokeAsync(
             new CommandInvocation("ghost", string.Empty),
@@ -109,10 +106,8 @@ public sealed class RemoteCommandNoticeTests
         // And the extensions view reports the declaration as not provided.
         // The builtin also composes; this test is about the remote extension's row.
         string segment = Assert.Single(
-            ExtensionsView.Segments(
-                host.Descriptors,
-                host.LoadResults,
-                id => host.RegisteredCounts(id, registry.Shadowed)
+            ExtensionsView.Segments(host.Descriptors, host.LoadResults, id =>
+                host.RegisteredCounts(id, registry.Shadowed)
             ),
             candidate => candidate.StartsWith("e2e ", StringComparison.Ordinal)
         );

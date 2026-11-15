@@ -80,11 +80,7 @@ internal sealed partial class LiveArea
 
         // A post always starts a new generation: a re-post of the same text is a fresh notice the
         // user is entitled to see again, and it supersedes a clear held for the previous one.
-        _state = _state with
-        {
-            Notice = notice.Notice,
-            NoticeGeneration = notice.Generation,
-        };
+        _state = _state with { Notice = notice.Notice, NoticeGeneration = notice.Generation };
         _noticeClearPending = false;
         _dirty = true;
         return new NoticeSlotEntry(

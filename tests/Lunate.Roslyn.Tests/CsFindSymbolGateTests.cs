@@ -317,10 +317,8 @@ public sealed class CsFindSymbolGateTests(ITestOutputHelper output)
         var result = await backend.FindSymbolAsync("Calculator", CancellationToken.None);
 
         Assert.Equal(SymbolSearchStatus.Partial, result.Status);
-        Assert.Contains(
-            result.Matches,
-            candidate =>
-                candidate.Name == "Calculator" && candidate.File == "src/ConsoleApp/Calculator.cs"
+        Assert.Contains(result.Matches, candidate =>
+            candidate.Name == "Calculator" && candidate.File == "src/ConsoleApp/Calculator.cs"
         );
     }
 

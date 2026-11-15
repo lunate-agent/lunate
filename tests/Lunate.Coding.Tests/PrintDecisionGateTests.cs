@@ -114,9 +114,8 @@ public sealed class PrintDecisionGateTests
         Assert.Equal("ok", output);
         Assert.Empty(errors);
         Assert.Contains("decide", client.Requests[0][0].Text, StringComparison.Ordinal);
-        Assert.Contains(
-            client.RequestOptions[0]!.Tools!,
-            declaration => declaration.Name == "decide"
+        Assert.Contains(client.RequestOptions[0]!.Tools!, declaration =>
+            declaration.Name == "decide"
         );
     }
 

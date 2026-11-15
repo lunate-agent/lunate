@@ -123,8 +123,7 @@ public sealed partial class RemoteExtension
         CommandInvokeResult reply;
         try
         {
-            reply =
-                answer.Value.Deserialize<CommandInvokeResult>(WireJson.Options)
+            reply = answer.Value.Deserialize<CommandInvokeResult>(WireJson.Options)
                 ?? throw new JsonException("the reply was null");
         }
         catch (JsonException exception)

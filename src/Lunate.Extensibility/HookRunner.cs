@@ -132,8 +132,7 @@ public sealed partial class HookRunner
     private void LogFailure(string hook, Registration registration, TimeSpan timeout, string? error)
     {
         string handler = registration.Handler.GetType().Name;
-        string reason =
-            error
+        string reason = error
             ?? $"timed out after {timeout.TotalMilliseconds.ToString("0.###", CultureInfo.InvariantCulture)} ms";
         _log.Error(
             $"hook {hook}: handler {handler} from extension '{registration.ExtensionId}' failed: {reason}; the hook's failure policy applies."

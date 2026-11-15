@@ -227,8 +227,7 @@ public sealed class NuGetConformanceTests
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
 
-        using Process process =
-            Process.Start(start)
+        using Process process = Process.Start(start)
             ?? throw new InvalidOperationException("dotnet restore could not be started.");
         Task<string> output = process.StandardOutput.ReadToEndAsync(cancellationToken);
         Task<string> error = process.StandardError.ReadToEndAsync(cancellationToken);

@@ -45,9 +45,8 @@ public sealed class ExtensionToolActivationStampingTests
         loader.Discover(temp.Root, "repo");
         await loader.Load("echo", temp.Root, "repo", Prompt(), Ct);
 
-        Assert.All(
-            Tools(loader, "echo"),
-            tool => Assert.Equal("always", tool.ActivationRule!.When)
+        Assert.All(Tools(loader, "echo"), tool =>
+            Assert.Equal("always", tool.ActivationRule!.When)
         );
     }
 
@@ -116,10 +115,8 @@ public sealed class ExtensionToolActivationStampingTests
                 StorePath = temp.Subdirectory("store"),
                 BuiltIns =
                 [
-                    new BuiltInExtension(
-                        $"host/{manifest.Id}/extension.json",
-                        manifest,
-                        () => new RegisteringFactory([.. manifest.Tools])
+                    new BuiltInExtension($"host/{manifest.Id}/extension.json", manifest, () =>
+                        new RegisteringFactory([.. manifest.Tools])
                     ),
                 ],
             }

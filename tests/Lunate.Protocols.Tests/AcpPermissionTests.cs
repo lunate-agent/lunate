@@ -84,14 +84,11 @@ public sealed class AcpPermissionTests
 
         Assert.Equal(StopReason.EndTurn, response.StopReason);
         Assert.Equal(0, tool.Executions);
-        Assert.Contains(
-            runtime.State.Updates,
-            update =>
-                AcpTestSupport.Wire(update.Update).Contains("Denied", StringComparison.Ordinal)
+        Assert.Contains(runtime.State.Updates, update =>
+            AcpTestSupport.Wire(update.Update).Contains("Denied", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            DeniedResults(model),
-            result => result.Contains("write-probe", StringComparison.Ordinal)
+        Assert.Contains(DeniedResults(model), result =>
+            result.Contains("write-probe", StringComparison.Ordinal)
         );
     }
 

@@ -1326,8 +1326,7 @@ internal sealed partial class InteractiveSession
     )
     {
         WizardProviderChoice provider = wizard.Provider!;
-        string? family =
-            SetupWizardCommit.ChatFamily(wizard)
+        string? family = SetupWizardCommit.ChatFamily(wizard)
             ?? WizardModelLookup.Resolve(provider, _catalog, modelId).Match?.ApiFamily
             ?? provider.ApiFamily;
         UsageProfileValidation.RequireChatFamily(profileName, modelId, family, usage);

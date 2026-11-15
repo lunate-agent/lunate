@@ -34,11 +34,9 @@ public sealed class InteractiveSessionBashExecutionTests
         Assert.Contains("exit 0", scrollback, StringComparison.Ordinal);
         Assert.Contains("0.0s", scrollback, StringComparison.Ordinal);
         Assert.Empty(host.Client.Requests);
-        Assert.Contains(
-            host.Events,
-            agentEvent =>
-                agentEvent is ToolCallStart { ToolName: "bash" } start
-                && start.CallId.StartsWith("bash-", StringComparison.Ordinal)
+        Assert.Contains(host.Events, agentEvent =>
+            agentEvent is ToolCallStart { ToolName: "bash" } start
+            && start.CallId.StartsWith("bash-", StringComparison.Ordinal)
         );
 
         host.Console.Complete();

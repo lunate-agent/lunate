@@ -170,9 +170,8 @@ public sealed class WelcomeHeaderRendererTests
     {
         string[] text = Text(Full, width: 80, Capabilities(unicode: true, colored: false));
 
-        Assert.DoesNotContain(
-            text,
-            line => line.StartsWith("environment ", StringComparison.Ordinal)
+        Assert.DoesNotContain(text, line =>
+            line.StartsWith("environment ", StringComparison.Ordinal)
         );
     }
 

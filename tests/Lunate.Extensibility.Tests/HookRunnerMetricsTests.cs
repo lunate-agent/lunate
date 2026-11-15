@@ -55,9 +55,8 @@ public sealed class HookRunnerMetricsTests
         Measurement measured;
         lock (measurements)
         {
-            measured = Assert.Single(
-                measurements,
-                entry => entry.Tags.GetValueOrDefault("extension") is "ext-metrics"
+            measured = Assert.Single(measurements, entry =>
+                entry.Tags.GetValueOrDefault("extension") is "ext-metrics"
             );
         }
 

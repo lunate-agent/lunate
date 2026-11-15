@@ -42,9 +42,8 @@ public sealed class CsReferencesGateTests(ITestOutputHelper output)
         );
         Assert.Equal(3, first.TotalReferenceCount);
         Assert.False(first.Truncated);
-        Assert.DoesNotContain(
-            first.References,
-            reference => reference.File == "src/CalculatorLib/Calculator.cs" && reference.Line == 9
+        Assert.DoesNotContain(first.References, reference =>
+            reference.File == "src/CalculatorLib/Calculator.cs" && reference.Line == 9
         );
 
         Assert.Equal(first.Resolved, second.Resolved);

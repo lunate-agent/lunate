@@ -20,9 +20,8 @@ public sealed class FindToolTests
         Assert.Equal("find", tool.Name);
         Assert.Equal(ToolRisk.ReadOnly, tool.Risk);
         JsonElement schema = tool.ParametersSchema;
-        Assert.Contains(
-            schema.GetProperty("required").EnumerateArray(),
-            element => element.GetString() == "pattern"
+        Assert.Contains(schema.GetProperty("required").EnumerateArray(), element =>
+            element.GetString() == "pattern"
         );
         JsonElement properties = schema.GetProperty("properties");
         Assert.True(properties.TryGetProperty("path", out _));

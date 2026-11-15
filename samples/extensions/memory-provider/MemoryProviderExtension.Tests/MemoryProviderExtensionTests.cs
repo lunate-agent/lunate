@@ -23,13 +23,11 @@ public sealed class MemoryProviderExtensionTests
         );
         await host.StopAsync(Ct);
 
-        Assert.Contains(
-            host.Log.Messages,
-            message => message.Contains("remembered: alpha", StringComparison.Ordinal)
+        Assert.Contains(host.Log.Messages, message =>
+            message.Contains("remembered: alpha", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            host.Log.Messages,
-            message => message.Contains("committed 1 memory", StringComparison.Ordinal)
+        Assert.Contains(host.Log.Messages, message =>
+            message.Contains("committed 1 memory", StringComparison.Ordinal)
         );
         SessionExtensionEntry entry = Assert.Single(
             Session.Load(host.SessionPath).Entries.OfType<SessionExtensionEntry>()
@@ -48,10 +46,8 @@ public sealed class MemoryProviderExtensionTests
         await host.RunAsync(client, "go", Ct);
         await host.StopAsync(Ct);
 
-        Assert.Contains(
-            host.Log.Messages,
-            message =>
-                message.Contains("prepared memory section (1 memory;", StringComparison.Ordinal)
+        Assert.Contains(host.Log.Messages, message =>
+            message.Contains("prepared memory section (1 memory;", StringComparison.Ordinal)
         );
     }
 
@@ -67,9 +63,8 @@ public sealed class MemoryProviderExtensionTests
         await host.RunAsync(new TextReplyChatClient("done"), "again", Ct);
         await host.StopAsync(Ct);
 
-        Assert.Single(
-            host.Log.Messages,
-            message => message.Contains("remembered: alpha", StringComparison.Ordinal)
+        Assert.Single(host.Log.Messages, message =>
+            message.Contains("remembered: alpha", StringComparison.Ordinal)
         );
         SessionExtensionEntry[] entries =
         [
@@ -103,10 +98,8 @@ public sealed class MemoryProviderExtensionTests
         await host.StopAsync(Ct);
 
         Assert.Single(first.Events.OfType<CompactionApplied>());
-        Assert.Contains(
-            host.Log.Messages,
-            message =>
-                message.Contains("prepared memory section (1 memory;", StringComparison.Ordinal)
+        Assert.Contains(host.Log.Messages, message =>
+            message.Contains("prepared memory section (1 memory;", StringComparison.Ordinal)
         );
         Assert.Equal(2, SessionAssertions.CountExtensions(host.SessionPath, "memory-provider"));
     }
@@ -124,24 +117,20 @@ public sealed class MemoryProviderExtensionTests
         );
         await host.StopAsync(Ct);
 
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("service started", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("service started", StringComparison.Ordinal)
         );
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("service stopped", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("service stopped", StringComparison.Ordinal)
         );
 
         await host.DisposeAsync();
 
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("service started", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("service started", StringComparison.Ordinal)
         );
-        Assert.Single(
-            host.Log.Entries,
-            entry => entry.Message.Contains("service stopped", StringComparison.Ordinal)
+        Assert.Single(host.Log.Entries, entry =>
+            entry.Message.Contains("service stopped", StringComparison.Ordinal)
         );
     }
 
@@ -159,12 +148,10 @@ public sealed class MemoryProviderExtensionTests
         await host.RunAsync(client, "go", Ct);
         await host.StopAsync(Ct);
 
-        Assert.Contains(
-            host.Log.Messages,
-            message =>
-                message.Contains("memory-provider", StringComparison.Ordinal)
-                && message.Contains("was dropped", StringComparison.Ordinal)
-                && message.Contains("budget of 2", StringComparison.Ordinal)
+        Assert.Contains(host.Log.Messages, message =>
+            message.Contains("memory-provider", StringComparison.Ordinal)
+            && message.Contains("was dropped", StringComparison.Ordinal)
+            && message.Contains("budget of 2", StringComparison.Ordinal)
         );
     }
 

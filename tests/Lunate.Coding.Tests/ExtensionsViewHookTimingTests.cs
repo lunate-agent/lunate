@@ -63,11 +63,8 @@ public sealed class ExtensionsViewHookTimingTests
         IReadOnlyList<ExtensionLoadResult> results = [Loaded("ext-remote", milliseconds: 4)];
 
         string segment = Assert.Single(
-            ExtensionsView.Segments(
-                descriptors,
-                results,
-                NoCounts,
-                remoteStart: _ => TimeSpan.FromMilliseconds(640.5)
+            ExtensionsView.Segments(descriptors, results, NoCounts, remoteStart: _ =>
+                TimeSpan.FromMilliseconds(640.5)
             )
         );
 

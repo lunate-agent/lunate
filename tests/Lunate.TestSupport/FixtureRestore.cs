@@ -86,8 +86,8 @@ public static class FixtureRestore
             return NoFallback;
         }
 
-        string folder =
-            System.Security.SecurityElement.Escape(machinePackagesFolder) ?? string.Empty;
+        string folder = System.Security.SecurityElement.Escape(machinePackagesFolder)
+            ?? string.Empty;
         return $$"""
             <?xml version="1.0" encoding="utf-8"?>
             <configuration>

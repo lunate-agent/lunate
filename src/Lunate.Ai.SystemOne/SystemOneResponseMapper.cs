@@ -144,8 +144,9 @@ internal static class SystemOneResponseMapper
         }
 
         IReadOnlyList<string> order = question.Answers!;
-        string chosen =
-            order.Where(normalized.ContainsKey).MaxBy(label => normalized[label].GetDouble())
+        string chosen = order
+            .Where(normalized.ContainsKey)
+            .MaxBy(label => normalized[label].GetDouble())
             ?? throw new InvalidDataException("System One score answer has no levels.");
         double expectedScore = RequiredFiniteNumber(answer, "score");
         return new MappedScore(new { answer = chosen, probabilities = normalized }, expectedScore);

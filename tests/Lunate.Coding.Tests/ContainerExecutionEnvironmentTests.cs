@@ -110,9 +110,8 @@ public sealed class ContainerExecutionEnvironmentTests
         Assert.Equal("docker:alpine", environment.Status.Description);
         Assert.Single(host.Requests, request => IsCreate(request));
         Assert.Equal(2, host.Requests.Count(IsToolCommand));
-        Assert.All(
-            host.Requests.Where(IsToolCommand),
-            request => Assert.Contains("lunate-test", request.Arguments)
+        Assert.All(host.Requests.Where(IsToolCommand), request =>
+            Assert.Contains("lunate-test", request.Arguments)
         );
 
         await environment.DisposeAsync();
@@ -324,12 +323,10 @@ public sealed class ContainerExecutionEnvironmentTests
         Assert.DoesNotContain("--volume", create.Arguments);
         Assert.DoesNotContain("--mount", create.Arguments);
         Assert.DoesNotContain("--privileged", create.Arguments);
-        Assert.DoesNotContain(
-            create.Arguments,
-            argument =>
-                argument.Contains("auth.json", StringComparison.Ordinal)
-                || argument.Contains("docker.sock", StringComparison.Ordinal)
-                || argument.Contains("podman.sock", StringComparison.Ordinal)
+        Assert.DoesNotContain(create.Arguments, argument =>
+            argument.Contains("auth.json", StringComparison.Ordinal)
+            || argument.Contains("docker.sock", StringComparison.Ordinal)
+            || argument.Contains("podman.sock", StringComparison.Ordinal)
         );
     }
 

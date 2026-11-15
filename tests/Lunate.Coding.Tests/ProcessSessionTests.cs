@@ -205,8 +205,8 @@ public sealed class ProcessSessionTests
         if (OperatingSystem.IsWindows())
         {
             // Windows cannot start a process without SystemRoot (DLL resolution).
-            environment["SystemRoot"] =
-                Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
+            environment["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot")
+                ?? @"C:\Windows";
         }
 
         if (name is not null && value is not null)

@@ -22,9 +22,8 @@ public sealed class ModelRoutingDecisionTests
         DecisionEvaluated decision = Assert.Single(run.Events.OfType<DecisionEvaluated>());
         Assert.Equal("routing", decision.QuestionId);
         Assert.Equal("fast", decision.Answer);
-        UsageUpdated decisionUsage = Assert.Single(
-            run.Events.OfType<UsageUpdated>(),
-            item => item.Attribution?.Usage == "decision"
+        UsageUpdated decisionUsage = Assert.Single(run.Events.OfType<UsageUpdated>(), item =>
+            item.Attribution?.Usage == "decision"
         );
         Assert.Equal("decision", decisionUsage.Attribution?.Usage);
         Assert.Equal("decision", decisionUsage.Attribution?.ProfileName);

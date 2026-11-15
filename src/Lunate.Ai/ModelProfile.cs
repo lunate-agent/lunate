@@ -103,8 +103,7 @@ internal static class ModelProfileResolver
                 provider.Name,
                 model.Id
             );
-            endpoint =
-                provider.UrlFor(family)
+            endpoint = provider.UrlFor(family)
                 ?? model.Endpoint
                 ?? ProviderPresets.Find(provider.Kind)?.UrlFor(family);
         }

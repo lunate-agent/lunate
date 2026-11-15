@@ -38,16 +38,13 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
             decision: true
         );
 
-        Assert.Contains(
-            fast,
-            label =>
-                label.Contains("anthropic/claude-sonnet-5-5", StringComparison.Ordinal)
-                && label.Contains("anthropic-messages", StringComparison.Ordinal)
+        Assert.Contains(fast, label =>
+            label.Contains("anthropic/claude-sonnet-5-5", StringComparison.Ordinal)
+            && label.Contains("anthropic-messages", StringComparison.Ordinal)
         );
         Assert.Contains(fast, label => label.StartsWith("openai/", StringComparison.Ordinal));
-        Assert.Contains(
-            decision,
-            label => label.Contains("anthropic/claude-sonnet-5-5", StringComparison.Ordinal)
+        Assert.Contains(decision, label =>
+            label.Contains("anthropic/claude-sonnet-5-5", StringComparison.Ordinal)
         );
         // A fast usage never offers the decision-only family.
         Assert.DoesNotContain(fast, label => label.Contains("systemone", StringComparison.Ordinal));
@@ -75,13 +72,11 @@ public sealed class SetupWizardUsageRoutesTests : IDisposable
             decision: false
         );
 
-        Assert.Contains(
-            decision,
-            label => label.Contains("opencode-go/jev-1.13 (native Jev", StringComparison.Ordinal)
+        Assert.Contains(decision, label =>
+            label.Contains("opencode-go/jev-1.13 (native Jev", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            fast,
-            label => label.Contains("native Jev", StringComparison.Ordinal)
+        Assert.DoesNotContain(fast, label =>
+            label.Contains("native Jev", StringComparison.Ordinal)
         );
     }
 

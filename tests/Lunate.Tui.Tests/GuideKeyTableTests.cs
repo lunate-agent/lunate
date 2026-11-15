@@ -70,21 +70,18 @@ public sealed class GuideKeyTableTests
             .Where(key => !catalogKeys.Contains(key, StringComparer.Ordinal))
             .ToArray();
 
-        Assert.All(
-            unbound,
-            key =>
-            {
-                GuideRow row = PageRows.First(candidate =>
-                    candidate.Keys.Contains(key, StringComparer.Ordinal)
-                );
-                Assert.True(
-                    ExemptUnboundKeys.Contains(key, StringComparer.Ordinal),
-                    $"docs/keybindings.md documents '{key}' and no catalog row has it "
-                        + $"(row: '{row.KeyCell}' — {row.ActionCell}); if it is meant to route, add it "
-                        + "to keys.json and run scripts/docs-sync, otherwise remove the row"
-                );
-            }
-        );
+        Assert.All(unbound, key =>
+        {
+            GuideRow row = PageRows.First(candidate =>
+                candidate.Keys.Contains(key, StringComparer.Ordinal)
+            );
+            Assert.True(
+                ExemptUnboundKeys.Contains(key, StringComparer.Ordinal),
+                $"docs/keybindings.md documents '{key}' and no catalog row has it "
+                    + $"(row: '{row.KeyCell}' — {row.ActionCell}); if it is meant to route, add it "
+                    + "to keys.json and run scripts/docs-sync, otherwise remove the row"
+            );
+        });
     }
 
     /// <summary>

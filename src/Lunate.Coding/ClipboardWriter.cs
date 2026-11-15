@@ -130,8 +130,8 @@ internal sealed class ProcessClipboardTool : IClipboardTool
         Process process;
         try
         {
-            process =
-                Process.Start(startInfo) ?? throw new Win32Exception("the tool did not start");
+            process = Process.Start(startInfo)
+                ?? throw new Win32Exception("the tool did not start");
         }
         catch (Exception exception)
             when (exception is Win32Exception or IOException or InvalidOperationException)

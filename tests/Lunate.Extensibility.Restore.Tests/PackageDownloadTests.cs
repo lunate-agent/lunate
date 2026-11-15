@@ -33,9 +33,8 @@ public sealed class PackageDownloadTests
             result.Record.Package.Sha512,
             File.ReadAllText(feed.CachedHash("Acme.Toolkit", "1.4.2")).Trim()
         );
-        Assert.Contains(
-            requests,
-            request => request.Contains("download", StringComparison.Ordinal)
+        Assert.Contains(requests, request =>
+            request.Contains("download", StringComparison.Ordinal)
         );
     }
 

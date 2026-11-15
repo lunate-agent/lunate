@@ -228,10 +228,8 @@ public sealed class TrustPromptRendererTests
         {
             string[] lines = [.. TrustPromptRenderer.PlainLines(prompt, width)];
 
-            Assert.All(
-                lines,
-                line =>
-                    Assert.True(CellText.Width(line) <= width, $"'{line}' exceeds {width} cells")
+            Assert.All(lines, line =>
+                Assert.True(CellText.Width(line) <= width, $"'{line}' exceeds {width} cells")
             );
             string joined = string.Concat(lines);
             Assert.Contains(Path, joined, StringComparison.Ordinal);
@@ -255,9 +253,8 @@ public sealed class TrustPromptRendererTests
         Assert.Contains(Question(LongTitle), joined, StringComparison.Ordinal);
         Assert.Contains("[y]es", joined, StringComparison.Ordinal);
         Assert.Contains("[n]o", joined, StringComparison.Ordinal);
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line) <= width, $"'{line}' exceeds {width} cells")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= width, $"'{line}' exceeds {width} cells")
         );
     }
 

@@ -31,23 +31,19 @@ public sealed class ExtensionLoaderFileChangeTests
             Ct
         );
 
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains(
-                    "hello lookups: bus=True, queue=True, service=True",
-                    StringComparison.Ordinal
-                )
+        Assert.Contains(log.Messages, message =>
+            message.Contains(
+                "hello lookups: bus=True, queue=True, service=True",
+                StringComparison.Ordinal
+            )
         );
 
         await loader.Unload("hello");
         bus.Notify(Changes.Event("/work/b.cs"));
         await bus.DrainAsync(Ct);
 
-        Assert.DoesNotContain(
-            log.Messages,
-            message =>
-                message.Contains("hello file changed: path=/work/b.cs", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("hello file changed: path=/work/b.cs", StringComparison.Ordinal)
         );
     }
 
@@ -62,17 +58,14 @@ public sealed class ExtensionLoaderFileChangeTests
 
         await loader.Load("hello", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("no core/file-bus", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("no core/file-bus", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains(
-                    "hello lookups: bus=False, queue=False, service=True",
-                    StringComparison.Ordinal
-                )
+        Assert.Contains(log.Messages, message =>
+            message.Contains(
+                "hello lookups: bus=False, queue=False, service=True",
+                StringComparison.Ordinal
+            )
         );
     }
 

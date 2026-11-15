@@ -125,10 +125,8 @@ public sealed class WriteVerifierContractTests
                 Log = log,
                 BuiltIns =
                 [
-                    new BuiltInExtension(
-                        $"host/{manifest.Id}/extension.json",
-                        manifest,
-                        () => factory
+                    new BuiltInExtension($"host/{manifest.Id}/extension.json", manifest, () =>
+                        factory
                     ),
                 ],
             }

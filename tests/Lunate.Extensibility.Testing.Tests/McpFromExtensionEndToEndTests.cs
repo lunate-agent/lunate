@@ -51,17 +51,15 @@ public sealed class McpFromExtensionEndToEndTests
         Assert.All(host.Tools.Tools, tool => Assert.Equal("test", tool.Namespace?.Name));
         Assert.Contains(host.Tools.Declarations, declaration => declaration.Name == "test__add");
         Assert.Contains(host.Tools.Tools, tool => tool.Name == "test__echo");
-        Assert.DoesNotContain(
-            host.Tools.Declarations,
-            declaration => declaration.Name == "test__echo"
+        Assert.DoesNotContain(host.Tools.Declarations, declaration =>
+            declaration.Name == "test__echo"
         );
 
         IReadOnlyList<ExtensionMcpServerStatus> again = await host.ComposeMcpServersAsync(Ct);
 
         Assert.Equal(ExtensionMcpServerState.Started, Assert.Single(again).State);
-        Assert.Single(
-            File.ReadAllLines(marker),
-            line => line.StartsWith("started pid=", StringComparison.Ordinal)
+        Assert.Single(File.ReadAllLines(marker), line =>
+            line.StartsWith("started pid=", StringComparison.Ordinal)
         );
 
         await host.RunAsync(

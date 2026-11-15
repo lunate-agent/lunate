@@ -103,14 +103,11 @@ public sealed class KeyHelpTests
     [Fact]
     public void Every_catalog_row_has_a_description()
     {
-        Assert.All(
-            KeyBindingCatalog.All,
-            binding => Assert.False(string.IsNullOrWhiteSpace(binding.Description))
+        Assert.All(KeyBindingCatalog.All, binding =>
+            Assert.False(string.IsNullOrWhiteSpace(binding.Description))
         );
-        Assert.All(
-            KeyBindingCatalog.All,
-            binding =>
-                Assert.False(string.IsNullOrWhiteSpace(KeyPatternFormatter.Describe(binding.Key)))
+        Assert.All(KeyBindingCatalog.All, binding =>
+            Assert.False(string.IsNullOrWhiteSpace(KeyPatternFormatter.Describe(binding.Key)))
         );
     }
 

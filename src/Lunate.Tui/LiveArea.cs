@@ -43,8 +43,8 @@ internal sealed partial class LiveArea : IDisposable
         _readKeys = readKeys;
         _scrollback = scrollback;
         _ownsScrollback = scrollback is null;
-        _capabilities =
-            capabilities ?? new TerminalCapabilities(ColorSystemSupport.Detect, Unicode: true);
+        _capabilities = capabilities
+            ?? new TerminalCapabilities(ColorSystemSupport.Detect, Unicode: true);
         _writer = new FrameWriter(console);
     }
 

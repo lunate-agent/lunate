@@ -160,16 +160,14 @@ public sealed class ExtensionToolActivationFilterTests
             ExtensionToolActivationFilter.Split([first, gitOnly, unruled], workspace);
 
         Assert.Equal(["peak__unruled"], active.Select(tool => tool.Name));
-        ExtensionInactiveTool hasFile = Assert.Single(
-            inactive,
-            entry => entry.Tool == "peak__first"
+        ExtensionInactiveTool hasFile = Assert.Single(inactive, entry =>
+            entry.Tool == "peak__first"
         );
         Assert.Equal("peak", hasFile.ExtensionId);
         Assert.Equal("workspace-root-has-file", hasFile.Condition);
         Assert.Equal("no file matching 'first.md' at the workspace root", hasFile.Reason);
-        ExtensionInactiveTool gitOnlyReport = Assert.Single(
-            inactive,
-            entry => entry.Tool == "peak__git-only"
+        ExtensionInactiveTool gitOnlyReport = Assert.Single(inactive, entry =>
+            entry.Tool == "peak__git-only"
         );
         Assert.Equal("workspace-is-git-repository", gitOnlyReport.Condition);
         Assert.Equal("the workspace root is not a git repository", gitOnlyReport.Reason);

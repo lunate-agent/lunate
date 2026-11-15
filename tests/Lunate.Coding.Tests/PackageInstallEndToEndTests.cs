@@ -181,9 +181,8 @@ public sealed class PackageInstallEndToEndTests
         host.Client.Enqueue(Scripts.Text("done"), Scripts.Stop());
         await host.SendLineAsync("say hi");
         await host.WaitUntilAsync(() => host.Client.Requests.Count > 0);
-        Assert.Contains(
-            host.Client.RequestOptions[0]!.Tools!.OfType<AIFunction>(),
-            tool => tool.Name.EndsWith("echo", StringComparison.Ordinal)
+        Assert.Contains(host.Client.RequestOptions[0]!.Tools!.OfType<AIFunction>(), tool =>
+            tool.Name.EndsWith("echo", StringComparison.Ordinal)
         );
 
         host.Console.SendText("/skills");

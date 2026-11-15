@@ -133,13 +133,11 @@ public sealed class AgentReasoningRequestFilterTests
             .ToListAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, client.Requests.Count);
-        Assert.Contains(
-            client.Requests[0].Messages,
-            message => message.Contents.OfType<TextReasoningContent>().Any()
+        Assert.Contains(client.Requests[0].Messages, message =>
+            message.Contents.OfType<TextReasoningContent>().Any()
         );
-        Assert.DoesNotContain(
-            client.Requests[1].Messages,
-            message => message.Contents.OfType<TextReasoningContent>().Any()
+        Assert.DoesNotContain(client.Requests[1].Messages, message =>
+            message.Contents.OfType<TextReasoningContent>().Any()
         );
     }
 
@@ -241,8 +239,7 @@ public sealed class AgentReasoningRequestFilterTests
         );
 
     private static ChatMessage RequestAssistantMessage(ScriptedChatClient client) =>
-        Assert.Single(
-            Assert.Single(client.Requests).Messages,
-            message => message.Role == ChatRole.Assistant
+        Assert.Single(Assert.Single(client.Requests).Messages, message =>
+            message.Role == ChatRole.Assistant
         );
 }

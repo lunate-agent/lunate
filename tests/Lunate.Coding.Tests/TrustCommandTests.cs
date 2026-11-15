@@ -71,9 +71,8 @@ public sealed class TrustCommandTests
         Assert.Contains("trust: recorded mcp server — ", output, StringComparison.Ordinal);
         List<string> printed = fixture.PrintedHashes(output);
         Assert.Equal(3, printed.Count);
-        Assert.All(
-            fixture.Records(),
-            record => Assert.Contains(record.ContentHash, printed, StringComparer.Ordinal)
+        Assert.All(fixture.Records(), record =>
+            Assert.Contains(record.ContentHash, printed, StringComparer.Ordinal)
         );
     }
 

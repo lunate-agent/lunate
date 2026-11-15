@@ -42,17 +42,15 @@ public sealed class SessionAppendFailureTests
 
         List<AgentEvent> recovered = await Run(harness, "second");
         Assert.Empty(recovered.OfType<RunError>());
-        Assert.Contains(
-            recovered,
-            finished => finished is RunFinished { StopReason: StopReasons.Stop }
+        Assert.Contains(recovered, finished =>
+            finished is RunFinished { StopReason: StopReasons.Stop }
         );
 
         // The next turn really built a request, from a history that no longer holds the
         // message the session refused.
         Assert.Single(client.Requests);
-        Assert.All(
-            client.Requests[0].Messages,
-            message => Assert.DoesNotContain("first", message.Text, StringComparison.Ordinal)
+        Assert.All(client.Requests[0].Messages, message =>
+            Assert.DoesNotContain("first", message.Text, StringComparison.Ordinal)
         );
     }
 

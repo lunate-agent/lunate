@@ -122,13 +122,11 @@ public sealed class AgentSteeringTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult nestedResult = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.ParentToolCallId is not null
+        ToolCallResult nestedResult = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.ParentToolCallId is not null
         );
-        ToolCallResult outerResult = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.ParentToolCallId is null
+        ToolCallResult outerResult = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.ParentToolCallId is null
         );
         SteeringInjected injected = Assert.Single(events.OfType<SteeringInjected>());
         Assert.True(

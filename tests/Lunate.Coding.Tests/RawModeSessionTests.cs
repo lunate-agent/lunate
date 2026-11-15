@@ -59,9 +59,8 @@ public sealed class RawModeSessionTests
             .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
         Assert.True(lines.Length > 1, "the raw-mode failure was not wrapped");
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line) <= 40, $"'{line}' exceeds 40 cells")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= 40, $"'{line}' exceeds 40 cells")
         );
     }
 }

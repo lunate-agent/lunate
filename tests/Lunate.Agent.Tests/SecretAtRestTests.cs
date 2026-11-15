@@ -54,24 +54,19 @@ public sealed class SecretAtRestTests
         Assert.Contains("[redacted:OPENAI_API_KEY]", result.Output, StringComparison.Ordinal);
         // The session mirrors the conversation, so a resumed run reads what the model read: the
         // mirrored FunctionResultContent carries the placeholder, not the value.
-        Assert.Contains(
-            session.Entries.OfType<SessionMessageEntry>(),
-            entry =>
-                entry.Message.Contents.Any(content =>
-                    content is FunctionResultContent function
-                    && function
-                        .Result?.ToString()
-                        ?.Contains("[redacted:OPENAI_API_KEY]", StringComparison.Ordinal) == true
-                )
+        Assert.Contains(session.Entries.OfType<SessionMessageEntry>(), entry =>
+            entry.Message.Contents.Any(content =>
+                content is FunctionResultContent function
+                && function
+                    .Result?.ToString()
+                    ?.Contains("[redacted:OPENAI_API_KEY]", StringComparison.Ordinal) == true
+            )
         );
-        Assert.DoesNotContain(
-            session.Entries.OfType<SessionMessageEntry>(),
-            entry =>
-                entry.Message.Contents.Any(content =>
-                    content is FunctionResultContent function
-                    && function.Result?.ToString()?.Contains(Secret, StringComparison.Ordinal)
-                        == true
-                )
+        Assert.DoesNotContain(session.Entries.OfType<SessionMessageEntry>(), entry =>
+            entry.Message.Contents.Any(content =>
+                content is FunctionResultContent function
+                && function.Result?.ToString()?.Contains(Secret, StringComparison.Ordinal) == true
+            )
         );
 
         // The spill holds the full output with the value replaced, not the value.

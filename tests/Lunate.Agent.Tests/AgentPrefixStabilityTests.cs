@@ -44,8 +44,8 @@ public sealed class AgentPrefixStabilityTests
 
     private static string ToolDeclarations(ScriptedRequest request)
     {
-        IList<AITool> tools =
-            request.Options?.Tools ?? throw new InvalidOperationException("No tools were sent.");
+        IList<AITool> tools = request.Options?.Tools
+            ?? throw new InvalidOperationException("No tools were sent.");
         return string.Join(
             "\n",
             tools.Select(tool =>
