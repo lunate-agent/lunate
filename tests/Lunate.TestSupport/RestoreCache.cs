@@ -19,8 +19,10 @@ internal static class RestoreCache
 {
     /// <summary>
     /// Bumped when the artifacts, their layout or the restore recipe change: it retires every entry.
+    /// <c>v3</c>: the offline configuration gained the machine cache as a fallback package folder, so a
+    /// restore resolves packages its assets file records as package references (#895).
     /// </summary>
-    private const string Format = "v2";
+    private const string Format = "v3";
 
     /// <summary>Longer than any restore takes; a lock that cannot be had is not fatal (see <see cref="Lock"/>).</summary>
     private static readonly TimeSpan LockTimeout = TimeSpan.FromMinutes(3);
