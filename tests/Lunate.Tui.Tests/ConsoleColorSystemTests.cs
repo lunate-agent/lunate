@@ -24,6 +24,21 @@ public sealed class ConsoleColorSystemTests
         Assert.Equal(expected, ConsoleColorSystem.Resolve(capability));
     }
 
+    [Theory]
+    [InlineData(ColorSystemSupport.NoColors, ColorSystemSupport.NoColors)]
+    [InlineData(ColorSystemSupport.Legacy, ColorSystemSupport.Legacy)]
+    [InlineData(ColorSystemSupport.Standard, ColorSystemSupport.Standard)]
+    [InlineData(ColorSystemSupport.EightBit, ColorSystemSupport.EightBit)]
+    [InlineData(ColorSystemSupport.TrueColor, ColorSystemSupport.TrueColor)]
+    [InlineData(ColorSystemSupport.Detect, ColorSystemSupport.EightBit)]
+    public void Each_capability_resolves_to_the_depth_a_renderer_paints_at(
+        ColorSystemSupport capability,
+        ColorSystemSupport expected
+    )
+    {
+        Assert.Equal(expected, ConsoleColorSystem.Depth(capability));
+    }
+
     [Fact]
     public void The_console_paints_with_the_resolved_system()
     {

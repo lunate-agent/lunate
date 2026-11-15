@@ -42,6 +42,8 @@ public sealed class ThemeGoldenTests
     [Theory]
     [InlineData(ColorSystemSupport.TrueColor, "\u001b[38;2;255;136;0m")]
     [InlineData(ColorSystemSupport.EightBit, "\u001b[38;5;208m")]
+    // The detected default: no COLORTERM, so the frame paints what its 256-colour console does.
+    [InlineData(ColorSystemSupport.Detect, "\u001b[38;5;208m")]
     [InlineData(ColorSystemSupport.Standard, "\u001b[93m")]
     public void A_hex_token_downgrades_to_the_depth_the_terminal_has(
         ColorSystemSupport color,

@@ -456,7 +456,11 @@ public sealed class ApprovalPromptRendererTests
         var console = new TestConsole();
         console.Profile.Width = 80;
         console.EmitAnsiSequences = true;
-        console.Write(new ApprovalPromptRenderer().Render(prompt));
+        console.Write(
+            new ApprovalPromptRenderer(
+                new TerminalCapabilities(ColorSystemSupport.Standard, Unicode: true)
+            ).Render(prompt)
+        );
         return console.Output;
     }
 }

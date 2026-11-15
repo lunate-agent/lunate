@@ -85,7 +85,7 @@ public sealed class LiveAreaBoxRendererTests
     [Theory]
     [InlineData(ColorSystemSupport.TrueColor, "\u001b[38;2;135;175;215m")]
     [InlineData(ColorSystemSupport.EightBit, "\u001b[38;5;110m")]
-    [InlineData(ColorSystemSupport.Detect, "\u001b[34m")]
+    [InlineData(ColorSystemSupport.Standard, "\u001b[34m")]
     [InlineData(ColorSystemSupport.NoColors, "")]
     public void Empty_input_renders_the_placeholder_in_the_prompt_tone(
         ColorSystemSupport color,

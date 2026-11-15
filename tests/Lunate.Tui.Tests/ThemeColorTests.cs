@@ -30,6 +30,7 @@ public sealed class ThemeColorTests
 
         Assert.Equal("\u001b[38;5;12m", color.Sgr(ColorSystemSupport.TrueColor));
         Assert.Equal("\u001b[38;5;12m", color.Sgr(ColorSystemSupport.EightBit));
+        Assert.Equal("\u001b[38;5;12m", color.Sgr(ColorSystemSupport.Detect));
         Assert.Equal("\u001b[94m", color.Sgr(ColorSystemSupport.Standard));
     }
 
@@ -49,8 +50,26 @@ public sealed class ThemeColorTests
 
         Assert.Equal(trueColor, color.Sgr(ColorSystemSupport.TrueColor));
         Assert.Equal(eightBit, color.Sgr(ColorSystemSupport.EightBit));
+        // Detect is the console's 256-colour fallback, so the frame paints the same entry there.
+        Assert.Equal(eightBit, color.Sgr(ColorSystemSupport.Detect));
         Assert.Equal(sixteen, color.Sgr(ColorSystemSupport.Standard));
         Assert.Null(color.Sgr(ColorSystemSupport.NoColors));
+    }
+
+    [Fact]
+    public void A_hex_value_downgrades_to_256_on_the_detected_default_path()
+    {
+        Assert.True(ThemeColor.TryParse("#ff8800", out ThemeColor color, out _));
+
+        // A terminal without COLORTERM is detected as Detect, which the console resolves to
+        // EightBit; the live frame and the scrollback markup must agree with that console.
+        Assert.Equal("\u001b[38;5;208m", color.Sgr(ColorSystemSupport.Detect));
+        Assert.Equal(color.Sgr(ColorSystemSupport.EightBit), color.Sgr(ColorSystemSupport.Detect));
+        Assert.Equal("#ff8800", color.MarkupColor(ColorSystemSupport.Detect));
+        Assert.Equal(
+            color.MarkupColor(ColorSystemSupport.EightBit),
+            color.MarkupColor(ColorSystemSupport.Detect)
+        );
     }
 
     [Theory]
@@ -68,6 +87,7 @@ public sealed class ThemeColorTests
 
         Assert.Equal(eightBit, color.Sgr(ColorSystemSupport.TrueColor));
         Assert.Equal(eightBit, color.Sgr(ColorSystemSupport.EightBit));
+        Assert.Equal(eightBit, color.Sgr(ColorSystemSupport.Detect));
         Assert.Equal(sixteen, color.Sgr(ColorSystemSupport.Standard));
     }
 

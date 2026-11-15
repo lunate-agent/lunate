@@ -1,3 +1,4 @@
+using Spectre.Console;
 using Spectre.Console.Testing;
 
 namespace Lunate.Tui.Tests;
@@ -224,7 +225,12 @@ public sealed class MarkdownRendererTests
         var console = new TestConsole();
         console.Profile.Width = 80;
         console.EmitAnsiSequences = true;
-        console.Write(new MarkdownRenderer().Render(markdown));
+        // The assertions name the sixteen-colour tones, the depth the default palette pins.
+        console.Write(
+            new MarkdownRenderer(
+                new TerminalCapabilities(ColorSystemSupport.Standard, Unicode: true)
+            ).Render(markdown)
+        );
         return console.Output;
     }
 }

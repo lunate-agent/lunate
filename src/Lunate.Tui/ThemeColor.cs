@@ -160,7 +160,7 @@ internal readonly record struct ThemeColor(
 
     /// <summary>The colour as a Spectre markup attribute, or null when the session has no colour.</summary>
     internal string? MarkupColor(ColorSystemSupport color) =>
-        color switch
+        ConsoleColorSystem.Depth(color) switch
         {
             ColorSystemSupport.NoColors => null,
             // A named colour renders as its name at every depth, so a terminal that knows the name
@@ -176,11 +176,12 @@ internal readonly record struct ThemeColor(
 
     /// <summary>
     /// The colour as the raw SGR the live frame composes around already-laid-out text, or null
-    /// when the session has no colour. <c>Detect</c> resolves to the sixteen-colour set, matching
-    /// what the frame painted before the tokens; the scrollback's console decides its own depth.
+    /// when the session has no colour. <c>Detect</c> is the console's 256-colour fallback, so it
+    /// resolves exactly as an explicit <see cref="ColorSystemSupport.EightBit"/> does and the frame
+    /// and the scrollback console agree; only a sixteen-colour capability takes the ANSI code.
     /// </summary>
     internal string? Sgr(ColorSystemSupport color) =>
-        color switch
+        ConsoleColorSystem.Depth(color) switch
         {
             ColorSystemSupport.NoColors => null,
             // A named colour keeps its exact entry under 256 colours and true colour — the byte

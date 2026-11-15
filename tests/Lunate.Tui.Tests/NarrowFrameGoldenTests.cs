@@ -227,13 +227,15 @@ public sealed class NarrowFrameGoldenTests
             TokenStart: 0
         );
 
-    /// <summary>The capability from the detection seam; Detect is the 16-colour bucket.</summary>
+    /// <summary>The capability a session runs with in each colour mode; <c>Standard</c> is the
+    /// sixteen-colour bucket, and <c>Detect</c> (what a terminal without <c>COLORTERM</c> reports)
+    /// resolves to the console's 256-colour fallback, so it matches <c>256-color</c>.</summary>
     private static ColorSystemSupport Capability(string mode) =>
         mode switch
         {
             "truecolor" => ColorSystemSupport.TrueColor,
             "256-color" => ColorSystemSupport.EightBit,
-            "16-color" => ColorSystemSupport.Detect,
+            "16-color" => ColorSystemSupport.Standard,
             _ => ColorSystemSupport.NoColors,
         };
 

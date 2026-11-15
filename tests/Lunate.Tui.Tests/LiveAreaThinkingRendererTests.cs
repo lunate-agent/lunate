@@ -110,7 +110,7 @@ public sealed class LiveAreaThinkingRendererTests
             WithThinking("reasoning text", color: ColorSystemSupport.TrueColor)
         );
         var sixteen = LiveAreaRenderer.Render(
-            WithThinking("reasoning text", color: ColorSystemSupport.Detect)
+            WithThinking("reasoning text", color: ColorSystemSupport.Standard)
         );
 
         Assert.Equal("\u001b[38;2;175;135;215m⠹ thinking… 0s\u001b[0m", truecolor.Lines[0]);
