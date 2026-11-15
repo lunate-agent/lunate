@@ -97,6 +97,12 @@ internal sealed class ScriptedConsoleIO : IConsoleIO
 
     public void Complete() => _keys.Writer.TryComplete();
 
+    /// <summary>
+    /// Ends the key stream with a failure: the reader throws it at the session's pump, the way a
+    /// terminal whose input cannot be read does. The exception is the pump's, not the test's.
+    /// </summary>
+    public void Fail(Exception error) => _keys.Writer.TryComplete(error);
+
     public async IAsyncEnumerable<KeyEvent> ReadKeysAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken
     )

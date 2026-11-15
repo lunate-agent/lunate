@@ -27,9 +27,9 @@ change archives only when the last part lands.
 
 ## 3. Full screen
 
-- [ ] 3.1 `--fullscreen` and `tui.fullscreen: true`; enter after the first frame, leave on every exit
+- [x] 3.1 `--fullscreen` and `tui.fullscreen: true`; enter after the first frame, leave on every exit
       path including an exception.
-- [ ] 3.2 Tests: enter/leave on normal quit, on `Ctrl+C`, and on a thrown exception; inline remains the
+- [x] 3.2 Tests: enter/leave on normal quit, on `Ctrl+C`, and on a thrown exception; inline remains the
       default when neither flag nor setting is present.
 
 ## 4. Mermaid diagrams

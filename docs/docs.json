@@ -72,6 +72,10 @@
         {
           "title": "Themes and keys",
           "path": "themes-and-keys.md"
+        },
+        {
+          "title": "Full screen",
+          "path": "full-screen.md"
         }
       ]
     },
