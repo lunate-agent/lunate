@@ -1,6 +1,4 @@
-using Spectre.Console;
-
-namespace Lunate.Tui.Tests;
+namespace Mermaid.Terminal.Tests;
 
 /// <summary>
 /// The sequence half of task 4: the grammar the parser accepts, the drawing the renderer
@@ -25,12 +23,8 @@ public sealed class MermaidSequenceTests
         ];
 
         Assert.True(
-            MermaidSequenceParser.TryParse(
-                source,
-                out MermaidSequenceModel? model,
-                out var failure
-            ),
-            failure?.Reason
+            SequenceParser.TryParse(source, out SequenceModel? model, out string? failure),
+            failure
         );
         Assert.Null(failure);
         Assert.NotNull(model);
@@ -49,16 +43,16 @@ public sealed class MermaidSequenceTests
             }
         );
 
-        var messages = model.Speech.OfType<MermaidMessage>().ToList();
+        var messages = model.Statements.OfType<SequenceMessage>().ToList();
         Assert.Collection(
             messages,
-            message => Assert.Equal((0, 1, "RunAsync", false), Details(message)),
-            message => Assert.Equal((1, 0, "Started", true), Details(message)),
-            message => Assert.Equal((0, 1, "plain", false), Details(message)),
-            message => Assert.Equal((1, 0, "done", true), Details(message))
+            message => Assert.Equal((0, 1, "RunAsync", false, true), Details(message)),
+            message => Assert.Equal((1, 0, "Started", true, false), Details(message)),
+            message => Assert.Equal((0, 1, "plain", false, false), Details(message)),
+            message => Assert.Equal((1, 0, "done", true, true), Details(message))
         );
 
-        var note = Assert.IsType<MermaidNote>(model.Speech[^1]);
+        var note = Assert.IsType<SequenceNote>(model.Statements[^1]);
         Assert.Equal("spans", note.Content);
         Assert.Equal([0, 1], note.Over);
     }
@@ -69,12 +63,8 @@ public sealed class MermaidSequenceTests
         string[] source = ["sequenceDiagram", "A->>B: hi"];
 
         Assert.True(
-            MermaidSequenceParser.TryParse(
-                source,
-                out MermaidSequenceModel? model,
-                out var failure
-            ),
-            failure?.Reason
+            SequenceParser.TryParse(source, out SequenceModel? model, out string? failure),
+            failure
         );
 
         Assert.Collection(
@@ -89,8 +79,8 @@ public sealed class MermaidSequenceTests
     {
         string[] source = ["sequenceDiagram", "participant A as Alice", "loop every minute"];
 
-        Assert.False(MermaidSequenceParser.TryParse(source, out _, out MermaidFailure? failure));
-        Assert.Equal("line 3: unsupported statement 'loop'", failure!.Reason);
+        Assert.False(SequenceParser.TryParse(source, out _, out string? failure));
+        Assert.Equal("line 3: unsupported statement 'loop'", failure);
     }
 
     [Fact]
@@ -105,14 +95,12 @@ public sealed class MermaidSequenceTests
             "Note over B: noted",
         ];
 
-        MermaidResult result = MermaidSequence.TryDraw(source, unicode: true);
-        Assert.NotNull(result.Canvas);
-
-        IReadOnlyList<string> lines = TextLines(result.Canvas!);
+        MermaidDiagramResult result = Diagram(source);
+        IReadOnlyList<string> lines = result.Lines.Select(static line => line.Text).ToList();
         Assert.Contains("Alice", lines[1]);
         Assert.Contains("Bob", lines[1]);
         Assert.Contains(lines, line => line.Contains('│'));
-        Assert.Contains(lines, line => line.Contains('▸'));
+        Assert.Contains(lines, line => line.Contains('►'));
         Assert.Contains(lines, line => line.Contains("hello"));
         Assert.Contains(lines, line => line.Contains("noted"));
     }
@@ -128,10 +116,7 @@ public sealed class MermaidSequenceTests
             "A->>B: a label far too long for the gap",
         ];
 
-        MermaidResult result = MermaidSequence.TryDraw(source, unicode: true);
-        Assert.NotNull(result.Canvas);
-
-        string drawing = string.Join('\n', TextLines(result.Canvas!));
+        string drawing = string.Join('\n', Diagram(source).Lines.Select(static line => line.Text));
         Assert.Contains('…', drawing);
         Assert.DoesNotContain("a label far too long for the gap", drawing);
     }
@@ -145,16 +130,16 @@ public sealed class MermaidSequenceTests
             "participant A as Alice",
             "participant B as Bob",
             "A->>B: hello",
-            "B-->A: done",
+            "B-->>A: done",
             "Note over B: noted",
         ];
 
-        IReadOnlyList<string> unicode = TextLines(
-            MermaidSequence.TryDraw(source, unicode: true).Canvas!
-        );
-        IReadOnlyList<string> ascii = TextLines(
-            MermaidSequence.TryDraw(source, unicode: false).Canvas!
-        );
+        IReadOnlyList<string> unicode = Diagram(source, MermaidGlyphSet.Unicode)
+            .Lines.Select(static line => line.Text)
+            .ToList();
+        IReadOnlyList<string> ascii = Diagram(source, MermaidGlyphSet.Ascii)
+            .Lines.Select(static line => line.Text)
+            .ToList();
 
         Assert.Equal(unicode.Count, ascii.Count);
         for (var index = 0; index < unicode.Count; index++)
@@ -163,12 +148,12 @@ public sealed class MermaidSequenceTests
         }
 
         string drawing = string.Join('\n', ascii);
-        Assert.Contains("+", drawing);
-        Assert.Contains("-", drawing);
-        Assert.Contains("|", drawing);
-        Assert.Contains(">", drawing);
-        Assert.Contains("<", drawing);
-        Assert.DoesNotContain("╭", drawing);
+        Assert.Contains('+', drawing);
+        Assert.Contains('-', drawing);
+        Assert.Contains('|', drawing);
+        Assert.Contains('>', drawing);
+        Assert.Contains('<', drawing);
+        Assert.DoesNotContain('┌', drawing);
     }
 
     [Fact]
@@ -182,26 +167,23 @@ public sealed class MermaidSequenceTests
             "A->>B: hello",
         ];
 
-        IReadOnlyList<StyledLine> rendered = MermaidDiagram.RenderFence(
-            source,
-            new TerminalCapabilities(ColorSystemSupport.NoColors, Unicode: true),
-            terminalWidth: 40
+        MermaidFallbackResult fallback = Assert.IsType<MermaidFallbackResult>(
+            MermaidRenderer.Render(string.Join('\n', source), 40)
         );
 
-        string output = string.Join('\n', TextLines(rendered));
-        Assert.Contains("mermaid: diagram is ", output);
-        Assert.Contains("showing the source", output);
-        Assert.Contains("participant A as", output);
-        Assert.DoesNotContain("╭", output);
+        Assert.Contains("columns wide, this terminal has 40", fallback.Reason);
+        Assert.Equal(source, fallback.Source);
     }
 
-    private static (int From, int To, string Content, bool Dashed) Details(
-        MermaidMessage message
-    ) => (message.From, message.To, message.Content, message.Dashed);
+    private static (int From, int To, string Content, bool Dotted, bool Head) Details(
+        SequenceMessage message
+    ) => (message.From, message.To, message.Content, message.Dotted, message.Head);
 
-    private static IReadOnlyList<string> TextLines(MermaidCanvas canvas) =>
-        TextLines(canvas.ToLines());
-
-    private static IReadOnlyList<string> TextLines(IReadOnlyList<StyledLine> lines) =>
-        lines.Select(line => string.Concat(line.Spans.Select(span => span.Text))).ToList();
+    private static MermaidDiagramResult Diagram(
+        IEnumerable<string> source,
+        MermaidGlyphSet glyphs = MermaidGlyphSet.Unicode
+    ) =>
+        Assert.IsType<MermaidDiagramResult>(
+            MermaidRenderer.Render(string.Join('\n', source), int.MaxValue, glyphs)
+        );
 }
