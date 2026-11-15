@@ -25,9 +25,9 @@
 
 ## 3. Close
 
-- [ ] 3.1 Add the release-note fragment `changes/<pr>.md` under the release heading (the lane supplies
+- [x] 3.1 Add the release-note fragment `changes/<pr>.md` under the release heading (the lane supplies
       the pull-request number).
-- [ ] 3.2 Run `dotnet csharpier check .`, markdownlint on the new files and
+- [x] 3.2 Run `dotnet csharpier check` .`, markdownlint on the new files and
       `openspec validate design-hook-extensibility --type change --strict`; then
       `openspec validate --all --strict`.
 - [ ] 3.3 Archive the change with `openspec archive design-hook-extensibility --yes` as the last commit,

@@ -86,9 +86,10 @@ flowchart LR
 ```
 
 The tap sits on the emit path inside the harness, after the channel write, so every consumer mode and
-every child harness inherits it without per-mode wiring. The `ExtensionEventStream` lives in
-`Lunate.Extensibility`, not in the harness: `Lunate.Agent` gains one generic `IAgentEvents` seam, the
-same shape as the existing `ExtensionOnlyEventSink`, and no extension type.
+every child harness inherits it without per-mode wiring. `Lunate.Agent` gains one generic
+`IAgentEvents?` seam on `AgentHarnessOptions` — the same shape as the existing `ExtensionOnlyEventSink`,
+and no extension type. The `ExtensionEventStream` that the tap feeds lives in `Lunate.Extensibility`;
+the harness never learns what a subscription is.
 
 ## Decisions
 
@@ -250,7 +251,7 @@ subscribes is unaffected: no queue, no thread, no cost.
 | Intercept | return value; `tool_call` mutates input in place or `{block, reason}` | exit 2 or JSON `permissionDecision` (`deny > defer > ask > allow`) | typed result (`Proceed(args)`/`Block(reason)`), first block wins | unchanged |
 | Order | load/registration order, awaited | parallel; decision precedence, not order | priority descending, load order on ties, awaited | unchanged; observers unordered |
 | Failure | reported; `tool_call` blocks fail-safe | non-zero exit non-blocking; `onFailure: block` opts in | per-hook policy; `ToolCalling` fail-safe, `ProjectTrust` denies | subscription dropped, logged |
-| Timeout | none fixed (`ctx.signal`) | 600 s (30 s prompt, 10 s display), command/HTTP/MCP | 5 s handler, 100 ms provider stream | observers have no timeout; a slow one drops |
+| Timeout | no documented fixed timeout; `ctx.signal` | 600 s (30 s prompt, 10 s display), command/HTTP/MCP | 5 s handler, 100 ms provider stream | observers have no timeout; a slow one drops |
 | Observe a run | any of ~40 typed events | any of 30+ events, JSON on stdin | a handful of observer hooks + file bus | the whole `AgentEvent` stream |
 | Out of process | no; the extension is in-process | yes by construction (external process) | declared hooks over JSON-RPC | declared hooks + declared event notifications (protocol 3) |
 | Cost of a slow handler | delays stream consumption | a process per hook, per event | delays that hook's dispatch | delays only that subscriber |
