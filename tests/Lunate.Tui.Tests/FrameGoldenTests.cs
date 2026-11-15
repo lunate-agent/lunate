@@ -1,4 +1,5 @@
 using Microsoft.Reactive.Testing;
+using Spectre.Console;
 
 namespace Lunate.Tui.Tests;
 
@@ -26,7 +27,11 @@ public sealed class FrameGoldenTests
     {
         var scheduler = new TestScheduler();
         using var console = new FakeConsoleIO(scheduler, new ConsoleSize(40, 12));
-        var area = new LiveArea(console, scheduler);
+        var area = new LiveArea(
+            console,
+            scheduler,
+            capabilities: new TerminalCapabilities(ColorSystemSupport.Standard, Unicode: true)
+        );
         area.Start();
         area.SetFooter(new StatusFooterModel("test-model", 1540, 12320, "/repo", "main"));
         area.SetTool("read src/foo.cs");
