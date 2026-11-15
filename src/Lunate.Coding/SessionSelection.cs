@@ -22,6 +22,43 @@ internal static class SessionSelection
         || value.Contains('\\')
         || value.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>The grammar a caller-chosen session id must match, as the usage error spells it.</summary>
+    internal const string IdRule =
+        "1 to 128 characters from A-Z, a-z, 0-9, '.', '_' and '-', starting with a letter or digit and without '..'";
+
+    /// <summary>
+    /// Whether <paramref name="id"/> is a legal caller-chosen session id. It becomes a file name in
+    /// the session directory, so it must be path-safe and must not read as a flag or a hidden file.
+    /// </summary>
+    internal static bool IsValidId(string id) =>
+        id.Length is >= 1 and <= 128
+        && char.IsAsciiLetterOrDigit(id[0])
+        && id.All(character =>
+            char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-'
+        )
+        && !id.Contains("..", StringComparison.Ordinal);
+
+    /// <summary>The error text for an id outside the grammar, or null when it is legal.</summary>
+    internal static string? ValidateId(string id) =>
+        IsValidId(id) ? null : $"option '--session-id' expects an id of {IdRule}, but was '{id}'";
+
+    /// <summary>
+    /// <c>--session-id &lt;id&gt;</c>: the file named by the id inside the working directory's own
+    /// session directory. Unlike <c>--session &lt;id&gt;</c> the id is never searched across the
+    /// store, so a same-named session in another worktree can neither be continued nor overwritten.
+    /// </summary>
+    internal static string IdPath(string sessionsDirectory, string sessionId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionsDirectory);
+        if (ValidateId(sessionId) is { } error)
+        {
+            throw new ArgumentException(error, nameof(sessionId));
+        }
+
+        // The store's own path-safety check stays the authority for the file name.
+        return Path.Combine(sessionsDirectory, SessionPaths.SessionFileName(sessionId));
+    }
+
     /// <summary><c>--session &lt;value&gt;</c>: the path, or an error naming the input.</summary>
     internal static SessionChoice FromValue(string sessionsRoot, string value)
     {

@@ -47,7 +47,8 @@ inside it without losing the transcript:
 
 By default every run is recorded to a session file, so it survives a restart. `--continue` picks up
 the newest session recorded for the working directory, `--resume` opens a picker, `--session` loads
-one by id or path, and `--no-session` runs without writing one. Inside a session `/fork` and `/clone`
+one by id or path, `--session-id` creates or continues a session under a caller-chosen id, and
+`--no-session` runs without writing one. Inside a session `/fork` and `/clone`
 branch it without losing the tail. [Use the terminal](usage.md) owns the commands and
 [the command and option reference](cli.md#session-and-per-run-options) the flags.
 

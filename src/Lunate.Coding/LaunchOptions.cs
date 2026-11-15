@@ -18,6 +18,12 @@ internal sealed record LaunchOptions
     /// <summary>Load one session by id or file path.</summary>
     public string? Session { get; init; }
 
+    /// <summary>
+    /// Create or continue the session named by this caller-chosen id in the working directory's
+    /// session directory (<c>--session-id</c>).
+    /// </summary>
+    public string? SessionId { get; init; }
+
     /// <summary>Run without writing a session file.</summary>
     public bool NoSession { get; init; }
 
@@ -94,7 +100,8 @@ internal sealed record LaunchOptions
     public ExecutionEnvironmentSelection? Environment { get; init; }
 
     /// <summary>Whether the invocation selects a session (including the no-session choice).</summary>
-    public bool HasSelection => Continue || Resume || Session is not null || NoSession;
+    public bool HasSelection =>
+        Continue || Resume || Session is not null || SessionId is not null || NoSession;
 
     /// <summary>
     /// Parses every launch flag. A failure writes <paramref name="error"/> without a
@@ -120,6 +127,7 @@ internal sealed record LaunchOptions
         var toolsGiven = false;
         var allowUnpriced = false;
         string? session = null;
+        string? sessionId = null;
         string? model = null;
         string? tools = null;
         string? extraToolsFlag = null;
@@ -249,6 +257,19 @@ internal sealed record LaunchOptions
                 case "--session":
                     if (!TryValue(args, ref index, "--session", inline, out session, out error))
                     {
+                        return false;
+                    }
+                    break;
+                case "--session-id":
+                    if (
+                        !TryValue(args, ref index, "--session-id", inline, out sessionId, out error)
+                    )
+                    {
+                        return false;
+                    }
+                    if (SessionSelection.ValidateId(sessionId) is { } idError)
+                    {
+                        error = idError;
                         return false;
                     }
                     break;
@@ -422,6 +443,10 @@ internal sealed record LaunchOptions
         {
             selection.Add("--session");
         }
+        if (sessionId is not null)
+        {
+            selection.Add("--session-id");
+        }
         if (noSession)
         {
             selection.Add("--no-session");
@@ -461,6 +486,7 @@ internal sealed record LaunchOptions
         {
             Resume = resume,
             Session = session,
+            SessionId = sessionId,
             NoSession = noSession,
             Model = model,
             Thinking = thinking,

@@ -602,7 +602,8 @@ internal sealed class InteractiveSessionHost : IDisposable
         bool freshInstall = false,
         bool unifiedScrollback = false,
         TimeSpan? pollInterval = null,
-        string? settingsJson = null
+        string? settingsJson = null,
+        string? sessionDirectory = null
     )
     {
         _eventObserverSuffix = eventObserverSuffix;
@@ -624,7 +625,7 @@ internal sealed class InteractiveSessionHost : IDisposable
             SettingsPath = Temp.File("settings.json"),
             ModelsPath = modelsPath ?? Temp.File("models.json"),
             AuthPath = Temp.File("auth.json"),
-            SessionDirectory = Temp.File("sessions"),
+            SessionDirectory = sessionDirectory ?? Temp.File("sessions"),
             WorkingDirectory = workingDirectory ?? Temp.Root,
             HistoryPath = Temp.File("history"),
             HomeDirectory = homeDirectory ?? Temp.File("home"),
@@ -649,7 +650,7 @@ internal sealed class InteractiveSessionHost : IDisposable
             Launch = launch ?? new LaunchOptions(),
             StartSession = startSession,
             StartWithPicker = startWithPicker,
-            SessionsRoot = sessionsRoot ?? Temp.File("sessions"),
+            SessionsRoot = sessionsRoot ?? sessionDirectory ?? Temp.File("sessions"),
             SecretPrompt = secretPrompt,
             Clipboard = clipboard,
             TextClipboard = textClipboard,

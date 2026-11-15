@@ -114,14 +114,27 @@ public sealed partial class Session
         string cwd,
         string sessionId,
         TimeProvider timeProvider
+    ) => Create(path, cwd, repo: null, worktree: null, sessionId, timeProvider);
+
+    /// <summary>
+    /// Creates a session under a caller-chosen id with the repository identity a fresh session
+    /// records (<c>--session-id</c>), keeping the id path-safe.
+    /// </summary>
+    internal static Session Create(
+        string path,
+        string cwd,
+        string? repo,
+        string? worktree,
+        string sessionId,
+        TimeProvider timeProvider
     )
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         return CreateCore(
             path,
             cwd,
-            repo: null,
-            worktree: null,
+            repo,
+            worktree,
             sessionId,
             timeProvider.GetUtcNow(),
             timeProvider

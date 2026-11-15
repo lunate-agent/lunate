@@ -175,6 +175,15 @@ internal static class CliHelp
         );
         output.WriteLine("                                 --continue)");
         output.WriteLine("  --session <id|path>            load one session by id or file path");
+        output.WriteLine(
+            "  --session-id <id>              create or continue the session with this id in"
+        );
+        output.WriteLine(
+            "                                 this working directory (1-128 of A-Z a-z 0-9 . _ -,"
+        );
+        output.WriteLine(
+            "                                 starting with a letter or digit, no '..')"
+        );
         output.WriteLine("  --no-session                   run without writing a session file");
         output.WriteLine(
             "  --model <id>                   use this model for the run (wins over settings)"

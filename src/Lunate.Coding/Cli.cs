@@ -332,12 +332,19 @@ internal static class Cli
         );
         if (
             args.Any(arg =>
-                arg is "-c" or "--continue" or "-r" or "--resume" or "--session" or "--no-session"
+                arg
+                    is "-c"
+                        or "--continue"
+                        or "-r"
+                        or "--resume"
+                        or "--session"
+                        or "--session-id"
+                        or "--no-session"
             )
         )
         {
             errors.WriteLine(
-                "lunate: --acp cannot select a session; --continue, --resume, --session and --no-session are usage errors with --acp"
+                "lunate: --acp cannot select a session; --continue, --resume, --session, --session-id and --no-session are usage errors with --acp"
             );
         }
         if (args.Any(arg => arg == "--env" || arg.StartsWith("--env=", StringComparison.Ordinal)))

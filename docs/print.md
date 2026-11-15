@@ -32,6 +32,14 @@ unknown `--model` or a print-mode session selection that does not resolve is a u
 message on stderr and nothing on stdout. `--resume` is refused for the same reason — the session
 picker cannot be drawn — so name the session with `--session` or `--continue` instead.
 
+A run can also be named before it starts: `--session-id <id>` creates `<id>.jsonl` in the working
+directory's session directory when that file does not exist and continues it when it does. The id is
+the run's session id, so `run_started` and `run_finished` carry it as `sessionId`, and the flag stays
+on the process command line for a supervisor that looks a run up by it. An id outside the session id
+grammar — 1 to 128 characters from `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, starting with a letter or
+digit and without `..` — is a usage error (exit 2) naming the flag and the value, and `--session-id`
+is mutually exclusive with `--session`, `--continue`, `--resume` and `--no-session`.
+
 Print mode is also where a non-interactive run that was started another way ends up: a run with piped
 stdin never prompts, and `TERM=dumb` without a terminal is print mode only
 ([terminal setup](terminal-setup.md)).
