@@ -33,7 +33,7 @@ from pathlib import Path
 RED = {"failure", "timed_out", "cancelled", "action_required", "startup_failure"}
 VERSION = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 # The gate's test runner already reads these lines in `scripts/verify-test-runner.ps1`.
-FAILED_TEST = re.compile(r"^\s*(?:failed|\[FAIL\]|xunit\.v3[^ ]* failed)\s+(\S+)")
+FAILED_TEST = re.compile(r"^\s*(?:(?i:failed)|\[FAIL\]|xunit\.v3[^ ]* failed)\s+(\S+)")
 # The two test projects whose failures decide an area, and the default before the TUI check.
 TUI_PROJECT = "Lunate.Tui.Tests"
 CODING = "Lunate.Coding.Tests"

@@ -25,7 +25,9 @@ The reporter SHALL add `area/tui` or `area/core` from the failing test's project
 its namespace and the failing test decide it: a test in the `Lunate.Tui` project is `area/tui`, a test
 in the `Lunate.Coding` project is `area/tui` when its test source names the `Lunate.Tui` namespace and
 `area/core` otherwise, and a card whose red job names no failing test, names a test in another project,
-or names failing tests that disagree SHALL carry neither area label instead of a guess.
+or names failing tests that disagree SHALL carry neither area label instead of a guess. The reporter
+SHALL pass an area label only when the repository's label set has it, and SHALL file the card unlabelled
+when it does not.
 
 #### Scenario: A red push run files a card naming the job
 

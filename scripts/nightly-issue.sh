@@ -85,6 +85,20 @@ lowest_milestone() {
     python3 "$TRIAGE" --milestones-json "$out"
 }
 
+# The repository's label names, one per line, or empty when they cannot be read. A card carries an area
+# label only when the repository has it: the card matters more than the label, so a missing one is a
+# loud line and an unlabelled card, not a failed report.
+repo_labels() {
+    local repo="$1"
+    gh label list --repo "$repo" --limit 200 --json name --jq '.[].name' 2>/dev/null || true
+}
+
+has_label() {
+    local labels="$1" label="$2"
+    [ -n "$label" ] || return 1
+    printf '%s\n' "$labels" | grep -Fxq -- "$label"
+}
+
 # One red job's log, when GitHub still has it. A cancelled or expired log is not a failure: the card is
 # filed without an area label.
 job_log() {
@@ -95,7 +109,7 @@ job_log() {
 
 report() {
     local jobs_json="$1" repo="$2" run_url="$3" commit="$4" event="$5"
-    local jobs job_id job title body existing area milestone log tmp
+    local jobs job_id job title body existing area milestone log labels tmp
     jobs="$(python3 "$TRIAGE" --jobs-json "$jobs_json")"
     if [ -z "$jobs" ]; then
         echo "nightly-issue: no red job in the run; nothing to file" >&2
@@ -106,6 +120,7 @@ report() {
     if [ -z "$milestone" ]; then
         echo "nightly-issue: no open version milestone; the card is filed without a milestone" >&2
     fi
+    labels="$(repo_labels "$repo")"
     while IFS=$'\t' read -r job_id job; do
         [ -n "$job" ] || continue
         title="$(issue_title "$job")"
@@ -113,6 +128,10 @@ report() {
         log="${tmp}/job-${job_id:-unknown}.log"
         job_log "$repo" "$job_id" "$log"
         area="$(python3 "$TRIAGE" --log-file "$log" --source-root "$REPO_ROOT")"
+        if [ -n "$area" ] && ! has_label "$labels" "$area"; then
+            echo "nightly-issue: ${job}: the repository has no '${area}' label; filing without it" >&2
+            area=""
+        fi
         existing="$(existing_issue "$repo" "$title")"
         if [ -n "$existing" ]; then
             echo "nightly-issue: ${job}: commenting on #${existing}" >&2

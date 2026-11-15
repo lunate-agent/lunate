@@ -91,9 +91,10 @@ Step 2 is what the card demands: `InteractiveSessionThemeFileTests` lives in `Lu
 references `Lunate.Tui.LiveAreaRenderer`, and `LiveSurfaceRepaintTests` imports `Lunate.Tui`; a rule
 keyed on the project or the test namespace alone would file them `area/core`.
 
-The label is passed to `gh issue create` as it is. A missing `area/tui`/`area/core` label fails the
-filing step loudly instead of silently filing an unlabelled card, which is the visible signal that the
-repository's label set is incomplete.
+The reporter reads the repository's label names once per red run and passes the area label only when
+the repository has it; a missing `area/tui`/`area/core` label is a line on the run and an unlabelled
+card, not a failed report. The card is the safety net, so it is never lost to a label the repository
+has not created yet.
 
 ## Risks / Trade-offs
 

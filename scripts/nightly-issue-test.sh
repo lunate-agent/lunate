@@ -51,6 +51,15 @@ case "$1" in
                 ;;
         esac
         ;;
+    label)
+        case "${2:-}" in
+            list) cat "${FAKE_GH_LABELS}" ;;
+            *)
+                echo "unexpected gh call: $*" >&2
+                exit 99
+                ;;
+        esac
+        ;;
     issue)
         case "${2:-}" in
             list)
@@ -85,6 +94,10 @@ cat >"$tmp/milestones-backlog.json" <<'JSON'
 [{"title":"backlog"}]
 JSON
 
+# The repository's label set, and a repository whose area labels have not been created yet.
+printf 'kind/bug\narea/tui\narea/core\n' >"$tmp/labels.txt"
+printf 'kind/bug\n' >"$tmp/labels-no-area.txt"
+
 # The logs of the red jobs the cases reuse. The theme-file failure is the one #888 filed by hand: it
 # lives in `Lunate.Coding.Tests` and its test names `Lunate.Tui.LiveAreaRenderer`, so it is `area/tui`.
 cat >"$tmp/logs/27.log" <<'LOG'
@@ -108,11 +121,13 @@ LOG
 CASE_EVENT="schedule"
 CASE_MILESTONES="$tmp/milestones.json"
 CASE_LOGS="$tmp/logs"
+CASE_LABELS="$tmp/labels.txt"
 
 _defaults() {
     CASE_EVENT="schedule"
     CASE_MILESTONES="$tmp/milestones.json"
     CASE_LOGS="$tmp/logs"
+    CASE_LABELS="$tmp/labels.txt"
 }
 
 _run() {
@@ -126,6 +141,7 @@ _run() {
         FAKE_GH_EXISTING="$existing" \
         FAKE_GH_MILESTONES="$CASE_MILESTONES" \
         FAKE_GH_LOGS="$CASE_LOGS" \
+        FAKE_GH_LABELS="$CASE_LABELS" \
         bash "$REPORTER" --jobs-json "$tmp/jobs.json" --repo lunate-agent/lunate \
             --run-url https://example.test/runs/1 --commit abc123 --event "$CASE_EVENT" \
             >/dev/null 2>"$tmp/err.log" || status=$?
@@ -193,6 +209,14 @@ CASE_EVENT="push"
 _run "a coding test with no TUI source is area/core" 0 \
     '{"jobs":[{"id":28,"name":"verify (ubuntu-latest, 1/4)","conclusion":"failure"}]}'
 _expect_gh "the coding test is area/core" "--label area/core"
+
+_defaults
+CASE_LABELS="$tmp/labels-no-area.txt"
+_run "a repository without the area label files the card unlabelled" 0 \
+    '{"jobs":[{"id":27,"name":"verify (macos-latest, 1/2)","conclusion":"failure"}]}'
+_expect_gh "the card is still filed" "CI failed: verify (macos-latest, 1/2)"
+_expect_no_gh "a label the repository lacks is not passed" "--label area/"
+_expect_stderr "the run says the label is missing" "has no 'area/tui' label"
 
 _defaults
 _run "a test outside Coding and Tui names no area" 0 \
