@@ -143,6 +143,12 @@ public sealed record AgentSettings
 
     internal bool BashGuard { get; init; } = true;
 
+    /// <summary>
+    /// The user-scope container environment selection (the <c>environment</c> key); null keeps host
+    /// execution. Internal so no public type or member is added.
+    /// </summary>
+    internal ExecutionEnvironmentSelection? Environment { get; init; }
+
     /// <summary>Whether the interactive session checks for a newer release once a day; defaults to on.</summary>
     public bool UpdateCheck { get; init; } = true;
 
@@ -597,6 +603,12 @@ public static partial class SettingsStore
                         settings = settings with
                         {
                             BashGuard = ReadBashGuard(property.Value, problems),
+                        };
+                        break;
+                    case "environment":
+                        settings = settings with
+                        {
+                            Environment = ReadEnvironment(property.Value, problems),
                         };
                         break;
                     case "updateCheck":
@@ -1581,6 +1593,7 @@ public static partial class SettingsStore
             MaxSteps = launch.MaxSteps ?? settings.MaxSteps,
             MaxCostUsd = launch.MaxCostUsd ?? settings.MaxCostUsd,
             MaxTime = launch.MaxTime ?? settings.MaxTime,
+            Environment = launch.Environment ?? settings.Environment,
         };
         if (launch.ExtraTools is { } extra)
         {
