@@ -81,10 +81,9 @@ Each line carries runs tagged `MermaidSpanKind.Frame` (box borders, lines and ar
 the labels plain, as Lunate's TUI does.
 
 `MermaidGlyphSet.Ascii` keeps the same layout and swaps in `+ - |` and `> < ^ v`, as above. A diagram
-that does not
-fit the supplied width, a source outside the bounded grammar, or a diagram type this renderer does
-not support comes back as `MermaidFallbackResult`: the source lines and one reason, never a partial
-picture. `MermaidRenderer.MinimumWidth` is the narrowest width that draws anything; below it the
+that does not fit the supplied width, a source outside the bounded grammar, or a diagram type this
+renderer does not support comes back as `MermaidFallbackResult`: the source lines and one reason,
+never a partial picture. `MermaidRenderer.MinimumWidth` is the narrowest width that draws anything; below it the
 source is shown.
 
 ## What is supported
