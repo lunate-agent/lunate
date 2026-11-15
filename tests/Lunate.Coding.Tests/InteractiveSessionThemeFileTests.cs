@@ -173,20 +173,44 @@ public sealed class InteractiveSessionThemeFileTests
         await QuitAsync(host, run);
     }
 
-    [Fact]
-    public async Task An_unknown_token_warns_and_the_built_in_theme_stands()
+    /// <summary>
+    /// The warning names the theme file's path, and the live area caps a notice at four lines
+    /// (<c>LiveAreaRenderer.MaxNoticeLines</c>): a long temp root — macOS's
+    /// <c>/var/folders/…/T</c>, where a Linux runner's <c>/tmp</c> is short — spends them on the
+    /// path, so the frame ends in an ellipsis and the phrase after the path never reaches the
+    /// terminal (#888). The theory runs both path lengths, because the harness's own temp root is
+    /// short everywhere but macOS: the long home stands in for the macOS one.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(160)]
+    public async Task An_unknown_token_warns_and_the_built_in_theme_stands(int pathPadding)
     {
+        // Disposed after the host, so the long home outlives the session that reads it.
+        using var padding = pathPadding == 0 ? null : new TempDirectory();
         using var host = new InteractiveSessionHost(
             interactiveConsole: true,
-            environment: TrueColorEnvironment
+            environment: TrueColorEnvironment,
+            homeDirectory: padding is null
+                ? null
+                : System.IO.Path.Combine(padding.Root, new string('h', pathPadding), "home")
         );
-        WriteHomeTheme(host, """{"highlight":"red"}""");
+        string themeFile = WriteHomeTheme(host, """{"highlight":"red"}""");
 
         Task run = host.RunAsync();
+
+        // The notice slot holds the warning the session posted, and a paint of that notice says a
+        // frame showed it; neither reads the capped frame text, so no terminal width or path
+        // length can hide the phrase this test is about.
+        string warning =
+            $"theme: {themeFile} names the unknown token 'highlight'; the valid tokens are {Lunate.Tui.ThemeTokens.List}";
+        await host.WaitForNoticeAsync(warning);
         await host.WaitUntilAsync(() =>
         {
             host.Advance(33);
-            return host.Frames.Contains("token 'highlight'", StringComparison.Ordinal);
+            return host
+                .Notices.Changes(Lunate.Tui.NoticeSlotChange.Painted)
+                .Any(entry => string.Equals(entry.Text, warning, StringComparison.Ordinal));
         });
 
         // The default prompt tone is still what paints: the file did not half-apply.
@@ -219,11 +243,16 @@ public sealed class InteractiveSessionThemeFileTests
         };
 
     /// <summary>The session home's own theme file: <c>&lt;home&gt;/.lunate/theme.json</c>.</summary>
-    private static void WriteHomeTheme(InteractiveSessionHost host, string json)
+    private static string WriteHomeTheme(InteractiveSessionHost host, string json)
     {
-        string store = System.IO.Path.Combine(host.Temp.File("home"), ".lunate");
+        string store = System.IO.Path.Combine(
+            host.Options.HomeDirectory ?? host.Temp.File("home"),
+            ".lunate"
+        );
         Directory.CreateDirectory(store);
-        File.WriteAllText(System.IO.Path.Combine(store, "theme.json"), json);
+        string path = System.IO.Path.Combine(store, "theme.json");
+        File.WriteAllText(path, json);
+        return path;
     }
 
     private static void WriteSettings(InteractiveSessionHost host, string json) =>
