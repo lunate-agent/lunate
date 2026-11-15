@@ -225,6 +225,9 @@ internal static class CliHelp
         output.WriteLine(
             "A value may also be given as --flag=value; this is how to pass a value that begins with '-'."
         );
+        output.WriteLine(
+            "A prompt after -- is taken verbatim, never as a flag; -- with no prompt is a usage error."
+        );
         output.WriteLine();
         output.WriteLine(
             "Selection flags are mutually exclusive with each other and --no-session."

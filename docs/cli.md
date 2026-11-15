@@ -99,7 +99,9 @@ exclusive with each other. In ACP the editor owns session creation, so they are 
 A launch that cannot start (unknown flags, an unknown `--model`, an unknown tool name, or a print-mode
 session selection that does not resolve) exits 2.
 
-A value may also be given as `--flag=value`, which is how a value that begins with `-` is passed.
+A value may also be given as `--flag=value`, which is how a value that begins with `-` is passed. A
+print-mode prompt may be written after `--`, which ends option parsing: everything after the marker
+is the prompt, never a flag.
 
 ## Related
 

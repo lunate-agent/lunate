@@ -92,7 +92,8 @@ internal sealed record LaunchOptions
 
     /// <summary>
     /// Parses every launch flag. A failure writes <paramref name="error"/> without a
-    /// <c>lunate:</c> prefix and leaves the mode undecided.
+    /// <c>lunate:</c> prefix and leaves the mode undecided. The first <c>--</c> ends option parsing:
+    /// every token after it is positional.
     /// </summary>
     internal static bool TryParse(
         IReadOnlyList<string> args,
@@ -126,9 +127,30 @@ internal sealed record LaunchOptions
 
         options = new LaunchOptions();
         error = null;
+        var optionsEnded = false;
         for (var index = 0; index < args.Count; index++)
         {
             string token = args[index];
+            // The first `--` ends option parsing: every later token is positional, so a prompt that
+            // starts with `-` is never read as a flag, and a second `--` is part of the prompt.
+            if (optionsEnded)
+            {
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    error = "the prompt cannot be empty";
+                    return false;
+                }
+
+                positional.Add(token);
+                continue;
+            }
+
+            if (string.Equals(token, "--", StringComparison.Ordinal))
+            {
+                optionsEnded = true;
+                continue;
+            }
+
             string? inline = null;
             int equals = token.IndexOf('=');
             if (token.StartsWith("--", StringComparison.Ordinal) && equals >= 0)

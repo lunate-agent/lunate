@@ -15,6 +15,17 @@ the end; all diagnostics go to stderr, so redirecting stdout captures a clean an
 lunate -p "summarise what changed on this branch"
 ```
 
+A prompt that begins with `-` would otherwise be read as a flag, so put `--` before it: everything
+after the marker is the prompt, and nothing in it is parsed as an option.
+
+<!-- run: no needs a model request -->
+```bash
+lunate -p -- "--not-a-flag"
+```
+
+The marker does not supply a prompt by itself: `lunate -p --` with nothing after it is the usual
+missing-prompt usage error.
+
 `--json` writes every event of the run as one JSON line instead of the answer;
 [the JSON event stream](json-events.md) owns that shape. A missing prompt, an unknown flag, an
 unknown `--model` or a print-mode session selection that does not resolve is a usage error: exit 2, a

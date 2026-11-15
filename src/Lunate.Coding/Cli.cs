@@ -31,15 +31,10 @@ internal static class Cli
     )
     {
         var noExtensions = false;
-        if (args.Contains("--no-extensions"))
+        if (HasOption(args, "--no-extensions"))
         {
             noExtensions = true;
-            args =
-            [
-                .. args.Where(arg =>
-                    !string.Equals(arg, "--no-extensions", StringComparison.Ordinal)
-                ),
-            ];
+            args = WithoutOption(args, "--no-extensions");
         }
 
         if (args is ["--version"])
@@ -167,12 +162,9 @@ internal static class Cli
             return CatalogUpdateCommand.Run(args[1..], output, errors, ct, catalogUpdate);
         }
 
-        if (args.Contains("--acp"))
+        if (HasOption(args, "--acp"))
         {
-            string[] acpArgs =
-            [
-                .. args.Where(arg => !string.Equals(arg, "--acp", StringComparison.Ordinal)),
-            ];
+            string[] acpArgs = WithoutOption(args, "--acp");
             if (!TryParseAcpOptions(acpArgs, out LaunchOptions acpLaunch, out _))
             {
                 WriteAcpUsage(errors, args);
@@ -241,6 +233,30 @@ internal static class Cli
             HardlinkScanFileSystem = printOptions?.HardlinkScanFileSystem ?? hardlinkScanFileSystem,
         };
         return PrintMode.RunAsync(options, output, errors, ct).GetAwaiter().GetResult();
+    }
+
+    /// <summary>The launch-phase scans below look only before the first <c>--</c>.</summary>
+    private static bool HasOption(string[] args, string option) =>
+        args.AsSpan(0, EndOfOptions(args)).Contains(option, StringComparer.Ordinal);
+
+    /// <summary>
+    /// Removes <paramref name="option"/> only where it is a flag: a token after the end-of-options
+    /// marker belongs to the prompt and is left alone.
+    /// </summary>
+    private static string[] WithoutOption(string[] args, string option)
+    {
+        int end = EndOfOptions(args);
+        return [.. args.Where((arg, index) => index >= end || arg != option)];
+    }
+
+    /// <summary>The index of the first <c>--</c>, or the argument count when it is absent.</summary>
+    private static int EndOfOptions(string[] args)
+    {
+        int index = Array.FindIndex(
+            args,
+            arg => string.Equals(arg, "--", StringComparison.Ordinal)
+        );
+        return index < 0 ? args.Length : index;
     }
 
     /// <summary>The <c>--no-extensions</c> seam: the same store and log, the host switch off.</summary>
