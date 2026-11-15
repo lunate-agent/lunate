@@ -57,6 +57,43 @@ package; see [third-party licences](third-party-licences.md). The fence keeps it
 the way every fenced block in an answer does. The frame is drawn with the terminal's dim attribute
 and the labels are plain text, so the drawing reads in every theme.
 
+### A sequence diagram
+
+A sequence names its participants and sends messages between them:
+
+```mermaid
+sequenceDiagram
+    participant C as Consumer
+    participant H as AgentHarness
+
+    C->>H: RunAsync(userInput)
+    H-->>C: TextMessageStart / Content / End
+    Note over H: spans per run
+```
+
+is drawn as:
+
+```text
+┌──────────┐     ┌──────────────┐
+│ Consumer │     │ AgentHarness │
+└─────┬────┘     └───────┬──────┘
+      │                  │
+      │ RunAsync(userInp…│
+      ├─────────────────►│
+      │                  │
+      │ TextMessageStart…│
+      │◄┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┤
+      │                  │
+      │          ┌───────────────┐
+      │          │ spans per run │
+      │          └───────────────┘
+      │                  │
+```
+
+The participant boxes sit on the top row and a lifeline runs down from each one. A message arrow
+carries its label on the row below it, cut with an ellipsis when it is longer than the room between
+the two lifelines. A note is a box across the lifelines it names.
+
 ## When it does not draw
 
 The source comes back in a code block and one line follows it:

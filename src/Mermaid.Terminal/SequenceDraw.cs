@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Mermaid.Terminal;
 
 /// <summary>
@@ -162,11 +164,12 @@ internal static class SequenceDraw
         if (message.Content.Length > 0)
         {
             int start = Math.Min(from, to) + LabelLeftMargin;
-            int labelWidth = DisplayWidth.Of(message.Content);
+            string content = FitLabel(message.Content, Math.Abs(to - from) - LabelLeftMargin);
+            int labelWidth = DisplayWidth.Of(content);
             int width = Math.Max(layout.TotalWidth, start + labelWidth) + LabelBufferSpace;
             SeqLine label = Lifeline(layout, unicode);
             label.EnsureWidth(width);
-            label.PutText(start, message.Content);
+            label.PutText(start, content);
             yield return label;
         }
 
@@ -199,6 +202,36 @@ internal static class SequenceDraw
         }
 
         yield return arrow;
+    }
+
+    /// <summary>Clip a message label to the gap between its lifelines, marking the cut with an ellipsis.</summary>
+    private static string FitLabel(string content, int available)
+    {
+        if (available <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (DisplayWidth.Of(content) <= available)
+        {
+            return content;
+        }
+
+        var clipped = new StringBuilder();
+        var width = 0;
+        foreach (Rune rune in content.EnumerateRunes())
+        {
+            int runeWidth = DisplayWidth.RuneWidth(rune);
+            if (width + runeWidth > available - 1)
+            {
+                break;
+            }
+
+            clipped.Append(rune.ToString());
+            width += runeWidth;
+        }
+
+        return clipped.Append('…').ToString();
     }
 
     private static IEnumerable<SeqLine> NoteLines(Layout layout, SequenceNote note, bool unicode)

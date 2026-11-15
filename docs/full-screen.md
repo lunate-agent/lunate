@@ -25,7 +25,8 @@ The flag turns the mode on for that run. To keep it, set `tui.fullscreen` in
 ```
 
 Either source turns the mode on and there is no flag that turns a saved setting off, so remove the
-key (or set it to `false`) to go back to inline. The [settings reference](settings.md) owns the
+key (or set it to `false`) to go back to inline. The same block is in
+[the example settings file](examples/fullscreen.json). The [settings reference](settings.md) owns the
 `tui.fullscreen` row and the [command reference](cli.md) the flag.
 
 ## What the alternate screen changes
