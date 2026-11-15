@@ -30,6 +30,6 @@
 - [x] 3.2 Run `dotnet csharpier check` .`, markdownlint on the new files and
       `openspec validate design-hook-extensibility --type change --strict`; then
       `openspec validate --all --strict`.
-- [x] 3.3 Archive the change with `openspec archive design-hook-extensibility --yes` as the last commit,
+- [ ] 3.3 Archive the change with `openspec archive design-hook-extensibility --yes` as the last commit,
       after the maintainer's ADR sign-off is requested in the pull request (an architecture decision is
       proposed and stopped for, never decided by the worker).
