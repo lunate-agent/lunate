@@ -5,7 +5,7 @@ namespace Lunate.Agent;
 
 /// <summary>
 /// One event in a run's stream. The set is closed: every concrete event is a sealed record declared
-/// here, so the hierarchy stays union-ready (see the guide's S-6 note).
+/// here, so the hierarchy stays union-ready (see `docs/dev/csharp-15.md`).
 /// </summary>
 public abstract record AgentEvent(string RunId)
 {
