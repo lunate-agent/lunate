@@ -2,3 +2,5 @@
 873281c5e92edb076158a848a6f58472404fe99a
 # style: reformat the tree with CSharpier 1.4.0 (#901)
 2630a818fe322160a025eb3a14b3af1ea29ae128
+# style: format FixtureRestore.cs after the origin/main merge (#901)
+a59addc1fb952698ccb237b61b638e5b8d8fec44
