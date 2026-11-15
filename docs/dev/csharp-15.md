@@ -13,7 +13,8 @@ target-framework change itself is step (b), and the refactor slices are step (c)
 
 All probes used SDK `11.0.100` (`csc` 5.12.0) in throwaway projects. Each feature was compiled twice,
 once with `TargetFramework=net10.0` and `LangVersion=15.0`, once with `net11.0`. CSharpier was run at
-the pinned `1.3.0` and at `1.4.0`. The analyzer probe added `Microsoft.CodeAnalysis.PublicApiAnalyzers`
+`1.3.0` and at `1.4.0` (the pin since #901). The analyzer probe added
+`Microsoft.CodeAnalysis.PublicApiAnalyzers`
 `5.6.0` and the repository's `PublicAPI.Shipped.txt`/`PublicAPI.Unshipped.txt` pair.
 
 | Feature | `net10.0` + C# 15 | `net11.0` |
@@ -177,9 +178,10 @@ still works.
 
 ## Tooling steps before the first syntax commit
 
-1. **CSharpier `1.3.0` → `1.4.0`.** The pinned formatter rejects union, closed and labeled-jump
-   syntax, so `dotnet csharpier check .` would turn the first refactor commit red. `1.4.0` (released
-   2026-11-11) supports C# 15; the snippets above format and check cleanly with it.
+1. **CSharpier `1.3.0` → `1.4.0` (done, #901).** The old pin rejects union, closed and
+   labeled-jump syntax, so `dotnet csharpier check .` would have turned the first refactor commit
+   red. The pin is now `1.4.0` (released 2026-11-11), which formats C# 15. `scripts/gate-tests.sh`
+   formats one sample of each new construct and fails by exit code when the pinned formatter cannot.
 2. **Public API files.** A union adds compiler-synthesised constructors and a `Value` property to the
    public surface; PublicApiAnalyzers `5.6.0` already sees and reports them. Closed hierarchies add no
    new public shape. Update `PublicAPI.Unshipped.txt` in the same change as the type.
