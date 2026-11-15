@@ -200,7 +200,7 @@ internal static class CliHelp
             "  --offline                      skip the daily update check for this run"
         );
         output.WriteLine(
-            "  --fullscreen                  run the session on the alternate screen; inline is"
+            "  --fullscreen                   run the session on the alternate screen; inline is"
         );
         output.WriteLine("                                 the default");
         output.WriteLine(
