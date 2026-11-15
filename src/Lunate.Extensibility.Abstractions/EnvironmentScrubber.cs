@@ -79,7 +79,10 @@ public static class EnvironmentScrubber
     /// <c>SSH_AUTH_SOCK</c>, <c>PWD</c>, <c>OPENAI_BASE_URL</c> and <c>NEXT_PUBLIC_*_URL</c> are
     /// ambient names toolchains read, and a URL's name says nothing about whether it carries a
     /// password. The shape rule is a heuristic, not a guarantee — <c>DATABASE_URL</c> and
-    /// <c>PGPASSWORD</c> still reach the child (ADR-0036).
+    /// <c>PGPASSWORD</c> still reach the child (ADR-0036). Git's environment configuration
+    /// (<c>GIT_CONFIG_COUNT</c>, <c>GIT_CONFIG_KEY_&lt;n&gt;</c>, <c>GIT_CONFIG_VALUE_&lt;n&gt;</c>)
+    /// is exempt from the rule and reaches the child whole, because git refuses a partial set
+    /// (ADR-0038).
     /// </summary>
     private static readonly HashSet<string> CredentialWords = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -98,6 +101,18 @@ public static class EnvironmentScrubber
         "CREDS",
     };
 
+    /// <summary>
+    /// The parts of git's environment configuration whose index is required: git reads
+    /// <c>GIT_CONFIG_KEY_&lt;n&gt;</c> and <c>GIT_CONFIG_VALUE_&lt;n&gt;</c> for
+    /// <c>n</c> in <c>0..GIT_CONFIG_COUNT-1</c>. See <see cref="IsGitConfigurationName"/> for why
+    /// the family is exempt from the credential-shape rule.
+    /// </summary>
+    private static readonly string[] GitConfigurationIndexedPrefixes =
+    [
+        "GIT_CONFIG_KEY_",
+        "GIT_CONFIG_VALUE_",
+    ];
+
     /// <summary>The pieces of a variable name: <c>_</c> and <c>-</c> separate words.</summary>
     private static readonly char[] NameSeparators = ['_', '-'];
 
@@ -107,10 +122,10 @@ public static class EnvironmentScrubber
     /// name the parent holds and does not declare never arrives. <see cref="ChildEnvironmentPolicy.Inherited"/>
     /// is the parent's whole environment, then the declared values, minus two denies: every declared
     /// strip name (the credential variables Lunate resolved) and every name shaped like a credential
-    /// (<see cref="CredentialWords"/>) — and then the declared pass-through names are re-admitted from
-    /// the parent, so an exact name the user opted back in wins over both denies for that name alone.
-    /// The denies still win over a declared value, so a spawn site cannot re-introduce a withheld
-    /// name by accident.
+    /// (<see cref="CredentialWords"/>) except git's own environment configuration — and then the
+    /// declared pass-through names are re-admitted from the parent, so an exact name the user opted
+    /// back in wins over both denies for that name alone. The denies still win over a declared value,
+    /// so a spawn site cannot re-introduce a withheld name by accident.
     /// </summary>
     /// <param name="policy">The policy; the call site always names one.</param>
     /// <param name="read">Reads one parent variable; null reads the process environment.</param>
@@ -166,7 +181,7 @@ public static class EnvironmentScrubber
             // (ADR-0036).
             foreach (string name in environment.Keys.ToArray())
             {
-                if (IsCredentialShaped(name))
+                if (IsWithheldByShape(name))
                 {
                     environment.Remove(name);
                 }
@@ -207,7 +222,7 @@ public static class EnvironmentScrubber
                     continue;
                 }
 
-                if (IsCredentialShaped(name))
+                if (IsWithheldByShape(name))
                 {
                     continue;
                 }
@@ -230,6 +245,50 @@ public static class EnvironmentScrubber
         foreach (string part in name.Split(NameSeparators, StringSplitOptions.RemoveEmptyEntries))
         {
             if (CredentialWords.Contains(part))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The shape deny's answer for one name: credential-shaped, and not a member of a name family
+    /// that must reach the child whole (see <see cref="IsGitConfigurationName"/>).
+    /// </summary>
+    private static bool IsWithheldByShape(string name) =>
+        IsCredentialShaped(name) && !IsGitConfigurationName(name);
+
+    /// <summary>
+    /// Whether a name belongs to git's environment configuration: <c>GIT_CONFIG_COUNT</c>,
+    /// <c>GIT_CONFIG_KEY_&lt;n&gt;</c> or <c>GIT_CONFIG_VALUE_&lt;n&gt;</c> for a numeric
+    /// <c>n</c>, compared case-insensitively like the shape rule. The family is exempt from the
+    /// credential-shape rule (#871): git reads the key/value pairs <c>0..COUNT-1</c> and refuses the
+    /// whole run when one key is missing (<c>error: missing config key GIT_CONFIG_KEY_0</c>), so
+    /// withholding the <c>KEY</c>-named third alone — which the word list would — breaks every git
+    /// command in a tool child whose supervisor configured git through the environment, and in the
+    /// post-bash change scan, instead of protecting a credential. The exemption is these three
+    /// spellings and nothing else: it is not a prefix rule, not a pattern and not configurable, and
+    /// a name that merely resembles a member (<c>GIT_CONFIG_KEY_EXTRA</c>) is still withheld
+    /// (ADR-0038).
+    /// </summary>
+    private static bool IsGitConfigurationName(string name)
+    {
+        if (name.Equals("GIT_CONFIG_COUNT", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        foreach (string prefix in GitConfigurationIndexedPrefixes)
+        {
+            if (!name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string index = name[prefix.Length..];
+            if (index.Length > 0 && index.All(char.IsAsciiDigit))
             {
                 return true;
             }
