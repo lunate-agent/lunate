@@ -14,8 +14,8 @@ target-framework change itself is step (b), and the refactor slices are step (c)
 All probes used SDK `11.0.100` (`csc` 5.12.0) in throwaway projects. Each feature was compiled twice,
 once with `TargetFramework=net10.0` and `LangVersion=15.0`, once with `net11.0`. CSharpier was run at
 `1.3.0` and at `1.4.0` (the pin since #901). The analyzer probe added
-`Microsoft.CodeAnalysis.PublicApiAnalyzers`
-`5.6.0` and the repository's `PublicAPI.Shipped.txt`/`PublicAPI.Unshipped.txt` pair.
+`Microsoft.CodeAnalysis.PublicApiAnalyzers` `5.6.0` and the repository's
+`PublicAPI.Shipped.txt`/`PublicAPI.Unshipped.txt` pair.
 
 | Feature | `net10.0` + C# 15 | `net11.0` |
 | --- | --- | --- |
