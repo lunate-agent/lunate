@@ -42,33 +42,20 @@ flowchart TD
 
 is drawn as:
 
-```text
-╭────────────────╮
-│ The executable │
-╰────────────────╯
-         │
-   ╮─────┴requests┄╭
-   ▾     │         ▾
-╭─────╮  │ ╭───────────────╮
-│ TUI │  │ │ Provider APIs │
-╰─────╯  │ ╰───────────────╯
-         │         │
-       ╮─╯─────────╯
-       ▾
-╭────────────╮
-│ Agent loop │
-╰────────────╯
-       │
-      ╮╯
-      ▾
-╭───────────╮
-│ Lunate.Ai │
-╰───────────╯
-```
+![The flowchart TD fence above drawn with the Unicode box glyph set](media/mermaid/flowchart-td.png)
 
-The fence keeps its `mermaid` label line the way every fenced block in an answer does. The frame is
-drawn with the terminal's dim attribute and the labels are plain text, so the drawing reads in every
-theme.
+The same renderer draws a `flowchart LR` to the right, and a `sequenceDiagram` as participant boxes
+with their lifelines:
+
+![A left-to-right flowchart with boxes, a dotted edge and an edge label](media/mermaid/flowchart-lr.png)
+
+![A sequence diagram with participant boxes, lifelines, messages and a note](media/mermaid/sequence.png)
+
+The layout and drawing are a C# port of the MIT-licensed
+[mermaid-ascii](https://github.com/AlexanderGrooff/mermaid-ascii) renderer, in the `Mermaid.Terminal`
+package; see [third-party licences](third-party-licences.md). The fence keeps its `mermaid` label line
+the way every fenced block in an answer does. The frame is drawn with the terminal's dim attribute
+and the labels are plain text, so the drawing reads in every theme.
 
 ### A sequence diagram
 
@@ -110,6 +97,8 @@ the two lifelines. A note is a box across the lifelines it names.
 
 The source comes back in a code block and one line follows it:
 
+![An unsupported stateDiagram-v2 shown as source with the reason line under it](media/mermaid/fallback.png)
+
 | What happened | The line under the source |
 | --- | --- |
 | The diagram type is not one of the two | `mermaid: unsupported diagram type 'stateDiagram-v2' — showing the source` |
@@ -123,12 +112,41 @@ unchanged and can be copied into another renderer.
 
 ## Glyphs follow the terminal
 
-A terminal that reports Unicode gets the box-drawing set — `╭ ╮ ╰ ╯ │ ─ ▸ ▾ ◂` and the dashed
-`┄` — and a terminal that reports no Unicode gets `+`, `-` and `|` for the frame and `<`, `>`, `^`
-and `v` for the arrowheads. Only the glyphs change: the layout, the column widths and the number of
-lines are the same, so a diagram that fits the terminal at one depth of glyph support fits it at the
-other. A theme never changes the glyphs — the tokens paint text, and the drawing keeps its dim
-frame.
+A terminal that reports Unicode gets mermaid-ascii's light box-drawing set — `┌ ┐ └ ┘ ─ │ ├ ┤ ┬ ┴
+┼`, the dotted `┄` and `┆`, and the filled heads `► ▼ ◄ ▲` — and a terminal that reports no Unicode
+gets `+`, `-` and `|` for the frame and `<`, `>`, `^` and `v` for the arrowheads. Only the glyphs
+change: the layout, the column widths and the number of lines are the same, so a diagram that fits
+the terminal at one depth of glyph support fits it at the other. A theme never changes the glyphs —
+the tokens paint text, and the drawing keeps its dim frame. The same `flowchart TD` fence with the
+ASCII set is still shown as text:
+
+```text
++----------------+
+|                |
+| The executable |-requests--+--+
+|                |           :  |
++----------------+           +- - - - - - - - - -+
+         |                      |                :
+         |                      |                :
+         |                      |                :
+         |                      |                :
+         v                      v                v
++----------------+           +-----+     +---------------+
+|                |           |     |     |               |
+|   Agent loop   |<----+     | TUI |  +--| Provider APIs |
+|                |     |     |     |  |  |               |
++----------------+     |     +-----+  |  +---------------+
+         |             |              |
+         |             |              |
+         |             +--------------+
+         |
+         v
++----------------+
+|                |
+|   Lunate.Ai    |
+|                |
++----------------+
+```
 
 ## Where diagrams appear
 

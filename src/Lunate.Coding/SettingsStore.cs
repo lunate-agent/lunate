@@ -120,6 +120,11 @@ public sealed record AgentSettings
     public SubagentLimits Subagents { get; init; } = new();
 
     /// <summary>
+    /// The maximum number of model calls in one run; defaults to 50.
+    /// </summary>
+    public int MaxSteps { get; init; } = 50;
+
+    /// <summary>
     /// The cumulative cost ceiling of a session in US dollars; null (the default) is off.
     /// </summary>
     public decimal? MaxCostUsd { get; init; }
@@ -137,6 +142,12 @@ public sealed record AgentSettings
     public bool StartupHeader { get; init; } = true;
 
     internal bool BashGuard { get; init; } = true;
+
+    /// <summary>
+    /// The user-scope container environment selection (the <c>environment</c> key); null keeps host
+    /// execution. Internal so no public type or member is added.
+    /// </summary>
+    internal ExecutionEnvironmentSelection? Environment { get; init; }
 
     /// <summary>Whether the interactive session checks for a newer release once a day; defaults to on.</summary>
     public bool UpdateCheck { get; init; } = true;
@@ -558,6 +569,12 @@ public static partial class SettingsStore
                             Subagents = ReadSubagents(property.Value, problems),
                         };
                         break;
+                    case "maxSteps":
+                        settings = settings with
+                        {
+                            MaxSteps = ReadMaxSteps(property.Value, problems),
+                        };
+                        break;
                     case "maxCost":
                         settings = settings with
                         {
@@ -586,6 +603,12 @@ public static partial class SettingsStore
                         settings = settings with
                         {
                             BashGuard = ReadBashGuard(property.Value, problems),
+                        };
+                        break;
+                    case "environment":
+                        settings = settings with
+                        {
+                            Environment = ReadEnvironment(property.Value, problems),
                         };
                         break;
                     case "updateCheck":
@@ -734,6 +757,21 @@ public static partial class SettingsStore
             )
         );
         return ToolDetails.Collapsed;
+    }
+
+    private static int ReadMaxSteps(JsonElement value, List<string> problems)
+    {
+        if (
+            value.ValueKind == JsonValueKind.Number
+            && value.TryGetInt32(out int steps)
+            && steps >= 1
+        )
+        {
+            return steps;
+        }
+
+        problems.Add("'maxSteps' must be a positive integer");
+        return 50;
     }
 
     private static decimal? ReadMaxCost(JsonElement value, List<string> problems)
@@ -1552,8 +1590,10 @@ public static partial class SettingsStore
         {
             Model = launch.Model ?? settings.Model,
             Thinking = launch.Thinking ?? SeedReasoningLevel(settings) ?? settings.Thinking,
+            MaxSteps = launch.MaxSteps ?? settings.MaxSteps,
             MaxCostUsd = launch.MaxCostUsd ?? settings.MaxCostUsd,
             MaxTime = launch.MaxTime ?? settings.MaxTime,
+            Environment = launch.Environment ?? settings.Environment,
         };
         if (launch.ExtraTools is { } extra)
         {

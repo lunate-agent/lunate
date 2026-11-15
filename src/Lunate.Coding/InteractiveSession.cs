@@ -502,6 +502,7 @@ internal sealed partial class InteractiveSession : IDisposable
                 }
 
                 await DisposeExtensionsAsync();
+                await DisposeExecutionEnvironmentAsync();
                 // Every exit path leaves the viewer's alternate screen, exceptions included.
                 _viewer.Close();
                 // The full-screen mode's screen goes back after the viewer's, so the pairing
@@ -577,6 +578,7 @@ internal sealed partial class InteractiveSession : IDisposable
         }
 
         ResolveBashGuard();
+        ResolveExecutionEnvironment();
         ApplyTheme();
         ApplyTuiPresentation();
         ApplyUserKeymap();
@@ -670,7 +672,8 @@ internal sealed partial class InteractiveSession : IDisposable
             verificationMode: _settings.Verify,
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
-            bashGuard: _bashGuard
+            bashGuard: _bashGuard,
+            environment: _executionEnvironment
         );
         _tools.Add(new AskUserTool());
         await ComposeMcpConfigAsync(ct);
@@ -699,7 +702,8 @@ internal sealed partial class InteractiveSession : IDisposable
             writeVerifiers: _extensions?.WriteVerifiers,
             verificationMode: _settings.Verify,
             refusalTracker: _writeVerificationRefusals,
-            bashGuardEnabled: _settings.BashGuard
+            bashGuardEnabled: _settings.BashGuard,
+            environment: _executionEnvironment
         );
         // The model resolves after the extension host: the configured id may name a virtual or
         // extension-registered model, which only the registry knows.
@@ -1097,6 +1101,7 @@ internal sealed partial class InteractiveSession : IDisposable
             // The same redactor masks the model-facing text; the interactive session always has one.
             ToolOutputMask = _redaction.Redact,
             SubagentLimits = _settings.Subagents,
+            MaxSteps = _settings.MaxSteps,
             MaxCostUsd = _settings.MaxCostUsd,
             MaxTime = _settings.MaxTime,
             AllowUnpricedCost = _options.Launch.AllowUnpriced,

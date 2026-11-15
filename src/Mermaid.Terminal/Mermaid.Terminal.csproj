@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <RootNamespace>Mermaid.Terminal</RootNamespace>
+        <!--
+            The renderer ships independently of Lunate: a host that knows nothing about the agent
+            can parse a Mermaid fence and draw it. It references no Lunate project, by design
+            (ADR-0039), and carries the product version like the other release packages.
+        -->
+        <IsPackable>true</IsPackable>
+        <PackageId>Mermaid.Terminal</PackageId>
+        <Description>
+            Render Mermaid flowcharts and sequence diagrams to terminal text. A port of the
+            MIT-licensed mermaid-ascii layout and drawing, usable without Lunate.
+        </Description>
+        <PackageTags>mermaid;diagram;terminal;ascii;unicode</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>lunate-logo-dark.png</PackageIcon>
+        <PackageProjectUrl>https://github.com/lunate-agent/lunate</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/lunate-agent/lunate</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="/" />
+        <None Include="THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+        <None Include="../../assets/brand/lunate-logo-dark.png" Pack="true" PackagePath="/" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference
+            Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
+            Version="5.6.0"
+            PrivateAssets="all"
+        />
+    </ItemGroup>
+
+    <ItemGroup>
+        <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+        <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Mermaid.Terminal.Tests" />
+    </ItemGroup>
+</Project>

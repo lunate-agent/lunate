@@ -123,6 +123,14 @@ on `_` and `-`, and the variable SHALL be withheld when any part equals one of `
 `CREDENTIALS` or `CREDS`, compared case-insensitively. A name no part of which equals one of those
 words SHALL stay inherited, and a name that matches only a substring of a word SHALL stay inherited.
 
+One name family SHALL be exempt from the shape rule and SHALL reach the child whole: git's
+environment configuration — `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>` for
+a numeric `<n>`, matched case-insensitively. Git reads the keys and values of the first
+`GIT_CONFIG_COUNT` entries and refuses the whole configuration when one member is missing, so a
+partial family is a broken git child rather than a withheld credential. The exemption SHALL be a
+fixed family in the builder: it SHALL NOT be user-configurable, SHALL NOT widen the pass-through
+list and SHALL NOT withhold, admit or rewrite any other name.
+
 The rule SHALL be applied by the one shared builder, SHALL apply under `Inherited` only — the
 `Scrubbed` policy inherits nothing, so a credential-shaped name reaches an extension host only when
 that host's own declared names ask for it — and SHALL apply to declared values as well as to
@@ -163,3 +171,15 @@ inherited variables, so a spawn site cannot re-introduce a withheld name by decl
 - **GIVEN** a parent environment holding `GITHUB_TOKEN`
 - **WHEN** an extension host's environment is built with `Scrubbed`
 - **THEN** `GITHUB_TOKEN` is absent, and a host whose declared names include it receives it
+
+#### Scenario: Git's environment configuration reaches the tool child whole
+
+- **GIVEN** a parent environment holding `GIT_CONFIG_COUNT=3`, `GIT_CONFIG_KEY_0=credential.helper` with an empty `GIT_CONFIG_VALUE_0`, `GIT_CONFIG_KEY_1=gc.auto` with `GIT_CONFIG_VALUE_1=0`, and `GIT_CONFIG_KEY_2=maintenance.auto` with `GIT_CONFIG_VALUE_2=false`, plus `GITHUB_TOKEN`, `NPM_TOKEN` and `AWS_SECRET_ACCESS_KEY`
+- **WHEN** a tool child's environment is built with `Inherited`
+- **THEN** all seven `GIT_CONFIG_*` names reach the child and the three credentials do not
+
+#### Scenario: The bash change scan's git child sees the same git configuration
+
+- **GIVEN** a session whose environment holds the three-entry git configuration above and a repository in the workspace
+- **WHEN** the post-bash change scan runs `git status`
+- **THEN** git answers the scan (the report's source is git, not the content-stamp backstop) and git's own `credential.helper` is empty

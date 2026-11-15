@@ -40,6 +40,7 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 | Plan and status | [`guide.md`](guide.md) | The implementation plan, phases and roadmap |
 | Documentation architecture | [`information-architecture.md`](information-architecture.md) | The 0.4.0 target layout, page template, runnable-docs check and the S1–S9 slice plan |
 | Architecture overview | [`architecture.md`](architecture.md) | Component map, model pipeline, one run and the event path, as diagrams |
+| Language features | [`csharp-15.md`](csharp-15.md) | The C# 15 / .NET 11 feature inventory, what each needs and the target-framework recommendation |
 | Extensibility spec | [`spec/extensibility.md`](spec/extensibility.md) | Contract and hooks, tool model, services, UI by mode, fitness suite (under ADR-0017) |
 | Export contract | [`spec/export.md`](spec/export.md) | `/export` and `/copy`: destination, credential redaction, the HTML document's CSP and escaping guarantees |
 | Diagnostic bundle | [`spec/diagnostics.md`](spec/diagnostics.md) | `/debug`: destination, sections, the event window, and what the bundle never carries |

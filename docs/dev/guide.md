@@ -71,7 +71,7 @@ Three core projects with strict downward dependencies, like Tau's `tau_coding �
 
 The architecture overview lives in [`architecture.md`](architecture.md) — the component map, the model pipeline, one run and the event path as diagrams.
 
-Arrows point from a project to what it depends on or calls; dashed edges are runtime-only connections — separate processes. `Lunate.Protocols` references `Lunate.Agent` (MCP tools become `ITool`s, ACP drives the loop); `Lunate.Tui` references no other Lunate project. `Lunate.Coding` supplies the Roslyn built-in descriptor to the extension host; the host evaluates the manifest rule for each composition, and `Lunate.Roslyn.BuiltIn` adapts the contract to the Roslyn backend. Roslyn and MSBuild assemblies remain unloaded until the first active C# tool call. See [`architecture.md`](architecture.md) and [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md).
+Arrows point from a project to what it depends on or calls; dashed edges are runtime-only connections — separate processes. `Lunate.Protocols` references `Lunate.Agent` (MCP tools become `ITool`s, ACP drives the loop); `Lunate.Tui` references no other Lunate project and consumes the standalone `Mermaid.Terminal` renderer, a port of mermaid-ascii ([ADR-0039](../../adr/0039-mermaid-terminal-library.md)). `Lunate.Coding` supplies the Roslyn built-in descriptor to the extension host; the host evaluates the manifest rule for each composition, and `Lunate.Roslyn.BuiltIn` adapts the contract to the Roslyn backend. Roslyn and MSBuild assemblies remain unloaded until the first active C# tool call. See [`architecture.md`](architecture.md) and [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md).
 
 **Solution layout**
 
@@ -94,6 +94,7 @@ lunate/
   src/Lunate.Ai/               # IChatClient setup, model catalog, record and replay clients
   src/Lunate.Agent/            # loop on IChatClient, events, ITool, sessions, compaction, extension contract
   src/Lunate.Tui/              # Spectre output, own input line and live area
+  src/Mermaid.Terminal/        # standalone Mermaid renderer package (mermaid-ascii port, ADR-0039)
   src/Lunate.Protocols/        # MCP client and ACP server on the SDKs
   src/Lunate.Roslyn/           # semantic C# backend, behind the extension contract
   src/Lunate.Roslyn.BuiltIn/   # host-supplied roslyn manifest and typed extension factory
@@ -117,7 +118,7 @@ Stick to .NET 10, Microsoft.Extensions.AI and a few well-known packages. No Nati
 
 | Concern | Choice | Project | Why |
 | --- | --- | --- | --- |
-| Runtime | .NET 10, C# 14, SDK pinned in `global.json` (C# 15 and unions evaluated at .NET 11 GA — spike S-6) | all | Current LTS |
+| Runtime | .NET 10, C# 14, SDK pinned in `global.json` (the C# 15 inventory and target-framework recommendation are in [`csharp-15.md`](csharp-15.md)) | all | Current LTS |
 | Release build | Self-contained single file, ReadyToRun, no single-file compression (ADR-0008); release archives are compressed, three targets | Lunate.Coding | One file, no runtime install, fast start |
 | Model access | `IChatClient`, `ChatMessage`, `ChatResponseUpdate` everywhere; no `FunctionInvokingChatClient` (the loop runs tools) | Lunate.Ai, Lunate.Agent | The .NET standard, maintained by Microsoft |
 | Providers | OpenAI-compatible via the Microsoft.Extensions.AI OpenAI adapter; Anthropic via the official `Anthropic` package and its first-party Microsoft.Extensions.AI adapter (`AsIChatClient`) | Lunate.Ai | One abstraction for every model |
@@ -287,7 +288,7 @@ MCP tools arrive from the SDK as functions and are wrapped as `ITool`s, so they 
 
 Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP and a possible web frontend later are thin mappings. Lunate-specific events are marked as extensions; in AG-UI they would travel as custom events. Check the AG-UI and ACP names against the pinned spec versions when writing the mappers.
 
-**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. When .NET 11 reaches GA (Nov 2026), spike S-6 evaluates: SDK bump, `LangVersion` 15, unions for `AgentEvent`, analyzer/tooling compatibility and unchanged budgets — adopt on evidence.
+**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt, what each needs from `net11.0`, and the target-framework split; step (c) of #192 applies it, internal code first and the public contract last.
 
 | Lunate event | AG-UI | ACP | TUI |
 | --- | --- | --- | --- |
@@ -736,6 +737,12 @@ MCP and ACP live in `Lunate.Protocols` and use existing SDKs; without AOT there 
   (`DATABASE_URL` with a password in it, `PGPASSWORD`) still arrives. A model-chosen command cannot
   read the user's provider key out of its environment, the same boundary the bash guard's
   `auth.json` read-deny draws for files ([ADR-0036](../../adr/0036-tool-child-credential-shape-strip.md)).
+  One name family is exempt from the name rule and reaches a tool child whole: git's environment
+  configuration — `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>` for a numeric
+  `<n>`. Git reads the key/value pairs `0..GIT_CONFIG_COUNT-1` and refuses the whole run when one
+  key is missing, so withholding the `KEY`-named third alone breaks every git command in the child
+  — and in the post-bash change scan — instead of protecting a credential
+  ([ADR-0038](../../adr/0038-tool-child-git-config-family.md)).
 - `toolEnvironment.passthrough` in `~/.lunate/settings.json` names the exact variables to admit into
   tool children after those denies, including one the name rule withheld:
   `{"toolEnvironment": {"passthrough": ["GITHUB_TOKEN"]}}`.

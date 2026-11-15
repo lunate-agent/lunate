@@ -107,20 +107,25 @@ stub it can page back through; observation masking trims old turns without losin
 
 ## Run limits
 
-A run can be capped by cost and wall-clock time as well as by its step limit. Both are off by
-default, interactively and in print mode. Set them in `settings.json` with `maxCost` (US dollars)
-and `maxTime` (seconds), or per invocation with `--max-cost <usd>` and `--max-time <duration>`
-(integer seconds or a `s`, `m`, `h` suffix).
+A run is capped by its step limit — 50 model calls by default — and can also be capped by cost and
+wall-clock time, interactively and in print mode. Set the step limit in `settings.json` with
+`maxSteps` (a positive integer) or per invocation with `--max-steps <n>`. The cost and wall-clock
+limits are off by default; set them with `maxCost` (US dollars) and `maxTime` (seconds), or per
+invocation with `--max-cost <usd>` and `--max-time <duration>` (integer seconds or a `s`, `m`, `h`
+suffix).
 
+- The step limit counts model calls in one run. A higher `--max-steps` lets a long unattended run
+  pass 50 calls; it still ends with `step_limit_reached` when the configured ceiling is reached.
 - The cost limit is cumulative for the session: a resumed session keeps the spend its recorded
   usages already reached, so restarting does not reset the budget.
 - The wall-clock limit is per run and uses one monotonic timer.
-- Either limit ends the run when the reached value equals the limit, with a notice that names the
-  limit, its value and the spend or time reached. The limit is recorded in the session.
+- Either cost or wall-clock limit ends the run when the reached value equals the limit, with a
+  notice that names the limit, its value and the spend or time reached. The limit is recorded in the
+  session.
 - A cost limit over a model the catalog cannot price refuses to start, because an unknown price is
   not `$0`; pass `--allow-unpriced` only when the limit may cover priced usage alone.
 
-[Print mode](print.md#cap-the-runs-cost-and-time) owns the exit codes a limit produces and the
+[Print mode](print.md#cap-the-runs-steps-cost-and-time) owns the exit codes a limit produces and the
 budget an unattended run should carry.
 
 ## Run commands in a container

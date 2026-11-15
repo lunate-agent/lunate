@@ -84,9 +84,11 @@ These apply to the interactive session and to print mode.
 | `--tools <list>` | expose only these comma-separated tool names |
 | `--extra-tools <list>` | enable optional search tools (`grep`, `find`, `ls`) |
 | `--no-tools` | expose no tools for the run |
+| `--max-steps <n>` | stop the run after `n` model calls (default 50; overrides the `maxSteps` setting) |
 | `--max-cost <usd>` | stop the run at this cumulative session spend |
 | `--max-time <duration>` | stop the run at this wall-clock limit (`30s`, `5m`, `1h`) |
 | `--allow-unpriced` | allow a cost limit over a model with no known price |
+| `--env <engine:image>` | run process-backed tools in one `docker` or `podman` container: `docker:<image>` or `podman:<image>`, wins over the `environment` setting ([Run tool calls in a container](execution-environments.md)) |
 | `--offline` | skip the daily update check for this run |
 | `--fullscreen` | run the session on the alternate screen; inline is the default ([Full screen](full-screen.md)) |
 | `--theme <name\|path>` | paint with `default`, `ansi16` or `mono`, or read the token file at `<path>` instead of the home `theme.json` ([Themes](themes.md)) |
@@ -98,7 +100,9 @@ exclusive with each other. In ACP the editor owns session creation, so they are 
 A launch that cannot start (unknown flags, an unknown `--model`, an unknown tool name, or a print-mode
 session selection that does not resolve) exits 2.
 
-A value may also be given as `--flag=value`, which is how a value that begins with `-` is passed.
+A value may also be given as `--flag=value`, which is how a value that begins with `-` is passed. A
+print-mode prompt may be written after `--`, which ends option parsing: everything after the marker
+is the prompt, never a flag.
 
 ## Related
 

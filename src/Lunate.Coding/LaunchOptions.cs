@@ -27,6 +27,9 @@ internal sealed record LaunchOptions
     /// <summary>The thinking level for this run; null keeps the resolved setting.</summary>
     public ThinkingLevel? Thinking { get; init; }
 
+    /// <summary>The model-call ceiling for this run; null keeps the resolved setting.</summary>
+    public int? MaxSteps { get; init; }
+
     /// <summary>The cost limit for this run in US dollars; null keeps the resolved setting.</summary>
     public decimal? MaxCostUsd { get; init; }
 
@@ -84,12 +87,19 @@ internal sealed record LaunchOptions
     /// <summary>The print-mode prompt; null outside print mode.</summary>
     public string? Prompt { get; init; }
 
+    /// <summary>
+    /// The container environment selected with <c>--env</c>; null keeps the resolved setting, and
+    /// the flag wins over it. A selection never falls back silently to the host.
+    /// </summary>
+    public ExecutionEnvironmentSelection? Environment { get; init; }
+
     /// <summary>Whether the invocation selects a session (including the no-session choice).</summary>
     public bool HasSelection => Continue || Resume || Session is not null || NoSession;
 
     /// <summary>
     /// Parses every launch flag. A failure writes <paramref name="error"/> without a
-    /// <c>lunate:</c> prefix and leaves the mode undecided.
+    /// <c>lunate:</c> prefix and leaves the mode undecided. The first <c>--</c> ends option parsing:
+    /// every token after it is positional.
     /// </summary>
     internal static bool TryParse(
         IReadOnlyList<string> args,
@@ -117,14 +127,37 @@ internal sealed record LaunchOptions
         string? appendSystemPrompt = null;
         string? maxCostFlag = null;
         string? maxTimeFlag = null;
+        string? maxStepsFlag = null;
         ThinkingLevel? thinking = null;
+        ExecutionEnvironmentSelection? environment = null;
         List<string> positional = [];
 
         options = new LaunchOptions();
         error = null;
+        var optionsEnded = false;
         for (var index = 0; index < args.Count; index++)
         {
             string token = args[index];
+            // The first `--` ends option parsing: every later token is positional, so a prompt that
+            // starts with `-` is never read as a flag, and a second `--` is part of the prompt.
+            if (optionsEnded)
+            {
+                if (string.IsNullOrWhiteSpace(token))
+                {
+                    error = "the prompt cannot be empty";
+                    return false;
+                }
+
+                positional.Add(token);
+                continue;
+            }
+
+            if (string.Equals(token, "--", StringComparison.Ordinal))
+            {
+                optionsEnded = true;
+                continue;
+            }
+
             string? inline = null;
             int equals = token.IndexOf('=');
             if (token.StartsWith("--", StringComparison.Ordinal) && equals >= 0)
@@ -182,6 +215,21 @@ internal sealed record LaunchOptions
                 case "--allow-unpriced":
                     allowUnpriced = true;
                     break;
+                case "--max-steps":
+                    if (
+                        !TryValue(
+                            args,
+                            ref index,
+                            "--max-steps",
+                            inline,
+                            out maxStepsFlag,
+                            out error
+                        )
+                    )
+                    {
+                        return false;
+                    }
+                    break;
                 case "--max-cost":
                     if (
                         !TryValue(args, ref index, "--max-cost", inline, out maxCostFlag, out error)
@@ -207,6 +255,27 @@ internal sealed record LaunchOptions
                 case "--model":
                     if (!TryValue(args, ref index, "--model", inline, out model, out error))
                     {
+                        return false;
+                    }
+                    break;
+                case "--env":
+                    if (
+                        !TryValue(
+                            args,
+                            ref index,
+                            "--env",
+                            inline,
+                            out string environmentValue,
+                            out error
+                        )
+                    )
+                    {
+                        return false;
+                    }
+                    if (!ExecutionEnvironmentSelection.TryParse(environmentValue, out environment))
+                    {
+                        error =
+                            $"option '--env' expects {ExecutionEnvironmentSelection.AcceptedShapes}, but was '{environmentValue}'";
                         return false;
                     }
                     break;
@@ -301,6 +370,19 @@ internal sealed record LaunchOptions
             return false;
         }
 
+        int? maxSteps = null;
+        if (maxStepsFlag is not null)
+        {
+            if (!RunLimits.TryParseSteps(maxStepsFlag, out int parsedSteps))
+            {
+                error =
+                    $"option '--max-steps' expects a positive integer, but was '{maxStepsFlag}'";
+                return false;
+            }
+
+            maxSteps = parsedSteps;
+        }
+
         decimal? maxCost = null;
         if (maxCostFlag is not null)
         {
@@ -382,6 +464,7 @@ internal sealed record LaunchOptions
             NoSession = noSession,
             Model = model,
             Thinking = thinking,
+            MaxSteps = maxSteps,
             MaxCostUsd = maxCost,
             MaxTime = maxTime,
             AllowUnpriced = allowUnpriced,
@@ -398,6 +481,7 @@ internal sealed record LaunchOptions
             Keymap = keymap,
             Theme = theme,
             Prompt = print ? positional[0] : null,
+            Environment = environment,
         };
         return true;
     }

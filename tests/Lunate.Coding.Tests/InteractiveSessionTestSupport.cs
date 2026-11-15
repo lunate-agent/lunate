@@ -601,11 +601,16 @@ internal sealed class InteractiveSessionHost : IDisposable
         HttpMessageHandler? discoveryTransport = null,
         bool freshInstall = false,
         bool unifiedScrollback = false,
-        TimeSpan? pollInterval = null
+        TimeSpan? pollInterval = null,
+        string? settingsJson = null
     )
     {
         _eventObserverSuffix = eventObserverSuffix;
         _pollInterval = pollInterval ?? WaitBudgets.PollInterval;
+        if (settingsJson is not null)
+        {
+            File.WriteAllText(Temp.File("settings.json"), settingsJson);
+        }
         Scrollback = new TestConsole();
         Scrollback.Profile.Width = 80;
         Scrollback.Profile.Height = 24;

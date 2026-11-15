@@ -188,6 +188,9 @@ internal static class CliHelp
         );
         output.WriteLine("  --no-tools                     expose no tools for the run");
         output.WriteLine(
+            "  --max-steps <n>                stop the run after n model calls (default 50)"
+        );
+        output.WriteLine(
             "  --max-cost <usd>               stop the run at this cumulative session spend"
         );
         output.WriteLine(
@@ -196,6 +199,13 @@ internal static class CliHelp
         output.WriteLine(
             "  --allow-unpriced               allow a cost limit over a model with no known price"
         );
+        output.WriteLine(
+            "  --env <engine:image>           run process-backed tools in one docker or podman"
+        );
+        output.WriteLine(
+            "                                 container (docker:<image> or podman:<image>); wins"
+        );
+        output.WriteLine("                                 over the environment setting");
         output.WriteLine(
             "  --offline                      skip the daily update check for this run"
         );
@@ -221,6 +231,9 @@ internal static class CliHelp
         );
         output.WriteLine(
             "A value may also be given as --flag=value; this is how to pass a value that begins with '-'."
+        );
+        output.WriteLine(
+            "A prompt after -- is taken verbatim, never as a flag; -- with no prompt is a usage error."
         );
         output.WriteLine();
         output.WriteLine(

@@ -15,6 +15,17 @@ the end; all diagnostics go to stderr, so redirecting stdout captures a clean an
 lunate -p "summarise what changed on this branch"
 ```
 
+A prompt that begins with `-` would otherwise be read as a flag, so put `--` before it: everything
+after the marker is the prompt, and nothing in it is parsed as an option.
+
+<!-- run: no needs a model request -->
+```bash
+lunate -p -- "--not-a-flag"
+```
+
+The marker does not supply a prompt by itself: `lunate -p --` with nothing after it is the usual
+missing-prompt usage error.
+
 `--json` writes every event of the run as one JSON line instead of the answer;
 [the JSON event stream](json-events.md) owns that shape. A missing prompt, an unknown flag, an
 unknown `--model` or a print-mode session selection that does not resolve is a usage error: exit 2, a
@@ -63,18 +74,26 @@ immediately with the same unanswered outcome in the tool result. The result dire
 continue on an explicitly stated assumption; nothing waits on stdin and the stdout contract is
 unchanged.
 
-## Cap the run's cost and time
+## Cap the run's steps, cost and time
 
-A run can be capped by cost and wall-clock time as well as by its step limit, and print mode is
-usually unattended, so set a cost limit there: `lunate -p --max-cost 2 "…"` is a budget the run cannot
-exceed without saying so. `--max-cost <usd>` and `--max-time <duration>` set the run's limits for that
-invocation, overriding the corresponding settings; `--max-time` accepts integer seconds or a `s`, `m`,
-`h` suffix. The limits themselves are on [Run limits](usage.md#run-limits).
+A run is capped by its step limit — 50 model calls by default — and can also be capped by cost and
+wall-clock time. Set the step limit in `settings.json` with `maxSteps` (a positive integer) or per
+invocation with `--max-steps <n>`; a value that is not a positive integer is a usage error (exit 2).
+Raising it lets a long worker run pass 50 calls and still stop with `step_limit_reached` at the
+configured ceiling. The 50-call default is usually enough for a scripted job but not for a worker
+that edits, tests and commits over many files.
+
+Print mode is usually unattended, so set a cost limit there as well: `lunate -p --max-cost 2 "…"` is
+a budget the run cannot exceed without saying so. `--max-cost <usd>` and `--max-time <duration>` set
+the run's cost and wall-clock limits for that invocation, overriding the corresponding settings;
+`--max-time` accepts integer seconds or a `s`, `m`, `h` suffix. The limits themselves are on
+[Run limits](usage.md#run-limits).
 
 - A cost limit over a model the catalog cannot price refuses to start, because an unknown price is
   not `$0`; pass `--allow-unpriced` only when the limit may cover priced usage alone.
-- Either limit ends the run when the reached value equals the limit, with a notice that names the
-  limit, its value and the spend or time reached. The limit is recorded in the session.
+- Either cost or wall-clock limit ends the run when the reached value equals the limit, with a
+  notice that names the limit, its value and the spend or time reached. The limit is recorded in the
+  session.
 - Print mode exits `3` for a cost limit and `4` for a time limit.
 
 ## Related

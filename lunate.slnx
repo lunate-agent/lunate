@@ -65,6 +65,7 @@
     <Project Path="src/Lunate.Roslyn/Lunate.Roslyn.csproj" />
     <Project Path="src/Lunate.Roslyn.BuiltIn/Lunate.Roslyn.BuiltIn.csproj" />
     <Project Path="src/Lunate.Tui/Lunate.Tui.csproj" />
+    <Project Path="src/Mermaid.Terminal/Mermaid.Terminal.csproj" />
   </Folder>
   <Folder Name="/templates/">
     <Project Path="templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj" />
@@ -83,8 +84,10 @@
     <Project Path="tests/Lunate.Roslyn.Tests/Lunate.Roslyn.Tests.csproj" />
     <Project Path="tests/Lunate.TestSupport/Lunate.TestSupport.csproj" />
     <Project Path="tests/Lunate.Tui.Tests/Lunate.Tui.Tests.csproj" />
+    <Project Path="tests/Mermaid.Terminal.Tests/Mermaid.Terminal.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/tools/">
+    <Project Path="tests/tools/MermaidTape/MermaidTape.csproj" />
     <Project Path="tests/tools/TestMcpServer/TestMcpServer.csproj" />
   </Folder>
 </Solution>

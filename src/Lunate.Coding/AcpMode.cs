@@ -43,16 +43,25 @@ internal static class AcpMode
             var workspace = new Workspace(Environment.CurrentDirectory);
             LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
             IExtensionLog log = extensions?.Log ?? new StderrExtensionLog(errors);
-            AgentSettings settings = SettingsStore.Resolve(null, null);
+            AgentSettings settings = SettingsStore.ApplyLaunch(
+                SettingsStore.Resolve(null, null),
+                launch ?? new LaunchOptions()
+            );
+            // ACP keeps tool commands on the host in this change, so a container selection is
+            // refused here exactly like --env: serving a session whose commands would run
+            // host-side is the silent fallback the setting forbids. The per-session harness asks
+            // again, because settings resolve for every session/new.
+            if (AcpExecutionEnvironmentRefusal.Applies(settings))
+            {
+                errors.WriteLine($"lunate: {AcpExecutionEnvironmentRefusal.Text}");
+                return AcpExecutionEnvironmentRefusal.ExitCode;
+            }
+
             // A machine with no chat answer never serves a frame: an editor session would fail
             // every session/new, so the serve start refuses with the one configure-it message and
             // the spec's exit code (spec: The wizard trigger — "machine modes never open the
             // wizard"). Launch flags count, exactly as the per-session harness reads them.
-            if (
-                SetupRefusal.Applies(
-                    SettingsStore.ApplyLaunch(settings, launch ?? new LaunchOptions())
-                )
-            )
+            if (SetupRefusal.Applies(settings))
             {
                 errors.WriteLine($"lunate: {SetupRefusal.Text}");
                 return SetupRefusal.ExitCode;
@@ -274,6 +283,14 @@ internal static class AcpMode
             settings ?? SettingsStore.Resolve(null, null),
             launch ?? new LaunchOptions()
         );
+        // Every editor session resolves its settings again, so the refusal the serve start gave a
+        // stored selection is re-asked here: a session that reached this point with one would run
+        // its tool commands on the host, the silent fallback the selection forbids.
+        if (AcpExecutionEnvironmentRefusal.Applies(effective))
+        {
+            throw new AcpEnvironmentRefusedException();
+        }
+
         ModelCatalog models = catalog ?? HarnessFactory.LoadCatalog(effective, null);
         IChatClientFactory clientFactory = factory ?? HarnessFactory.CreateFactory(null, null);
 
@@ -404,6 +421,7 @@ internal static class AcpMode
             // The same redactor masks the model-facing text for ACP runs, which always have a session.
             ToolOutputMask = redaction.Redact,
             SubagentLimits = effective.Subagents,
+            MaxSteps = effective.MaxSteps,
             MaxCostUsd = effective.MaxCostUsd,
             MaxTime = effective.MaxTime,
             AllowUnpricedCost = directives.AllowUnpriced,

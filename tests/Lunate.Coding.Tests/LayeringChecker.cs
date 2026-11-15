@@ -103,6 +103,14 @@ internal static class LayeringChecker
             ("Lunate.Protocols.Tests", "Lunate.Coding"),
             ("Lunate.Protocols.Tests", "TestMcpServer"),
             ("Lunate.Protocols.Tests", "Lunate.TestSupport"),
+            // The Mermaid renderer is its own Lunate-free project and package (ADR-0039): the TUI
+            // draws diagrams through a plain project reference, not a Lunate layer, and the
+            // library's own test project is the only edge it has.
+            ("Lunate.Tui", "Mermaid.Terminal"),
+            ("Mermaid.Terminal.Tests", "Mermaid.Terminal"),
+            // The VHS tape renderer is a docs tool: it renders the documented examples through the
+            // same Lunate-free library, never through the TUI or a Lunate layer.
+            ("MermaidTape", "Mermaid.Terminal"),
             ("Lunate.Tui.Tests", "Lunate.Tui"),
             ("Lunate.Extensibility.Tests", "Lunate.Agent"),
             ("Lunate.Extensibility.Tests", "Lunate.Coding"),
