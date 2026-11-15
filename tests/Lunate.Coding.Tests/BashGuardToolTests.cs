@@ -97,6 +97,11 @@ public sealed class BashGuardToolTests
         var target = new GuardTarget(state, Path.Combine(state, "auth.json"), prefix, temp.Root);
         GuardProbe probe = Fake.Unix(macOs: true, sandboxExec: true) with
         {
+            // The tool resolves the machine's real shell, and where that shell lives differs by
+            // host (macOS /bin/bash, Linux usually /usr/bin/bash). A fake that reports only one
+            // spelling as existing leaves the guard unresolved on the other host, and the notice
+            // never happens — so every probed path exists here and only the probe's run decides.
+            FileExists = _ => true,
             Run = (_, _) => (1, "sandbox-exec: sandbox_apply: Operation not permitted"),
         };
         var log = new RecordingExtensionLog();
