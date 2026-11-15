@@ -134,7 +134,7 @@ public sealed class MermaidRendererTests
     }
 
     [Fact]
-    public void The_readme_example_is_the_rendered_output()
+    public void The_readme_ascii_example_is_the_rendered_output()
     {
         string readme = File.ReadAllText(
             Path.Combine(MermaidFixture.RepositoryRoot(), "src", "Mermaid.Terminal", "README.md")
@@ -142,9 +142,15 @@ public sealed class MermaidRendererTests
         string source = CodeBlock(readme, "mermaid");
         string expected = CodeBlock(readme, "text").TrimEnd('\n');
 
-        string actual = GoldenTests.Render(source, MermaidGlyphSet.Unicode).TrimEnd(' ');
-        Assert.Equal(expected.TrimEnd(' '), actual);
+        string actual = GoldenTests.Render(source, MermaidGlyphSet.Ascii);
+        Assert.Equal(TrimLineEnds(expected), TrimLineEnds(actual));
+
+        // The Unicode drawing stays an image; only the ASCII glyph set keeps a text block.
+        Assert.Contains("/media/mermaid/flowchart-lr.png", readme, StringComparison.Ordinal);
     }
+
+    private static string TrimLineEnds(string text) =>
+        string.Join('\n', text.Split('\n').Select(static line => line.TrimEnd(' ')));
 
     private static MermaidDiagramResult Diagram(
         string source,
