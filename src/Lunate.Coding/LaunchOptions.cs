@@ -87,6 +87,12 @@ internal sealed record LaunchOptions
     /// <summary>The print-mode prompt; null outside print mode.</summary>
     public string? Prompt { get; init; }
 
+    /// <summary>
+    /// The container environment selected with <c>--env</c>; null keeps the resolved setting, and
+    /// the flag wins over it. A selection never falls back silently to the host.
+    /// </summary>
+    public ExecutionEnvironmentSelection? Environment { get; init; }
+
     /// <summary>Whether the invocation selects a session (including the no-session choice).</summary>
     public bool HasSelection => Continue || Resume || Session is not null || NoSession;
 
@@ -123,6 +129,7 @@ internal sealed record LaunchOptions
         string? maxTimeFlag = null;
         string? maxStepsFlag = null;
         ThinkingLevel? thinking = null;
+        ExecutionEnvironmentSelection? environment = null;
         List<string> positional = [];
 
         options = new LaunchOptions();
@@ -248,6 +255,27 @@ internal sealed record LaunchOptions
                 case "--model":
                     if (!TryValue(args, ref index, "--model", inline, out model, out error))
                     {
+                        return false;
+                    }
+                    break;
+                case "--env":
+                    if (
+                        !TryValue(
+                            args,
+                            ref index,
+                            "--env",
+                            inline,
+                            out string environmentValue,
+                            out error
+                        )
+                    )
+                    {
+                        return false;
+                    }
+                    if (!ExecutionEnvironmentSelection.TryParse(environmentValue, out environment))
+                    {
+                        error =
+                            $"option '--env' expects {ExecutionEnvironmentSelection.AcceptedShapes}, but was '{environmentValue}'";
                         return false;
                     }
                     break;
@@ -453,6 +481,7 @@ internal sealed record LaunchOptions
             Keymap = keymap,
             Theme = theme,
             Prompt = print ? positional[0] : null,
+            Environment = environment,
         };
         return true;
     }

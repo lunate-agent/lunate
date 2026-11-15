@@ -317,4 +317,27 @@ internal static class WaitBudgets
     /// reaches it; a replayed run is bounded by <see cref="CrossTurn"/>.
     /// </summary>
     public static readonly TimeSpan Recording = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// A container-engine CLI call that only talks to the local engine — <c>version</c>,
+    /// <c>image inspect</c>, <c>inspect</c> — and answers in milliseconds; the ceiling covers an
+    /// engine that is slow to answer, not the command the container runs.
+    /// </summary>
+    public static readonly TimeSpan ContainerEngineCall = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Pulling the container end-to-end test's image once, when the host does not have it: the
+    /// registry and the engine's own layer extraction are the parties being waited on, and a host
+    /// that cannot reach the registry skips the test with that reason named instead of failing on a
+    /// clock.
+    /// </summary>
+    public static readonly TimeSpan ContainerImagePull = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// The timeout a container end-to-end test hands the tool for a command that should finish. The
+    /// container path pays container creation, the engine client and the post-call change scan, so it
+    /// is wider than <see cref="CommandRun"/> while staying short enough that a broken path fails at
+    /// this number instead of hanging the leg.
+    /// </summary>
+    public static readonly TimeSpan ContainerCommand = TimeSpan.FromSeconds(90);
 }
