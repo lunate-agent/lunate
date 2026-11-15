@@ -1,8 +1,8 @@
-namespace Lunate.Tui;
+namespace Mermaid.Terminal;
 
-internal sealed record MermaidNode(string Id, IReadOnlyList<string> LabelLines);
+internal sealed record FlowchartNode(string Id, IReadOnlyList<string> LabelLines);
 
-internal sealed record MermaidEdge(
+internal sealed record FlowchartEdge(
     string From,
     string To,
     string? Label,
@@ -11,48 +11,43 @@ internal sealed record MermaidEdge(
 );
 
 /// <summary>
-/// A parsed <c>flowchart</>/<c>graph</c>: the nodes in first-appearance order, the edges in
-/// statement order, and every node's layer (the longest path of edges reaching it, layers
-/// strictly rising along every edge, so drawing can assume a source a whole layer above its
-/// target).
+/// A parsed <c>flowchart</c>/<c>graph</c>: nodes in first-appearance order, edges in statement
+/// order, and every node's layer (the longest path of edges reaching it). Layers strictly rise
+/// along every edge, so a cycle is a parse failure and the drawing never has to loop.
 /// </summary>
-internal sealed record MermaidFlowchartModel(
+internal sealed record FlowchartModel(
     bool Horizontal,
-    IReadOnlyList<MermaidNode> Nodes,
-    IReadOnlyList<MermaidEdge> Edges,
+    IReadOnlyList<FlowchartNode> Nodes,
+    IReadOnlyList<FlowchartEdge> Edges,
     IReadOnlyList<int> Layers
 );
 
 /// <summary>
-/// The Mermaid <c>flowchart</c>/<c>graph</c> entry point: parse, then draw. The grammar is
-/// bounded on purpose: node chains — <c>a[label] --&gt; b("text")</c> with square, round,
-/// stadium and diamond shapes, labels quoted and split by <c>&lt;br/&gt;</c> — and edges with
-/// and without labels, plain (<c>---</c>) or dashed (<c>-. text .-&gt;</c>). Subgraphs, styles,
-/// class definitions, click handlers and direction changes after the header are a parse
-/// failure, so the fence falls back with the reason.
+/// The bounded Mermaid flowchart grammar: node chains — <c>a[label] --&gt; b("text")</c> with
+/// square, round, stadium and diamond shapes, quoted labels and <c>&lt;br/&gt;</c> breaks — and
+/// edges with and without labels, plain (<c>---</c>) or dashed (<c>-. text .-&gt;</c>).
+/// Subgraphs, styles, class definitions, click handlers and direction changes are parse failures;
+/// the fence then falls back with the reason.
 /// </summary>
-internal static partial class MermaidFlowchart
+internal static class FlowchartParser
 {
-    internal static MermaidResult TryDraw(IReadOnlyList<string> source, bool unicode, string verb)
-    {
-        return TryParse(
-            source,
-            verb,
-            out MermaidFlowchartModel? flowchart,
-            out MermaidFailure? failure
-        )
-            ? MermaidFlowchart.Draw(flowchart!, unicode)
-            : MermaidResult.Fail(failure!.Reason);
-    }
-
-    public static bool TryParse(
+    internal static MermaidDrawResult Draw(
         IReadOnlyList<string> source,
         string verb,
-        out MermaidFlowchartModel? flowchart,
-        out MermaidFailure? failure
+        MermaidGlyphSet glyphs
+    ) =>
+        TryParse(source, verb, out FlowchartModel? model, out string? failure)
+            ? MermaidDrawResult.Ok(FlowchartDraw.Draw(model!, glyphs))
+            : MermaidDrawResult.Fail(failure!);
+
+    internal static bool TryParse(
+        IReadOnlyList<string> source,
+        string verb,
+        out FlowchartModel? model,
+        out string? failure
     )
     {
-        flowchart = null;
+        model = null;
         failure = null;
 
         int header = 0;
@@ -63,7 +58,7 @@ internal static partial class MermaidFlowchart
 
         if (header == source.Count)
         {
-            failure = new MermaidFailure("the fence has no diagram");
+            failure = "the fence has no diagram";
             return false;
         }
 
@@ -73,21 +68,19 @@ internal static partial class MermaidFlowchart
         string canonical = direction.ToUpperInvariant();
         if (direction.Length == 0)
         {
-            failure = new MermaidFailure(
-                $"line {line}: the diagram needs a direction (TD, TB or LR)"
-            );
+            failure = $"line {line}: the diagram needs a direction (TD, TB or LR)";
             return false;
         }
 
         if (canonical is not ("TB" or "TD" or "LR"))
         {
-            failure = new MermaidFailure($"line {line}: unsupported direction '{direction}'");
+            failure = $"line {line}: unsupported direction '{direction}'";
             return false;
         }
 
-        var nodes = new List<MermaidNode>();
+        var nodes = new List<FlowchartNode>();
         var seats = new Dictionary<string, int>(StringComparer.Ordinal);
-        var edges = new List<MermaidEdge>();
+        var edges = new List<FlowchartEdge>();
         for (var index = header + 1; index < source.Count; index++)
         {
             int number = index + 1;
@@ -100,7 +93,7 @@ internal static partial class MermaidFlowchart
             string word = FirstWord(statement);
             if (word is "subgraph" or "style" or "classDef" or "click")
             {
-                failure = new MermaidFailure($"line {number}: unsupported statement '{word}'");
+                failure = $"line {number}: unsupported statement '{word}'";
                 return false;
             }
 
@@ -114,11 +107,11 @@ internal static partial class MermaidFlowchart
 
         if (!Layers(edges, seats, nodes.Count, out int[] depth))
         {
-            failure = new MermaidFailure("the diagram has a cycle");
+            failure = "the diagram has a cycle";
             return false;
         }
 
-        flowchart = new(canonical == "LR", nodes, edges, depth);
+        model = new(canonical == "LR", nodes, edges, depth);
         return true;
     }
 
@@ -130,12 +123,12 @@ internal static partial class MermaidFlowchart
 
     private static string FirstWord(string text)
     {
-        int end = text.IndexOf(' ');
+        int end = text.IndexOf(' ', StringComparison.Ordinal);
         return end > 0 ? text[..end] : text;
     }
 
     private static bool Layers(
-        IReadOnlyList<MermaidEdge> edges,
+        IReadOnlyList<FlowchartEdge> edges,
         Dictionary<string, int> seats,
         int nodeCount,
         out int[] depth
@@ -145,7 +138,7 @@ internal static partial class MermaidFlowchart
         for (var round = 0; round < nodeCount; round++)
         {
             var settled = true;
-            foreach (MermaidEdge edge in edges)
+            foreach (FlowchartEdge edge in edges)
             {
                 int source = seats[edge.From];
                 int target = seats[edge.To];
@@ -171,16 +164,16 @@ internal static partial class MermaidFlowchart
         private readonly string _text;
         private readonly int _line;
         private readonly Dictionary<string, int> _seats;
-        private readonly List<MermaidNode> _nodes;
-        private readonly List<MermaidEdge> _edges;
+        private readonly List<FlowchartNode> _nodes;
+        private readonly List<FlowchartEdge> _edges;
         private int _at;
 
-        public Scanner(
+        internal Scanner(
             string text,
             int line,
             Dictionary<string, int> seats,
-            List<MermaidNode> nodes,
-            List<MermaidEdge> edges
+            List<FlowchartNode> nodes,
+            List<FlowchartEdge> edges
         )
         {
             _text = text;
@@ -190,9 +183,9 @@ internal static partial class MermaidFlowchart
             _edges = edges;
         }
 
-        internal MermaidFailure? Failure { get; private set; }
+        internal string? Failure { get; private set; }
 
-        public bool Run()
+        internal bool Run()
         {
             string head = Node();
             if (Failure is not null)
@@ -215,7 +208,7 @@ internal static partial class MermaidFlowchart
                     return false;
                 }
 
-                MermaidEdge? edge = Edge(from);
+                FlowchartEdge? edge = Edge(from);
                 if (edge is null)
                 {
                     return false;
@@ -226,10 +219,8 @@ internal static partial class MermaidFlowchart
             }
         }
 
-        private MermaidEdge? Edge(string from)
+        private FlowchartEdge? Edge(string from)
         {
-            // The cursor sits on '-'. Each supported operator is checked specific to general; a
-            // bare '--' reads forward for '-->' so a label rides between them.
             string rest = _text[_at..];
             bool dashed;
             bool arrowhead;
@@ -274,9 +265,7 @@ internal static partial class MermaidFlowchart
                 int close = _text.IndexOf(".->", _at + 2, StringComparison.Ordinal);
                 if (close < 0)
                 {
-                    Failure = new MermaidFailure(
-                        $"line {_line}: an unterminated dotted link needs its '.->'"
-                    );
+                    Failure = "an unterminated dotted link needs its '.->'";
                     return null;
                 }
 
@@ -297,7 +286,7 @@ internal static partial class MermaidFlowchart
                 return null;
             }
 
-            return new MermaidEdge(
+            return new FlowchartEdge(
                 from,
                 to,
                 label is { Length: > 0 } text ? text : null,
@@ -306,7 +295,6 @@ internal static partial class MermaidFlowchart
             );
         }
 
-        /// <summary>The optional <c>|text|</c> label immediately after a plain link.</summary>
         private string BarLabel()
         {
             if (_at >= _text.Length || _text[_at] != '|')
@@ -317,7 +305,7 @@ internal static partial class MermaidFlowchart
             int close = _text.IndexOf('|', _at + 1);
             if (close < 0)
             {
-                Failure = new MermaidFailure($"line {_line}: a bar label needs its closing '|'");
+                Failure = "a bar label needs its closing '|'";
                 return string.Empty;
             }
 
@@ -353,21 +341,17 @@ internal static partial class MermaidFlowchart
 
             IReadOnlyList<string> label = shape is null
                 ? (IReadOnlyList<string>)[id]
-                : MermaidDiagram.LabelLines(shape);
+                : MermaidLabels.Lines(shape);
             if (!_seats.TryGetValue(id, out int index))
             {
                 index = _nodes.Count;
                 _seats[id] = index;
-                _nodes.Add(new MermaidNode(id, label));
+                _nodes.Add(new FlowchartNode(id, label));
             }
 
             return id;
         }
 
-        /// <summary>
-        /// The shape label at the cursor when the id carries one: <c>[..]</c>, <c>{..}</c>,
-        /// <c>(..)</c> and the stadium <c>([..])</c>. Quotes go; <br/> splits later.
-        /// </summary>
         private string? Shape()
         {
             _at = Space(_at);
@@ -396,9 +380,7 @@ internal static partial class MermaidFlowchart
             int close = _text.IndexOf(closer, open + closer.Length, StringComparison.Ordinal);
             if (close < 0)
             {
-                Failure = new MermaidFailure(
-                    $"line {_line}: a node label needs its closing '{closer}'"
-                );
+                Failure = $"line {_line}: a node label needs its closing '{closer}'";
                 return null;
             }
 
@@ -420,12 +402,65 @@ internal static partial class MermaidFlowchart
             return text.Replace("\"", "");
         }
 
-        private MermaidFailure Unread(string rest)
+        private string Unread(string rest)
         {
             string clipped = rest.Length <= 24 ? rest : rest[..24] + "…";
-            return new MermaidFailure(
-                $"line {_line}: I cannot read '{clipped}'; keep it to labels like [text] and edges like -->"
-            );
+            return $"line {_line}: I cannot read '{clipped}'; keep it to labels like [text] and edges like -->";
         }
+    }
+}
+
+/// <summary>The label splitting shared by node labels and notes: <c>&lt;br/&gt;</c> breaks a line.</summary>
+internal static class MermaidLabels
+{
+    internal static IReadOnlyList<string> Lines(string raw)
+    {
+        var lines = new List<string>();
+        int cursor = 0;
+        while (cursor < raw.Length)
+        {
+            int br = FindBr(raw, cursor);
+            if (br < 0)
+            {
+                lines.Add(raw[cursor..]);
+                return lines;
+            }
+
+            lines.Add(raw[cursor..br]);
+            cursor = BrEnd(raw, br);
+        }
+
+        return lines;
+    }
+
+    private static int FindBr(string text, int from)
+    {
+        int index = from - 1;
+        while ((index = text.IndexOf('<', index + 1)) >= 0)
+        {
+            int close = text.IndexOf('>', index + 1);
+            if (close < 0 || close - index > 6)
+            {
+                continue;
+            }
+
+            string tag = text[index..(close + 1)];
+            if (
+                tag.Equals("<br>", StringComparison.OrdinalIgnoreCase)
+                || tag.Equals("<br/>", StringComparison.OrdinalIgnoreCase)
+                || tag.Equals("<br />", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int BrEnd(string text, int br)
+    {
+        int close = text.IndexOf('>', br);
+        return close < 0 ? text.Length : close + 1;
     }
 }

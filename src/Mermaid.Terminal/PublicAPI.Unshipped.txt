@@ -1,0 +1,28 @@
+#nullable enable
+Mermaid.Terminal.MermaidDiagramResult
+Mermaid.Terminal.MermaidDiagramResult.Lines.get -> System.Collections.Generic.IReadOnlyList<Mermaid.Terminal.MermaidLine!>!
+Mermaid.Terminal.MermaidDiagramResult.MermaidDiagramResult(System.Collections.Generic.IReadOnlyList<Mermaid.Terminal.MermaidLine!>! lines, int width) -> void
+Mermaid.Terminal.MermaidDiagramResult.Width.get -> int
+Mermaid.Terminal.MermaidFallbackResult
+Mermaid.Terminal.MermaidFallbackResult.MermaidFallbackResult(System.Collections.Generic.IReadOnlyList<string!>! source, string! reason) -> void
+Mermaid.Terminal.MermaidFallbackResult.Reason.get -> string!
+Mermaid.Terminal.MermaidFallbackResult.Source.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Mermaid.Terminal.MermaidGlyphSet
+Mermaid.Terminal.MermaidGlyphSet.Ascii = 1 -> Mermaid.Terminal.MermaidGlyphSet
+Mermaid.Terminal.MermaidGlyphSet.Unicode = 0 -> Mermaid.Terminal.MermaidGlyphSet
+Mermaid.Terminal.MermaidLine
+Mermaid.Terminal.MermaidLine.MermaidLine(System.Collections.Generic.IReadOnlyList<Mermaid.Terminal.MermaidSpan!>! spans) -> void
+Mermaid.Terminal.MermaidLine.Spans.get -> System.Collections.Generic.IReadOnlyList<Mermaid.Terminal.MermaidSpan!>!
+Mermaid.Terminal.MermaidLine.Text.get -> string!
+Mermaid.Terminal.MermaidRenderResult
+Mermaid.Terminal.MermaidRenderer
+const Mermaid.Terminal.MermaidRenderer.MinimumWidth = 40 -> int
+static Mermaid.Terminal.MermaidRenderer.Render(string! source, int width) -> Mermaid.Terminal.MermaidRenderResult!
+static Mermaid.Terminal.MermaidRenderer.Render(string! source, int width, Mermaid.Terminal.MermaidGlyphSet glyphs) -> Mermaid.Terminal.MermaidRenderResult!
+Mermaid.Terminal.MermaidSpan
+Mermaid.Terminal.MermaidSpan.Kind.get -> Mermaid.Terminal.MermaidSpanKind
+Mermaid.Terminal.MermaidSpan.MermaidSpan(string! text, Mermaid.Terminal.MermaidSpanKind kind) -> void
+Mermaid.Terminal.MermaidSpan.Text.get -> string!
+Mermaid.Terminal.MermaidSpanKind
+Mermaid.Terminal.MermaidSpanKind.Frame = 0 -> Mermaid.Terminal.MermaidSpanKind
+Mermaid.Terminal.MermaidSpanKind.Label = 1 -> Mermaid.Terminal.MermaidSpanKind
