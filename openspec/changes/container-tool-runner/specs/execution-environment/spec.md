@@ -145,7 +145,10 @@ Lunate SHALL create one container per session and workspace, before the first to
 SHALL keep it for the session's lifetime because a stop plus start measured about 10.3 s. The
 container SHALL be created with the workspace bind-mounted at the host's absolute path and with the
 same absolute path as its working directory (`-v <workspace>:<workspace> -w <workspace>`), never at
-a fixed container-side path. The session SHALL remove the container when it ends.
+a fixed container-side path. It SHALL be started with a command that keeps it running between tool
+calls, because `run -d` makes the image's own command the main process and an image whose default
+exits at once would leave a stopped container that `exec` cannot enter. The session SHALL remove the
+container when it ends.
 
 The container SHALL receive only the workspace and the explicitly named tool-command environment
 variables; the state root, the install prefix, `auth.json` and the container engine socket SHALL NOT
@@ -158,6 +161,14 @@ otherwise fill an image with agent material: the image is the user's.
 - **WHEN** a `bash` command runs
 - **THEN** it runs inside the container, with the workspace's absolute host path as its working
   directory, and a file it writes is immediately visible on the host
+
+#### Scenario: The container outlives the call that started it
+
+- **GIVEN** a selected container environment whose image's own command exits immediately on a
+  detached stdin
+- **WHEN** the first command runs and then a second one follows
+- **THEN** the container is still running, because it was started with a keep-alive command, and
+  both commands' `exec` succeeds
 
 #### Scenario: The state root and credentials are absent inside
 

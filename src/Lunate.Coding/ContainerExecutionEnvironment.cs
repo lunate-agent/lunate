@@ -60,6 +60,15 @@ internal sealed class ContainerExecutionEnvironment : IExecutionEnvironment, IAs
     /// <summary>The wrapper's own <c>$0</c>; it is never executed, it only names the script.</summary>
     internal const string WrapperName = "lunate-exec";
 
+    /// <summary>
+    /// What the container runs while it waits for <c>exec</c> calls. The engine's <c>run -d</c> makes
+    /// the image's own command the container's main process, and an image whose command exits at once
+    /// (the Ubuntu base image's <c>bash</c> reads EOF on a detached stdin) leaves a stopped container —
+    /// every later <c>exec</c> then fails with the engine's "container is not running" error. This is
+    /// the command S-7 measured with; the image still supplies <c>sh</c> and <c>sleep</c>.
+    /// </summary>
+    internal const string KeepAlive = "while true; do sleep 3600; done";
+
     private static readonly TimeSpan CreationTimeout = TimeSpan.FromMinutes(2);
 
     private static readonly TimeSpan ControlTimeout = TimeSpan.FromSeconds(30);
@@ -427,6 +436,9 @@ internal sealed class ContainerExecutionEnvironment : IExecutionEnvironment, IAs
                         "-w",
                         _workspace,
                         _selection.Image,
+                        ContainerShell,
+                        "-c",
+                        KeepAlive,
                     ],
                     _workspace,
                     Timeout: CreationTimeout

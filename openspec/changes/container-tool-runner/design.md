@@ -91,6 +91,13 @@ selection before the container exists because the name comes from the selection,
 Readiness is tracked from creation: `starting` until the first command, `ready` after the container
 runs, `failed: <reason>` when creation failed.
 
+`run -d` makes the image's own command the container's main process, and an image whose default
+exits at once leaves a stopped container: the Ubuntu base image's `bash` reads EOF on a detached
+stdin, which is exactly the image the Linux end-to-end test pulls. The creation therefore appends a
+keep-alive command — `/bin/sh -c 'while true; do sleep 3600; done'`, the command S-7 measured with —
+so the container outlives the gap between tool calls; the same `/bin/sh` runs the group wrapper
+below, so the image already has to supply it.
+
 ### Cancel records the container-side process group before `exec`ing the command
 
 The command runs behind the container's `/bin/sh`:

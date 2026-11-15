@@ -334,6 +334,39 @@ public sealed class ContainerExecutionEnvironmentTests
     }
 
     [Fact]
+    public async Task The_container_runs_a_command_that_keeps_it_alive_between_calls()
+    {
+        var host = new FakeHost();
+        await using ContainerExecutionEnvironment environment = Environment(
+            host,
+            containerName: "lunate-test"
+        );
+
+        await environment.RunAsync(Request("true"), TestContext.Current.CancellationToken);
+
+        ProcessRunRequest create = Assert.Single(host.Requests, IsCreate);
+        // The image's own command is the container's main process; an image whose default exits at
+        // once leaves a stopped container and every later exec fails outside the tool's timeout.
+        Assert.Equal(
+            [
+                "run",
+                "-d",
+                "--name",
+                "lunate-test",
+                "-v",
+                $"{Workspace}:{Workspace}",
+                "-w",
+                Workspace,
+                "alpine",
+                "/bin/sh",
+                "-c",
+                "while true; do sleep 3600; done",
+            ],
+            create.Arguments
+        );
+    }
+
+    [Fact]
     public void The_environment_announces_that_it_starts_a_host_client()
     {
         ContainerExecutionEnvironment environment = Environment(new FakeHost());

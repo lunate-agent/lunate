@@ -42,11 +42,16 @@ what was measured.
 3. On the first command call, Lunate creates one container for the session and workspace:
 
    ```text
-   <engine> run -d --name lunate-<session> -v <workspace>:<workspace> -w <workspace> <image>
+   <engine> run -d --name lunate-<session> -v <workspace>:<workspace> -w <workspace> <image> \
+     /bin/sh -c 'while true; do sleep 3600; done'
    ```
 
    The mount is the canonical workspace at the same absolute path, never `/workspace`. Creation
-   takes about 146 ms and is reused for every later call.
+   takes about 146 ms and is reused for every later call. The trailing command is the container's
+   keep-alive: `run -d` makes the image's own command the main process, and an image whose default
+   exits at once — the Ubuntu base image's `bash` reads EOF on a detached stdin — would leave a
+   stopped container that `exec` cannot enter. The image must supply `/bin/sh` and `sleep`; the same
+   `/bin/sh` runs the process-group wrapper below.
 4. Each `bash` call runs through the engine's `exec` in that workspace, with the session marker
    forwarded explicitly because `exec` does not inherit the host environment. The container's `/bin/sh`
    records the command's process group, then execs the command unchanged:

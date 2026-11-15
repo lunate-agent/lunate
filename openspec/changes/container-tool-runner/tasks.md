@@ -44,6 +44,10 @@
       session marker arrives, the state root and `auth.json` are absent, and a timed-out command
       leaves no container-side process behind. Skip with a reason elsewhere.
 - [x] 4.2 Confirm the exact skip conditions keep the local path and the other CI legs unaffected.
+- [x] 4.3 Keep the container running between calls: `run -d` makes the image's own command the main
+      process, so creation appends a keep-alive command, pinned by the creation-argv test; an image
+      whose default exits at once would otherwise leave a stopped container the first `exec` cannot
+      enter.
 
 ## 5. Docs and reference
 
