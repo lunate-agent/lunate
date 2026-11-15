@@ -27,15 +27,11 @@ public sealed class ExtensionBuiltInDiscoveryTests
                 StorePath = store,
                 BuiltIns =
                 [
-                    new BuiltInExtension(
-                        alpha,
-                        ExtensionManifest.Parse(First, alpha),
-                        () => SeedFactory
+                    new BuiltInExtension(alpha, ExtensionManifest.Parse(First, alpha), () =>
+                        SeedFactory
                     ),
-                    new BuiltInExtension(
-                        beta,
-                        ExtensionManifest.Parse(Second, beta),
-                        () => SeedFactory
+                    new BuiltInExtension(beta, ExtensionManifest.Parse(Second, beta), () =>
+                        SeedFactory
                     ),
                 ],
             }
@@ -45,9 +41,8 @@ public sealed class ExtensionBuiltInDiscoveryTests
 
         Assert.Empty(loader.DiscoveryErrors);
         Assert.Equal(["alpha", "beta"], descriptors.Select(descriptor => descriptor.Id));
-        Assert.All(
-            descriptors,
-            descriptor => Assert.Equal(ExtensionScope.Builtin, descriptor.Scope)
+        Assert.All(descriptors, descriptor =>
+            Assert.Equal(ExtensionScope.Builtin, descriptor.Scope)
         );
         Assert.All(descriptors, descriptor => Assert.Null(descriptor.Directory));
         Assert.Equal("alpha", descriptors[0].Manifest.Id);
@@ -115,10 +110,8 @@ public sealed class ExtensionBuiltInDiscoveryTests
                 StorePath = store,
                 BuiltIns =
                 [
-                    new BuiltInExtension(
-                        path,
-                        ExtensionManifest.Parse(json, path),
-                        () => SeedFactory
+                    new BuiltInExtension(path, ExtensionManifest.Parse(json, path), () =>
+                        SeedFactory
                     ),
                 ],
             }
@@ -155,10 +148,8 @@ public sealed class ExtensionBuiltInDiscoveryTests
                 StorePath = store,
                 BuiltIns =
                 [
-                    new BuiltInExtension(
-                        builtInPath,
-                        BuiltInManifest("hello", builtInPath),
-                        () => SeedFactory
+                    new BuiltInExtension(builtInPath, BuiltInManifest("hello", builtInPath), () =>
+                        SeedFactory
                     ),
                 ],
             }
@@ -217,10 +208,8 @@ public sealed class ExtensionBuiltInDiscoveryTests
                 StorePath = store,
                 BuiltIns =
                 [
-                    new BuiltInExtension(
-                        path,
-                        ExtensionManifest.Parse(json, path),
-                        () => SeedFactory
+                    new BuiltInExtension(path, ExtensionManifest.Parse(json, path), () =>
+                        SeedFactory
                     ),
                 ],
             }

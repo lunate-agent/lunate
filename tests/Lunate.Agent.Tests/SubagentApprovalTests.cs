@@ -54,23 +54,19 @@ public sealed class SubagentApprovalTests
             .Single(start => start.RunId != parentRunId)
             .RunId;
         // The spawn call itself is approved too (same seam, asking run = the parent).
-        Assert.Contains(
-            approver.Requests,
-            request =>
-                request.Tool.Name == "spawn" && request.RunId == parentRunId && request.Depth == 0
+        Assert.Contains(approver.Requests, request =>
+            request.Tool.Name == "spawn" && request.RunId == parentRunId && request.Depth == 0
         );
-        ApprovalRequest request = Assert.Single(
-            approver.Requests,
-            request => request.Tool.Name == "read"
+        ApprovalRequest request = Assert.Single(approver.Requests, request =>
+            request.Tool.Name == "read"
         );
         Assert.Same(read, request.Tool);
         Assert.Equal(childRunId, request.RunId);
         Assert.Equal(parentRunId, request.ParentRunId);
         Assert.Equal(1, request.Depth);
         Assert.NotNull(read.ReceivedContext);
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result => result.RunId == parentRunId && !result.IsError
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.RunId == parentRunId && !result.IsError
         );
     }
 
@@ -104,12 +100,10 @@ public sealed class SubagentApprovalTests
             .OfType<RunStarted>()
             .Single(start => start.ParentRunId is not null)
             .RunId;
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result =>
-                result.IsError
-                && result.RunId == childRunId
-                && result.Output.Contains("Denied", StringComparison.Ordinal)
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.IsError
+            && result.RunId == childRunId
+            && result.Output.Contains("Denied", StringComparison.Ordinal)
         );
         ApprovalRequest request = Assert.Single(approver.Requests, ask => ask.Tool.Name == "read");
         Assert.Equal(1, request.Depth);

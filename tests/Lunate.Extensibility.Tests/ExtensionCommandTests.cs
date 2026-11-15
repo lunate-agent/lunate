@@ -51,11 +51,9 @@ public sealed class ExtensionCommandTests
 
         Assert.Empty(loader.CommandSources.List());
         Assert.Equal(["ghost"], loader.DeclaredNotProvidedCommands("cmd"));
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("declares command '/ghost'", StringComparison.Ordinal)
-                && message.Contains("not runnable", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("declares command '/ghost'", StringComparison.Ordinal)
+            && message.Contains("not runnable", StringComparison.Ordinal)
         );
     }
 
@@ -149,24 +147,19 @@ public sealed class ExtensionCommandTests
 
         await loader.Load("cmd", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("'ext:cmd:ping'", StringComparison.Ordinal)
-                && message.Contains("more than one source", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("'ext:cmd:ping'", StringComparison.Ordinal)
+            && message.Contains("more than one source", StringComparison.Ordinal)
         );
         // The load-time stamping still yields the extension kind and the extension id as source,
         // on both registrations.
         IReadOnlyList<RegisteredCommandSource> registered = loader.CommandSources.List();
         Assert.Equal(2, registered.Count);
-        Assert.All(
-            registered,
-            source =>
-            {
-                CommandDescriptor descriptor = Assert.Single(source.Descriptors);
-                Assert.Equal(CommandKind.Extension, descriptor.Kind);
-                Assert.Equal("cmd", descriptor.SourceId);
-            }
-        );
+        Assert.All(registered, source =>
+        {
+            CommandDescriptor descriptor = Assert.Single(source.Descriptors);
+            Assert.Equal(CommandKind.Extension, descriptor.Kind);
+            Assert.Equal("cmd", descriptor.SourceId);
+        });
     }
 }

@@ -103,8 +103,8 @@ public static class SystemPrompt
         return launch with
         {
             SystemPrompt = launch.SystemPrompt ?? RecordedText(session, "system"),
-            AppendSystemPrompt =
-                launch.AppendSystemPrompt ?? RecordedText(session, "system-append"),
+            AppendSystemPrompt = launch.AppendSystemPrompt
+                ?? RecordedText(session, "system-append"),
         };
     }
 

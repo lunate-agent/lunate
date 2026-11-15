@@ -37,13 +37,11 @@ public sealed class RestoreGateTests
             TestChildProcess.RunAsync(typeof(RestoreGateTests), Method, environment)
         );
 
-        Assert.All(
-            results,
-            result =>
-                Assert.True(
-                    result.ExitCode == 0,
-                    $"a probe failed (exit {result.ExitCode}):{Environment.NewLine}{result.Output}"
-                )
+        Assert.All(results, result =>
+            Assert.True(
+                result.ExitCode == 0,
+                $"a probe failed (exit {result.ExitCode}):{Environment.NewLine}{result.Output}"
+            )
         );
 
         var intervals = File.ReadAllLines(log)
@@ -68,8 +66,7 @@ public sealed class RestoreGateTests
 
     private static void Probe()
     {
-        string log =
-            Environment.GetEnvironmentVariable(LogVariable)
+        string log = Environment.GetEnvironmentVariable(LogVariable)
             ?? throw new InvalidOperationException(
                 $"{LogVariable} is not set for the child probe."
             );

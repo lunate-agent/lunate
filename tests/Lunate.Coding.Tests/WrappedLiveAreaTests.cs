@@ -73,9 +73,8 @@ public sealed class WrappedLiveAreaTests
 
         // No physical row is wider than the terminal: the renderer clips, and the terminal model
         // counts cells the way CellText does.
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
         );
 
         host.Console.SendEscape();
@@ -147,9 +146,8 @@ public sealed class WrappedLiveAreaTests
             screen.Feed(write);
         }
 
-        Assert.All(
-            screen.Lines,
-            line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
+        Assert.All(screen.Lines, line =>
+            Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
         );
 
         host.Console.SendEscape();
@@ -221,9 +219,8 @@ public sealed class WrappedLiveAreaTests
     }
 
     private static void AssertNoRowOverflows(IReadOnlyList<string> lines, int width) =>
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line) <= width, $"'{line}' overflows {width}")
         );
 
     /// <summary>Drives every wizard step through the real console; the wait strings are the clipped

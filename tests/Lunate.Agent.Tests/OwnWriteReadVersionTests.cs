@@ -49,13 +49,11 @@ public sealed class OwnWriteReadVersionTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult firstEdit = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "edit-1"
+        ToolCallResult firstEdit = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "edit-1"
         );
-        ToolCallResult secondEdit = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "edit-2"
+        ToolCallResult secondEdit = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "edit-2"
         );
         Assert.False(firstEdit.IsError);
         Assert.False(secondEdit.IsError);
@@ -122,9 +120,8 @@ public sealed class OwnWriteReadVersionTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult refused = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "edit-2"
+        ToolCallResult refused = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "edit-2"
         );
         Assert.True(refused.IsError);
         Assert.Contains("small.txt changed after your last read", refused.Output);
@@ -168,13 +165,11 @@ public sealed class OwnWriteReadVersionTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult firstWrite = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "write-1"
+        ToolCallResult firstWrite = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "write-1"
         );
-        ToolCallResult secondWrite = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "write-2"
+        ToolCallResult secondWrite = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "write-2"
         );
         Assert.False(firstWrite.IsError);
         Assert.False(secondWrite.IsError);
@@ -259,13 +254,11 @@ public sealed class OwnWriteReadVersionTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult refusedWrite = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "refused-write"
+        ToolCallResult refusedWrite = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "refused-write"
         );
-        ToolCallResult refusedEdit = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            result => result.CallId == "refused-edit"
+        ToolCallResult refusedEdit = Assert.Single(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "refused-edit"
         );
         Assert.True(refusedWrite.IsError);
         Assert.True(refusedEdit.IsError);

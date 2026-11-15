@@ -41,14 +41,11 @@ public sealed class ToolOutputSpillReadTests
 
         Assert.NotEmpty(client.ReadResults);
         Assert.True(client.ReadResults.Count > 1);
-        Assert.All(
-            client.ReadResults,
-            page =>
-            {
-                Assert.DoesNotContain("full output at ", page, StringComparison.Ordinal);
-                Assert.True(ToolOutput.EstimateTokens(page) <= 2_000);
-            }
-        );
+        Assert.All(client.ReadResults, page =>
+        {
+            Assert.DoesNotContain("full output at ", page, StringComparison.Ordinal);
+            Assert.True(ToolOutput.EstimateTokens(page) <= 2_000);
+        });
         string joined = string.Concat(client.ReadResults.Select(SpillPagingChatClient.PageContent));
         Assert.Equal(Encoding.UTF8.GetBytes(full), Encoding.UTF8.GetBytes(joined));
     }

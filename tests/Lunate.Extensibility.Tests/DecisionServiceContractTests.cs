@@ -11,11 +11,9 @@ public sealed class DecisionServiceContractTests
     {
         Assembly assembly = typeof(IDecisionService).Assembly;
 
-        Assert.DoesNotContain(
-            assembly.GetReferencedAssemblies(),
-            reference =>
-                reference.Name?.StartsWith("Lunate.", StringComparison.Ordinal) == true
-                && reference.Name != "Lunate.Contracts"
+        Assert.DoesNotContain(assembly.GetReferencedAssemblies(), reference =>
+            reference.Name?.StartsWith("Lunate.", StringComparison.Ordinal) == true
+            && reference.Name != "Lunate.Contracts"
         );
         Assert.All(
             typeof(IDecisionService)
@@ -26,10 +24,8 @@ public sealed class DecisionServiceContractTests
                     )
                 ),
             type =>
-                Assert.DoesNotContain(
-                    new[] { "Provider", "Tool", "Loop" },
-                    marker =>
-                        type.FullName?.Contains(marker, StringComparison.OrdinalIgnoreCase) == true
+                Assert.DoesNotContain(new[] { "Provider", "Tool", "Loop" }, marker =>
+                    type.FullName?.Contains(marker, StringComparison.OrdinalIgnoreCase) == true
                 )
         );
     }

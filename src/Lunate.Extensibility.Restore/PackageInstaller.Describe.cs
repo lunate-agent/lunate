@@ -48,8 +48,7 @@ internal sealed partial class PackageInstaller
             );
         }
 
-        NuGetVersion version =
-            exact
+        NuGetVersion version = exact
             ?? await LatestStableAsync(feed, request.Id, cancellationToken).ConfigureAwait(false);
         string label = FormattableString.Invariant(
             $"package '{request.Id}' {version.ToNormalizedString()}"

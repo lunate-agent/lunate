@@ -151,9 +151,8 @@ public sealed class LibAcpServerTests
                     AcpTestSupport.Wire(update.Update)
                 )
         );
-        Assert.All(
-            runtime.State.Updates,
-            update => Assert.Equal(session.SessionId.Value, update.SessionId.Value)
+        Assert.All(runtime.State.Updates, update =>
+            Assert.Equal(session.SessionId.Value, update.SessionId.Value)
         );
     }
 
@@ -397,10 +396,8 @@ public sealed class LibAcpServerTests
 
         Assert.Equal(StopReason.EndTurn, response.StopReason);
         Assert.Equal("hello", model.LastUserText);
-        Assert.Contains(
-            log,
-            line =>
-                line.Contains("skipping non-text content block (image)", StringComparison.Ordinal)
+        Assert.Contains(log, line =>
+            line.Contains("skipping non-text content block (image)", StringComparison.Ordinal)
         );
     }
 

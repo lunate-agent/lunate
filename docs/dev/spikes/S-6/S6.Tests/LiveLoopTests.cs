@@ -23,9 +23,8 @@ public sealed class LiveLoopTests
 
         Assert.True(result.QuitRequested);
         Assert.True(result.CancelRequested);
-        Assert.Contains(
-            result.FinishedBlocks,
-            b => b.Contains("48 passed", StringComparison.Ordinal)
+        Assert.Contains(result.FinishedBlocks, b =>
+            b.Contains("48 passed", StringComparison.Ordinal)
         );
         Assert.Contains(
             "queued: also check the tests",

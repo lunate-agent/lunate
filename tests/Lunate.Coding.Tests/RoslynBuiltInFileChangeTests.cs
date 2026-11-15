@@ -216,10 +216,8 @@ public sealed class RoslynBuiltInFileChangeTests
     }
 
     private static BuiltInExtension RoslynBuiltIn(Func<string, TrackingBackend> createBackend) =>
-        new(
-            "host/roslyn/extension.json",
-            RoslynBuiltInFactory.Manifest,
-            () => new RoslynBuiltInFactory(root => createBackend(root))
+        new("host/roslyn/extension.json", RoslynBuiltInFactory.Manifest, () =>
+            new RoslynBuiltInFactory(root => createBackend(root))
         );
 
     private static Task<ExtensionSession> StartHost(

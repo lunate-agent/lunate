@@ -85,8 +85,8 @@ internal static class ProcessTable
 
                 try
                 {
-                    string target =
-                        File.ResolveLinkTarget(path, returnFinalTarget: false)?.FullName ?? "?";
+                    string target = File.ResolveLinkTarget(path, returnFinalTarget: false)?.FullName
+                        ?? "?";
                     links.Add(FormattableString.Invariant($"{Path.GetFileName(path)}->{target}"));
                 }
                 catch (Exception exception)

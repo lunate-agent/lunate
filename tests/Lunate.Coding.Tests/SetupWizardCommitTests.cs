@@ -347,13 +347,8 @@ public sealed class SetupWizardCommitTests : IDisposable
             ["anthropic", "openai"],
             entries.Select(entry => entry.GetProperty("name").GetString()!)
         );
-        Assert.All(
-            entries,
-            entry =>
-                Assert.Equal(
-                    "env:OPENAI_API_KEY",
-                    entry.GetProperty("credentialReference").GetString()
-                )
+        Assert.All(entries, entry =>
+            Assert.Equal("env:OPENAI_API_KEY", entry.GetProperty("credentialReference").GetString())
         );
 
         using JsonDocument settings = JsonDocument.Parse(File.ReadAllText(SettingsPath));

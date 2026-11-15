@@ -156,10 +156,8 @@ public sealed class ExtensionBuiltInLoadTests
         string[] tools,
         string[]? registers = null
     ) =>
-        new(
-            $"host/{id}/extension.json",
-            Manifest(id, tools),
-            () => new RegisteringFactory(registers ?? tools)
+        new($"host/{id}/extension.json", Manifest(id, tools), () =>
+            new RegisteringFactory(registers ?? tools)
         );
 
     internal static ExtensionManifest Manifest(

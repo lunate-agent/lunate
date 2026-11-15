@@ -191,8 +191,8 @@ internal sealed class RipgrepGrepEngine : IGrepEngine
                 }
 
                 int number = data.GetProperty("line_number").GetInt32();
-                string text =
-                    data.GetProperty("lines").GetProperty("text").GetString() ?? string.Empty;
+                string text = data.GetProperty("lines").GetProperty("text").GetString()
+                    ?? string.Empty;
                 text = text.TrimEnd('\n');
                 if (text.EndsWith('\r'))
                 {

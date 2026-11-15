@@ -27,9 +27,8 @@ public sealed class CommandSourceTests
         host.Console.SendText("/pi");
         await host.WaitUntilAsync(() => host.Session.Input.Text == "/pi");
         AutocompleteState state = Assert.IsType<AutocompleteState>(host.Session.Autocomplete);
-        Assert.Contains(
-            state.Items,
-            item => item.Text == "/ping" && item.Kind == CompletionKind.Extension
+        Assert.Contains(state.Items, item =>
+            item.Text == "/ping" && item.Kind == CompletionKind.Extension
         );
 
         host.Console.SendCtrlC();
@@ -38,10 +37,8 @@ public sealed class CommandSourceTests
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "ping commands: hello");
 
         Assert.Empty(host.Client.Requests);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("command ping invoked with 'hello'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("command ping invoked with 'hello'", StringComparison.Ordinal)
         );
 
         host.Console.SendText("/quit");
@@ -75,18 +72,15 @@ public sealed class CommandSourceTests
 
         host.Console.SendText("/g");
         await host.WaitUntilAsync(() => host.Session.Input.Text == "/g");
-        Assert.DoesNotContain(
-            host.Session.Autocomplete?.Items ?? [],
-            item => item.Text == "/ghost"
+        Assert.DoesNotContain(host.Session.Autocomplete?.Items ?? [], item =>
+            item.Text == "/ghost"
         );
         host.Console.SendCtrlC();
         await host.WaitUntilAsync(() => host.Session.Input.Text.Length == 0);
 
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("declares command '/ghost'", StringComparison.Ordinal)
-                && message.Contains("not runnable", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("declares command '/ghost'", StringComparison.Ordinal)
+            && message.Contains("not runnable", StringComparison.Ordinal)
         );
 
         host.Console.SendText("/quit");
@@ -120,12 +114,10 @@ public sealed class CommandSourceTests
             host.Frames,
             StringComparison.Ordinal
         );
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("extension 'commands'", StringComparison.Ordinal)
-                && message.Contains("'/help'", StringComparison.Ordinal)
-                && message.Contains("built-in", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("extension 'commands'", StringComparison.Ordinal)
+            && message.Contains("'/help'", StringComparison.Ordinal)
+            && message.Contains("built-in", StringComparison.Ordinal)
         );
 
         host.Console.SendText("/quit");
@@ -157,12 +149,10 @@ public sealed class CommandSourceTests
             host,
             "command ext:commands:boom failed: the scripted command exploded"
         );
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("ext:commands:boom", StringComparison.Ordinal)
-                && message.Contains("source 'commands'", StringComparison.Ordinal)
-                && message.Contains("scripted command exploded", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("ext:commands:boom", StringComparison.Ordinal)
+            && message.Contains("source 'commands'", StringComparison.Ordinal)
+            && message.Contains("scripted command exploded", StringComparison.Ordinal)
         );
 
         // The session is still alive and later commands still dispatch.

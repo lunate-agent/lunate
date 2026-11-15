@@ -35,8 +35,9 @@ public sealed partial class ModelRegistry
 
     private IChatClient CreateBaseClient(string modelId)
     {
-        object entry =
-            Find(modelId) ?? (object?)FindCatalog(modelId) ?? throw UnknownModel(modelId);
+        object entry = Find(modelId)
+            ?? (object?)FindCatalog(modelId)
+            ?? throw UnknownModel(modelId);
         return entry switch
         {
             DeclaredEntry declared => CreateDeclaredClient(declared, modelId),
@@ -226,8 +227,7 @@ public sealed partial class ModelRegistry
                 );
             }
 
-            object backendEntry =
-                registry.Find(backend)
+            object backendEntry = registry.Find(backend)
                 ?? throw new InvalidOperationException(
                     $"Virtual model '{entry.FullId}' names backend '{backend}', which is not a known model. Known models: {registry.KnownModelIds()}. Fix the backend or register the model."
                 );

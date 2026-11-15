@@ -76,9 +76,8 @@ public sealed class ExtensionSecretsTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("secret present: True", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("secret present: True", StringComparison.Ordinal)
         );
 
         string sessionPath = Path.Combine(temp.Subdirectory("sessions"), "s.jsonl");

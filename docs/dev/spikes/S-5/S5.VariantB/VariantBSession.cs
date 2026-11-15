@@ -28,14 +28,11 @@ public sealed class VariantBSession : ISession
         _start = scheduler.Now;
 
         var states = _inputs
-            .Scan(
-                _state,
-                (state, input) =>
-                {
-                    state.Apply(input);
-                    return state;
-                }
-            )
+            .Scan(_state, (state, input) =>
+            {
+                state.Apply(input);
+                return state;
+            })
             .Replay(1)
             .RefCount();
 

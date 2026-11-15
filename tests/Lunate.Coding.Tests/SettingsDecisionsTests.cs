@@ -319,11 +319,8 @@ public sealed class SettingsDecisionsTests
         );
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
-            SettingsStore.ResolveWithProject(
-                null,
-                temp.File("project-settings.json"),
-                [],
-                _ => null
+            SettingsStore.ResolveWithProject(null, temp.File("project-settings.json"), [], _ =>
+                null
             )
         );
 

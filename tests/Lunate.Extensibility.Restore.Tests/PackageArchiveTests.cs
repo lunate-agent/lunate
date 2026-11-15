@@ -55,17 +55,14 @@ public sealed class PackageArchiveTests
     public void An_archive_entry_outside_the_package_root_is_refused_naming_it(string entry)
     {
         using var temp = new TempDirectory();
-        string nupkg = TestPackage.Raw(
-            temp.Root,
-            zip =>
-            {
-                TestPackage.Write(zip, "Acme.Toolkit.nuspec", TestPackage.Nuspec());
-                TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest);
-                TestPackage.Write(zip, "extension/extension.json", ValidExtensionJson());
-                TestPackage.Write(zip, "extension/acme-tools.dll", "assembly bytes");
-                TestPackage.Write(zip, entry, "escaped");
-            }
-        );
+        string nupkg = TestPackage.Raw(temp.Root, zip =>
+        {
+            TestPackage.Write(zip, "Acme.Toolkit.nuspec", TestPackage.Nuspec());
+            TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest);
+            TestPackage.Write(zip, "extension/extension.json", ValidExtensionJson());
+            TestPackage.Write(zip, "extension/acme-tools.dll", "assembly bytes");
+            TestPackage.Write(zip, entry, "escaped");
+        });
 
         InvalidDataException failure = Assert.Throws<InvalidDataException>(() =>
             PackageReader.Read(nupkg)
@@ -84,22 +81,19 @@ public sealed class PackageArchiveTests
     {
         const int Payload = 20_001;
         using var temp = new TempDirectory();
-        string nupkg = TestPackage.Raw(
-            temp.Root,
-            zip =>
+        string nupkg = TestPackage.Raw(temp.Root, zip =>
+        {
+            TestPackage.Write(zip, "Acme.Toolkit.nuspec", TestPackage.Nuspec());
+            TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest);
+            for (var index = 0; index < Payload; index++)
             {
-                TestPackage.Write(zip, "Acme.Toolkit.nuspec", TestPackage.Nuspec());
-                TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest);
-                for (var index = 0; index < Payload; index++)
-                {
-                    TestPackage.Write(
-                        zip,
-                        FormattableString.Invariant($"payload/file{index}.txt"),
-                        "x"
-                    );
-                }
+                TestPackage.Write(
+                    zip,
+                    FormattableString.Invariant($"payload/file{index}.txt"),
+                    "x"
+                );
             }
-        );
+        });
         long entries = CountEntries(nupkg);
 
         InvalidDataException failure = Assert.Throws<InvalidDataException>(() =>
@@ -119,15 +113,12 @@ public sealed class PackageArchiveTests
     {
         const long Limit = 512L * 1024 * 1024;
         using var temp = new TempDirectory();
-        string nupkg = TestPackage.Raw(
-            temp.Root,
-            zip =>
-            {
-                TestPackage.Write(zip, "Acme.Toolkit.nuspec", TestPackage.Nuspec());
-                TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest);
-                WriteZeros(zip, "skills/greek/big.bin", Limit + 1);
-            }
-        );
+        string nupkg = TestPackage.Raw(temp.Root, zip =>
+        {
+            TestPackage.Write(zip, "Acme.Toolkit.nuspec", TestPackage.Nuspec());
+            TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest);
+            WriteZeros(zip, "skills/greek/big.bin", Limit + 1);
+        });
         long expanded = ExpandedSize(nupkg);
         Assert.True(expanded > Limit, "the fixture did not exceed the size limit");
 
@@ -163,9 +154,8 @@ public sealed class PackageArchiveTests
     public void A_zip_without_a_nuspec_is_refused_naming_it()
     {
         using var temp = new TempDirectory();
-        string nupkg = TestPackage.Raw(
-            temp.Root,
-            zip => TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest)
+        string nupkg = TestPackage.Raw(temp.Root, zip =>
+            TestPackage.Write(zip, "lunate.package.json", TestPackage.FullManifest)
         );
 
         InvalidDataException failure = Assert.Throws<InvalidDataException>(() =>

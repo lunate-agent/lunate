@@ -145,17 +145,15 @@ public sealed class ExtensionWorkspaceServiceCapTests
             Ct
         );
 
-        string warning = Assert.Single(
-            log.Messages,
-            message =>
-                message.Contains("tracker", StringComparison.Ordinal)
-                && message.Contains("no registration matched", StringComparison.Ordinal)
+        string warning = Assert.Single(log.Messages, message =>
+            message.Contains("tracker", StringComparison.Ordinal)
+            && message.Contains("no registration matched", StringComparison.Ordinal)
         );
         Assert.StartsWith("warn:", warning, StringComparison.Ordinal);
 
         // The dropped name was never registered, so acquiring it is refused with the usual message.
-        IExtensionContext context =
-            factory.Context ?? throw new InvalidOperationException("the factory never ran");
+        IExtensionContext context = factory.Context
+            ?? throw new InvalidOperationException("the factory never ran");
         InvalidOperationException acquisition = await Assert.ThrowsAsync<InvalidOperationException>(
             async () =>
                 await context.AcquireWorkspaceServiceAsync<TrackedValue>("tracker", temp.Root, Ct)

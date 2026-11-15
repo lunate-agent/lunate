@@ -156,9 +156,8 @@ public sealed class ExtensionContractPackages
     public void The_lib_inventory_is_explicit_and_contract_free(string id, string[] expected)
     {
         XDocument document = Load(id);
-        XElement target = Assert.Single(
-            document.Descendants("Target"),
-            element => (string?)element.Attribute("Name") == "PackOwnAssemblies"
+        XElement target = Assert.Single(document.Descendants("Target"), element =>
+            (string?)element.Attribute("Name") == "PackOwnAssemblies"
         );
 
         string include = Assert
@@ -205,14 +204,12 @@ public sealed class ExtensionContractPackages
         Path.Combine(RepositoryRoot.Find(), "assets", "brand", "lunate-logo-dark.png");
 
     private static XElement SingleReference(XDocument document, string name, string includeMatch) =>
-        Assert.Single(
-            document.Descendants(name),
-            element =>
-                string.Equals(
-                    Path.GetFileName((string?)element.Attribute("Include")),
-                    includeMatch + ".csproj",
-                    StringComparison.Ordinal
-                )
+        Assert.Single(document.Descendants(name), element =>
+            string.Equals(
+                Path.GetFileName((string?)element.Attribute("Include")),
+                includeMatch + ".csproj",
+                StringComparison.Ordinal
+            )
         );
 
     private static XDocument Load(string id) =>

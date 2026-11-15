@@ -54,8 +54,7 @@ internal sealed class WindowsChildProcess : ChildProcess
             startInfo.Environment[name] = value;
         }
 
-        Process process =
-            Process.Start(startInfo)
+        Process process = Process.Start(startInfo)
             ?? throw new InvalidOperationException($"could not start {request.FileName}");
         return new WindowsChildProcess(process);
     }

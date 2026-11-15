@@ -64,8 +64,8 @@ internal sealed class ClientApprover : IUserPromptToolApprover
         _connection = connection;
         _sessionId = sessionId;
         _log = log;
-        _permissionTimeout =
-            permissionTimeout ?? TimeSpan.FromSeconds(DefaultPermissionTimeoutSeconds);
+        _permissionTimeout = permissionTimeout
+            ?? TimeSpan.FromSeconds(DefaultPermissionTimeoutSeconds);
     }
 
     /// <summary>Returns true to execute the call, false to decline it.</summary>

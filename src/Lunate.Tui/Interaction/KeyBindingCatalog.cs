@@ -225,8 +225,9 @@ internal static partial class KeyBindingCatalog
 
     private static IReadOnlyList<KeyBinding> Load()
     {
-        using Stream stream =
-            typeof(KeyBindingCatalog).Assembly.GetManifestResourceStream(ResourceName)
+        using Stream stream = typeof(KeyBindingCatalog).Assembly.GetManifestResourceStream(
+            ResourceName
+        )
             ?? throw new InvalidOperationException(
                 $"the keymap resource '{ResourceName}' is missing from the {typeof(KeyBindingCatalog).Assembly.GetName().Name} assembly; "
                     + "keys.json must be embedded (see the EmbeddedResource item in Lunate.Tui.csproj)"

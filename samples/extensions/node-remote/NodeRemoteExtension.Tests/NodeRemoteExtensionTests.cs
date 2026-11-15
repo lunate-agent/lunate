@@ -31,13 +31,11 @@ public sealed class NodeRemoteExtensionTests
         );
 
         Assert.True(report.Succeeded, report.Summary);
-        Assert.Contains(
-            report.Steps,
-            step => step.Name == "service call child -> host" && step.Passed
+        Assert.Contains(report.Steps, step =>
+            step.Name == "service call child -> host" && step.Passed
         );
-        Assert.Contains(
-            report.Steps,
-            step => step.Name == "service call host -> child" && step.Passed
+        Assert.Contains(report.Steps, step =>
+            step.Name == "service call host -> child" && step.Passed
         );
         Assert.Contains(report.Steps, step => step.Name == "command invoke" && step.Passed);
         Assert.Contains(report.Steps, step => step.Name == "command cancel" && step.Passed);

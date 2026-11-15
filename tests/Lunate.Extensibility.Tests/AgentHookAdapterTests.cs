@@ -70,11 +70,9 @@ public sealed class AgentHookAdapterTests
         Assert.Equal(["read"], client.RequestOptions[0]!.Tools!.Select(tool => tool.Name));
         Assert.Contains(client.Requests[0], message => AdapterTestSupport.Text(message) == "ctx");
         Assert.Equal(4, extension.StreamEvents);
-        Assert.Contains(
-            session.Entries.OfType<SessionMessageEntry>(),
-            entry =>
-                entry.Message.Role == ChatRole.Assistant
-                && AdapterTestSupport.Text(entry.Message) == "final"
+        Assert.Contains(session.Entries.OfType<SessionMessageEntry>(), entry =>
+            entry.Message.Role == ChatRole.Assistant
+            && AdapterTestSupport.Text(entry.Message) == "final"
         );
         Assert.Contains("b.txt", read.ReceivedArgs!, StringComparison.Ordinal);
         Assert.Equal(
@@ -157,11 +155,9 @@ public sealed class AgentHookAdapterTests
         AgentContextMessage message = Assert.Single(result.AddedMessages);
         Assert.Equal("123456789012", message.Text);
         Assert.Equal("ext", message.Source);
-        Assert.Contains(
-            log.Messages,
-            entry =>
-                entry.Contains("ext", StringComparison.Ordinal)
-                && entry.Contains("budget", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, entry =>
+            entry.Contains("ext", StringComparison.Ordinal)
+            && entry.Contains("budget", StringComparison.Ordinal)
         );
     }
 

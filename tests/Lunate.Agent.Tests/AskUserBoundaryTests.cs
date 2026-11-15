@@ -114,17 +114,13 @@ public sealed class AskUserBoundaryTests
         Assert.Same(bash, request.Tool);
         Assert.True(suggestionWasShown);
         Assert.False(bashExecuted);
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result =>
-                result.CallId == "call_1"
-                && result.Output.Contains("Choice: Yes", StringComparison.Ordinal)
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "call_1"
+            && result.Output.Contains("Choice: Yes", StringComparison.Ordinal)
         );
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result =>
-                result.CallId == "call_2"
-                && result.Output.StartsWith("Denied:", StringComparison.Ordinal)
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.CallId == "call_2"
+            && result.Output.StartsWith("Denied:", StringComparison.Ordinal)
         );
     }
 
@@ -176,17 +172,14 @@ public sealed class AskUserBoundaryTests
         List<AgentEvent> events = await Run(harness);
 
         Assert.DoesNotContain(client.Requests[1].Options!.Tools!, tool => tool.Name == "ask_user");
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result =>
-                result.RunId != events.OfType<RunStarted>().First().RunId
-                && result.CallId == "child_question"
-                && result.IsError
-                && result.Output.Contains("Unknown tool 'ask_user'", StringComparison.Ordinal)
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.RunId != events.OfType<RunStarted>().First().RunId
+            && result.CallId == "child_question"
+            && result.IsError
+            && result.Output.Contains("Unknown tool 'ask_user'", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            events.OfType<ToolCallResult>(),
-            result => result.Output.Contains("unanswered", StringComparison.Ordinal)
+        Assert.DoesNotContain(events.OfType<ToolCallResult>(), result =>
+            result.Output.Contains("unanswered", StringComparison.Ordinal)
         );
     }
 

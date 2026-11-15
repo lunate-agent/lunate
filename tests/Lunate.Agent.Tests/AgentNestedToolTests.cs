@@ -25,21 +25,18 @@ public sealed class AgentNestedToolTests
         List<AgentEvent> nestedEvents = [.. events.Where(e => CallIdOf(e) == "call_1/1")];
         Assert.Equal(4, nestedEvents.Count);
         Assert.All(nestedEvents, e => Assert.Equal("call_1", ParentIdOf(e)));
-        ToolCallStart nestedStart = Assert.Single(
-            events.OfType<ToolCallStart>(),
-            e => e.ToolName == "inner"
+        ToolCallStart nestedStart = Assert.Single(events.OfType<ToolCallStart>(), e =>
+            e.ToolName == "inner"
         );
         Assert.Equal("call_1/1", nestedStart.CallId);
-        ToolCallResult nestedResult = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            e => e.CallId == "call_1/1"
+        ToolCallResult nestedResult = Assert.Single(events.OfType<ToolCallResult>(), e =>
+            e.CallId == "call_1/1"
         );
         Assert.Equal("nested contents", nestedResult.Output);
         Assert.False(nestedResult.IsError);
 
-        ChatMessage toolMessage = Assert.Single(
-            client.Requests[1].Messages,
-            message => message.Role == ChatRole.Tool
+        ChatMessage toolMessage = Assert.Single(client.Requests[1].Messages, message =>
+            message.Role == ChatRole.Tool
         );
         FunctionResultContent result = Assert.IsType<FunctionResultContent>(
             Assert.Single(toolMessage.Contents)
@@ -60,8 +57,7 @@ public sealed class AgentNestedToolTests
         ToolResult? nested = null;
         outer.OnExecuteAsync = async (_, ctx, ct) =>
         {
-            var execute =
-                ctx.ExecuteToolAsync
+            var execute = ctx.ExecuteToolAsync
                 ?? throw new InvalidOperationException("The context has no nested executor.");
             nested = await execute("inner", EmptyArgs(), ct);
             return new ToolResult("ok", IsError: false);
@@ -76,9 +72,8 @@ public sealed class AgentNestedToolTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallStart nestedStart = Assert.Single(
-            events.OfType<ToolCallStart>(),
-            e => e.ToolName == "inner"
+        ToolCallStart nestedStart = Assert.Single(events.OfType<ToolCallStart>(), e =>
+            e.ToolName == "inner"
         );
         Assert.Equal("call_1/1", nestedStart.CallId);
         Assert.Equal(nestedStart.CallId, nested!.CallId);
@@ -96,8 +91,7 @@ public sealed class AgentNestedToolTests
         ToolResult? nested = null;
         outer.OnExecuteAsync = async (_, ctx, ct) =>
         {
-            var execute =
-                ctx.ExecuteToolAsync
+            var execute = ctx.ExecuteToolAsync
                 ?? throw new InvalidOperationException("The context has no nested executor.");
             nested = await execute("model_only", EmptyArgs(), ct);
             return new ToolResult("done", IsError: false);
@@ -129,8 +123,7 @@ public sealed class AgentNestedToolTests
         OperationCanceledException? cancelled = null;
         outer.OnExecuteAsync = async (_, ctx, ct) =>
         {
-            var execute =
-                ctx.ExecuteToolAsync
+            var execute = ctx.ExecuteToolAsync
                 ?? throw new InvalidOperationException("The context has no nested executor.");
             using var source = CancellationTokenSource.CreateLinkedTokenSource(ct);
             source.CancelAfter(TimeSpan.FromMilliseconds(100));
@@ -156,9 +149,8 @@ public sealed class AgentNestedToolTests
         List<AgentEvent> events = await Run(harness);
 
         Assert.NotNull(cancelled);
-        ToolCallResult nestedResult = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            e => e.CallId == "call_1/1"
+        ToolCallResult nestedResult = Assert.Single(events.OfType<ToolCallResult>(), e =>
+            e.CallId == "call_1/1"
         );
         Assert.True(nestedResult.IsError);
     }
@@ -169,8 +161,7 @@ public sealed class AgentNestedToolTests
         var recurse = new ScriptedTool("recurse", "Calls itself.", """{"type":"object"}""");
         recurse.OnExecuteAsync = async (_, ctx, ct) =>
         {
-            var execute =
-                ctx.ExecuteToolAsync
+            var execute = ctx.ExecuteToolAsync
                 ?? throw new InvalidOperationException("The context has no nested executor.");
             return await execute("recurse", EmptyArgs(), ct);
         };
@@ -189,9 +180,8 @@ public sealed class AgentNestedToolTests
         List<AgentEvent> events = await Run(harness);
 
         Assert.Empty(EventSequenceValidator.Validate(events));
-        ToolCallResult nested = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            e => e.CallId == "call_1/1"
+        ToolCallResult nested = Assert.Single(events.OfType<ToolCallResult>(), e =>
+            e.CallId == "call_1/1"
         );
         Assert.True(nested.IsError);
         Assert.Contains("Nested tool call depth exceeded (1).", nested.Output);
@@ -260,9 +250,8 @@ public sealed class AgentNestedToolTests
 
         List<AgentEvent> events = await Run(harness);
 
-        ToolCallResult nested = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            e => e.CallId == "call_1/1"
+        ToolCallResult nested = Assert.Single(events.OfType<ToolCallResult>(), e =>
+            e.CallId == "call_1/1"
         );
         Assert.True(nested.IsError);
         Assert.Contains("Denied", nested.Output);
@@ -303,9 +292,8 @@ public sealed class AgentNestedToolTests
 
         Assert.Empty(EventSequenceValidator.Validate(events));
         Assert.Equal(StopReasons.Cancelled, Assert.IsType<RunFinished>(events[^1]).StopReason);
-        ToolCallResult nested = Assert.Single(
-            events.OfType<ToolCallResult>(),
-            e => e.CallId == "call_1/1"
+        ToolCallResult nested = Assert.Single(events.OfType<ToolCallResult>(), e =>
+            e.CallId == "call_1/1"
         );
         Assert.True(nested.IsError);
         Assert.Contains("cancelled by the user", nested.Output);
@@ -318,8 +306,8 @@ public sealed class AgentNestedToolTests
         ScriptedTool tool = ReadTool("contents");
         tool.OnExecute = (_, ctx) =>
         {
-            var progress =
-                ctx.Progress ?? throw new InvalidOperationException("The context has no progress.");
+            var progress = ctx.Progress
+                ?? throw new InvalidOperationException("The context has no progress.");
             progress("half way");
             return new ToolResult("contents", IsError: false);
         };
@@ -396,8 +384,7 @@ public sealed class AgentNestedToolTests
         var tool = new ScriptedTool(name, $"Calls {nestedName}.", """{"type":"object"}""");
         tool.OnExecuteAsync = async (_, ctx, ct) =>
         {
-            var execute =
-                ctx.ExecuteToolAsync
+            var execute = ctx.ExecuteToolAsync
                 ?? throw new InvalidOperationException("The context has no nested executor.");
             ToolResult nested = await execute(nestedName, EmptyArgs(), ct);
             return new ToolResult($"outer saw: {nested.Output}", IsError: nested.IsError);

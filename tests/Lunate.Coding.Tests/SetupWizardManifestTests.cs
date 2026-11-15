@@ -87,9 +87,8 @@ public sealed class SetupWizardManifestTests
             new(SetupFile.Settings, "decisions", "routing profiles", "main, decisions"),
             writes
         );
-        Assert.DoesNotContain(
-            writes,
-            write => write.Value.Contains("nightly", StringComparison.Ordinal)
+        Assert.DoesNotContain(writes, write =>
+            write.Value.Contains("nightly", StringComparison.Ordinal)
         );
     }
 
@@ -125,9 +124,8 @@ public sealed class SetupWizardManifestTests
         );
         Assert.Contains(new(SetupFile.Settings, "usage chat", "profile", "main"), writes);
         Assert.DoesNotContain(writes, write => write.File == SetupFile.Auth);
-        Assert.DoesNotContain(
-            writes,
-            write => write.Value.Contains(Secret, StringComparison.Ordinal)
+        Assert.DoesNotContain(writes, write =>
+            write.Value.Contains(Secret, StringComparison.Ordinal)
         );
     }
 
@@ -178,9 +176,8 @@ public sealed class SetupWizardManifestTests
             }
         )
         {
-            Assert.All(
-                surface.Split('\n'),
-                line => Assert.True(CellText.Width(line) <= 40, $"'{line}' overflows 40 cells")
+            Assert.All(surface.Split('\n'), line =>
+                Assert.True(CellText.Width(line) <= 40, $"'{line}' overflows 40 cells")
             );
         }
     }

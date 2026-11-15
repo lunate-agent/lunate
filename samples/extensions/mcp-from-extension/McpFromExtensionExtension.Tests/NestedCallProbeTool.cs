@@ -30,8 +30,7 @@ internal sealed class NestedCallProbeTool : ITool
         CancellationToken ct
     )
     {
-        var execute =
-            ctx.ExecuteToolAsync
+        var execute = ctx.ExecuteToolAsync
             ?? throw new InvalidOperationException("The context has no nested executor.");
         string target = args.GetProperty("tool").GetString()!;
         JsonElement nestedArgs = args.TryGetProperty("args", out JsonElement value)

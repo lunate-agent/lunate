@@ -608,8 +608,8 @@ internal sealed partial class InteractiveSession : IDisposable
         // Before anything of this session's own state is created: a store inside the tree this
         // session governs could have its trust records written by that tree.
         LunateHome.StoreOutsideWorkspace(_workspace.WorktreeRoot, _workspace.RepoRoot);
-        _sessionDirectory =
-            _options.SessionDirectory ?? HarnessFactory.DefaultSessionDirectory(_workspace);
+        _sessionDirectory = _options.SessionDirectory
+            ?? HarnessFactory.DefaultSessionDirectory(_workspace);
         StartInitialSession();
         _workingDirectory = DisplayDirectory(_workspace.WorktreeRoot);
         _branch = GitBranchReader.Read(_workspace.WorktreeRoot);
@@ -843,8 +843,7 @@ internal sealed partial class InteractiveSession : IDisposable
             {
                 Log = _options.Extensions?.Log ?? new StderrExtensionLog(diagnostics),
                 Prompt = _options.Extensions?.Prompt ?? new TuiExtensionTrustPrompt(AskTrustAsync),
-                Notice =
-                    _options.Extensions?.Notice
+                Notice = _options.Extensions?.Notice
                     ?? (message => Notify(message, NoticeLevel.Warning)),
                 ModelCatalog = _catalog,
                 ClientFactory = _factory,

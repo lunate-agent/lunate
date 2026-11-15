@@ -82,9 +82,8 @@ public sealed class AgentEventTests
         ];
 
         Assert.Equal(27, concreteTypes.Length);
-        Assert.All(
-            concreteTypes,
-            type => Assert.True(type.IsSealed, $"{type.Name} must be sealed")
+        Assert.All(concreteTypes, type =>
+            Assert.True(type.IsSealed, $"{type.Name} must be sealed")
         );
     }
 
@@ -92,9 +91,8 @@ public sealed class AgentEventTests
     public void The_event_set_is_closed_by_concrete_types_only()
     {
         Assert.True(typeof(AgentEvent).IsAbstract);
-        Assert.DoesNotContain(
-            typeof(AgentEvent).Assembly.GetTypes(),
-            type => typeof(AgentEvent).IsAssignableFrom(type) && type.IsInterface
+        Assert.DoesNotContain(typeof(AgentEvent).Assembly.GetTypes(), type =>
+            typeof(AgentEvent).IsAssignableFrom(type) && type.IsInterface
         );
     }
 

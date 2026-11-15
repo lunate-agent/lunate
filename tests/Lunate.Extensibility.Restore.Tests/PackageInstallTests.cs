@@ -252,9 +252,8 @@ public sealed class PackageInstallTests
 
         Assert.Equal(PackageInstallStatus.Installed, repaired.Status);
         Assert.Empty(repaired.RemovedPaths);
-        Assert.Contains(
-            repaired.Warnings,
-            warning => warning.Contains(first.RecordPath, StringComparison.Ordinal)
+        Assert.Contains(repaired.Warnings, warning =>
+            warning.Contains(first.RecordPath, StringComparison.Ordinal)
         );
         PackageInstallRecord? reread = PackageInstallRecordJson.TryRead(
             first.RecordPath,
@@ -327,13 +326,11 @@ public sealed class PackageInstallTests
         Assert.True(PackageContentVerifier.Verify(reread!, store).Clean);
 
         // The bytes it could not account for are named, and they are still there.
-        Assert.Contains(
-            repaired.Warnings,
-            warning => warning.Contains(leftover, StringComparison.Ordinal)
+        Assert.Contains(repaired.Warnings, warning =>
+            warning.Contains(leftover, StringComparison.Ordinal)
         );
-        Assert.Contains(
-            repaired.Warnings,
-            warning => warning.Contains(recordPath, StringComparison.Ordinal)
+        Assert.Contains(repaired.Warnings, warning =>
+            warning.Contains(recordPath, StringComparison.Ordinal)
         );
         Assert.True(File.Exists(leftover));
         Assert.True(

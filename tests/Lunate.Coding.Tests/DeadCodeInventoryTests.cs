@@ -13,9 +13,8 @@ public sealed class DeadCodeInventoryTests
     [Fact]
     public void The_tui_assembly_declares_exactly_one_quit_window_type()
     {
-        Type quitWindow = Assert.Single(
-            typeof(QuitWindow).Assembly.GetTypes(),
-            type => type.Name.EndsWith("QuitWindow", StringComparison.Ordinal)
+        Type quitWindow = Assert.Single(typeof(QuitWindow).Assembly.GetTypes(), type =>
+            type.Name.EndsWith("QuitWindow", StringComparison.Ordinal)
         );
 
         Assert.Equal("Lunate.Tui.QuitWindow", quitWindow.FullName);

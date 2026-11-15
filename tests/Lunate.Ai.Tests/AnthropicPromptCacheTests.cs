@@ -290,9 +290,8 @@ public sealed class AnthropicPromptCacheTests
         ScriptedRequest request = Assert.Single(scripted.Requests);
         Assert.NotNull(request.Options);
         Assert.False(request.Options!.Tools![^1].AdditionalProperties.ContainsKey(ToolMarkerKey));
-        Assert.All(
-            request.Messages.SelectMany(message => message.Contents),
-            content => AssertNoContentMarker(content)
+        Assert.All(request.Messages.SelectMany(message => message.Contents), content =>
+            AssertNoContentMarker(content)
         );
     }
 

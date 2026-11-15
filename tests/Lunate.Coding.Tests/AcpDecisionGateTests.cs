@@ -105,11 +105,9 @@ public sealed class AcpDecisionGateTests
         // The ordinary policy would allow the write, so the file's absence is the fail-closed
         // denial: the decision escalated and no user was present to ask.
         Assert.False(File.Exists(temp.File("note.txt")));
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result =>
-                result.Output.Contains("decision escalated", StringComparison.OrdinalIgnoreCase)
-                && result.Output.Contains("no user was present", StringComparison.OrdinalIgnoreCase)
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.Output.Contains("decision escalated", StringComparison.OrdinalIgnoreCase)
+            && result.Output.Contains("no user was present", StringComparison.OrdinalIgnoreCase)
         );
     }
 

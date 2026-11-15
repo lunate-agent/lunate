@@ -72,11 +72,9 @@ public sealed class TemplateCommandSlotTests
         CommandShadow shadowed = Assert.Single(registry.Shadowed);
         Assert.Equal("template:help", shadowed.ShadowedId);
         Assert.Equal("builtin:help", shadowed.OwnerId);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("builtin:help", StringComparison.Ordinal)
-                && message.Contains("template:help", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("builtin:help", StringComparison.Ordinal)
+            && message.Contains("template:help", StringComparison.Ordinal)
         );
 
         // The built-in still dispatches, and the template is not listed.
@@ -85,9 +83,8 @@ public sealed class TemplateCommandSlotTests
             TestContext.Current.CancellationToken
         );
         Assert.Equal("builtin help", result.Message);
-        Assert.DoesNotContain(
-            HelpView.Lines(registry.Descriptors),
-            line => line.Contains("templates")
+        Assert.DoesNotContain(HelpView.Lines(registry.Descriptors), line =>
+            line.Contains("templates")
         );
     }
 

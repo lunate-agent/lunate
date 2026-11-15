@@ -96,9 +96,8 @@ public sealed class SkillScannerTests
         // A walk escaping the worktree root would reach 'above', fail the boundary check and warn
         // about skipping it; the stop at the worktree root never looks there.
         Assert.Empty(result.Skills);
-        Assert.DoesNotContain(
-            result.Warnings,
-            warning => warning.Contains(above, StringComparison.Ordinal)
+        Assert.DoesNotContain(result.Warnings, warning =>
+            warning.Contains(above, StringComparison.Ordinal)
         );
     }
 
@@ -116,9 +115,8 @@ public sealed class SkillScannerTests
         );
 
         Assert.Empty(result.Skills);
-        Assert.DoesNotContain(
-            result.Warnings,
-            warning => warning.Contains(above, StringComparison.Ordinal)
+        Assert.DoesNotContain(result.Warnings, warning =>
+            warning.Contains(above, StringComparison.Ordinal)
         );
     }
 
@@ -256,9 +254,8 @@ public sealed class SkillScannerTests
         SkillDescriptor skill = Assert.Single(result.Skills);
         Assert.True(skill.Valid);
         Assert.Empty(result.Warnings);
-        Assert.Contains(
-            result.ReadRoots,
-            directory => directory.EndsWith("greek", StringComparison.Ordinal)
+        Assert.Contains(result.ReadRoots, directory =>
+            directory.EndsWith("greek", StringComparison.Ordinal)
         );
     }
 
@@ -330,9 +327,8 @@ public sealed class SkillScannerTests
         SkillScanResult result = SkillScanner.Scan(Request(temp, worktree: repo, repoRoot: repo));
 
         Assert.Equal(SkillScanner.MaxSkillsPerScope, result.Skills.Count);
-        Assert.Contains(
-            result.Warnings,
-            warning => warning.Contains("more than 256", StringComparison.Ordinal)
+        Assert.Contains(result.Warnings, warning =>
+            warning.Contains("more than 256", StringComparison.Ordinal)
         );
     }
 
@@ -355,9 +351,8 @@ public sealed class SkillScannerTests
         SkillScanResult result = SkillScanner.Scan(Request(temp, worktree: repo, repoRoot: repo));
 
         Assert.Empty(result.Skills);
-        Assert.Contains(
-            result.Warnings,
-            warning => warning.Contains("outside the repository", StringComparison.Ordinal)
+        Assert.Contains(result.Warnings, warning =>
+            warning.Contains("outside the repository", StringComparison.Ordinal)
         );
     }
 
@@ -374,9 +369,8 @@ public sealed class SkillScannerTests
 
         SkillDescriptor skill = Assert.Single(result.Skills);
         Assert.Equal(SkillScope.User, skill.Scope);
-        Assert.Contains(
-            result.ReadRoots,
-            root => root.Equals(Workspace.Canonicalize(userSkill), StringComparison.Ordinal)
+        Assert.Contains(result.ReadRoots, root =>
+            root.Equals(Workspace.Canonicalize(userSkill), StringComparison.Ordinal)
         );
     }
 
@@ -425,9 +419,8 @@ public sealed class SkillScannerTests
         );
 
         Assert.Empty(result.Skills);
-        Assert.Contains(
-            result.Warnings,
-            warning => warning.Contains("own folder", StringComparison.Ordinal)
+        Assert.Contains(result.Warnings, warning =>
+            warning.Contains("own folder", StringComparison.Ordinal)
         );
     }
 

@@ -42,8 +42,7 @@ internal static class UninstallCommand
             string working = workingDirectory ?? Environment.CurrentDirectory;
             var workspace = new Workspace(working);
             // Every command that writes the store runs the guard, exactly as install does.
-            string storeRoot =
-                seams?.StorePath
+            string storeRoot = seams?.StorePath
                 ?? LunateHome.StoreOutsideWorkspace(workspace.WorktreeRoot, workspace.RepoRoot);
             PackageUninstallResult? result = null;
             PackageBrokenUninstallResult? broken = null;

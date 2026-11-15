@@ -16,25 +16,22 @@ public sealed class ExtensionLoaderHookTests
         loader.Discover(temp.Root, "repo");
 
         await loader.EndSessionAsync(Ct);
-        Assert.DoesNotContain(
-            log.Messages,
-            message => message.Contains("hello session ended", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("hello session ended", StringComparison.Ordinal)
         );
 
         await loader.Load("hello", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
         await loader.StartSessionAsync(temp.Root, "repo", Ct);
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello session started", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello session started", StringComparison.Ordinal)
         );
 
         await loader.EndSessionAsync(Ct);
         await loader.EndSessionAsync(Ct);
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello session ended", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello session ended", StringComparison.Ordinal)
         );
     }
 
@@ -52,9 +49,8 @@ public sealed class ExtensionLoaderHookTests
         await loader.Unload("hello");
         await loader.Load("hello", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello session started", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello session started", StringComparison.Ordinal)
         );
     }
 
@@ -72,9 +68,8 @@ public sealed class ExtensionLoaderHookTests
         await loader.StartSessionAsync(temp.Root, "repo", Ct);
         await loader.Load("late", temp.Root, "repo", new FakeExtensionTrustPrompt(true), Ct);
 
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("hello session started", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("hello session started", StringComparison.Ordinal)
         );
     }
 

@@ -75,9 +75,8 @@ public sealed class WorkspaceServicesTests
         string a = CreateRoot(temp, "a");
         string b = CreateRoot(temp, "b");
         var backendA = new FakeWorkspaceBackend(a) { Hold = new TaskCompletionSource() };
-        using var services = new WorkspaceServices(
-            1,
-            root => root == GitIdentity.Canonicalize(a) ? backendA : new FakeWorkspaceBackend(root)
+        using var services = new WorkspaceServices(1, root =>
+            root == GitIdentity.Canonicalize(a) ? backendA : new FakeWorkspaceBackend(root)
         );
         await services.BackendFor(a).LoadAsync(Ct);
 
@@ -108,15 +107,12 @@ public sealed class WorkspaceServicesTests
         string a = CreateRoot(temp, "a");
         string b = CreateRoot(temp, "b");
         var backends = new List<FakeWorkspaceBackend>();
-        var services = new WorkspaceServices(
-            2,
-            root =>
-            {
-                var backend = new FakeWorkspaceBackend(root);
-                backends.Add(backend);
-                return backend;
-            }
-        );
+        var services = new WorkspaceServices(2, root =>
+        {
+            var backend = new FakeWorkspaceBackend(root);
+            backends.Add(backend);
+            return backend;
+        });
         await services.BackendFor(a).LoadAsync(Ct);
         await services.BackendFor(b).LoadAsync(Ct);
 
@@ -137,25 +133,22 @@ public sealed class WorkspaceServicesTests
         var backends = new List<FakeWorkspaceBackend>();
         var backendA = new FakeWorkspaceBackend(canonicalA) { Hold = new TaskCompletionSource() };
         var bBuilt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var services = new WorkspaceServices(
-            1,
-            root =>
+        var services = new WorkspaceServices(1, root =>
+        {
+            FakeWorkspaceBackend backend =
+                root == canonicalA ? backendA : new FakeWorkspaceBackend(root);
+            lock (backends)
             {
-                FakeWorkspaceBackend backend =
-                    root == canonicalA ? backendA : new FakeWorkspaceBackend(root);
-                lock (backends)
-                {
-                    backends.Add(backend);
-                }
-
-                if (root == canonicalB)
-                {
-                    bBuilt.TrySetResult();
-                }
-
-                return backend;
+                backends.Add(backend);
             }
-        );
+
+            if (root == canonicalB)
+            {
+                bBuilt.TrySetResult();
+            }
+
+            return backend;
+        });
         await services.BackendFor(a).LoadAsync(Ct);
 
         Task<DiagnosticsResult> pinned = services

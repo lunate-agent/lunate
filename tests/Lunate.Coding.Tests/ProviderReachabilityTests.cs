@@ -101,18 +101,15 @@ public sealed class ProviderReachabilityTests
         Assert.DoesNotContain(ProviderSecret, text + errors, StringComparison.Ordinal);
         Assert.DoesNotContain(HeaderSecret, text + errors, StringComparison.Ordinal);
         Assert.Equal(3, handler.Requests.Count);
-        Assert.All(
-            handler.Requests,
-            request =>
-            {
-                // N-7 (#587): the probe is a provider request like any other, so it names this
-                // client; it is still unauthenticated and carries no declared provider header.
-                Assert.Equal(RequestContext.LunateVersion, request.Headers.UserAgent.ToString());
-                Assert.Null(request.Headers.Authorization);
-                Assert.False(request.Headers.Contains("X-Optional"));
-                Assert.Null(request.Content);
-            }
-        );
+        Assert.All(handler.Requests, request =>
+        {
+            // N-7 (#587): the probe is a provider request like any other, so it names this
+            // client; it is still unauthenticated and carries no declared provider header.
+            Assert.Equal(RequestContext.LunateVersion, request.Headers.UserAgent.ToString());
+            Assert.Null(request.Headers.Authorization);
+            Assert.False(request.Headers.Contains("X-Optional"));
+            Assert.Null(request.Content);
+        });
         Assert.Equal(
             ["personal-openai", "slow-openai", "work-openai"],
             handler
@@ -151,9 +148,8 @@ public sealed class ProviderReachabilityTests
     }
 
     private static string LineFor(string text, string provider) =>
-        Assert.Single(
-            text.Split(Environment.NewLine),
-            line => line.StartsWith(provider, StringComparison.Ordinal)
+        Assert.Single(text.Split(Environment.NewLine), line =>
+            line.StartsWith(provider, StringComparison.Ordinal)
         );
 
     private sealed class ScriptedHandler : HttpMessageHandler

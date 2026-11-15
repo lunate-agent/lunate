@@ -278,13 +278,8 @@ public sealed class LiveAreaRendererTests
         int ruleIndex = frame.Lines.ToList().IndexOf(rule);
         Assert.True(ruleIndex > 1, "the notice should occupy more than one line");
         string[] noticeLines = [.. frame.Lines.Take(ruleIndex)];
-        Assert.All(
-            noticeLines,
-            line =>
-                Assert.True(
-                    CellText.Width(line) <= width,
-                    $"'{line}' is wider than {width} columns"
-                )
+        Assert.All(noticeLines, line =>
+            Assert.True(CellText.Width(line) <= width, $"'{line}' is wider than {width} columns")
         );
         Assert.Equal(notice, string.Join(' ', noticeLines));
     }
@@ -307,9 +302,8 @@ public sealed class LiveAreaRendererTests
         int ruleIndex = frame.Lines.ToList().IndexOf(rule);
         Assert.Equal(4, ruleIndex);
         Assert.EndsWith("…", frame.Lines[3], StringComparison.Ordinal);
-        Assert.All(
-            frame.Lines.Take(4),
-            line => Assert.True(CellText.Width(line) <= 80, $"'{line}' is wider than 80 columns")
+        Assert.All(frame.Lines.Take(4), line =>
+            Assert.True(CellText.Width(line) <= 80, $"'{line}' is wider than 80 columns")
         );
         Assert.Contains("> line 1", frame.Lines);
         for (var number = 2; number <= 8; number++)
@@ -331,9 +325,8 @@ public sealed class LiveAreaRendererTests
 
         var frame = LiveAreaRenderer.Render(state);
 
-        string notice = Assert.Single(
-            frame.Lines,
-            line => line.Contains("MCP server", StringComparison.Ordinal)
+        string notice = Assert.Single(frame.Lines, line =>
+            line.Contains("MCP server", StringComparison.Ordinal)
         );
         Assert.Equal("MCP server 'x' failed: first second third. Continuing.", notice);
         Assert.DoesNotContain("\n", notice, StringComparison.Ordinal);
@@ -447,9 +440,8 @@ public sealed class LiveAreaRendererTests
 
         var frame = LiveAreaRenderer.Render(state);
 
-        Assert.Contains(
-            frame.Lines,
-            line => line.Contains("1.5k/12.3k (13%)", StringComparison.Ordinal)
+        Assert.Contains(frame.Lines, line =>
+            line.Contains("1.5k/12.3k (13%)", StringComparison.Ordinal)
         );
     }
 

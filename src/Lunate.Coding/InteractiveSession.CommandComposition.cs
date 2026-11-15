@@ -15,9 +15,8 @@ internal sealed partial class InteractiveSession
         List<ICommandSource> sources =
         [
             new BuiltinCommandSource(this),
-            new SkillCommandSource(
-                _skills?.Skills ?? [],
-                (name, arguments, token) => new ValueTask(InvokeSkillAsync(name, arguments, token))
+            new SkillCommandSource(_skills?.Skills ?? [], (name, arguments, token) =>
+                new ValueTask(InvokeSkillAsync(name, arguments, token))
             ),
         ];
         if (_extensions is { } host)

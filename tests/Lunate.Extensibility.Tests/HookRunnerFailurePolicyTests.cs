@@ -127,13 +127,11 @@ public sealed class HookRunnerFailurePolicyTests
         string reason
     )
     {
-        Assert.Contains(
-            observation.Log,
-            message =>
-                message.Contains("error:", StringComparison.Ordinal)
-                && message.Contains(hook, StringComparison.Ordinal)
-                && message.Contains("bad", StringComparison.Ordinal)
-                && message.Contains(reason, StringComparison.Ordinal)
+        Assert.Contains(observation.Log, message =>
+            message.Contains("error:", StringComparison.Ordinal)
+            && message.Contains(hook, StringComparison.Ordinal)
+            && message.Contains("bad", StringComparison.Ordinal)
+            && message.Contains(reason, StringComparison.Ordinal)
         );
     }
 }

@@ -44,13 +44,11 @@ public sealed class ProjectionBatchSettingsTests
         using var temp = new TempDirectory();
         File.WriteAllText(temp.File("settings.json"), """{"schemaVersion": 2}""");
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("settings.json"),
-            name =>
-                name == MaskTurnsVariable ? "12"
-                : name == MaskErrorTurnsVariable ? "48"
-                : null
-        );
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), name => name
+            == MaskTurnsVariable
+                ? "12"
+            : name == MaskErrorTurnsVariable ? "48"
+            : null);
 
         Assert.Equal(12, settings.ProjectionMaskTurns);
         Assert.Equal(48, settings.ProjectionMaskErrorTurns);
@@ -127,9 +125,8 @@ public sealed class ProjectionBatchSettingsTests
             """{"schemaVersion": 2, "projection": {"batchTurns": 7}}"""
         );
 
-        AgentSettings settings = SettingsStore.Resolve(
-            temp.File("settings.json"),
-            name => name == BatchTurnsVariable ? "3" : null
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), name =>
+            name == BatchTurnsVariable ? "3" : null
         );
 
         Assert.Equal(3, settings.ProjectionBatchTurns);

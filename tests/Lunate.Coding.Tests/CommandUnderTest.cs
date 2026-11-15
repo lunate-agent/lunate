@@ -31,8 +31,7 @@ internal sealed record CommandUnderTest(string WorkingDirectory)
 
         if (Run.IsFaulted)
         {
-            Exception cause =
-                Run.Exception?.GetBaseException()
+            Exception cause = Run.Exception?.GetBaseException()
                 ?? new InvalidOperationException("the command failed without an exception");
             return string.Create(
                 CultureInfo.InvariantCulture,

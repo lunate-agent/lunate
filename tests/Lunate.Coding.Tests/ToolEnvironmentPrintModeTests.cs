@@ -46,14 +46,12 @@ public sealed class ToolEnvironmentPrintModeTests
                 ),
             ];
             Assert.Equal(2, passThroughLines.Length);
-            string admission = Assert.Single(
-                passThroughLines,
-                line => !line.Contains("Lunate also resolves", StringComparison.Ordinal)
+            string admission = Assert.Single(passThroughLines, line =>
+                !line.Contains("Lunate also resolves", StringComparison.Ordinal)
             );
             Assert.Contains("OPENAI_API_KEY", admission, StringComparison.Ordinal);
-            string warning = Assert.Single(
-                passThroughLines,
-                line => line.Contains("Lunate also resolves", StringComparison.Ordinal)
+            string warning = Assert.Single(passThroughLines, line =>
+                line.Contains("Lunate also resolves", StringComparison.Ordinal)
             );
             Assert.Contains("OPENAI_API_KEY", warning, StringComparison.Ordinal);
         }

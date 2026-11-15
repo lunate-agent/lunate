@@ -71,9 +71,8 @@ public sealed class PackageDependencyTests
             string name in new[] { "Acme.Lib.dll", "Acme.Core.dll", "de/Acme.Lib.resources.dll" }
         )
         {
-            InstalledFile file = Assert.Single(
-                result.Record.Content.Paths,
-                entry => entry.Path == $"extensions/acme-tools/{name}"
+            InstalledFile file = Assert.Single(result.Record.Content.Paths, entry =>
+                entry.Path == $"extensions/acme-tools/{name}"
             );
             string path = Path.Combine(extension, name.Replace('/', Path.DirectorySeparatorChar));
             Assert.Equal(new FileInfo(path).Length, file.Size);
@@ -107,8 +106,7 @@ public sealed class PackageDependencyTests
             ExtensionLock.FileName
         );
         Assert.True(File.Exists(lockPath), "the lock lives in the extension's cache entry");
-        ExtensionLock @lock =
-            ExtensionLockJson.TryRead(lockPath, out string? problem)
+        ExtensionLock @lock = ExtensionLockJson.TryRead(lockPath, out string? problem)
             ?? throw new InvalidOperationException($"the lock could not be read: {problem}");
 
         Assert.Equal("acme-tools", @lock.ExtensionId);
@@ -119,9 +117,8 @@ public sealed class PackageDependencyTests
 
         // The declared edge is direct and keeps the form it was declared with; the package it
         // brought is transitive and carries the edge that asked for it.
-        ExtensionLockPackage lib = Assert.Single(
-            @lock.Packages,
-            package => package.Id == "Acme.Lib"
+        ExtensionLockPackage lib = Assert.Single(@lock.Packages, package =>
+            package.Id == "Acme.Lib"
         );
         Assert.True(lib.Direct);
         Assert.Equal("Acme.Lib@[1.0.0, )", lib.Requested);
@@ -207,9 +204,8 @@ public sealed class PackageDependencyTests
         Assert.Equal(["greek"], [.. info.Skills.Select(skill => skill.Name)]);
 
         string report = PackageReport.Describe(info).ReplaceLineEndings("\n");
-        string ignored = Assert.Single(
-            report.Split('\n'),
-            line => line.StartsWith("ignored:", StringComparison.Ordinal)
+        string ignored = Assert.Single(report.Split('\n'), line =>
+            line.StartsWith("ignored:", StringComparison.Ordinal)
         );
         Assert.Contains("build/", ignored, StringComparison.Ordinal);
         Assert.Contains("buildTransitive/", ignored, StringComparison.Ordinal);

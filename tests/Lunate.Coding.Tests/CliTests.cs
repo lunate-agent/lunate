@@ -178,9 +178,8 @@ public sealed class CliTests
             }
         )
         {
-            int index = Array.FindIndex(
-                lines,
-                line => line.StartsWith(usage, StringComparison.Ordinal)
+            int index = Array.FindIndex(lines, line =>
+                line.StartsWith(usage, StringComparison.Ordinal)
             );
             Assert.True(index >= 0, $"the help does not document '{usage}'");
             string description = lines[index + 1];

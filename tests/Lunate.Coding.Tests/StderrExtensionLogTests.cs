@@ -26,25 +26,17 @@ public sealed class StderrExtensionLogTests
         using var writer = new StringWriter();
         var log = new StderrExtensionLog(writer);
 
-        Parallel.For(
-            0,
-            200,
-            index =>
+        Parallel.For(0, 200, index =>
+        {
+            if (index % 2 == 0)
             {
-                if (index % 2 == 0)
-                {
-                    log.Warn(
-                        "w" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    );
-                }
-                else
-                {
-                    log.Error(
-                        "e" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    );
-                }
+                log.Warn("w" + index.ToString(System.Globalization.CultureInfo.InvariantCulture));
             }
-        );
+            else
+            {
+                log.Error("e" + index.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+        });
 
         string[] lines = writer
             .ToString()

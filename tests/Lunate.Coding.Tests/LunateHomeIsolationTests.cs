@@ -116,15 +116,13 @@ public sealed class LunateHomeIsolationTests
 
         // The turn really ran a tool: the second provider request carries the read's result.
         Assert.Equal(2, client.Requests.Count);
-        Assert.Contains(
-            client.Requests[1].SelectMany(message => message.Contents),
-            content =>
-                content is FunctionResultContent result
-                && string.Equals(result.CallId, "call-1", StringComparison.Ordinal)
-                && (result.Result?.ToString() ?? string.Empty).Contains(
-                    "read-me-from-the-tool",
-                    StringComparison.Ordinal
-                )
+        Assert.Contains(client.Requests[1].SelectMany(message => message.Contents), content =>
+            content is FunctionResultContent result
+            && string.Equals(result.CallId, "call-1", StringComparison.Ordinal)
+            && (result.Result?.ToString() ?? string.Empty).Contains(
+                "read-me-from-the-tool",
+                StringComparison.Ordinal
+            )
         );
 
         string sessions = Path.Combine(state, "sessions");

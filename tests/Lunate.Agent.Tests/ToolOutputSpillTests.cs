@@ -61,9 +61,8 @@ public sealed class ToolOutputSpillTests
         (_, string output) = await RunReadAsync(session, full);
 
         Session resumed = Session.Load(session.Path);
-        ChatMessage tool = Assert.Single(
-            resumed.ToHistory(),
-            message => message.Role == ChatRole.Tool
+        ChatMessage tool = Assert.Single(resumed.ToHistory(), message =>
+            message.Role == ChatRole.Tool
         );
         FunctionResultContent result = Assert.IsType<FunctionResultContent>(
             Assert.Single(tool.Contents)

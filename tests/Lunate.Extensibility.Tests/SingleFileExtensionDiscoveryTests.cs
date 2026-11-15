@@ -53,9 +53,8 @@ public sealed class SingleFileExtensionDiscoveryTests
         ExtensionLoader loader = fixture.Loader(log);
 
         loader.Discover(fixture.Worktree, "repo");
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("unknown directive", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("unknown directive", StringComparison.Ordinal)
         );
 
         // The listing and a reload re-read the candidates; the header warning belongs to discovery,
@@ -64,9 +63,8 @@ public sealed class SingleFileExtensionDiscoveryTests
         loader.RefreshSingleFileExtensions();
 
         Assert.Single(loader.SingleFileExtensions);
-        Assert.Single(
-            log.Messages,
-            message => message.Contains("unknown directive", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("unknown directive", StringComparison.Ordinal)
         );
     }
 

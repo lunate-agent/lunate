@@ -25,9 +25,8 @@ internal sealed class RoslynWorkspaceServiceFactory(
 
     public RoslynWorkspaceService Create(string canonicalWorktreeRoot)
     {
-        var service = new RoslynWorkspaceService(
-            _createBackend(canonicalWorktreeRoot),
-            value => Remove(canonicalWorktreeRoot, value)
+        var service = new RoslynWorkspaceService(_createBackend(canonicalWorktreeRoot), value =>
+            Remove(canonicalWorktreeRoot, value)
         );
         lock (_gate)
         {

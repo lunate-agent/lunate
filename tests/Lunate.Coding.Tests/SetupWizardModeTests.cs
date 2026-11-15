@@ -104,14 +104,12 @@ public sealed class SetupWizardModeTests
             }
         )
         {
-            Assert.Contains(
-                review.Split('\n'),
-                line =>
-                    line.Contains(setting, StringComparison.Ordinal)
-                    && (
-                        line.Contains("/setup", StringComparison.Ordinal)
-                        || line.Contains("/settings", StringComparison.Ordinal)
-                    )
+            Assert.Contains(review.Split('\n'), line =>
+                line.Contains(setting, StringComparison.Ordinal)
+                && (
+                    line.Contains("/setup", StringComparison.Ordinal)
+                    || line.Contains("/settings", StringComparison.Ordinal)
+                )
             );
         }
 

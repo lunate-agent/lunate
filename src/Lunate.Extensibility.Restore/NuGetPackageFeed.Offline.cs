@@ -65,8 +65,7 @@ internal sealed partial class NuGetPackageFeed
         NuGetVersion version
     )
     {
-        string folder =
-            Folder()
+        string folder = Folder()
             ?? throw new InvalidOperationException(
                 FormattableString.Invariant(
                     $"package '{id}' {version.ToNormalizedString()} cannot be read offline: no global "

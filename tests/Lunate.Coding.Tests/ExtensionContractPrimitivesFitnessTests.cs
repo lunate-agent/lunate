@@ -42,10 +42,8 @@ public sealed class ExtensionContractPrimitivesFitnessTests
             """,
             "host/fitness/extension.json"
         );
-        BuiltInExtension builtIn = new(
-            "host/fitness/extension.json",
-            manifest,
-            () => new FitnessFactory(state)
+        BuiltInExtension builtIn = new("host/fitness/extension.json", manifest, () =>
+            new FitnessFactory(state)
         );
 
         await using ExtensionSession session = await ExtensionSession.StartAsync(

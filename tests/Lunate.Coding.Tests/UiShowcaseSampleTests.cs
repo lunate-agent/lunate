@@ -135,9 +135,8 @@ public sealed class UiShowcaseSampleTests
         Assert.DoesNotContain("▰", withOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("▱", withOutput, StringComparison.Ordinal);
         Assert.DoesNotContain("ctx n/a", withOutput, StringComparison.Ordinal);
-        JsonElement result = Assert.Single(
-            withLines,
-            line => PrintModeTestSupport.TypeOf(line) == "tool_call_result"
+        JsonElement result = Assert.Single(withLines, line =>
+            PrintModeTestSupport.TypeOf(line) == "tool_call_result"
         );
         Assert.False(result.GetProperty("isError").GetBoolean());
         Assert.Equal(RawResult, result.GetProperty("output").GetString());

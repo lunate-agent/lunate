@@ -168,8 +168,8 @@ public static class DiscoverCommand
         string requestUrl = modelsUrl?.AbsoluteUri ?? $"{baseUrl}/models";
         // The protocol header a preset's SDK adds on its own (anthropic-version) is discovery's
         // too, even when the endpoint is a custom one that routes through the preset's wire.
-        ProviderPreset? protocolPreset =
-            credentialPreset ?? (provider is null ? null : ProviderPresets.Find(provider));
+        ProviderPreset? protocolPreset = credentialPreset
+            ?? (provider is null ? null : ProviderPresets.Find(provider));
         using var client = DiscoveryClient(
             handler ?? new HttpClientHandler(),
             disposeBase: handler is null,
@@ -322,8 +322,7 @@ public static class DiscoverCommand
                     return Failure($"Model '{listed}' {metadataError}.");
                 }
 
-                string? endpoint =
-                    metadata?.Endpoint?.AbsoluteUri.TrimEnd('/')
+                string? endpoint = metadata?.Endpoint?.AbsoluteUri.TrimEnd('/')
                     ?? (customEndpoint ? baseUrl : null);
                 (string? apiFamily, string? apiType, bool? orderSensitive) = DecisionAnnotation(
                     catalog,

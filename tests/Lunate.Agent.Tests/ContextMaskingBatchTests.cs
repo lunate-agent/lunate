@@ -64,9 +64,8 @@ public sealed class ContextMaskingBatchTests
         List<AgentEvent> admitted = await harness.RunAsync("go", ct).ToListAsync(ct);
         await harness.RunAsync("Continue", ct).ToListAsync(ct);
 
-        ToolCallResult pointer = Assert.Single(
-            admitted.OfType<ToolCallResult>(),
-            result => result.CallId == "call-1"
+        ToolCallResult pointer = Assert.Single(admitted.OfType<ToolCallResult>(), result =>
+            result.CallId == "call-1"
         );
         string spillPath = ToolOutputSpillTests.PathFromMarker(pointer.Output);
         Assert.Equal(full, File.ReadAllText(spillPath));

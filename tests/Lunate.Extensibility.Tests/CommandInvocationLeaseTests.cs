@@ -41,12 +41,10 @@ public sealed class CommandInvocationLeaseTests
         // The cancelled handler's result is discarded, never rendered (sign-off Q2).
         CommandResult result = await invocation.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         Assert.Null(result.Message);
-        Assert.Contains(
-            notices,
-            notice =>
-                notice.Contains("command ext:cmd:ping", StringComparison.Ordinal)
-                && notice.Contains("extension 'cmd'", StringComparison.Ordinal)
-                && notice.Contains("was unloaded", StringComparison.Ordinal)
+        Assert.Contains(notices, notice =>
+            notice.Contains("command ext:cmd:ping", StringComparison.Ordinal)
+            && notice.Contains("extension 'cmd'", StringComparison.Ordinal)
+            && notice.Contains("was unloaded", StringComparison.Ordinal)
         );
         Assert.Empty(loader.CommandSources.List());
     }
@@ -82,11 +80,9 @@ public sealed class CommandInvocationLeaseTests
 
         // Bounded by the hook-handler timeout, not by the handler's own delay.
         Assert.InRange(elapsed, 100, 1200);
-        Assert.Single(
-            log.Messages,
-            message =>
-                message.Contains("command ext:cmd:ping", StringComparison.Ordinal)
-                && message.Contains("did not return", StringComparison.Ordinal)
+        Assert.Single(log.Messages, message =>
+            message.Contains("command ext:cmd:ping", StringComparison.Ordinal)
+            && message.Contains("did not return", StringComparison.Ordinal)
         );
         Assert.Empty(loader.CommandSources.List());
 
@@ -152,11 +148,9 @@ public sealed class CommandInvocationLeaseTests
         // contains it, logs it with the command id and renders nothing.
         CommandResult result = await invocation.WaitAsync(TimeSpan.FromSeconds(10), Ct);
         Assert.Null(result.Message);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("command ext:cmd:ping", StringComparison.Ordinal)
-                && message.Contains("ObjectDisposedException", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("command ext:cmd:ping", StringComparison.Ordinal)
+            && message.Contains("ObjectDisposedException", StringComparison.Ordinal)
         );
     }
 
@@ -184,10 +178,8 @@ public sealed class CommandInvocationLeaseTests
             .WaitAsync(TimeSpan.FromSeconds(10), Ct);
 
         Assert.Null(result.Message);
-        Assert.DoesNotContain(
-            log.Messages,
-            message =>
-                message.Contains("command ping invoked with 'late'", StringComparison.Ordinal)
+        Assert.DoesNotContain(log.Messages, message =>
+            message.Contains("command ping invoked with 'late'", StringComparison.Ordinal)
         );
     }
 

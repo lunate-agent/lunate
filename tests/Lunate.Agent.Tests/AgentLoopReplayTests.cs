@@ -55,9 +55,8 @@ public sealed class AgentLoopReplayTests
                 .Count()
         );
 
-        Activity run = Assert.Single(
-            listener.Activities,
-            activity => activity.DisplayName == "invoke_agent lunate"
+        Activity run = Assert.Single(listener.Activities, activity =>
+            activity.DisplayName == "invoke_agent lunate"
         );
         List<Activity> modelSpans =
         [

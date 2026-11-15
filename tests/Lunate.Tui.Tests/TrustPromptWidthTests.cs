@@ -83,12 +83,10 @@ public sealed class TrustPromptWidthTests
         ];
 
     private static void AssertWithin(IReadOnlyList<string> lines, int width) =>
-        Assert.All(
-            lines,
-            line =>
-                Assert.True(
-                    CellText.Width(line) <= width,
-                    $"{CellText.Width(line)} cells exceed {width}: {line}"
-                )
+        Assert.All(lines, line =>
+            Assert.True(
+                CellText.Width(line) <= width,
+                $"{CellText.Width(line)} cells exceed {width}: {line}"
+            )
         );
 }

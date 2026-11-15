@@ -113,11 +113,10 @@ public sealed class ExtensionsViewTests
         IReadOnlyList<ExtensionLoadResult> results = [Loaded("ext-one")];
 
         string segment = Assert.Single(
-            ExtensionsView.Segments(
-                descriptors,
-                results,
-                _ => new ExtensionCounts(0, 1, 0, 0) { DeclaredNotProvidedCommands = ["ghost"] }
-            )
+            ExtensionsView.Segments(descriptors, results, _ => new ExtensionCounts(0, 1, 0, 0)
+            {
+                DeclaredNotProvidedCommands = ["ghost"],
+            })
         );
 
         Assert.Contains(

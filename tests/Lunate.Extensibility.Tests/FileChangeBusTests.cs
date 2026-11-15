@@ -136,9 +136,8 @@ public sealed class FileChangeBusTests
         var log = new RecordingExtensionLog();
         using var bus = new FileChangeBus("/w", log);
         bus.Subscribe(
-            new TestFileChangedHandler(
-                0,
-                (_, _) => throw new InvalidOperationException("handler exploded")
+            new TestFileChangedHandler(0, (_, _) =>
+                throw new InvalidOperationException("handler exploded")
             )
         );
         var survivor = new RecordingFileChangedHandler();
@@ -156,9 +155,8 @@ public sealed class FileChangeBusTests
         await bus.DrainAsync(Ct);
 
         Assert.Single(survivor.Payloads);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("failed", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("failed", StringComparison.Ordinal)
         );
     }
 
@@ -178,9 +176,8 @@ public sealed class FileChangeBusTests
         await bus.DrainAsync(Ct);
 
         Assert.Single(survivor.Payloads);
-        Assert.Contains(
-            log.Messages,
-            message => message.Contains("timed out", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("timed out", StringComparison.Ordinal)
         );
     }
 
@@ -189,20 +186,15 @@ public sealed class FileChangeBusTests
     {
         using var bus = new FileChangeBus("/w");
         List<string> delivered = [];
-        bus.Subscribe(
-            new TestFileChangedHandler(
-                0,
-                (payload, _) =>
+        bus.Subscribe(new TestFileChangedHandler(0, (payload, _) =>
+            {
+                lock (delivered)
                 {
-                    lock (delivered)
-                    {
-                        delivered.Add(payload.Path);
-                    }
-
-                    return ValueTask.CompletedTask;
+                    delivered.Add(payload.Path);
                 }
-            )
-        );
+
+                return ValueTask.CompletedTask;
+            }));
         var queue = new FileMutationQueue();
         string queuedPath = Path.Combine(Path.GetTempPath(), $"lunate-bus-{Guid.NewGuid():N}.txt");
         List<string> applied = [];
@@ -241,16 +233,11 @@ public sealed class FileChangeBusTests
         using var bus = new FileChangeBus("/w", log);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        bus.Subscribe(
-            new TestFileChangedHandler(
-                0,
-                async (_, _) =>
-                {
-                    entered.TrySetResult();
-                    await release.Task;
-                }
-            )
-        );
+        bus.Subscribe(new TestFileChangedHandler(0, async (_, _) =>
+            {
+                entered.TrySetResult();
+                await release.Task;
+            }));
         var handler = new RecordingFileChangedHandler();
         bus.Subscribe(handler);
 
@@ -273,11 +260,9 @@ public sealed class FileChangeBusTests
 
         FileChangedPayload payload = Assert.Single(handler.Payloads);
         Assert.Equal("/w/a.txt", payload.Path);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("dropped", StringComparison.Ordinal)
-                && message.Contains("/w/b.txt", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("dropped", StringComparison.Ordinal)
+            && message.Contains("/w/b.txt", StringComparison.Ordinal)
         );
     }
 
@@ -313,11 +298,9 @@ public sealed class FileChangeBusTests
         bus.Notify(Changes.Event("/w/b.txt"));
 
         Assert.Equal("/w/a.txt", Assert.Single(handler.Payloads).Path);
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("dropped", StringComparison.Ordinal)
-                && message.Contains("/w/b.txt", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("dropped", StringComparison.Ordinal)
+            && message.Contains("/w/b.txt", StringComparison.Ordinal)
         );
     }
 
@@ -327,16 +310,11 @@ public sealed class FileChangeBusTests
         using var bus = new FileChangeBus("/w");
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        bus.Subscribe(
-            new TestFileChangedHandler(
-                0,
-                async (_, _) =>
-                {
-                    entered.TrySetResult();
-                    await release.Task;
-                }
-            )
-        );
+        bus.Subscribe(new TestFileChangedHandler(0, async (_, _) =>
+            {
+                entered.TrySetResult();
+                await release.Task;
+            }));
         var handler = new RecordingFileChangedHandler();
         bus.Subscribe(handler);
 
@@ -351,12 +329,9 @@ public sealed class FileChangeBusTests
     }
 
     private static TestFileChangedHandler Handler(int priority, Action action) =>
-        new(
-            priority,
-            (_, _) =>
-            {
-                action();
-                return ValueTask.CompletedTask;
-            }
-        );
+        new(priority, (_, _) =>
+        {
+            action();
+            return ValueTask.CompletedTask;
+        });
 }

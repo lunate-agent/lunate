@@ -97,18 +97,16 @@ public sealed class SingleFileLoopEndToEndTests
         host.Console.SendText("use it");
         host.Console.SendEnter();
         await host.Client.WaitForCallAsync(3);
-        Assert.Single(
-            host.Client.RequestOptions[2]!.Tools!.OfType<AIFunction>(),
-            tool => tool.Name == "acme-tools__whoami"
+        Assert.Single(host.Client.RequestOptions[2]!.Tools!.OfType<AIFunction>(), tool =>
+            tool.Name == "acme-tools__whoami"
         );
 
         await host.WaitUntilAsync(
             () => host.Events.OfType<ToolCallResult>().Any(result => result.CallId == "call-2"),
             SingleFileLoopSession.CompileWait
         );
-        ToolCallResult answer = Assert.Single(
-            host.Events.OfType<ToolCallResult>(),
-            result => result.CallId == "call-2"
+        ToolCallResult answer = Assert.Single(host.Events.OfType<ToolCallResult>(), result =>
+            result.CallId == "call-2"
         );
         Assert.False(answer.IsError, answer.Output);
         Assert.Equal("hello from the package: ran", answer.Output);

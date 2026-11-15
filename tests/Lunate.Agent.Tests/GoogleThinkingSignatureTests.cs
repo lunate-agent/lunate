@@ -62,9 +62,8 @@ public sealed class GoogleThinkingSignatureTests
 
         await AgentTestSupport.Run(scenario.Harness);
 
-        ChatMessage surviving = Assert.Single(
-            scenario.Client.Requests[1].Messages,
-            message => message.Contents.OfType<FunctionCallContent>().Any()
+        ChatMessage surviving = Assert.Single(scenario.Client.Requests[1].Messages, message =>
+            message.Contents.OfType<FunctionCallContent>().Any()
         );
         TextReasoningContent signature = Assert.Single(
             surviving.Contents.OfType<TextReasoningContent>()
@@ -105,9 +104,8 @@ public sealed class GoogleThinkingSignatureTests
 
         await AgentTestSupport.Run(harness);
 
-        ChatMessage assistant = Assert.Single(
-            after.Requests[^1].Messages,
-            message => message.Contents.OfType<FunctionCallContent>().Any()
+        ChatMessage assistant = Assert.Single(after.Requests[^1].Messages, message =>
+            message.Contents.OfType<FunctionCallContent>().Any()
         );
         TextReasoningContent signature = Assert.Single(
             assistant.Contents.OfType<TextReasoningContent>()
@@ -178,9 +176,8 @@ public sealed class GoogleThinkingSignatureTests
         session.AppendMessage(message, model: ModelId);
 
     private static ChatMessage RequestAssistantMessage(ScriptedChatClient client) =>
-        Assert.Single(
-            Assert.Single(client.Requests).Messages,
-            message => message.Role == ChatRole.Assistant
+        Assert.Single(Assert.Single(client.Requests).Messages, message =>
+            message.Role == ChatRole.Assistant
         );
 
     private sealed record Scenario(

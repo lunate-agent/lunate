@@ -31,9 +31,8 @@ public sealed class ContractsAssemblyTests
             typeof(ModelCapabilityDescriptor),
         ];
 
-        Assert.All(
-            contractTypes,
-            type => Assert.Equal("Lunate.Contracts", type.Assembly.GetName().Name)
+        Assert.All(contractTypes, type =>
+            Assert.Equal("Lunate.Contracts", type.Assembly.GetName().Name)
         );
 
         Type[] contextSignatureTypes = typeof(ToolContext)
@@ -128,9 +127,8 @@ public sealed class ContractsAssemblyTests
         Assert.NotNull(
             typeof(Lunate.Contracts.DecisionAnswer).GetConstructor(constructorParameters)
         );
-        Assert.Contains(
-            typeof(Lunate.Contracts.DecisionAnswer).GetMethods(),
-            method => method.Name == "Deconstruct" && method.GetParameters().Length == 5
+        Assert.Contains(typeof(Lunate.Contracts.DecisionAnswer).GetMethods(), method =>
+            method.Name == "Deconstruct" && method.GetParameters().Length == 5
         );
     }
 

@@ -102,12 +102,10 @@ public sealed class McpConfigTrustTests
 
         Assert.False(await trust.EnsureTrustedAsync(worktree, config, [], prompt, log, Ct));
 
-        Assert.Contains(
-            log.Messages,
-            message =>
-                message.Contains("was not trusted", StringComparison.Ordinal)
-                && message.Contains("interactive", StringComparison.Ordinal)
-                && message.Contains("'lunate trust'", StringComparison.Ordinal)
+        Assert.Contains(log.Messages, message =>
+            message.Contains("was not trusted", StringComparison.Ordinal)
+            && message.Contains("interactive", StringComparison.Ordinal)
+            && message.Contains("'lunate trust'", StringComparison.Ordinal)
         );
     }
 

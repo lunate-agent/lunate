@@ -122,10 +122,10 @@ public sealed class ChildProcessToolEnvironmentTests
 
         if (OperatingSystem.IsWindows())
         {
-            parent["SystemRoot"] =
-                Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
-            parent["ComSpec"] =
-                Environment.GetEnvironmentVariable("ComSpec") ?? @"C:\Windows\System32\cmd.exe";
+            parent["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot")
+                ?? @"C:\Windows";
+            parent["ComSpec"] = Environment.GetEnvironmentVariable("ComSpec")
+                ?? @"C:\Windows\System32\cmd.exe";
             parent["PATH"] = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
         }
         else

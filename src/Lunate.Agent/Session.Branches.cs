@@ -14,10 +14,9 @@ public sealed partial class Session
     internal void MoveLeaf(string leafId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(leafId);
-        SessionEntry target =
-            _entries.FirstOrDefault(entry =>
-                string.Equals(entry.Id, leafId, StringComparison.Ordinal)
-            )
+        SessionEntry target = _entries.FirstOrDefault(entry =>
+            string.Equals(entry.Id, leafId, StringComparison.Ordinal)
+        )
             ?? throw new ArgumentException(
                 $"Session '{SessionId}' has no entry '{leafId}'; the leaf must name an entry this session contains.",
                 nameof(leafId)
@@ -87,10 +86,9 @@ public sealed partial class Session
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         ArgumentException.ThrowIfNullOrWhiteSpace(entryId);
-        SessionEntry target =
-            _entries.FirstOrDefault(entry =>
-                string.Equals(entry.Id, entryId, StringComparison.Ordinal)
-            )
+        SessionEntry target = _entries.FirstOrDefault(entry =>
+            string.Equals(entry.Id, entryId, StringComparison.Ordinal)
+        )
             ?? throw new ArgumentException(
                 $"Session '{SessionId}' has no entry '{entryId}'; /fork takes an entry the session file contains.",
                 nameof(entryId)

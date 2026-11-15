@@ -109,9 +109,8 @@ public sealed class PackageScopeTests
 
         Assert.Equal(InstallCommand.ExitOk, exit);
         Assert.Contains("installed:", output, StringComparison.Ordinal);
-        string warning = Assert.Single(
-            errors.TrimEnd('\n').Split('\n'),
-            line => line.Contains("review", StringComparison.Ordinal)
+        string warning = Assert.Single(errors.TrimEnd('\n').Split('\n'), line =>
+            line.Contains("review", StringComparison.Ordinal)
         );
         Assert.StartsWith("lunate: ", warning, StringComparison.Ordinal);
         Assert.Contains(projectSkill, warning, StringComparison.Ordinal);

@@ -45,9 +45,8 @@ public sealed class McpToolSetTests
 
         int pid = TestMcpServer.StartedPid(marker);
         await set.ListToolsAsync(Ct);
-        Assert.Single(
-            File.ReadAllLines(marker),
-            line => line.StartsWith("started pid=", StringComparison.Ordinal)
+        Assert.Single(File.ReadAllLines(marker), line =>
+            line.StartsWith("started pid=", StringComparison.Ordinal)
         );
 
         await set.DisposeAsync();
@@ -86,9 +85,8 @@ public sealed class McpToolSetTests
             options.WorkspaceIndependent
         );
         Assert.Equal(8, independent.Count);
-        Assert.All(
-            independent,
-            tool => Assert.StartsWith("global__", tool.Name, StringComparison.Ordinal)
+        Assert.All(independent, tool =>
+            Assert.StartsWith("global__", tool.Name, StringComparison.Ordinal)
         );
     }
 
@@ -126,18 +124,16 @@ public sealed class McpToolSetTests
         Assert.Equal("test-source", status.Source);
         McpServerStatus callback = Assert.Single(notified);
         Assert.Equal("test-source", callback.Source);
-        Assert.Single(
-            log,
-            message => message.Contains(McpToolSet.ServerExitedReason, StringComparison.Ordinal)
+        Assert.Single(log, message =>
+            message.Contains(McpToolSet.ServerExitedReason, StringComparison.Ordinal)
         );
 
         IReadOnlyList<McpServerStatus> again = await set.ObserveStatusesAsync(Ct);
 
         Assert.Equal(McpServerState.Failed, Assert.Single(again).State);
         Assert.Single(notified);
-        Assert.Single(
-            log,
-            message => message.Contains(McpToolSet.ServerExitedReason, StringComparison.Ordinal)
+        Assert.Single(log, message =>
+            message.Contains(McpToolSet.ServerExitedReason, StringComparison.Ordinal)
         );
         Assert.Empty(await set.ListToolsAsync(Ct));
     }
@@ -271,9 +267,8 @@ public sealed class McpToolSetTests
         // carry the new tool without another ListToolsAsync call by the consumer.
         IReadOnlyList<ITool> relisted = await set.ListToolsAsync(Ct);
         Assert.Contains(relisted, tool => tool.Name == "test__late_tool");
-        Assert.Contains(
-            set.ListedToolsFrom(options => options.Name == "test"),
-            tool => tool.Name == "test__late_tool"
+        Assert.Contains(set.ListedToolsFrom(options => options.Name == "test"), tool =>
+            tool.Name == "test__late_tool"
         );
     }
 }

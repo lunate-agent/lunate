@@ -118,9 +118,8 @@ public sealed class InteractiveSessionToolBlocksCompositionTests
         );
 
         string[] lines = scrollback.Split('\n');
-        string header = Assert.Single(
-            lines,
-            line => line.StartsWith("✓ bash  cat bash-notes.txt", StringComparison.Ordinal)
+        string header = Assert.Single(lines, line =>
+            line.StartsWith("✓ bash  cat bash-notes.txt", StringComparison.Ordinal)
         );
         Assert.Contains("ctrl+o", header, StringComparison.Ordinal);
         Assert.DoesNotContain("hidden tool output", scrollback, StringComparison.Ordinal);

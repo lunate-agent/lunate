@@ -81,14 +81,11 @@ public sealed class DecisionClientTests
         Activity activity = Assert.Single(stopped);
         Assert.Equal("decision-model", activity.GetTagItem("gen_ai.request.model"));
         Assert.Equal(1, activity.GetTagItem("lunate.decision.question_count"));
-        Assert.DoesNotContain(
-            activity.TagObjects,
-            tag => tag.Value?.ToString()?.Contains("private", StringComparison.Ordinal) == true
+        Assert.DoesNotContain(activity.TagObjects, tag =>
+            tag.Value?.ToString()?.Contains("private", StringComparison.Ordinal) == true
         );
-        Assert.DoesNotContain(
-            activity.TagObjects,
-            tag =>
-                tag.Value?.ToString()?.Contains("do not record", StringComparison.Ordinal) == true
+        Assert.DoesNotContain(activity.TagObjects, tag =>
+            tag.Value?.ToString()?.Contains("do not record", StringComparison.Ordinal) == true
         );
     }
 

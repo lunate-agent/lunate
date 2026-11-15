@@ -25,9 +25,8 @@ public sealed class McpFormElicitationTests
         );
 
         Assert.False(result.IsError, result.Output);
-        Assert.Contains(
-            TestMcpServer.MarkerLines(marker),
-            line => line == "elicitation capability=form:True;url:False"
+        Assert.Contains(TestMcpServer.MarkerLines(marker), line =>
+            line == "elicitation capability=form:True;url:False"
         );
     }
 
@@ -43,26 +42,22 @@ public sealed class McpFormElicitationTests
         IReadOnlyList<UserQuestion>? presented = null;
         ToolContext context = McpTestEnvironment.Context with
         {
-            AgentState = new AgentToolContextState(
-                null,
-                null,
-                (questions, _) =>
-                {
-                    presented = questions;
-                    return Task.FromResult(
-                        new UserQuestionResult(
-                            UserQuestionStatus.Answered,
-                            [
-                                new UserQuestionAnswer([], "new project"),
-                                new UserQuestionAnswer([], "3"),
-                                new UserQuestionAnswer([], "true"),
-                                new UserQuestionAnswer(["guided"], null),
-                                new UserQuestionAnswer(["safe", "fast"], null),
-                            ]
-                        )
-                    );
-                }
-            ),
+            AgentState = new AgentToolContextState(null, null, (questions, _) =>
+            {
+                presented = questions;
+                return Task.FromResult(
+                    new UserQuestionResult(
+                        UserQuestionStatus.Answered,
+                        [
+                            new UserQuestionAnswer([], "new project"),
+                            new UserQuestionAnswer([], "3"),
+                            new UserQuestionAnswer([], "true"),
+                            new UserQuestionAnswer(["guided"], null),
+                            new UserQuestionAnswer(["safe", "fast"], null),
+                        ]
+                    )
+                );
+            }),
         };
 
         ToolResult result = await tool.ExecuteAsync(
@@ -79,14 +74,12 @@ public sealed class McpFormElicitationTests
         Assert.Equal("server: Enable feature", presented[2].Header);
         Assert.Equal("server: Plan", presented[3].Header);
         Assert.Equal("server: Tags", presented[4].Header);
-        Assert.All(
-            presented,
-            question =>
-                Assert.Contains(
-                    "Choose settings for the generated project.",
-                    question.Question,
-                    StringComparison.Ordinal
-                )
+        Assert.All(presented, question =>
+            Assert.Contains(
+                "Choose settings for the generated project.",
+                question.Question,
+                StringComparison.Ordinal
+            )
         );
         Assert.Equal("Display name", presented[0].Header.Split(": ", 2).Last());
         Assert.True(presented[0].AllowFreeText);
@@ -119,22 +112,19 @@ public sealed class McpFormElicitationTests
         );
         ToolContext context = McpTestEnvironment.Context with
         {
-            AgentState = new AgentToolContextState(
-                null,
-                null,
-                (questions, _) =>
-                    Task.FromResult(
-                        new UserQuestionResult(
-                            UserQuestionStatus.Answered,
-                            [
-                                new UserQuestionAnswer([], "new project"),
-                                new UserQuestionAnswer([], "3"),
-                                new UserQuestionAnswer([], "true"),
-                                new UserQuestionAnswer(["unknown"], null),
-                                new UserQuestionAnswer(["safe"], null),
-                            ]
-                        )
+            AgentState = new AgentToolContextState(null, null, (questions, _) =>
+                Task.FromResult(
+                    new UserQuestionResult(
+                        UserQuestionStatus.Answered,
+                        [
+                            new UserQuestionAnswer([], "new project"),
+                            new UserQuestionAnswer([], "3"),
+                            new UserQuestionAnswer([], "true"),
+                            new UserQuestionAnswer(["unknown"], null),
+                            new UserQuestionAnswer(["safe"], null),
+                        ]
                     )
+                )
             ),
         };
 
@@ -164,22 +154,19 @@ public sealed class McpFormElicitationTests
         );
         ToolContext context = McpTestEnvironment.Context with
         {
-            AgentState = new AgentToolContextState(
-                null,
-                null,
-                (_, _) =>
-                    Task.FromResult(
-                        new UserQuestionResult(
-                            UserQuestionStatus.Answered,
-                            [
-                                new UserQuestionAnswer([], "new project"),
-                                new UserQuestionAnswer([], "3"),
-                                new UserQuestionAnswer([], "true"),
-                                new UserQuestionAnswer(["guided"], null),
-                                new UserQuestionAnswer(["safe", "fast"], null),
-                            ]
-                        )
+            AgentState = new AgentToolContextState(null, null, (_, _) =>
+                Task.FromResult(
+                    new UserQuestionResult(
+                        UserQuestionStatus.Answered,
+                        [
+                            new UserQuestionAnswer([], "new project"),
+                            new UserQuestionAnswer([], "3"),
+                            new UserQuestionAnswer([], "true"),
+                            new UserQuestionAnswer(["guided"], null),
+                            new UserQuestionAnswer(["safe", "fast"], null),
+                        ]
                     )
+                )
             ),
         };
 

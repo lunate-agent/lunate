@@ -21,9 +21,8 @@ public sealed class ImageInputInteractiveTests
         await host.WaitForScrollbackAsync("[image 2x3]");
         ChatMessage user = host.Client.Requests[0][^1];
         Assert.Contains(user.Contents, content => content is DataContent);
-        Assert.Contains(
-            host.Session.Transcript.OfType<TranscriptUserEntry>(),
-            entry => entry.Text == "[image 2x3]"
+        Assert.Contains(host.Session.Transcript.OfType<TranscriptUserEntry>(), entry =>
+            entry.Text == "[image 2x3]"
         );
 
         host.Console.Complete();

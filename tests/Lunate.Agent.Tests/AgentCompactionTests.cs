@@ -274,9 +274,8 @@ public sealed class AgentCompactionTests
 
         string file = File.ReadAllText(path);
         Assert.DoesNotContain(focus, file, StringComparison.Ordinal);
-        string compactionLine = Assert.Single(
-            File.ReadAllLines(path),
-            line => line.Contains("\"type\":\"compaction\"", StringComparison.Ordinal)
+        string compactionLine = Assert.Single(File.ReadAllLines(path), line =>
+            line.Contains("\"type\":\"compaction\"", StringComparison.Ordinal)
         );
         using JsonDocument document = JsonDocument.Parse(compactionLine);
         Assert.Equal(
@@ -339,9 +338,8 @@ public sealed class AgentCompactionTests
         Assert.Empty(session.Entries.OfType<SessionCompactionEntry>());
         Assert.Contains(marker, capture.Text, StringComparison.Ordinal);
         Assert.Equal(2, client.Requests.Count);
-        Assert.Contains(
-            client.Requests[1].Messages,
-            message => message.Text.StartsWith("one x", StringComparison.Ordinal)
+        Assert.Contains(client.Requests[1].Messages, message =>
+            message.Text.StartsWith("one x", StringComparison.Ordinal)
         );
         Assert.IsType<RunFinished>(events[^1]);
     }
@@ -379,9 +377,8 @@ public sealed class AgentCompactionTests
 
         List<AgentEvent> events = await AgentTestSupport.Run(harness);
 
-        UsageUpdated usage = Assert.Single(
-            events.OfType<UsageUpdated>(),
-            update => update.Usage.InputTokenCount == 5000
+        UsageUpdated usage = Assert.Single(events.OfType<UsageUpdated>(), update =>
+            update.Usage.InputTokenCount == 5000
         );
         Assert.Equal("summary-model", usage.ModelId);
         Assert.Equal(

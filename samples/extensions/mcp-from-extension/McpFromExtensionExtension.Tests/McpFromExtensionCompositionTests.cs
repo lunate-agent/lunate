@@ -40,9 +40,8 @@ public sealed class McpFromExtensionCompositionTests
         IReadOnlyList<ExtensionMcpServerStatus> again = await host.ComposeMcpServersAsync(Ct);
 
         Assert.Equal(ExtensionMcpServerState.Started, Assert.Single(again).State);
-        Assert.Single(
-            TestSupport.MarkerLines(marker),
-            line => line.StartsWith("started pid=", StringComparison.Ordinal)
+        Assert.Single(TestSupport.MarkerLines(marker), line =>
+            line.StartsWith("started pid=", StringComparison.Ordinal)
         );
     }
 

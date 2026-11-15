@@ -252,9 +252,8 @@ internal static class Cli
     /// <summary>The index of the first <c>--</c>, or the argument count when it is absent.</summary>
     private static int EndOfOptions(string[] args)
     {
-        int index = Array.FindIndex(
-            args,
-            arg => string.Equals(arg, "--", StringComparison.Ordinal)
+        int index = Array.FindIndex(args, arg =>
+            string.Equals(arg, "--", StringComparison.Ordinal)
         );
         return index < 0 ? args.Length : index;
     }

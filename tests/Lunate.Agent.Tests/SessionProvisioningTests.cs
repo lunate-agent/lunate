@@ -16,9 +16,8 @@ public sealed class SessionProvisioningTests
         using var temp = new TempDirectory();
         string directory = temp.File("sessions");
 
-        Session session = SessionProvisioning.Create(
-            directory,
-            provisional => Session.Create(provisional, "/work", new FixedTimeProvider(Start))
+        Session session = SessionProvisioning.Create(directory, provisional =>
+            Session.Create(provisional, "/work", new FixedTimeProvider(Start))
         );
 
         string expected = Path.Combine(directory, SessionPaths.SessionFileName(session.SessionId));
@@ -37,14 +36,11 @@ public sealed class SessionProvisioningTests
         string directory = temp.File("sessions");
 
         Assert.Throws<InvalidOperationException>(() =>
-            SessionProvisioning.Create(
-                directory,
-                provisional =>
-                {
-                    _ = Session.Create(provisional, "/work", new FixedTimeProvider(Start));
-                    throw new InvalidOperationException("the rename never ran");
-                }
-            )
+            SessionProvisioning.Create(directory, provisional =>
+            {
+                _ = Session.Create(provisional, "/work", new FixedTimeProvider(Start));
+                throw new InvalidOperationException("the rename never ran");
+            })
         );
 
         Assert.Empty(Directory.GetFiles(directory));

@@ -50,13 +50,11 @@ public sealed class KeysFileTests
             );
             JsonElement keys = binding.GetProperty("keys");
             Assert.True(keys.GetArrayLength() > 0, $"binding '{id}' lists no key patterns");
-            Assert.All(
-                keys.EnumerateArray(),
-                key =>
-                    Assert.True(
-                        Enum.TryParse(Text(key, "kind"), ignoreCase: false, out KeyKind _),
-                        $"binding '{id}' names a kind that is not a KeyKind member"
-                    )
+            Assert.All(keys.EnumerateArray(), key =>
+                Assert.True(
+                    Enum.TryParse(Text(key, "kind"), ignoreCase: false, out KeyKind _),
+                    $"binding '{id}' names a kind that is not a KeyKind member"
+                )
             );
         }
     }
@@ -172,13 +170,11 @@ public sealed class KeysFileTests
                 string.IsNullOrWhiteSpace(Text(row, "reason")),
                 $"guide row '{rowId}' documents keys no binding has, so it needs a 'reason'"
             );
-            Assert.All(
-                keys,
-                key =>
-                    Assert.False(
-                        spellings.Contains(key),
-                        $"guide row '{rowId}' calls '{key}' unbound, but a binding has it"
-                    )
+            Assert.All(keys, key =>
+                Assert.False(
+                    spellings.Contains(key),
+                    $"guide row '{rowId}' calls '{key}' unbound, but a binding has it"
+                )
             );
         }
     }
@@ -218,10 +214,9 @@ public sealed class KeysFileTests
 
     private static JsonElement Resource()
     {
-        using Stream stream =
-            typeof(KeyBindingCatalog).Assembly.GetManifestResourceStream(
-                KeyBindingCatalog.ResourceName
-            )
+        using Stream stream = typeof(KeyBindingCatalog).Assembly.GetManifestResourceStream(
+            KeyBindingCatalog.ResourceName
+        )
             ?? throw new InvalidOperationException(
                 $"{KeyBindingCatalog.ResourceName} is not embedded in Lunate.Tui"
             );

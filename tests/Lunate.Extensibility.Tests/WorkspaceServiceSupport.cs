@@ -126,16 +126,13 @@ internal sealed class TrackingValueFactory : IWorkspaceServiceFactory<TrackedVal
             );
         }
 
-        return new TrackedValue(
-            canonicalWorktreeRoot,
-            root =>
+        return new TrackedValue(canonicalWorktreeRoot, root =>
+        {
+            lock (_gate)
             {
-                lock (_gate)
-                {
-                    Disposals.Add(root);
-                }
+                Disposals.Add(root);
             }
-        );
+        });
     }
 }
 

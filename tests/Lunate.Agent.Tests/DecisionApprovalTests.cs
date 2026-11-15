@@ -105,9 +105,8 @@ public sealed class DecisionApprovalTests
         DecisionEvaluated[] decisions = [.. run.Events.OfType<DecisionEvaluated>()];
         Assert.Equal(4, decisions.Length);
         Assert.All(decisions, decision => Assert.Equal("no", decision.Answer));
-        DecisionEvaluated decision = Assert.Single(
-            decisions,
-            item => item.QuestionId == "writes_outside_workspace"
+        DecisionEvaluated decision = Assert.Single(decisions, item =>
+            item.QuestionId == "writes_outside_workspace"
         );
         Assert.Equal("decision-model", decision.ModelId);
         Assert.Equal("adapter", decision.Method);
@@ -131,9 +130,8 @@ public sealed class DecisionApprovalTests
 
         DecisionEvaluated[] decisions = [.. run.Events.OfType<DecisionEvaluated>()];
         Assert.Equal(4, decisions.Length);
-        Assert.Contains(
-            decisions,
-            decision => decision.QuestionId == "network_access" && decision.Answer == "yes"
+        Assert.Contains(decisions, decision =>
+            decision.QuestionId == "network_access" && decision.Answer == "yes"
         );
         Assert.Equal("adapter", decisions[0].Method);
         Assert.Single(run.Approver.Requests);
@@ -265,10 +263,8 @@ public sealed class DecisionApprovalTests
         Assert.Empty(run.Decision.Requests);
         DecisionFailed[] failures = [.. run.Events.OfType<DecisionFailed>()];
         Assert.Equal(4, failures.Length);
-        Assert.All(
-            failures,
-            failure =>
-                Assert.Contains("structured-output", failure.Reason, StringComparison.Ordinal)
+        Assert.All(failures, failure =>
+            Assert.Contains("structured-output", failure.Reason, StringComparison.Ordinal)
         );
         Assert.Empty(run.Events.OfType<DecisionEvaluated>());
         Assert.Single(run.Approver.Requests);
@@ -296,10 +292,8 @@ public sealed class DecisionApprovalTests
         Assert.Empty(run.Decision.Requests);
         DecisionFailed[] failures = [.. run.Events.OfType<DecisionFailed>()];
         Assert.Equal(4, failures.Length);
-        Assert.All(
-            failures,
-            failure =>
-                Assert.Contains("structured-output", failure.Reason, StringComparison.Ordinal)
+        Assert.All(failures, failure =>
+            Assert.Contains("structured-output", failure.Reason, StringComparison.Ordinal)
         );
         Assert.Empty(run.Events.OfType<DecisionEvaluated>());
         Assert.Single(run.Approver.Requests);

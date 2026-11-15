@@ -41,9 +41,8 @@ public sealed class SingleFileReloadDrainTests
         Assert.True(outcome.Drained);
         Assert.Equal(["ext:acme-tools:ping"], outcome.CancelledCommands);
         // The user is told once, by command and by extension.
-        string notice = Assert.Single(
-            fixture.Notices,
-            text => text.Contains("was cancelled", StringComparison.Ordinal)
+        string notice = Assert.Single(fixture.Notices, text =>
+            text.Contains("was cancelled", StringComparison.Ordinal)
         );
         Assert.Contains("ext:acme-tools:ping", notice, StringComparison.Ordinal);
         Assert.Contains("extension 'acme-tools'", notice, StringComparison.Ordinal);
@@ -54,9 +53,8 @@ public sealed class SingleFileReloadDrainTests
         // showed on the faster Linux and Windows runners.
         CommandResult drainedResult = await invocation.WaitAsync(TimeSpan.FromSeconds(5), Ct);
         Assert.Null(drainedResult.Message);
-        Assert.DoesNotContain(
-            fixture.Log.Messages,
-            message => message.Contains("did not return", StringComparison.Ordinal)
+        Assert.DoesNotContain(fixture.Log.Messages, message =>
+            message.Contains("did not return", StringComparison.Ordinal)
         );
     }
 
@@ -100,9 +98,8 @@ public sealed class SingleFileReloadDrainTests
             Assert.False(outcome.Drained);
             // Exactly one line for the stuck handler, naming it and the extension, and the reload
             // carried on regardless.
-            string line = Assert.Single(
-                fixture.Log.Matching("did not return within"),
-                message => message.Contains("ext:acme-tools:ping", StringComparison.Ordinal)
+            string line = Assert.Single(fixture.Log.Matching("did not return within"), message =>
+                message.Contains("ext:acme-tools:ping", StringComparison.Ordinal)
             );
             Assert.Contains("reload", line, StringComparison.Ordinal);
             Assert.Contains("acme-tools", line, StringComparison.Ordinal);

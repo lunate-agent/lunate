@@ -27,9 +27,8 @@ public sealed class RemoteExtensionTests
         Assert.Contains(harness.Context.Handlers, handler => handler is IToolCallingHandler);
         Assert.Contains(harness.Context.Handlers, handler => handler is ISessionStartedHandler);
         Assert.Contains(harness.Context.Handlers, handler => handler is IContextBuildingHandler);
-        Assert.DoesNotContain(
-            harness.Context.Handlers,
-            handler => handler is IProviderStreamEventHandler
+        Assert.DoesNotContain(harness.Context.Handlers, handler =>
+            handler is IProviderStreamEventHandler
         );
     }
 
@@ -49,9 +48,8 @@ public sealed class RemoteExtensionTests
                 ),
             "the notification arrived"
         );
-        Assert.DoesNotContain(
-            harness.Child.Notifications,
-            n => n.Method.StartsWith("hook/Session")
+        Assert.DoesNotContain(harness.Child.Notifications, n =>
+            n.Method.StartsWith("hook/Session")
         );
     }
 
@@ -110,9 +108,8 @@ public sealed class RemoteExtensionTests
         Assert.Equal(1, timings.Calls);
         Assert.Equal(0, timings.SlowCount);
         Assert.True(timings.MaxMs < 50, $"the hook time read {timings.MaxMs} ms");
-        Assert.DoesNotContain(
-            harness.Context.Log.Warnings,
-            warning => warning.Contains("slow-hook threshold", StringComparison.Ordinal)
+        Assert.DoesNotContain(harness.Context.Log.Warnings, warning =>
+            warning.Contains("slow-hook threshold", StringComparison.Ordinal)
         );
         // The preparation is consumed by the dispatch: a second read reports nothing.
         Assert.Equal(TimeSpan.Zero, ((IPreparationTimeReporter)handler).ConsumePreparationTime());
@@ -251,13 +248,11 @@ public sealed class RemoteExtensionTests
         await handler.HandleAsync(new ToolCallingPayload("r1", "c1", "read", EmptyArgs), Ct);
 
         Assert.Equal(RemoteExtensionState.Ready, harness.Extension.Status.State);
-        Assert.Contains(
-            harness.Context.Log.Warnings,
-            warning => warning.Contains("declares hook 'ContextBuilding'", StringComparison.Ordinal)
+        Assert.Contains(harness.Context.Log.Warnings, warning =>
+            warning.Contains("declares hook 'ContextBuilding'", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            harness.Context.Handlers,
-            registered => registered is IContextBuildingHandler
+        Assert.DoesNotContain(harness.Context.Handlers, registered =>
+            registered is IContextBuildingHandler
         );
     }
 
@@ -578,9 +573,8 @@ public sealed class RemoteExtensionTests
         );
 
         Assert.IsType<ToolCallingResult.Block>(blocked);
-        Assert.Contains(
-            harness.Context.Log.Errors,
-            entry => entry.Contains("ToolCalling", StringComparison.Ordinal)
+        Assert.Contains(harness.Context.Log.Errors, entry =>
+            entry.Contains("ToolCalling", StringComparison.Ordinal)
         );
     }
 
@@ -633,9 +627,8 @@ public sealed class RemoteExtensionTests
 
         await runner.RunSessionStartedAsync(new SessionStartedPayload("/work", "repo"), Ct);
 
-        Assert.Contains(
-            harness.Context.Log.Errors,
-            entry => entry.Contains("SessionStarted", StringComparison.Ordinal)
+        Assert.Contains(harness.Context.Log.Errors, entry =>
+            entry.Contains("SessionStarted", StringComparison.Ordinal)
         );
     }
 

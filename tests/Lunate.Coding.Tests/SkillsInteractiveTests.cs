@@ -263,9 +263,8 @@ public sealed class SkillsInteractiveTests
         Assert.EndsWith("</skill>", userText, StringComparison.Ordinal);
         Assert.Single(host.Client.Requests);
 
-        SessionMessageEntry entry = Assert.Single(
-            Messages(host),
-            message => message.Skill is not null
+        SessionMessageEntry entry = Assert.Single(Messages(host), message =>
+            message.Skill is not null
         );
         Assert.Equal("greek", entry.Skill!.Name);
         Assert.Equal(

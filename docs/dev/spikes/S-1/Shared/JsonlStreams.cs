@@ -121,9 +121,10 @@ public sealed class ReplayChatClient(string path) : IChatClient
                 }
             }
 
-            ChatResponseUpdate update =
-                JsonSerializer.Deserialize<ChatResponseUpdate>(line, JsonlOptions)
-                ?? throw new InvalidOperationException($"Could not deserialize update: {line}");
+            ChatResponseUpdate update = JsonSerializer.Deserialize<ChatResponseUpdate>(
+                line,
+                JsonlOptions
+            ) ?? throw new InvalidOperationException($"Could not deserialize update: {line}");
             if (turns.Count == 0)
             {
                 turns.Add([]);

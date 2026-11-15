@@ -103,9 +103,8 @@ public sealed class RoslynBackendTests
     public async Task An_injected_locator_failure_returns_no_sdk_and_never_throws()
     {
         using var fixture = Fixtures.CopySolution("console-app");
-        using var backend = new RoslynBackend(
-            fixture.Root,
-            () => new BootstrapResult(false, "install the .NET SDK")
+        using var backend = new RoslynBackend(fixture.Root, () =>
+            new BootstrapResult(false, "install the .NET SDK")
         );
 
         var load = await backend.LoadAsync(CancellationToken.None);
@@ -196,9 +195,8 @@ public sealed class RoslynBackendTests
             CancellationToken.None
         );
         Assert.NotEmpty(diagnostics.Failures);
-        Assert.Contains(
-            diagnostics.Failures,
-            failure => failure.Message.Contains("Calculator.cs", StringComparison.Ordinal)
+        Assert.Contains(diagnostics.Failures, failure =>
+            failure.Message.Contains("Calculator.cs", StringComparison.Ordinal)
         );
 
         var reload = await backend.LoadAsync(CancellationToken.None);

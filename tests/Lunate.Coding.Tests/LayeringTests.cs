@@ -22,30 +22,25 @@ public sealed class LayeringTests
             .Where(reference => reference.From is "Lunate.Roslyn" or "Lunate.Roslyn.BuiltIn")
             .ToArray();
 
-        Assert.DoesNotContain(
-            roslynReferences,
-            reference => reference.To is "Lunate.Agent" or "Lunate.Coding" or "Lunate.Extensibility"
+        Assert.DoesNotContain(roslynReferences, reference =>
+            reference.To is "Lunate.Agent" or "Lunate.Coding" or "Lunate.Extensibility"
         );
         Assert.Contains(("Lunate.Roslyn", "Lunate.Extensibility.Abstractions"), references);
         Assert.Contains(("Lunate.Roslyn.BuiltIn", "Lunate.Extensibility.Abstractions"), references);
-        Assert.All(
-            roslynReferences,
-            reference =>
-                Assert.True(
-                    reference.To is "Lunate.Extensibility.Abstractions" or "Lunate.Roslyn",
-                    $"unexpected Roslyn project edge: {reference.From} -> {reference.To}"
-                )
+        Assert.All(roslynReferences, reference =>
+            Assert.True(
+                reference.To is "Lunate.Extensibility.Abstractions" or "Lunate.Roslyn",
+                $"unexpected Roslyn project edge: {reference.From} -> {reference.To}"
+            )
         );
 
         string[] packages = ReadRoslynPackages();
-        Assert.All(
-            packages,
-            package =>
-                Assert.True(
-                    package.StartsWith("Microsoft.CodeAnalysis.", StringComparison.Ordinal)
-                        || package.StartsWith("Microsoft.Build.", StringComparison.Ordinal),
-                    $"unexpected Roslyn package: {package}"
-                )
+        Assert.All(packages, package =>
+            Assert.True(
+                package.StartsWith("Microsoft.CodeAnalysis.", StringComparison.Ordinal)
+                    || package.StartsWith("Microsoft.Build.", StringComparison.Ordinal),
+                $"unexpected Roslyn package: {package}"
+            )
         );
     }
 
@@ -137,11 +132,9 @@ public sealed class LayeringTests
     {
         var references = ReadProjectReferences();
 
-        Assert.DoesNotContain(
-            references,
-            reference =>
-                reference.From is "Lunate.Contracts"
-                && reference.To is "Lunate.Ai.Decisions" or "Lunate.Ai.SystemOne"
+        Assert.DoesNotContain(references, reference =>
+            reference.From is "Lunate.Contracts"
+            && reference.To is "Lunate.Ai.Decisions" or "Lunate.Ai.SystemOne"
         );
     }
 

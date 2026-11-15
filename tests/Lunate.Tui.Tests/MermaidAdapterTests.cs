@@ -17,13 +17,11 @@ public sealed class MermaidAdapterTests
         );
 
         Assert.Equal("mermaid", lines[0].Spans.Single().Text);
-        Assert.Contains(
-            lines.Skip(1).SelectMany(static line => line.Spans),
-            static span => span.Style == SpanStyle.Dim && span.Text.Contains('┌')
+        Assert.Contains(lines.Skip(1).SelectMany(static line => line.Spans), static span =>
+            span.Style == SpanStyle.Dim && span.Text.Contains('┌')
         );
-        Assert.Contains(
-            lines.Skip(1).SelectMany(static line => line.Spans),
-            static span => span.Style == SpanStyle.Plain && span.Text.Contains("One")
+        Assert.Contains(lines.Skip(1).SelectMany(static line => line.Spans), static span =>
+            span.Style == SpanStyle.Plain && span.Text.Contains("One")
         );
     }
 

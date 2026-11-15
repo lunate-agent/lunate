@@ -102,16 +102,13 @@ public sealed class ExtensionToolPipelineTests
             result.Output
         );
         Assert.Equal(StopReasons.Stop, Assert.Single(events.OfType<RunFinished>()).StopReason);
-        Assert.Contains(
-            client.Requests[1],
-            message =>
-                message
-                    .Contents.OfType<FunctionResultContent>()
-                    .Any(result =>
-                        result
-                            .Result?.ToString()
-                            ?.Contains("failed: boom", StringComparison.Ordinal) == true
-                    )
+        Assert.Contains(client.Requests[1], message =>
+            message
+                .Contents.OfType<FunctionResultContent>()
+                .Any(result =>
+                    result.Result?.ToString()?.Contains("failed: boom", StringComparison.Ordinal)
+                    == true
+                )
         );
     }
 
@@ -177,12 +174,9 @@ public sealed class ExtensionToolPipelineTests
             ["tools__outer", "friendly_echo"],
             events.OfType<ToolCallStart>().Select(call => call.ToolName)
         );
-        Assert.Contains(
-            client.Requests[1].SelectMany(message => message.Contents),
-            content =>
-                content is FunctionResultContent result
-                && result.Result?.ToString()?.Contains("echo result", StringComparison.Ordinal)
-                    == true
+        Assert.Contains(client.Requests[1].SelectMany(message => message.Contents), content =>
+            content is FunctionResultContent result
+            && result.Result?.ToString()?.Contains("echo result", StringComparison.Ordinal) == true
         );
     }
 

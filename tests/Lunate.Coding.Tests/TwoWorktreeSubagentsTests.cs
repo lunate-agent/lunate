@@ -87,12 +87,10 @@ public sealed class TwoWorktreeSubagentsTests
         Assert.False(File.Exists(Path.Combine(worktreeA, "cross.txt")));
         Assert.False(File.Exists(Path.Combine(worktreeB, "cross.txt")));
         Assert.False(File.Exists(Path.Combine(main, "own.txt")));
-        Assert.Contains(
-            events.OfType<ToolCallResult>(),
-            result =>
-                result.IsError
-                && result.ParentRunId is not null
-                && result.Output.Contains("outside the workspace", StringComparison.Ordinal)
+        Assert.Contains(events.OfType<ToolCallResult>(), result =>
+            result.IsError
+            && result.ParentRunId is not null
+            && result.Output.Contains("outside the workspace", StringComparison.Ordinal)
         );
 
         string parentRunId = events.OfType<RunStarted>().First().RunId;
@@ -126,9 +124,8 @@ public sealed class TwoWorktreeSubagentsTests
 
         Assert.Equal([canonicalA, canonicalB], headers.Select(header => header.Worktree));
         Assert.All(headers, header => Assert.Equal(header.Worktree, header.Cwd));
-        Assert.All(
-            childRuns,
-            runId => Assert.Contains(events, agentEvent => agentEvent.RunId == runId)
+        Assert.All(childRuns, runId =>
+            Assert.Contains(events, agentEvent => agentEvent.RunId == runId)
         );
     }
 

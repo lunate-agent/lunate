@@ -44,9 +44,8 @@ public sealed class ModelRouterRunTests
         Assert.Equal(2, requests.Count);
         Assert.Equal("fast", requests[0].Model);
         Assert.Equal("deep", requests[1].Model);
-        Assert.All(
-            requests,
-            request => Assert.Equal("Bearer " + TestSupport.Secret, request.Authorization)
+        Assert.All(requests, request =>
+            Assert.Equal("Bearer " + TestSupport.Secret, request.Authorization)
         );
         // The secret reaches the wire, never an extension-visible surface (the log here).
         Assert.DoesNotContain(
@@ -125,10 +124,8 @@ public sealed class ModelRouterRunTests
         await host.StartAsync(Ct);
         host.Runner.ModelRegistry.RegisterModelMiddleware(
             "test-breaker",
-            new ExtensionModelMiddleware(
-                ModelMiddlewareSlot.BeforeRouting,
-                0,
-                _ => throw new InvalidOperationException("breaker exploded")
+            new ExtensionModelMiddleware(ModelMiddlewareSlot.BeforeRouting, 0, _ =>
+                throw new InvalidOperationException("breaker exploded")
             )
         );
 
@@ -148,10 +145,11 @@ public sealed class ModelRouterRunTests
     {
         using var temp = new TempDirectory();
         await using var endpoint = new FakeOpenAiEndpoint();
-        await using var host = TestSupport.CreateHost(
-            temp,
-            endpoint,
-            configure: options => options with { TokenBudget = 15 }
+        await using var host = TestSupport.CreateHost(temp, endpoint, configure: options =>
+            options with
+            {
+                TokenBudget = 15,
+            }
         );
         await host.StartAsync(Ct);
         host.ComposeTools();
@@ -235,19 +233,16 @@ public sealed class ModelRouterRunTests
             RunStarted child = events
                 .OfType<RunStarted>()
                 .Single(started => started.ParentRunId is not null);
-            UsageUpdated usage = Assert.Single(
-                events.OfType<UsageUpdated>(),
-                update => update.RunId == child.RunId
+            UsageUpdated usage = Assert.Single(events.OfType<UsageUpdated>(), update =>
+                update.RunId == child.RunId
             );
             Assert.Equal("fast", usage.ModelId);
             Assert.Equal(11L, usage.Usage.InputTokenCount);
             Assert.Equal(4L, usage.Usage.OutputTokenCount);
-            Assert.Contains(
-                events.OfType<ModelRouted>(),
-                routed =>
-                    routed.RunId == child.RunId
-                    && routed.RequestedModel == "ext/model-router/auto"
-                    && routed.ResolvedModel == "fast"
+            Assert.Contains(events.OfType<ModelRouted>(), routed =>
+                routed.RunId == child.RunId
+                && routed.RequestedModel == "ext/model-router/auto"
+                && routed.ResolvedModel == "fast"
             );
             // The child's nested call is the tree's usage: charged to the child and rolled up.
             Assert.Equal(15L, harness.SubagentUsage.TokensUsed);

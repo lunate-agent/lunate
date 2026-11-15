@@ -108,8 +108,7 @@ internal sealed class ContainerExecutionEnvironment : IExecutionEnvironment, IAs
         _host = host ?? LocalHostCommandRunner.Instance;
         _guard = guard;
         _guardEnabled = guardEnabled;
-        _container =
-            containerName
+        _container = containerName
             ?? string.Create(
                 CultureInfo.InvariantCulture,
                 $"lunate-{Guid.NewGuid().ToString("N")[..12]}"
@@ -526,13 +525,12 @@ internal sealed class ContainerExecutionEnvironment : IExecutionEnvironment, IAs
     /// <summary>The creation failure on one line: the engine's first stderr line, or its exit code.</summary>
     private static string Reason(ProcessRunResult result)
     {
-        string line =
-            result
-                .Stderr.Split(
-                    '\n',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-                )
-                .FirstOrDefault()
+        string line = result
+            .Stderr.Split(
+                '\n',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            )
+            .FirstOrDefault()
             ?? string.Empty;
         if (line.Length == 0)
         {

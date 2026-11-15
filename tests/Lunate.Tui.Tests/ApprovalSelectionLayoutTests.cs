@@ -109,9 +109,8 @@ public sealed class ApprovalSelectionLayoutTests
             unicode: true
         );
 
-        Assert.All(
-            lines,
-            line => Assert.True(CellText.Width(line.Text) <= width, $"'{line.Text}' > {width}")
+        Assert.All(lines, line =>
+            Assert.True(CellText.Width(line.Text) <= width, $"'{line.Text}' > {width}")
         );
     }
 
@@ -149,14 +148,12 @@ public sealed class ApprovalSelectionLayoutTests
 
         Assert.True(lines.Length <= 12, $"the frame renders {lines.Length} rows");
         Assert.Contains(lines, line => line.Contains("Allow bash?", StringComparison.Ordinal));
-        Assert.Contains(
-            lines,
-            line => line.Contains("[y]es  > [n]o  [a]lways this session", StringComparison.Ordinal)
+        Assert.Contains(lines, line =>
+            line.Contains("[y]es  > [n]o  [a]lways this session", StringComparison.Ordinal)
         );
         Assert.Contains("  total: 42", lines);
-        Assert.DoesNotContain(
-            lines,
-            line => line.Contains("duration: 1s", StringComparison.Ordinal)
+        Assert.DoesNotContain(lines, line =>
+            line.Contains("duration: 1s", StringComparison.Ordinal)
         );
     }
 
@@ -186,9 +183,8 @@ public sealed class ApprovalSelectionLayoutTests
             ],
             legend
         );
-        Assert.Contains(
-            lines,
-            line => line.Text == "Allow bash?  [y]es  [n]o  > [a]lways this session"
+        Assert.Contains(lines, line =>
+            line.Text == "Allow bash?  [y]es  [n]o  > [a]lways this session"
         );
         Assert.Equal(ApprovalPart.Question, lines[^3].Part);
     }
@@ -214,13 +210,11 @@ public sealed class ApprovalSelectionLayoutTests
         string[] lines = [.. LiveAreaRenderer.Render(state).Lines];
 
         Assert.True(lines.Length <= 8, $"the frame renders {lines.Length} rows");
-        Assert.Contains(
-            lines,
-            line => line.Contains("[y]es  > [n]o  [a]lways this session", StringComparison.Ordinal)
+        Assert.Contains(lines, line =>
+            line.Contains("[y]es  > [n]o  [a]lways this session", StringComparison.Ordinal)
         );
-        Assert.DoesNotContain(
-            lines,
-            line => line.Contains("Space choose", StringComparison.Ordinal)
+        Assert.DoesNotContain(lines, line =>
+            line.Contains("Space choose", StringComparison.Ordinal)
         );
     }
 
