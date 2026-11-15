@@ -6,11 +6,12 @@ repository actually runs on, and this page is the path from a fresh clone to a m
 
 ## Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) — **exactly** the version pinned in
-  `global.json` (`10.0.402`, `rollForward: disable`, `allowPrerelease: false`). Install it with
-  `dotnet-install.sh --version 10.0.402` (`dotnet-install.ps1 -Version 10.0.402` on Windows).
+- [.NET 11 SDK](https://dotnet.microsoft.com/download) — **exactly** the version pinned in
+  `global.json` (`11.0.100`, `rollForward: disable`, `allowPrerelease: false`). Install it with
+  `dotnet-install.sh --version 11.0.100` (`dotnet-install.ps1 -Version 11.0.100` on Windows).
   A newer patch is not picked up automatically: Dependabot opens the bump as a PR against
-  `global.json`, and that PR runs the full gate.
+  `global.json`, and that PR runs the full gate — together with any gate fix the newer SDK needs,
+  because an SDK bundles targeting packs only for its own framework.
 - [Node.js](https://nodejs.org/) — runs the documentation lint through a pinned `npx`
 - [hyperfine](https://github.com/sharkdp/hyperfine) — measures the startup budget
 - `jq` — reads the performance and memory samples (`scripts/perf.sh`, `scripts/memory.sh`)
@@ -35,9 +36,10 @@ metadata (licence, readme, repository) inside the `.nupkg` itself, formats (CSha
 `dotnet format style` / `dotnet format analyzers`), lints the Markdown and diffs the public API. A
 change is not done until it is green — on the CI matrix, all three operating systems count.
 
-Prerequisite: the [.NET 10 SDK](https://dotnet.microsoft.com/download), pinned in
-[`global.json`](global.json) at 10.0.402 — exactly, as above. Running the built binary on a
-machine with no tool installed yet:
+Prerequisite: the [.NET 11 SDK](https://dotnet.microsoft.com/download), pinned in
+[`global.json`](global.json) at 11.0.100 — exactly, as above. The product targets `net10.0`; the SDK
+pinned to build it is the newer one, and it needs the .NET 10 targeting packs, which the SDK fetches
+from a feed in a normal build. Running the built binary on a machine with no tool installed yet:
 
 ```bash
 src/Lunate.Coding/bin/Release/net10.0/lunate --version   # lunate.exe on Windows

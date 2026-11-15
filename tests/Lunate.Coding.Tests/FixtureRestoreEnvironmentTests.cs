@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Lunate.TestSupport;
 
 namespace Lunate.Coding.Tests;
@@ -41,6 +42,79 @@ public sealed class FixtureRestoreEnvironmentTests
         // restore is a few seconds of work; it does not need one.
         Assert.Equal("0", environment["MSBUILDUSESERVER"]);
         Assert.Equal("false", environment["DOTNET_CLI_USE_MSBUILD_SERVER"]);
+    }
+
+    [Fact]
+    public void The_offline_configuration_names_the_machine_cache_as_a_fallback_folder()
+    {
+        using var temp = new TempDirectory();
+
+        string config = FixtureRestore.ConfigText(temp.Root);
+
+        // The fixtures carry no packages, so the source list stays empty: an SDK that does not bundle
+        // the targeting packs of the framework a fixture targets has to find them somewhere that is
+        // not a feed (#895). NuGet's fallback folder is that somewhere — read, never written.
+        Assert.Contains("<packageSources>", config, StringComparison.Ordinal);
+        Assert.Contains("<clear />", config, StringComparison.Ordinal);
+        Assert.Contains("<fallbackPackageFolders>", config, StringComparison.Ordinal);
+        Assert.Contains($"value=\"{temp.Root}\"", config, StringComparison.Ordinal);
+        Assert.DoesNotContain("http", config, StringComparison.OrdinalIgnoreCase);
+        // The child parses this as XML, so well-formedness is part of the contract too.
+        Assert.Equal("configuration", XDocument.Parse(config).Root!.Name.LocalName);
+    }
+
+    [Fact]
+    public void The_offline_configuration_uses_the_machines_package_folder()
+    {
+        string folder = FixtureRestore.MachinePackagesFolder();
+
+        Assert.True(Path.IsPathFullyQualified(folder), folder);
+        // The folder the text names is the one the child would read: a configuration that named a
+        // different folder would send a reader to the wrong cache.
+        string config = FixtureRestore.OfflineNuGetConfig();
+        if (Directory.Exists(folder))
+        {
+            Assert.Contains($"value=\"{folder}\"", config, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.DoesNotContain("fallbackPackageFolders", config, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void A_missing_machine_cache_is_not_named_as_a_fallback_folder()
+    {
+        using var temp = new TempDirectory();
+        string missing = Path.Combine(temp.Root, "no-such-package-folder");
+
+        string config = FixtureRestore.ConfigText(missing);
+
+        // NuGet fails a restore with NU1301 for a fallback folder that does not exist, which would
+        // replace "the pack is missing" with "the source is missing". The entry is simply not written.
+        Assert.DoesNotContain("fallbackPackageFolders", config, StringComparison.Ordinal);
+        Assert.DoesNotContain("no-such-package-folder", config, StringComparison.Ordinal);
+        Assert.Contains("<clear />", config, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_folder_name_the_xml_cannot_hold_is_escaped()
+    {
+        using var temp = new TempDirectory();
+        string awkward = Path.Combine(temp.Root, "home & refs");
+        Directory.CreateDirectory(awkward);
+
+        string config = FixtureRestore.ConfigText(awkward);
+
+        // A Windows profile can carry an ampersand; the configuration is XML, so the folder is text
+        // to escape rather than to paste.
+        Assert.Contains(
+            $"value=\"{awkward.Replace("&", "&amp;", StringComparison.Ordinal)}\"",
+            config,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain("value=\"" + awkward + "\"", config, StringComparison.Ordinal);
+        Assert.Equal("configuration", XDocument.Parse(config).Root!.Name.LocalName);
     }
 
     [Fact]
@@ -192,6 +266,18 @@ public sealed class FixtureRestoreEnvironmentTests
             $"TMPDIR={Path.Combine(temp.Root, ".tmp")}",
             description,
             StringComparison.Ordinal
+        );
+        // The one folder the restore may read from without a feed: a missing pack and a missing cache
+        // are the same NU1101, so the failure report has to name the cache it used (#895).
+        string machinePackages = FixtureRestore.MachinePackagesFolder();
+        Assert.Contains(
+            $"NuGet fallback folder: {machinePackages}",
+            description,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(
+            Directory.Exists(machinePackages),
+            !description.Contains("the configuration named none", StringComparison.Ordinal)
         );
     }
 }
