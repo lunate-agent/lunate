@@ -84,6 +84,11 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
   tree checks — `tree-checks.yml` on every push to `main` and the merge queue's `tree-checks` job,
   both calling `scripts/tree-checks.sh` — a docs-only push skips the matrix, so the push is the one
   place a stale region had no gate at all without them.
+- **The docs tree stays prose no build or test reads.** `scripts/no-docs-references.sh` fails when a
+  project item names a docs path, when a test that resolves the repository root names one, or when a
+  `File`/`Directory` call is made on one; it prints every allowance it applies — an in-memory fixture
+  path, a test that exists to read a page, or a docs path a test names only to exclude it from a scan.
+  It runs in the docs profile, in the platform checks and in the tree checks (see below).
 - **Links, anchors and redirects are checked.** `scripts/docs-check --check` resolves every relative
   link and `#anchor` on the user and maintainer pages, validates every redirect stub, and keeps
   `docs/docs.json` honest: the manifest's `navigation` lists every user-path page exactly once, and
@@ -100,8 +105,10 @@ Lunate keeps each kind of document in exactly one home. Start here, then jump to
 ## Verification gate
 
 `scripts/verify.sh` is the done-gate; [`../../CONTRIBUTING.md`](../../CONTRIBUTING.md) owns its step
-list. Its docs profile runs markdownlint, `scripts/docs-sync --check`, `scripts/docs-check --check`
-and the OpenSpec tree; the full profile also runs `scripts/docs-check --run` against the published
+list. Its docs profile runs markdownlint, `scripts/docs-sync --check`, `scripts/docs-check --check`,
+`scripts/no-docs-references.sh` and the OpenSpec tree; the full profile's platform checks run that
+same guard, so a test that starts reading a docs file is red on the pull request that adds it, and
+the full profile also runs `scripts/docs-check --run` against the published
 binary after the runnable examples exist. By default its test phase runs the solution-wide
 `dotnet test` the gate has always used, once per culture. Setting `LUNATE_VERIFY_JOBS=2` (or more)
 opts into a faster local mode: the default-culture and `de-AT` passes run at the same time, each

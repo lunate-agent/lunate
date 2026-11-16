@@ -271,7 +271,8 @@ jobs:
           fi
 
   # The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs
-  # regions, the docs link/navigation check and the docs lint -- on the tree the queue is about to
+  # regions, the docs link/navigation check, the guard that no build input or test reads the docs
+  # tree and the docs lint -- on the tree the queue is about to
   # land. Each pull request proved only its own tree against its own base (#840 took a free ADR-0036
   # while #843's full-profile gate never asked about ADR numbers), so the batch that combined them was
   # the first tree to carry a duplicate and nothing in the queue ran the check that catches it
@@ -306,8 +307,9 @@ jobs:
           echo "checking the batch's range ${BASE_SHA}...HEAD"
           bash scripts/tree-checks.sh --base "${BASE_SHA}"
 
-  # The platform-independent half of the gate: formatting, the generated docs regions, markdownlint,
-  # the public API, the OpenSpec tree and the two agent-hygiene checks. Running it once on Linux is
+  # The platform-independent half of the gate: formatting, the generated docs regions, the docs-tree
+  # guard, markdownlint, the public API, the OpenSpec tree and the two agent-hygiene checks. Running
+  # it once on Linux is
   # the point -- a Windows runner formatting the same source as a macOS runner was cost, not depth.
   # The OS legs skip these steps (VERIFY_SKIP_PLATFORM_CHECKS=1) and keep build, test, publish and
   # the artifact proofs, which genuinely differ per OS. A merge group skips this job too: its pull
@@ -732,6 +734,15 @@ jobs:
   # matrix to one result and the card must name the leg. scripts/nightly-issue.sh owns the decision
   # (the lowest open version milestone and the area label among it); its self-test runs in `plan`
   # with a stubbed gh.
+  #
+  # A red the repository cannot act on is named in the run, never filed (#922, #923): a job GitHub never
+  # acquired a hosted runner for concluded `cancelled` with an empty step list, the remedy is a rerun, and
+  # no card or comment is produced for it. When every red job is such a leg -- or the derived `ci-ok` and
+  # this job -- the reporter writes the abandoned legs into the summary and *fails*, and
+  # `.github/workflows/ci-capacity-retry.yml` reruns this run's failed jobs once when it completes. This
+  # job has to be one of those failures -- `rerun-failed-jobs` reruns only failures -- so that attempt two
+  # either goes green or says the retry is spent and a rerun is the remedy. `ci-ok` does not need this
+  # job, so the gate's verdict is unchanged.
   red-main-issue:
     name: red-main-issue
     needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
@@ -756,7 +767,7 @@ jobs:
             "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" \
             >"${RUNNER_TEMP}/jobs.json"
 
-      - name: File one card per failing job
+      - name: File one card per failing job, or defer a runner-capacity red
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -769,7 +780,8 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --run-url "${RUN_URL}" \
             --commit "${GITHUB_SHA}" \
-            --event "${EVENT_NAME}"
+            --event "${EVENT_NAME}" \
+            --attempt "${GITHUB_RUN_ATTEMPT}"
 
   # Single aggregate check for branch protection: the ruleset requires only
   # "ci-ok", so renaming, adding or removing a matrix leg cannot silently drop

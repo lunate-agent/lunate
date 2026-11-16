@@ -181,7 +181,6 @@ public sealed class TranscriptViewerRenderer
             TranscriptThinkingEntry thinking => ThinkingLines(thinking.Commit, columns),
             TranscriptToolEntry tool => _blocks.Lines(tool.Block, fullOutput: true, width: columns),
             TranscriptTreeRowEntry row => [TreeRow(row)],
-            _ => [],
         };
 
     /// <summary>

@@ -35,19 +35,26 @@ CodeQL schedule SHALL keep analyzing `main`.
 The checks whose result does not depend on the operating system — formatting, the generated
 documentation regions, the documentation link, anchor, redirect and navigation check
 (`scripts/docs-check --check`), markdownlint, the public API, `openspec validate --all --strict`, the
-scratch-path and spec-archive checks, and the packaging-file assertion — SHALL run once in a single
+scratch-path and spec-archive checks, the docs-tree guard (`scripts/no-docs-references.sh`) and the
+packaging-file assertion — SHALL run once in a single
 Linux job that the aggregate gate requires; an OS leg SHALL NOT repeat them. Each OS leg SHALL keep
 the checks whose result is a property of that machine: build, test, publish, the startup budget and
 the artifact proofs.
 
 The tree checks — ADR numbering, the spec-archive rule, the generated documentation regions, the
-documentation link, anchor, redirect and navigation check, and markdownlint — SHALL run in one job on
+documentation link, anchor, redirect and navigation check, the docs-tree guard, and markdownlint —
+SHALL run in one job on
 a `merge_group` run, judged against the batch's base commit. The batch is the first tree on which two
 pull requests meet, and each pull request proved only its own tree against its own base, so only the
 queue can see a rule both of them break together. The same command list SHALL be what the push to
 `main` runs, so the two triggers cannot drift. The job SHALL need no build and no test, and it SHALL
 take the batch's full history and its release tags, because the spec-archive check diffs the batch's
 range and the version region is derived from the tags.
+
+Because a docs-only push skips the matrix and a code pull request never runs the documentation
+profile, the docs-tree guard SHALL be part of the platform checks **and** of the shared tree-check
+command list: a test that reads the docs tree is red on the pull request that adds it, and the push
+that lands it cannot carry the failure unseen.
 
 Pushes that touch only documentation MAY skip the matrix but SHALL still run the documentation lint
 and the documentation link, anchor, redirect and navigation check.
@@ -121,6 +128,12 @@ and the documentation link, anchor, redirect and navigation check.
 - **GIVEN** a pull request that selects the full gate
 - **WHEN** the run completes
 - **THEN** the formatting, docs, public-API and OpenSpec checks ran in exactly one job, and each OS leg ran them zero times
+
+#### Scenario: A test that reads the docs tree is red before review
+- **GIVEN** a pull request that adds a test which opens a file under `docs/`
+- **WHEN** the pull request's full gate runs
+- **THEN** the platform checks fail naming the test's line, so the read is caught before review and
+  again by the tree checks on the push to `main`
 
 #### Scenario: A broken documentation link cannot land
 
@@ -691,6 +704,35 @@ and the run link, or comment on the already-open issue for that job instead of f
 reporter SHALL key the duplicate check on the job's title, so a week of red runs for the same failing
 job is one open card. A green run SHALL file nothing.
 
+A job that never started is not a red job of the repository's build or tests: a job whose conclusion is
+`cancelled`, whose `runner_id` is `0` and whose `steps` list is present and empty was never acquired by a
+runner, so the reporter SHALL treat it as not red, file no card and post no comment for it on the
+strength of this requirement, and SHALL name it, with the run link, in the run's own log and job summary,
+so the red run is still visible even when another job of the same run files. All three conditions SHALL
+hold, because each alone is ambiguous: a job cancelled by a superseding run also has no steps, and a
+started job can still report `runner_id: 0`. The rule SHALL NOT cover a job that ran and did not pass: a
+`cancelled` job that reached at least one step, a `failure`, a `timed_out` and every other red conclusion
+SHALL still file, and a job whose `steps` list or `runner_id` is missing or unreadable SHALL be treated as
+red, so the rule fails closed instead of passing on a document it cannot read.
+
+A run whose red jobs never reached a machine SHALL be a capacity red, not a code red: GitHub cancels a
+job when it never acquires a hosted runner for it, so nothing the repository builds or tests has run and
+no step exists to triage. The two jobs whose result is derived from the others' — the `ci-ok` aggregate
+and this reporter — SHALL be allowed beside the abandoned jobs, because they fail exactly because a leg
+did not succeed; they SHALL NOT be named as abandoned jobs themselves, and no card and no comment SHALL
+be produced for them as part of a capacity red. One red job that ran and is neither of those SHALL make
+the run an ordinary red.
+
+The reporter SHALL NOT open a card for a capacity red, in any attempt: it SHALL record the abandoned jobs
+and what it saw in the run's job summary, SHALL fail while the retry budget is unspent, because the retry
+reruns only failed jobs and the reporter has to be one of them to observe the retry, and SHALL succeed at
+the budget with the summary naming the rerun as the remedy. The pipeline SHALL retry a capacity red's
+failed jobs once, from a workflow triggered when the run completes, because a run cannot rerun itself
+while it is in progress, and the retry SHALL be limited to a `push` to `main` and the nightly, the events
+that run the full matrix and that this requirement reports on. The budget SHALL be one retry: a run at
+its second attempt SHALL NOT be retried again, so a runner shortage costs one extra attempt rather than a
+loop. A red job that ran SHALL NEVER be retried this way, so no failure that executed is retried away.
+
 The issue SHALL be placed in the lowest-numbered open milestone whose title is a version
 (`MAJOR.MINOR.PATCH`), read from the GitHub API so the rule works on a GitHub runner from repository
 state alone. A release closes its milestone, so the next lowest open version becomes the target without
@@ -717,6 +759,66 @@ when it does not.
 - **GIVEN** a nightly run in which `verify (windows-latest, 2/4)` failed
 - **WHEN** the reporter runs
 - **THEN** it opens a `kind/bug` issue whose title names `verify (windows-latest, 2/4)` and whose body carries the run link
+
+#### Scenario: A job no runner ever acquired files nothing (#922)
+
+- **GIVEN** a `push` run on `main` whose `perf (macos-latest)` job concluded `cancelled` with `runner_id: 0` and an empty `steps` list, because the hosted runner was never acquired after multiple attempts
+- **WHEN** the reporter runs
+- **THEN** it files no card and posts no comment for that job, and the run's log names the job and the run link
+
+#### Scenario: A run whose only red jobs never started files nothing
+
+- **GIVEN** a push run in which every red job concluded `cancelled` with `runner_id: 0` and an empty `steps` list
+- **WHEN** the reporter runs
+- **THEN** it creates and comments on no issue, and the run's log says the jobs never got a runner and that a rerun is the remedy
+
+#### Scenario: A cancellation that started stays red
+
+- **GIVEN** a nightly run whose `verify (macos-latest, 2/2)` job concluded `cancelled` after reaching its first step, and a push run whose `perf (macos-latest)` job concluded `cancelled` with no `steps` field at all
+- **WHEN** the reporter runs on each
+- **THEN** both file a card, because neither is evidence of a job that never started
+
+#### Scenario: A cancellation that held a runner stays red
+
+- **GIVEN** a job concluded `cancelled` with an empty `steps` list and `runner_id: 7`, as a superseding run leaves it, and a job concluded `cancelled` with an empty `steps` list and no `runner_id` at all
+- **WHEN** the reporter runs on each
+- **THEN** both file a card, because an empty step list alone is not evidence that no runner was acquired
+
+#### Scenario: A real failure beside an unstarted job still files
+
+- **GIVEN** a push run in which `verify (macos-latest, 1/2)` concluded `cancelled` with `runner_id: 0` and an empty `steps` list and `verify (windows-latest, 2/4)` failed
+- **WHEN** the reporter runs
+- **THEN** it files exactly one card, naming `verify (windows-latest, 2/4)`, and the run's log names `verify (macos-latest, 1/2)` together with the run link
+
+#### Scenario: A leg that never acquired a runner is retried, not reported
+
+- **GIVEN** a `push` run on `main` in which `verify (macos-latest, 1/2)` and `perf (macos-latest)` were cancelled before any step started, and every job that ran succeeded
+- **WHEN** the reporter runs at the run's first attempt
+- **THEN** it opens no card, names the abandoned legs in the run's job summary, and the run's failed jobs are retried once
+
+#### Scenario: A capacity red that survives the retry names the rerun and files nothing
+
+- **GIVEN** the retry of that run in which the same legs were cancelled before any step started
+- **WHEN** the reporter runs at the second attempt
+- **THEN** it opens and comments on no card, and the run's job summary says the retry is spent and that a rerun is the remedy
+
+#### Scenario: The derived jobs are never named as abandoned legs
+
+- **GIVEN** a capacity red in which `ci-ok` and `red-main-issue` are red because the abandoned legs did not succeed
+- **WHEN** the reporter runs
+- **THEN** the run's job summary names neither job, and neither `CI failed: ci-ok` nor `CI failed: red-main-issue` is filed
+
+#### Scenario: A leg that never started is named beside the card a run files
+
+- **GIVEN** a red run in which `verify (macos-latest, 1/2)` was cancelled before any step started and `verify (ubuntu-latest, 2/4)` started a step and failed
+- **WHEN** the reporter runs
+- **THEN** it files the card for `verify (ubuntu-latest, 2/4)` and the run's job summary names `verify (macos-latest, 1/2)` with the run link
+
+#### Scenario: A job that ran is never retried away
+
+- **GIVEN** a red run in which at least one red job started a step and failed
+- **WHEN** the reporter and the retry decision run
+- **THEN** the run is not retried and that job's card is filed as before
 
 #### Scenario: The card takes the lowest open version milestone
 
@@ -791,3 +893,35 @@ SHALL be produced by one helper, so they cannot drift apart.
 - **WHEN** either writes its `NuGet.config`
 - **THEN** both texts come from the same helper, name no network source, and name the same fallback
   folder
+
+### Requirement: Docs-tree guard
+
+`scripts/no-docs-references.sh` SHALL fail when the docs tree becomes a build input or a test's
+subject: a project, props, targets or solution item that names a docs path; a test that resolves the
+repository root and names a docs path; or a `File`/`Directory` call on a docs path. It SHALL accept a
+docs reference that a test names without reading it — a value the test compares with or excludes from
+a scan — only through a committed allowance that names the file and the exact reference, and it SHALL
+print every allowance it applies, so an exception is never silent. Any other docs reference in that
+file, and any read call on the allowed line, SHALL still fail. It SHALL also accept an in-memory
+fixture path or a rendered value, printing that allowance, and SHALL fail when it scanned no test
+source at all, because a scan that finds nothing cannot fail.
+
+#### Scenario: A named but unread docs path is not a read
+- **GIVEN** a test that resolves the repository root and names `docs/dev/spikes` only as a directory its scan excludes
+- **WHEN** `scripts/no-docs-references.sh` runs
+- **THEN** it prints the allowance and passes, because the reference is never opened
+
+#### Scenario: A second docs path in the allowed file still fails
+- **GIVEN** the same test file also names another docs path
+- **WHEN** the guard runs
+- **THEN** it fails naming that line, so the allowance cannot hide a read
+
+#### Scenario: A read of the allowed reference fails
+- **GIVEN** a file in which the allowed reference appears inside a `File` or `Directory` call
+- **WHEN** the guard runs
+- **THEN** it fails with the read message, because a read is a read whatever the allowance names
+
+#### Scenario: The guard runs in the docs profile and the full gate
+- **GIVEN** the repository verification gate runs with `--profile docs`, `--profile full` or `--profile platform`
+- **WHEN** the gate reaches its docs checks
+- **THEN** `scripts/no-docs-references.sh` runs and a read it reports turns the run red

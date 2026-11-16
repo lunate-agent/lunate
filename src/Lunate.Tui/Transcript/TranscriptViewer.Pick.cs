@@ -242,7 +242,11 @@ internal sealed partial class TranscriptViewer
         }
     }
 
-    /// <summary>A filter matches an entry's own text: a user message's text or an assistant paragraph.</summary>
+    /// <summary>
+    /// A filter matches an entry's own text: a user message's text or an assistant paragraph. A
+    /// thinking or tool entry carries no text of its own, so it never matches; the fixed set of
+    /// entries is why the switch needs no fallback arm.
+    /// </summary>
     private static bool Matches(TranscriptEntry entry, string filter) =>
         entry switch
         {
@@ -258,7 +262,7 @@ internal sealed partial class TranscriptViewer
                 filter,
                 StringComparison.OrdinalIgnoreCase
             ) || row.Id.Contains(filter, StringComparison.OrdinalIgnoreCase),
-            _ => false,
+            TranscriptThinkingEntry or TranscriptToolEntry => false,
         };
 
     /// <summary>The pick mode's state: the full model, the pickable rows, the selection and filter.</summary>
