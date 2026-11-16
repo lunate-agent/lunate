@@ -163,9 +163,9 @@ Verdict against the 150 MB gate (ADR-0009):
   100 MB target stay as they are; the retarget does not re-calibrate them.
 - The published single-file **ReadyToRun** shape is above the gate in both runtimes (298 MB net10,
   353 MB net11). The excess is the mapped ReadyToRun images of the uncompressed bundle, not the
-  session: the same net11 host without ReadyToRun maps 143 MB of bundle and peaks at 85 MB, and the
+  session: the same net11 host without ReadyToRun maps 137 MiB of bundle and peaks at 85 MB, and the
   framework-dependent host peaks at 88 MB. The retarget moves this row by 55 MB (+18%) because the
-  bundle grew 395 → 460 MB, tracking the row rather than the session.
+  bundle grew 377 → 439 MiB, tracking the row rather than the session.
 
 ADR-0009 gated the idle TUI at 150 MB against the S-5 shell baseline before the shipped stack and the
 ReadyToRun R2R bundle existed; the shipped session now has a subject, and the number that represents
