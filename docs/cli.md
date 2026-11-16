@@ -92,7 +92,7 @@ These apply to the interactive session and to print mode.
 | `--env <engine:image>` | run process-backed tools in one `docker` or `podman` container: `docker:<image>` or `podman:<image>`, wins over the `environment` setting ([Run tool calls in a container](execution-environments.md)) |
 | `--offline` | skip the daily update check for this run |
 | `--fullscreen` | run the session on the alternate screen; inline is the default ([Full screen](full-screen.md)) |
-| `--theme <name\|path>` | paint with `default`, `ansi16` or `mono`, or read the token file at `<path>` instead of the home `theme.json` ([Themes](themes.md)) |
+| `--theme <name\|path>` | paint with `default`, `dark`, `light`, `ansi16` or `mono`, or read the token file at `<path>` instead of the home `theme.json` ([Themes](themes.md)) |
 | `--system-prompt <text>` | replace the composed system prompt wholesale, including the tool-call conventions: the caller owns them |
 | `--append-system-prompt <text>` | append a section after the composed system prompt |
 

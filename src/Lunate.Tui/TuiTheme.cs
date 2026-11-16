@@ -3,20 +3,21 @@ using Spectre.Console;
 namespace Lunate.Tui;
 
 /// <summary>
-/// A theme: a name and the ten semantic tokens mapped to colours. The three built-ins are
-/// <c>default</c> (the palette the surfaces shipped with), <c>ansi16</c> (named ANSI colours only,
-/// for a sixteen-colour terminal) and <c>mono</c> (no colour, emphasis by weight only). A user file
-/// overlays tokens onto whichever built-in is selected; <see cref="Plan"/> still caps the colour
-/// depth, so <c>NO_COLOR</c> and the detection rules win and a theme can only lower the depth,
-/// never raise it back.
+/// A theme: a name and the ten semantic tokens mapped to colours. The built-ins are
+/// <c>default</c> and <c>dark</c> (the palette the surfaces shipped with, for a dark-background
+/// terminal), <c>light</c> (dark ANSI inks, for a light-background terminal), <c>ansi16</c> (named
+/// ANSI colours only, for a sixteen-colour terminal) and <c>mono</c> (no colour, emphasis by weight
+/// only). A user file overlays tokens onto whichever built-in is selected; <see cref="Plan"/> still
+/// caps the colour depth, so <c>NO_COLOR</c> and the detection rules win and a theme can only lower
+/// the depth, never raise it back.
 /// </summary>
 internal sealed class TuiTheme
 {
     /// <summary>The named selection a setting or a flag accepts, for an error message.</summary>
-    internal const string Literals = "'default', 'ansi16' or 'mono'";
+    internal const string Literals = "'default', 'dark', 'light', 'ansi16' or 'mono'";
 
     /// <summary>The built-in theme names, in documentation order.</summary>
-    internal static readonly string[] Names = ["default", "ansi16", "mono"];
+    internal static readonly string[] Names = ["default", "dark", "light", "ansi16", "mono"];
 
     private readonly IReadOnlyDictionary<ThemeToken, ThemeColor> _tokens;
 
@@ -30,6 +31,19 @@ internal sealed class TuiTheme
 
     /// <summary>The palette the surfaces shipped with, now behind the tokens.</summary>
     internal static TuiTheme Default { get; } = Build("default", SixteenColourDefaults());
+
+    /// <summary>
+    /// The shipped palette under the name that says what it is for: the same tokens as
+    /// <see cref="Default"/>, selected by a user who wants to name the dark background explicitly.
+    /// </summary>
+    internal static TuiTheme Dark { get; } = Build("dark", SixteenColourDefaults());
+
+    /// <summary>
+    /// Dark ANSI inks for a light-background terminal, where the shipped palette's pastels wash
+    /// out. Named colours render as their names at every depth, so the palette stays legible on a
+    /// sixteen-colour terminal too.
+    /// </summary>
+    internal static TuiTheme Light { get; } = Build("light", LightDefaults());
 
     /// <summary>Named ANSI colours only: the selection for a sixteen-colour terminal.</summary>
     internal static TuiTheme Ansi16 { get; } =
@@ -56,7 +70,7 @@ internal sealed class TuiTheme
     /// <summary>Parses the exact built-in name; a path is not a theme name.</summary>
     internal static bool TryGet(string? name, out TuiTheme theme)
     {
-        foreach (TuiTheme candidate in new[] { Default, Ansi16, Mono })
+        foreach (TuiTheme candidate in new[] { Default, Dark, Light, Ansi16, Mono })
         {
             if (string.Equals(name, candidate.Name, StringComparison.Ordinal))
             {
@@ -150,5 +164,26 @@ internal sealed class TuiTheme
             [ThemeToken.Code] = ThemeColor.Named(14),
             [ThemeToken.DiffAdd] = ThemeColor.Named(2),
             [ThemeToken.DiffRemove] = ThemeColor.Named(9),
+        };
+
+    /// <summary>
+    /// The light-background palette: the dark half of the ANSI sixteen, because a light terminal
+    /// needs dark inks where the shipped palette has pastels. Named colours render as their names
+    /// at every depth, so no token needs a separate fallback.
+    /// </summary>
+    private static Dictionary<ThemeToken, ThemeColor> LightDefaults() =>
+        new()
+        {
+            [ThemeToken.Accent] = ThemeColor.Named(6),
+            [ThemeToken.Muted] = ThemeColor.Named(8),
+            [ThemeToken.Error] = ThemeColor.Named(1),
+            [ThemeToken.Success] = ThemeColor.Named(2),
+            // Yellow (11) disappears on white; olive is its dark half.
+            [ThemeToken.Warning] = ThemeColor.Named(3),
+            [ThemeToken.Code] = ThemeColor.Named(4),
+            [ThemeToken.DiffAdd] = ThemeColor.Named(2),
+            [ThemeToken.DiffRemove] = ThemeColor.Named(1),
+            [ThemeToken.Prompt] = ThemeColor.Named(4),
+            [ThemeToken.Notice] = ThemeColor.Named(5),
         };
 }

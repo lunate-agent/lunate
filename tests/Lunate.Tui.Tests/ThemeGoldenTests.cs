@@ -4,9 +4,10 @@ namespace Lunate.Tui.Tests;
 
 /// <summary>
 /// One transcript under each built-in theme: the same words in the same layout, with only the
-/// colours the theme maps changing — <c>default</c> paints the palette's hex and named values,
-/// <c>ansi16</c> only names the sixteen, and <c>mono</c> emits no colour attribute at all. Also
-/// the capability downgrade a user token goes through: hex to 256, to the sixteen, to nothing.
+/// colours the theme maps changing — <c>default</c> and <c>dark</c> paint the palette's hex and
+/// named values, <c>light</c> names the dark inks for a light background, <c>ansi16</c> only names
+/// the sixteen, and <c>mono</c> emits no colour attribute at all. Also the capability downgrade a
+/// user token goes through: hex to 256, to the sixteen, to nothing.<br/>
 /// Regenerate deliberately with
 /// <c>LUNATE_TUI_UPDATE_GOLDENS=1 dotnet test --project tests/Lunate.Tui.Tests</c>.
 /// </summary>
@@ -15,7 +16,8 @@ public sealed class ThemeGoldenTests
     private static string GoldensDirectory =>
         Path.Combine(TestPaths.RepositoryRoot, "tests", "Lunate.Tui.Tests", "fixtures", "themes");
 
-    public static TheoryData<string> BuiltIns => new() { "default", "ansi16", "mono" };
+    public static TheoryData<string> BuiltIns =>
+        new() { "default", "dark", "light", "ansi16", "mono" };
 
     [Theory]
     [MemberData(nameof(BuiltIns))]

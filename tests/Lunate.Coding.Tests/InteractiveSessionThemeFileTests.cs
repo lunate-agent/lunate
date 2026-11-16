@@ -132,6 +132,48 @@ public sealed class InteractiveSessionThemeFileTests
     }
 
     [Fact]
+    public async Task The_light_theme_paints_dark_inks_and_the_file_keeps_the_rest()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            environment: TrueColorEnvironment,
+            launch: new LaunchOptions { Theme = "light" }
+        );
+        WriteHomeTheme(host, """{"muted":"#ff0000"}""");
+
+        Task run = host.RunAsync();
+
+        // The light palette's prompt is navy, a named colour the frame paints as its 256-colour
+        // entry; the shipped palette's prompt is the pastel hex, so the two are told apart.
+        await host.WaitUntilAsync(Painted(host, "\u001b[38;5;4m"));
+        Assert.DoesNotContain("\u001b[38;2;135;175;215m", host.LastFrame, StringComparison.Ordinal);
+
+        // The file still overlays one token — the footer's muted tone — while the light prompt
+        // stands, so the file replaces tokens on the light palette instead of the whole theme.
+        await host.WaitUntilAsync(Painted(host, "\u001b[38;2;255;0;0m"));
+        Assert.Contains("\u001b[38;5;4m", host.LastFrame, StringComparison.Ordinal);
+
+        await QuitAsync(host, run);
+    }
+
+    [Fact]
+    public async Task The_tui_theme_setting_selects_the_light_palette()
+    {
+        using var host = new InteractiveSessionHost(
+            interactiveConsole: true,
+            environment: TrueColorEnvironment
+        );
+        WriteSettings(host, """{"schemaVersion": 2, "tui": {"theme": "light"}}""");
+
+        Task run = host.RunAsync();
+
+        await host.WaitUntilAsync(Painted(host, "\u001b[38;5;4m"));
+        Assert.DoesNotContain("\u001b[38;2;135;175;215m", host.LastFrame, StringComparison.Ordinal);
+
+        await QuitAsync(host, run);
+    }
+
+    [Fact]
     public async Task A_theme_flag_path_keeps_the_tui_theme_setting_as_its_base()
     {
         string flagPath = ScratchTheme("""{"prompt":"colour:208"}""");

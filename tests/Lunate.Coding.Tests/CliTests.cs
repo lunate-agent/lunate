@@ -1102,6 +1102,8 @@ public sealed class CliTests
         // No flag keeps the resolved tui.theme setting; the flag names a built-in or a token file.
         Assert.Null(Parse().Theme);
         Assert.Equal("ansi16", Parse("--theme", "ansi16").Theme);
+        Assert.Equal("light", Parse("--theme", "light").Theme);
+        Assert.Equal("dark", Parse("--theme", "dark").Theme);
         Assert.Equal("mine.json", Parse("--theme=mine.json").Theme);
     }
 

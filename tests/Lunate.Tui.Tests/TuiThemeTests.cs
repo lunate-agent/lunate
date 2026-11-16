@@ -3,18 +3,21 @@ using Spectre.Console;
 namespace Lunate.Tui.Tests;
 
 /// <summary>
-/// The named themes the <c>/settings</c> surface offers: <c>default</c> keeps whatever the
-/// terminal reports, <c>ansi16</c> pins the high-contrast sixteen-colour system, and <c>mono</c>
-/// drops every attribute — the no-colour theme. <c>NO_COLOR</c> wins over any of them: a plan can
-/// only lower the colour depth, never raise it back.
+/// The named themes the <c>/settings</c> surface offers: <c>default</c> and <c>dark</c> paint the
+/// shipped palette and keep whatever the terminal reports, <c>light</c> paints dark inks for a
+/// light-background terminal, <c>ansi16</c> pins the high-contrast sixteen-colour system, and
+/// <c>mono</c> drops every attribute — the no-colour theme. <c>NO_COLOR</c> wins over any of them:
+/// a plan can only lower the colour depth, never raise it back.
 /// </summary>
 public sealed class TuiThemeTests
 {
     [Theory]
     [InlineData("default")]
+    [InlineData("dark")]
+    [InlineData("light")]
     [InlineData("ansi16")]
     [InlineData("mono")]
-    public void The_three_named_themes_resolve(string name) =>
+    public void The_five_named_themes_resolve(string name) =>
         Assert.True(TuiTheme.TryGet(name, out _));
 
     [Fact]
@@ -23,7 +26,89 @@ public sealed class TuiThemeTests
     [Fact]
     public void The_theme_names_are_the_accepted_setting_literals()
     {
-        Assert.Equal("'default', 'ansi16' or 'mono'", TuiTheme.Literals);
+        Assert.Equal("'default', 'dark', 'light', 'ansi16' or 'mono'", TuiTheme.Literals);
+        Assert.Equal(["default", "dark", "light", "ansi16", "mono"], TuiTheme.Names);
+    }
+
+    [Theory]
+    [InlineData(ColorSystemSupport.Detect)]
+    [InlineData(ColorSystemSupport.TrueColor)]
+    [InlineData(ColorSystemSupport.EightBit)]
+    public void Dark_paints_exactly_the_default_palette(ColorSystemSupport color)
+    {
+        Assert.Equal("dark", TuiTheme.Dark.Name);
+
+        foreach (ThemeToken token in ThemeTokens.All)
+        {
+            Assert.Equal(
+                TuiTheme.Default.Span(token, color).Color,
+                TuiTheme.Dark.Span(token, color).Color
+            );
+            Assert.Equal(
+                TuiTheme.Default.Wrap(token, "text", color),
+                TuiTheme.Dark.Wrap(token, "text", color)
+            );
+        }
+    }
+
+    [Fact]
+    public void Light_paints_dark_inks_where_the_shipped_palette_has_pastels()
+    {
+        Assert.Equal("light", TuiTheme.Light.Name);
+
+        foreach (ThemeToken token in ThemeTokens.All)
+        {
+            Assert.NotNull(TuiTheme.Light.Span(token, ColorSystemSupport.TrueColor).Color);
+        }
+
+        // The tokens whose dark-palette value is a pastel wash out on a light background, so the
+        // light palette names the dark half of the ANSI set instead.
+        Assert.Equal(
+            "teal",
+            TuiTheme.Light.Span(ThemeToken.Accent, ColorSystemSupport.TrueColor).Color
+        );
+        Assert.Equal(
+            "grey",
+            TuiTheme.Light.Span(ThemeToken.Muted, ColorSystemSupport.TrueColor).Color
+        );
+        Assert.Equal(
+            "olive",
+            TuiTheme.Light.Span(ThemeToken.Warning, ColorSystemSupport.TrueColor).Color
+        );
+        Assert.Equal(
+            "navy",
+            TuiTheme.Light.Span(ThemeToken.Code, ColorSystemSupport.TrueColor).Color
+        );
+        Assert.Equal(
+            "purple",
+            TuiTheme.Light.Span(ThemeToken.Notice, ColorSystemSupport.TrueColor).Color
+        );
+        Assert.NotEqual(
+            TuiTheme.Dark.Span(ThemeToken.Accent, ColorSystemSupport.TrueColor).Color,
+            TuiTheme.Light.Span(ThemeToken.Accent, ColorSystemSupport.TrueColor).Color
+        );
+    }
+
+    [Theory]
+    [InlineData(ColorSystemSupport.Detect)]
+    [InlineData(ColorSystemSupport.TrueColor)]
+    [InlineData(ColorSystemSupport.EightBit)]
+    [InlineData(ColorSystemSupport.Standard)]
+    public void The_palette_themes_keep_the_detected_colour_system(ColorSystemSupport detected)
+    {
+        Assert.Equal(detected, TuiTheme.Dark.Plan(detected));
+        Assert.Equal(detected, TuiTheme.Light.Plan(detected));
+    }
+
+    [Fact]
+    public void The_palette_themes_never_raise_colour_above_no_colour()
+    {
+        Assert.Equal(ColorSystemSupport.NoColors, TuiTheme.Dark.Plan(ColorSystemSupport.NoColors));
+        Assert.Equal(ColorSystemSupport.NoColors, TuiTheme.Light.Plan(ColorSystemSupport.NoColors));
+        foreach (ThemeToken token in ThemeTokens.All)
+        {
+            Assert.Null(TuiTheme.Light.Span(token, ColorSystemSupport.NoColors).Color);
+        }
     }
 
     [Fact]
@@ -71,6 +156,8 @@ public sealed class TuiThemeTests
 
     [Theory]
     [InlineData("default")]
+    [InlineData("dark")]
+    [InlineData("light")]
     [InlineData("ansi16")]
     public void The_colour_themes_map_all_ten_tokens(string name)
     {
