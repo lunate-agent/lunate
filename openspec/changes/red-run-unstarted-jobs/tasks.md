@@ -23,4 +23,4 @@
       for the shell checks that run without a publish) stay green.
 - [x] 3.2 `openspec validate red-run-unstarted-jobs --type change --strict` and
       `openspec validate --all --strict` pass.
-- [ ] 3.3 Sync the delta spec and archive the change as the branch's last commit.
+- [x] 3.3 Sync the delta spec and archive the change as the branch's last commit.
