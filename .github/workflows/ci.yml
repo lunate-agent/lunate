@@ -23,7 +23,8 @@ on:
   merge_group:
   # The nightly run keeps the path-filtered PowerShell leg honest: a Windows-only regression that
   # arrives through a path the filter does not name still lands within a day, not at the next tag.
-  # A red nightly files its own issue (kind/bug, 0.3) so it cannot sit unnoticed.
+  # A red nightly and a red push to main each file their own issue (kind/bug) so a failure cannot sit
+  # unnoticed.
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
@@ -722,17 +723,19 @@ jobs:
           BUDGET_MS: ${{ matrix.budget_ms }}
         run: bash scripts/perf.sh "artifacts/publish/${{ matrix.rid }}/lunate"
 
-  # A red nightly is the safety net for everything the fast gate and the merge queue no longer run:
-  # Windows, macOS, the PowerShell twin and the perf measurement. It files its own kind/bug card per
-  # failing job so a regression cannot sit unnoticed until the next tag, and the next red night for
-  # the same job comments on the open card instead of filing a duplicate. The report reads the run's
-  # jobs through the API rather than `needs`, because `needs.verify` collapses the matrix to one
-  # result and the card must name the leg. scripts/nightly-issue.sh owns the decision; its self-test
-  # runs in `plan` with a stubbed gh.
-  nightly-issue:
-    name: nightly-issue
+  # A red run on main is the safety net for everything the fast gate and the merge queue no longer
+  # run: Windows, macOS, the PowerShell twin and the perf measurement. It reports on the nightly and
+  # on a push to main, the two events that run that set (#831): a red push files its own kind/bug card
+  # per failing job instead of waiting to be noticed by hand (#888's macOS failure on a push), and the
+  # next red run for the same job comments on the open card instead of filing a duplicate. The report
+  # reads the run's jobs through the API rather than `needs`, because `needs.verify` collapses the
+  # matrix to one result and the card must name the leg. scripts/nightly-issue.sh owns the decision
+  # (the lowest open version milestone and the area label among it); its self-test runs in `plan`
+  # with a stubbed gh.
+  red-main-issue:
+    name: red-main-issue
     needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
-    if: always() && github.event_name == 'schedule'
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'push')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -758,13 +761,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           bash scripts/nightly-issue.sh \
             --jobs-json "${RUNNER_TEMP}/jobs.json" \
             --repo "${GITHUB_REPOSITORY}" \
             --run-url "${RUN_URL}" \
-            --commit "${GITHUB_SHA}"
+            --commit "${GITHUB_SHA}" \
+            --event "${EVENT_NAME}"
 
   # Single aggregate check for branch protection: the ruleset requires only
   # "ci-ok", so renaming, adding or removing a matrix leg cannot silently drop
@@ -772,8 +777,8 @@ jobs:
   # instead of a skipped (missing) check; skipped or cancelled legs are not
   # success. No path filters exist on pull_request, so no path filter can
   # leave this check pending on a PR; new top-level verification jobs must be
-  # added to "needs" here to stay covered. `nightly-issue` is deliberately not
-  # a needed job: it reports a red night, it is not a gate.
+  # added to "needs" here to stay covered. `red-main-issue` is deliberately not
+  # a needed job: it reports a red run on main, it is not a gate.
   #
   # The plan decides WHICH legs and which matrix the event needs; this job decides whether the run
   # that actually happened is that gate, and it fails closed on a profile it cannot read. The legs

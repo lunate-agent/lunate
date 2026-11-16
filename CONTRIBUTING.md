@@ -205,9 +205,14 @@ ADR-0036 and `#843`'s full-profile gate never asked about ADR numbers, so their 
 `main` while both pull requests were green. `ci-ok` requires the `tree-checks` job, so a batch that
 carries a duplicate is ejected instead of merged. The full matrix — Ubuntu, Windows and macOS with
 every shard, the PowerShell twin and the dedicated perf measurement — runs on a push to `main` and the
-nightly; CodeQL runs on a push to `main` and its weekly schedule, not on a pull request. A red
-nightly files one `kind/bug` card per failing job in milestone `0.4.0`, naming the job and the run
-link, and comments on the open card for that job instead of filing a duplicate.
+nightly; CodeQL runs on a push to `main` and its weekly schedule, not on a pull request. A red push
+to `main` and a red nightly each file one `kind/bug` card per failing job, naming the job and the run
+link, and comment on the open card for that job instead of filing a duplicate. The card takes the
+lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its milestone, so the
+next version becomes the target), read from the GitHub API, and an `area/tui` or `area/core` label only
+when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a `Lunate.Coding` test is
+`area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a job that fails without
+a failing test in those projects carries no area label.
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the
