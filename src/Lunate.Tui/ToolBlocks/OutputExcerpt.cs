@@ -64,16 +64,11 @@ internal static class OutputExcerpt
         };
     }
 
-    private static List<OutputExcerptLine> Whole(string[] lines)
-    {
-        var result = new List<OutputExcerptLine>(lines.Length);
-        foreach (string line in lines)
-        {
-            result.Add(new OutputExcerptLine(line, false));
-        }
-
-        return result;
-    }
+    private static List<OutputExcerptLine> Whole(string[] lines) =>
+        [
+            with(capacity: lines.Length),
+            .. lines.Select(static line => new OutputExcerptLine(line, false)),
+        ];
 
     private static List<OutputExcerptLine> Tail(string[] lines, bool unicode)
     {
@@ -82,32 +77,24 @@ internal static class OutputExcerpt
             return Whole(lines);
         }
 
-        var result = new List<OutputExcerptLine>(TailLines + 1);
-        for (var index = lines.Length - TailLines; index < lines.Length; index++)
-        {
-            result.Add(new OutputExcerptLine(lines[index], false));
-        }
-
-        result.Add(new OutputExcerptLine(Marker(lines.Length - TailLines, unicode), true));
-        return result;
+        return
+        [
+            with(capacity: TailLines + 1),
+            .. lines[^TailLines..].Select(static line => new OutputExcerptLine(line, false)),
+            new OutputExcerptLine(Marker(lines.Length - TailLines, unicode), true),
+        ];
     }
 
     private static List<OutputExcerptLine> Elided(string[] lines, bool unicode)
     {
-        var result = new List<OutputExcerptLine>(WholeLineLimit);
         int hidden = lines.Length - FirstLines - LastLines;
-        for (var index = 0; index < FirstLines; index++)
-        {
-            result.Add(new OutputExcerptLine(lines[index], false));
-        }
-
-        result.Add(new OutputExcerptLine(Marker(hidden, unicode), true));
-        for (var index = lines.Length - LastLines; index < lines.Length; index++)
-        {
-            result.Add(new OutputExcerptLine(lines[index], false));
-        }
-
-        return result;
+        return
+        [
+            with(capacity: WholeLineLimit),
+            .. lines[..FirstLines].Select(static line => new OutputExcerptLine(line, false)),
+            new OutputExcerptLine(Marker(hidden, unicode), true),
+            .. lines[^LastLines..].Select(static line => new OutputExcerptLine(line, false)),
+        ];
     }
 
     /// <summary>The hidden-line count and the <c>ctrl+o</c> affordance; ASCII when Unicode is off.</summary>
