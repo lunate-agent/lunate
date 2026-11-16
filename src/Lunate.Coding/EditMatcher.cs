@@ -38,22 +38,18 @@ internal static class EditMatcher
             return matches;
         }
 
+        outer:
         for (var start = 0; start <= lines.Length - pattern.Length; start++)
         {
-            var matched = true;
             for (var offset = 0; offset < pattern.Length; offset++)
             {
                 if (!LineEquals(lines[start + offset], pattern[offset], normalized))
                 {
-                    matched = false;
-                    break;
+                    continue outer;
                 }
             }
 
-            if (matched)
-            {
-                matches.Add(start);
-            }
+            matches.Add(start);
         }
 
         return matches;
