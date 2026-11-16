@@ -8,6 +8,11 @@ try {
     . (Join-Path $PSScriptRoot 'verify-test-runner.ps1')
     $budgetMs = if ($env:BUDGET_MS) { [int]$env:BUDGET_MS } else { 150 }
     $configuration = if ($env:CONFIGURATION) { $env:CONFIGURATION } else { 'Release' }
+    # The framework the build writes under, read from Directory.Build.props (parity with
+    # scripts/lib.sh's target_framework): every path below that names a built output folder uses it,
+    # so a target-framework move is one edit.
+    $tfm = (Select-String -Path 'Directory.Build.props' -Pattern '<TargetFramework>(.*)</TargetFramework>').Matches[0].Groups[1].Value
+    if (-not $tfm) { throw 'verify: cannot read <TargetFramework> from Directory.Build.props' }
     $publishDir = 'artifacts/publish'
 
     # English-first gate output: pin the dotnet CLI / test-runner UI language
@@ -124,7 +129,7 @@ try {
     # Providers are compile-private to Lunate.Ai, but their runtime assets must reach
     # the app output or provider construction fails at run time.
     foreach ($assembly in @('Anthropic', 'OpenAI', 'Microsoft.Extensions.AI')) {
-        $asset = "src/Lunate.Coding/bin/$configuration/net10.0/${assembly}.dll"
+        $asset = "src/Lunate.Coding/bin/$configuration/$tfm/${assembly}.dll"
         if (-not (Test-Path $asset)) {
             throw "verify: ${assembly}.dll is missing from the Lunate.Coding build output"
         }

@@ -66,3 +66,16 @@ check_shipped_api_unchanged() {
     return 1
   fi
 }
+
+# The target framework every first-party project builds for, read from Directory.Build.props.
+# A script that names a build output folder ("bin/Release/<tfm>/...") asks here instead of spelling
+# the framework, so a target-framework move cannot leave it looking in the folder it used to write.
+target_framework() {
+  local root="${1:-.}" value
+  value="$(sed -n 's:.*<TargetFramework>\(.*\)</TargetFramework>.*:\1:p' "${root}/Directory.Build.props" | head -1)"
+  if [ -z "$value" ]; then
+    echo "cannot read <TargetFramework> from ${root}/Directory.Build.props" >&2
+    return 1
+  fi
+  printf '%s\n' "$value"
+}

@@ -12,9 +12,9 @@
 
     <ItemGroup>
         <!-- The feed fixture builds real nupkgs, so the engine is exercised through NuGet's own code. -->
-        <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
-        <PackageReference Include="NuGet.Packaging" Version="7.9.0" />
-        <PackageReference Include="NuGet.Versioning" Version="7.9.0" />
+        <PackageReference Include="NuGet.Frameworks" Version="8.0.0" />
+        <PackageReference Include="NuGet.Packaging" Version="8.0.0" />
+        <PackageReference Include="NuGet.Versioning" Version="8.0.0" />
         <PackageReference Include="xunit.v3" Version="4.0.1" />
         <Using Include="Xunit" />
     </ItemGroup>

@@ -72,6 +72,9 @@ BUDGET_MS="${BUDGET_MS:-150}"
 # a leg that does nothing else, which is what `perf (macos-latest)` in ci.yml exists for.
 STARTUP_BUDGET_ENFORCE="${STARTUP_BUDGET_ENFORCE:-1}"
 CONFIGURATION="${CONFIGURATION:-Release}"
+# The framework the build writes under, read once from Directory.Build.props: every path below
+# that names a built output folder uses it, so a target-framework move is one edit.
+TFM="$(target_framework .)"
 PUBLISH_DIR="artifacts/publish"
 
 # Slots per test pass. The two culture passes run beside each other, so the
@@ -511,7 +514,7 @@ verify_primary_before_tests() {
   # Providers are compile-private to Lunate.Ai, but their runtime assets must reach
   # the app output or provider construction fails at run time.
   for assembly in Anthropic OpenAI Microsoft.Extensions.AI; do
-    if [ ! -f "src/Lunate.Coding/bin/${CONFIGURATION}/net10.0/${assembly}.dll" ]; then
+    if [ ! -f "src/Lunate.Coding/bin/${CONFIGURATION}/${TFM}/${assembly}.dll" ]; then
       echo "verify: ${assembly}.dll is missing from the Lunate.Coding build output" >&2
       exit 1
     fi
@@ -585,7 +588,7 @@ verify_test_phase() {
   else
     test_missing=""
     while IFS= read -r project; do
-      assembly="${project%/*}/bin/${CONFIGURATION}/net10.0/$(basename "$project" .csproj).dll"
+      assembly="${project%/*}/bin/${CONFIGURATION}/${TFM}/$(basename "$project" .csproj).dll"
       if [ ! -f "$assembly" ]; then
         test_missing="${test_missing} ${assembly}"
       fi

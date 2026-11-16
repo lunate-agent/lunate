@@ -5,7 +5,9 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-DLL="$REPO/tests/tools/MermaidTape/bin/Release/net10.0/MermaidTape.dll"
+. "$REPO/scripts/lib.sh"
+TFM="$(target_framework "$REPO")"
+DLL="$REPO/tests/tools/MermaidTape/bin/Release/${TFM}/MermaidTape.dll"
 if [ ! -f "$DLL" ]; then
     dotnet build "$REPO/tests/tools/MermaidTape/MermaidTape.csproj" -c Release --nologo >/dev/null
 fi

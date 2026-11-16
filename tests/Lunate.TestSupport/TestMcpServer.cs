@@ -25,7 +25,7 @@ public static class TestMcpServer
             "TestMcpServer",
             "bin",
             Configuration,
-            "net10.0",
+            BuildOutput.TargetFramework,
             "TestMcpServer.dll"
         );
 

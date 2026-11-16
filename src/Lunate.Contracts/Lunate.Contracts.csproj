@@ -7,6 +7,12 @@
             in a net11 host (ADR-0041). The two assets carry the same public API - no union or closed
             type on this surface while net10.0 is a target.
         -->
+        <!--
+            `TargetFrameworks` selects a cross-targeting build only when `TargetFramework` is
+            empty, and Directory.Build.props sets it for every project: clear the inherited value
+            here, or the project silently builds the first framework alone.
+        -->
+        <TargetFramework></TargetFramework>
         <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
         <!--
             Both contract assemblies' versions are the API version: ExtensionApiGate compares an

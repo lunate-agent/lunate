@@ -5,6 +5,12 @@
             frameworks: a net10.0 asset for an embedder still on the previous LTS, plus net11.0
             (ADR-0041).
         -->
+        <!--
+            `TargetFrameworks` selects a cross-targeting build only when `TargetFramework` is
+            empty, and Directory.Build.props sets it for every project: clear the inherited value
+            here, or the project silently builds the first framework alone.
+        -->
+        <TargetFramework></TargetFramework>
         <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     </PropertyGroup>
 

@@ -124,6 +124,9 @@ internal sealed class CompileFixture : IDisposable
         fixture = null;
         reason = null;
 
+        // The pack a restore for this host would pick carries the host's own framework folder; a
+        // literal here would miss every pack the moment the tool's target framework moves.
+        string tfm = SingleFileTarget.Current().Tfm;
         List<(string Parent, string Version)> packs = [];
         foreach (string root in PackRoots())
         {
@@ -137,7 +140,7 @@ internal sealed class CompileFixture : IDisposable
                 string name = Path.GetFileName(directory);
                 if (
                     Version.TryParse(name, out Version? parsed)
-                    && Directory.Exists(Path.Combine(directory, "ref", "net10.0"))
+                    && Directory.Exists(Path.Combine(directory, "ref", tfm))
                 )
                 {
                     packs.Add((root, name));
@@ -178,7 +181,7 @@ internal sealed class CompileFixture : IDisposable
         if (chosenParent is null || chosenVersion is null)
         {
             reason =
-                "no Microsoft.NETCore.App.Ref with ref/net10.0 was found in the NuGet cache or the "
+                $"no Microsoft.NETCore.App.Ref with ref/{tfm} was found in the NuGet cache or the "
                 + "SDK's targeting packs, so a real compile cannot be exercised here";
             return false;
         }
