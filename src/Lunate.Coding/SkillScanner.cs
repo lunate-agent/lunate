@@ -236,6 +236,7 @@ internal static partial class SkillScanner
         {
             var scanned = 0;
             var truncated = false;
+            roots:
             foreach ((string root, int depth, int rank) in roots)
             {
                 IReadOnlyList<string> directories;
@@ -265,16 +266,11 @@ internal static partial class SkillScanner
                     if (scanned == MaxSkillsPerScope)
                     {
                         truncated = true;
-                        break;
+                        break roots;
                     }
 
                     scanned++;
                     DirectoryStep(directory, scope, extensionId, depth, rank, projectBoundary);
-                }
-
-                if (truncated)
-                {
-                    break;
                 }
             }
 

@@ -960,14 +960,16 @@ self_test() {
         changelog 'git cat-file -e .*changes/README\.md' 1
     _self_workflow "ci-ok must read the changed-path decision" \
         ci-ok 'CHANGES: \$\{\{ needs\.changes\.result \}\}' 1
-    _self_workflow "the nightly reporter must read the run's jobs, not needs" \
-        nightly-issue 'actions/runs/\$\{RUN_ID\}/jobs' 1
-    _self_workflow "the nightly reporter must file through scripts/nightly-issue.sh" \
-        nightly-issue 'scripts/nightly-issue\.sh' 1
-    _self_workflow "the nightly reporter must run only on the nightly" \
-        nightly-issue "github\.event_name == 'schedule'" 1
-    _self_workflow "the nightly reporter must run even when a leg failed" \
-        nightly-issue '^    if: always\(\)' 1
+    _self_workflow "the red-run reporter must read the run's jobs, not needs" \
+        red-main-issue 'actions/runs/\$\{RUN_ID\}/jobs' 1
+    _self_workflow "the red-run reporter must file through scripts/nightly-issue.sh" \
+        red-main-issue 'scripts/nightly-issue\.sh' 1
+    _self_workflow "the red-run reporter must run on the nightly and a push to main" \
+        red-main-issue "github\.event_name == 'schedule' \|\| github\.event_name == 'push'" 1
+    _self_workflow "the red-run reporter must run even when a leg failed" \
+        red-main-issue '^    if: always\(\)' 1
+    _self_workflow "the red-run reporter must tell the script which event it reports" \
+        red-main-issue 'event "\$\{EVENT_NAME\}"' 1
 
     # Run concurrency: only a pull request may supersede its own older run, and the nightly is a
     # separate obligation from the push on the same branch. These assertions read the expression and
