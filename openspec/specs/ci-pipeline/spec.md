@@ -694,21 +694,31 @@ job is one open card. A green run SHALL file nothing.
 A job that never started is not a red job of the repository's build or tests: a job whose conclusion is
 `cancelled`, whose `runner_id` is `0` and whose `steps` list is present and empty was never acquired by a
 runner, so the reporter SHALL treat it as not red, file no card and post no comment for it on the
-strength of this requirement, and SHALL name it, with the run link, in the run's own log, so the red run
-is still visible even when another job of the same run files. All three conditions SHALL hold, because
-each alone is ambiguous: a job cancelled by a superseding run also has no steps, and a started job can
-still report `runner_id: 0`. The rule SHALL NOT cover a job that ran and did not pass: a `cancelled` job
-that reached at least one step, a `failure`, a `timed_out` and every other red conclusion SHALL still
-file, and a job whose `steps` list or `runner_id` is missing or unreadable SHALL be treated as red, so the
-rule fails closed instead of passing on a document it cannot read.
+strength of this requirement, and SHALL name it, with the run link, in the run's own log and job summary,
+so the red run is still visible even when another job of the same run files. All three conditions SHALL
+hold, because each alone is ambiguous: a job cancelled by a superseding run also has no steps, and a
+started job can still report `runner_id: 0`. The rule SHALL NOT cover a job that ran and did not pass: a
+`cancelled` job that reached at least one step, a `failure`, a `timed_out` and every other red conclusion
+SHALL still file, and a job whose `steps` list or `runner_id` is missing or unreadable SHALL be treated as
+red, so the rule fails closed instead of passing on a document it cannot read.
 
-A run that is red only through such jobs is a capacity red. Its run-level reporting — whether the
-pipeline retries such a run once before any card is filed, and how a card that survives the retry is
-worded — is not decided by this requirement: the abandoned-job rule names the abandoned jobs and the run
-link and files nothing on its own account, and a capacity-retry rule, when one is added, sets the
-run-level behaviour before and after its budget; this requirement neither adds that rule nor forbids it.
-A run with at least one red job that ran and did not pass is an ordinary red, and the abandoned-job rule
-only narrows the set of jobs that file.
+A run whose red jobs never reached a machine SHALL be a capacity red, not a code red: GitHub cancels a
+job when it never acquires a hosted runner for it, so nothing the repository builds or tests has run and
+no step exists to triage. The two jobs whose result is derived from the others' — the `ci-ok` aggregate
+and this reporter — SHALL be allowed beside the abandoned jobs, because they fail exactly because a leg
+did not succeed; they SHALL NOT be named as abandoned jobs themselves, and no card and no comment SHALL
+be produced for them as part of a capacity red. One red job that ran and is neither of those SHALL make
+the run an ordinary red.
+
+The reporter SHALL NOT open a card for a capacity red, in any attempt: it SHALL record the abandoned jobs
+and what it saw in the run's job summary, SHALL fail while the retry budget is unspent, because the retry
+reruns only failed jobs and the reporter has to be one of them to observe the retry, and SHALL succeed at
+the budget with the summary naming the rerun as the remedy. The pipeline SHALL retry a capacity red's
+failed jobs once, from a workflow triggered when the run completes, because a run cannot rerun itself
+while it is in progress, and the retry SHALL be limited to a `push` to `main` and the nightly, the events
+that run the full matrix and that this requirement reports on. The budget SHALL be one retry: a run at
+its second attempt SHALL NOT be retried again, so a runner shortage costs one extra attempt rather than a
+loop. A red job that ran SHALL NEVER be retried this way, so no failure that executed is retried away.
 
 The issue SHALL be placed in the lowest-numbered open milestone whose title is a version
 (`MAJOR.MINOR.PATCH`), read from the GitHub API so the rule works on a GitHub runner from repository
@@ -766,6 +776,36 @@ when it does not.
 - **GIVEN** a push run in which `verify (macos-latest, 1/2)` concluded `cancelled` with `runner_id: 0` and an empty `steps` list and `verify (windows-latest, 2/4)` failed
 - **WHEN** the reporter runs
 - **THEN** it files exactly one card, naming `verify (windows-latest, 2/4)`, and the run's log names `verify (macos-latest, 1/2)` together with the run link
+
+#### Scenario: A leg that never acquired a runner is retried, not reported
+
+- **GIVEN** a `push` run on `main` in which `verify (macos-latest, 1/2)` and `perf (macos-latest)` were cancelled before any step started, and every job that ran succeeded
+- **WHEN** the reporter runs at the run's first attempt
+- **THEN** it opens no card, names the abandoned legs in the run's job summary, and the run's failed jobs are retried once
+
+#### Scenario: A capacity red that survives the retry names the rerun and files nothing
+
+- **GIVEN** the retry of that run in which the same legs were cancelled before any step started
+- **WHEN** the reporter runs at the second attempt
+- **THEN** it opens and comments on no card, and the run's job summary says the retry is spent and that a rerun is the remedy
+
+#### Scenario: The derived jobs are never named as abandoned legs
+
+- **GIVEN** a capacity red in which `ci-ok` and `red-main-issue` are red because the abandoned legs did not succeed
+- **WHEN** the reporter runs
+- **THEN** the run's job summary names neither job, and neither `CI failed: ci-ok` nor `CI failed: red-main-issue` is filed
+
+#### Scenario: A leg that never started is named beside the card a run files
+
+- **GIVEN** a red run in which `verify (macos-latest, 1/2)` was cancelled before any step started and `verify (ubuntu-latest, 2/4)` started a step and failed
+- **WHEN** the reporter runs
+- **THEN** it files the card for `verify (ubuntu-latest, 2/4)` and the run's job summary names `verify (macos-latest, 1/2)` with the run link
+
+#### Scenario: A job that ran is never retried away
+
+- **GIVEN** a red run in which at least one red job started a step and failed
+- **WHEN** the reporter and the retry decision run
+- **THEN** the run is not retried and that job's card is filed as before
 
 #### Scenario: The card takes the lowest open version milestone
 
