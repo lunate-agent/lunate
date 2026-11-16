@@ -118,7 +118,7 @@ Stick to .NET 11, Microsoft.Extensions.AI and a few well-known packages. No Nati
 
 | Concern | Choice | Project | Why |
 | --- | --- | --- | --- |
-| Runtime | .NET 11, C# 15, SDK pinned in `global.json` (the split and its rationale are in [ADR-0040](../../adr/0040-net11-target-frameworks.md) and [`csharp-15.md`](csharp-15.md)) | all; extension contract packages multi-target `net10.0;net11.0` | Union and closed types need the `net11.0` BCL; the contract keeps a `net10.0` floor |
+| Runtime | .NET 11, C# 15, SDK pinned in `global.json` (the decision is in [ADR-0041](../../adr/0041-net11-target-frameworks.md) and [`csharp-15.md`](csharp-15.md)) | all | Union and closed types need the `net11.0` BCL; everything targets `net11.0` and nothing multi-targets |
 | Release build | Self-contained single file, ReadyToRun, no single-file compression (ADR-0008); release archives are compressed, three targets | Lunate.Coding | One file, no runtime install, fast start |
 | Model access | `IChatClient`, `ChatMessage`, `ChatResponseUpdate` everywhere; no `FunctionInvokingChatClient` (the loop runs tools) | Lunate.Ai, Lunate.Agent | The .NET standard, maintained by Microsoft |
 | Providers | OpenAI-compatible via the Microsoft.Extensions.AI OpenAI adapter; Anthropic via the official `Anthropic` package and its first-party Microsoft.Extensions.AI adapter (`AsIChatClient`) | Lunate.Ai | One abstraction for every model |
@@ -176,7 +176,7 @@ If loading is unreliable, decide before Phase 5: fix it, move Roslyn out of proc
 | --- | --- |
 | `lunate --version` | under 150 ms |
 | First TUI frame | under 300 ms |
-| Idle memory in the TUI (no Roslyn) | target 100 MB for the session's own footprint; gate 550 MB peak RSS on the shipped single-file ReadyToRun subject (recalibrated on .NET 11: 353 MB × 1.5 → 550 MB; ADR-0009 addendum). The framework-dependent host measures 88 MB. |
+| Idle memory in the TUI (no Roslyn) | target 100 MB, gate 150 MB peak RSS — report until T-18 provides the subject (ADR-0009) |
 | Working set: replay a session (~30 tool calls) | gate 250 MB placeholder until calibrated (T-09/T-22; ADR-0009) |
 | Roslyn: peak RSS, load + 10 edit cycles | gate 750 MB per loaded workspace for the reference workspace (S-4; ADR-0009); the per-workspace cap (`roslyn.maxLoadedWorkspaces`, default 2) makes 2× the worst case (ADR-0021) |
 | First C# tool call (Roslyn load, small solution; calibrated by S-4) | under 5 s |
@@ -288,7 +288,7 @@ MCP tools arrive from the SDK as functions and are wrapped as `ITool`s, so they 
 
 Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP and a possible web frontend later are thin mappings. Lunate-specific events are marked as extensions; in AG-UI they would travel as custom events. Check the AG-UI and ACP names against the pinned spec versions when writing the mappers.
 
-**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The target-framework split is applied (#902, [ADR-0040](../../adr/0040-net11-target-frameworks.md)); the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt and what each needs, and step (c) of #192 applies the refactor, internal code first and the public contract last.
+**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The retarget is applied (#902, [ADR-0041](../../adr/0041-net11-target-frameworks.md)); the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt and what each needs, and step (c) of #192 applies the refactor, internal code first and the public contract last.
 
 | Lunate event | AG-UI | ACP | TUI |
 | --- | --- | --- | --- |

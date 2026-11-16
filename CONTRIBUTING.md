@@ -37,10 +37,9 @@ metadata (licence, readme, repository) inside the `.nupkg` itself, formats (CSha
 change is not done until it is green — on the CI matrix, all three operating systems count.
 
 Prerequisite: the [.NET 11 SDK](https://dotnet.microsoft.com/download), pinned in
-[`global.json`](global.json) at 11.0.100 — exactly, as above. The product targets `net11.0`; the
-published extension contract packages also build a `net10.0` asset for the compatibility floor
-(ADR-0040), and the .NET 10 targeting packs they need are fetched from a feed in a normal build.
-Running the built binary on a machine with no tool installed yet:
+[`global.json`](global.json) at 11.0.100 — exactly, as above. Everything targets `net11.0`; nothing
+in the repository multi-targets ([ADR-0041](adr/0041-net11-target-frameworks.md)). Running the built
+binary on a machine with no tool installed yet:
 
 ```bash
 src/Lunate.Coding/bin/Release/net11.0/lunate --version   # lunate.exe on Windows

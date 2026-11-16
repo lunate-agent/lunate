@@ -3,10 +3,10 @@
 ### Requirement: Dotnet tool package
 
 `Lunate.Coding` SHALL pack as a framework-dependent .NET tool with package id `lunate` and command
-`lunate`, targeting `net11.0`, so installing and running it SHALL require the .NET 11 runtime; it
-SHALL add no new dependencies. The release workflow SHALL attach the `.nupkg` to the GitHub release;
-the release note SHALL state the .NET 11 runtime requirement; and the verify gate SHALL prove a local
-roundtrip — pack, `dotnet tool install` from the local feed, run `lunate --version`.
+`lunate`, targeting `net11.0` only, so installing and running it SHALL require the .NET 11 runtime;
+it SHALL add no new dependencies. The release workflow SHALL attach the `.nupkg` to the GitHub
+release; the release note SHALL state the .NET 11 runtime requirement; and the verify gate SHALL
+prove a local roundtrip — pack, `dotnet tool install` from the local feed, run `lunate --version`.
 
 #### Scenario: The tool roundtrips from a local feed
 
@@ -18,5 +18,5 @@ roundtrip — pack, `dotnet tool install` from the local feed, run `lunate --ver
 
 - **GIVEN** a packed `lunate` tool package
 - **WHEN** its target framework group is read
-- **THEN** it carries a `net11.0` asset, and the release note for that version states that the
-  `dotnet tool` install requires the .NET 11 runtime
+- **THEN** it carries one `tools/net11.0` asset, and the release note for that version states that
+  the `dotnet tool` install requires the .NET 11 runtime

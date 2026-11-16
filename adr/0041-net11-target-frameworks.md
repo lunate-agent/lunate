@@ -1,4 +1,4 @@
-# ADR-0040: .NET 11 targets, with a `net10.0` floor for the extension contract
+# ADR-0041: everything targets .NET 11, with no multi-targeting
 
 Status: accepted — 2026-11-15 (maintainer decision on #192)
 
@@ -12,63 +12,79 @@ TUI live area and the Mermaid parser — cannot compile for `net10.0`: the compi
 fails with CS0518/CS0656. Collection-expression arguments and labeled `break`/`continue` need only the
 SDK 11 compiler.
 
-The maintainer's decision on #192 (2026-11-15) is the target-framework split this ADR records:
+The first target-framework decision on #192 (2026-11-15) split the repository: the app and the tool
+on `net11.0`, the published extension-facing packages multi-targeting `net10.0;net11.0` so an
+extension built against the previous LTS kept compiling and loading. The maintainer superseded its
+multi-target clause on the same day. There are no external extension authors and one user, so
+nothing needs a `net10.0` asset; the only thing the floor bought was a second asset per package and a
+build that had to keep the contract surface free of the `net11.0` types the retarget exists to
+unlock.
 
-- the self-contained application and the `dotnet tool` move to `net11.0`;
-- the published extension-facing packages multi-target `net10.0;net11.0`, so an extension built
-  against the previous LTS keeps compiling and loading;
-- dropping `net10.0` from a published contract package is a breaking change that needs its own ADR
-  and a deprecation window, never a silent bump.
-
-The in-force ADRs reviewed for this change are ADR-0001 (no AOT, self-contained single-file
+The in-force ADRs reviewed for this decision are ADR-0001 (no AOT, self-contained single-file
 releases), ADR-0002 (project graph and Microsoft.Extensions.AI model types), ADR-0005 and its
 addendum (startup budgets), ADR-0008 (release publish flags), ADR-0009 (memory budgets), ADR-0017
 and its addenda (extensibility, extension packages and trust), ADR-0023 (first-party extensions),
-ADR-0026 (Roslyn built-in boundary), ADR-0037 (CI gate sized by event) and ADR-0039
-(Mermaid.Terminal). None of them fixes a target framework; the budgets they define still apply and
-are re-measured on the new runtime by #902.
+ADR-0026 (Roslyn built-in boundary), ADR-0037 (CI gate sized by event), ADR-0039
+(Mermaid.Terminal) and ADR-0040 (hook-based extensibility). None of them fixes a target framework;
+the budgets they define still apply, and #902 re-measures the startup and memory numbers on the new
+runtime as a post-merge maintainer step rather than with the retarget's pull-request evidence.
 
 ## Decision
 
-1. **The app and the tool target `net11.0`.** `Directory.Build.props` sets
-   `TargetFramework=net11.0`; every first-party project that is not a published extension-facing
-   package builds for `net11.0` and may use C# 15. The self-contained release binaries bundle the
-   `net11.0` runtime, so users still install nothing.
+1. **Everything in the repository targets `net11.0`.** `Directory.Build.props` sets
+   `TargetFramework=net11.0` and no project overrides it with `TargetFrameworks`. That covers the
+   tool, the app, the TUI, `Mermaid.Terminal`, the self-contained release binaries, every internal
+   project, the test projects, the extension template and the published harness and contract
+   packages: `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`,
+   `Lunate.Extensibility.Testing`, and the `Lunate.Ai` / `Lunate.Ai.Decisions` assemblies
+   `Lunate.Agent` carries. The fixture solutions under `tests/fixtures/` are `net11.0` too, so the
+   gate restores them against the pinned SDK's own targeting packs; a fixture whose whole point is
+   the multi-target shape (`tests/fixtures/verified-edits/multi-target`) stays multi-target at
+   `net11.0` because modeling a user's multi-target project is what it tests.
 
-2. **The `dotnet tool` package requires the .NET 11 runtime.** It is framework-dependent, so its one
+2. **Nothing in the repository multi-targets.** A package ships one `lib/net11.0` asset, the tool
+   ships one `tools/net11.0` asset, and the public API analyzer runs against one target. There is no
+   `net10.0` compatibility floor to keep the contract surface clear of `net11.0`-only types.
+
+3. **The `dotnet tool` package requires the .NET 11 runtime.** It is framework-dependent, so its one
    asset is `tools/net11.0`. The release note and the distribution documentation state the
-   requirement. Carrying both `tools/net10.0` and `tools/net11.0` was verified possible in the
-   inventory but is not chosen: it would force the whole tool graph to build for `net10.0`, and the
-   card accepts the runtime requirement instead.
+   requirement; a user on .NET 10 either installs the .NET 11 runtime or uses a self-contained
+   installer, which still bundles its runtime.
 
-3. **The published extension contract multi-targets `net10.0;net11.0`.** This applies to
-   `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`, and the `Lunate.Ai` /
-   `Lunate.Ai.Decisions` assemblies `Lunate.Agent` carries. Both assets are packed into the same
-   package, and their public API is identical: no union, closed or otherwise `net11.0`-only type may
-   appear on the contract surface while `net10.0` remains a target. The analyzer runs per target
-   framework against the same `PublicAPI.*.txt`, so a divergence fails the build.
-
-4. **The extension compile target follows the running host.** `SingleFileTarget.Current()` derives
+4. **Extension compilation follows the running host.** `SingleFileTarget.Current()` derives
    `net{runtime.Major}.{runtime.Minor}` from the process runtime, so extension compilation and its
-   lock move to `net11.0` with the host without a second setting. An extension compiled for
-   `net10.0` still loads because it binds to the host-owned contract assemblies and their public
-   surface is unchanged.
+   lock are `net11.0` with the host, without a second setting. Extensions built for this host chain
+   are `net11.0`; there is no older asset to bind to, which is the breaking part of this decision.
 
-5. **The test kit is `net11.0` only.** `Lunate.Extensibility.Testing` references the tool graph, which
-   is `net11.0`; it does not multi-target. A template copy keeps a `net10.0` extension project as
-   the floor proof, while its test project targets `net11.0`.
+5. **The question returns before the first external release or the first published library
+   version.** Reintroducing multi-targeting then is a deliberate, breaking decision with its own ADR
+   and a deprecation window — not a free addition made inside a feature card.
 
 ## Consequences
 
-- Step (c) of #192 (union and closed types, internal first and the public contract last) is unblocked
-  for every internal project. The contract surface stays `net10.0`-compatible until that floor is
-  deliberately dropped by a later ADR.
-- The build gets a second target for five projects. That is the price of the compatibility floor and
-  is bounded to the contract/harness packages.
+- Every project builds once, so the build and the gate carry no second target and step (c) of #192
+  (union and closed types, internal first) is unblocked for internal code and for the public contract
+  without an asset split to preserve. Directories that hold somebody else's project rather than a
+  project of this repository — `eval/tasks/` (an eval subject) and `docs/dev/spikes/` (a record) —
+  keep their own frameworks.
+- An extension built against `net10.0` no longer has a `net10.0` contract asset to bind to. The
+  extension template, the reference extensions and the samples are `net11.0`, and a third-party
+  extension author would rebuild against the new packages. There are none today; this is why the
+  decision is taken now rather than after a release.
 - The tool's runtime floor rises: an existing `dotnet tool` user on .NET 10 must install the .NET 11
   runtime or switch to a self-contained installer. The release note says so.
-- The startup and memory budgets are re-measured on .NET 11 by #902; the local memory default is
-  re-calibrated from the shipped ReadyToRun subject in the ADR-0009 addendum, and the per-runner CI
-  values are re-calibrated from the post-merge/nightly runs under ADR-0005/ADR-0009, not guessed
-  here.
+- The startup and memory budgets are re-measured on .NET 11 after the merge (ADR-0005, ADR-0009), as
+  the maintainer's own step; the per-runner CI values are re-calibrated from the post-merge/nightly
+  runs, not guessed in the pull request.
 - No new NuGet package and no public API change follow from this decision.
+
+## Alternatives considered
+
+- **Keep the `net10.0;net11.0` split for the contract packages** (the superseded decision).
+  Rejected: it doubles five builds, needs the contract surface to stay `net10.0`-compatible, and
+  protects a consumer that does not exist.
+- **Multi-target the whole tool graph and ship `tools/net10.0` beside `tools/net11.0`.** Rejected:
+  the tool graph cannot adopt the `net11.0` features under a `net10.0` target, and the card accepts
+  the tool's .NET 11 requirement instead.
+- **Keep a `net10.0` extension template as a floor proof.** Rejected with the floor: the template is
+  a copy that lives outside the repository and must show what an extension for this host looks like.

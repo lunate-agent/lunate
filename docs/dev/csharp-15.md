@@ -2,12 +2,11 @@
 
 Four C# 15 features pay for themselves in first-party code: union types, closed hierarchies,
 collection-expression arguments and labeled `break`/`continue`. The first two need `net11.0` to
-compile and run; the last two need only the SDK 11 compiler. The target is therefore the
-self-contained tool and app on `net11.0`, with the extension-facing packages multi-targeting
-`net10.0;net11.0` so an extension built against the previous LTS keeps working.
+compile and run; the last two need only the SDK 11 compiler. Everything in the repository therefore
+targets `net11.0`, with no multi-targeting.
 
 This is the inventory for step (a) of #192: it records what we want and what it costs. Step (b), the
-target-framework change, is applied by #902 ([ADR-0040](../../adr/0040-net11-target-frameworks.md));
+target-framework change, is applied by #902 ([ADR-0041](../../adr/0041-net11-target-frameworks.md));
 the refactor slices are step (c).
 
 ## How this was checked
@@ -148,36 +147,33 @@ These features are real C# 15 work, but they have no two real call sites in this
 
 ## Target frameworks
 
-The recommendation above is applied by #902; read [ADR-0040](../../adr/0040-net11-target-frameworks.md)
+The recommendation above is applied by #902; read [ADR-0041](../../adr/0041-net11-target-frameworks.md)
 for the durable decision and [`guide.md`](guide.md) for the current runtime table.
 
-**Tool and app: `net11.0`.** Union types and closed hierarchies — two of the four features we want —
-cannot compile for `net10.0`; they need the `net11.0` BCL. The self-contained release binaries carry
-their runtime, so the user still installs nothing. `Directory.Build.props` sets `net11.0`; the
-first-party projects that use the features (`Lunate.Tui`, `Mermaid.Terminal`, `Lunate.Coding`, and
-whatever else adopts them) build for it. The startup and memory budgets were re-measured on the new
-runtime during #902; the startup floor stayed inside the local 150 ms default, and the local memory
-gate was recalibrated to 550 MB from the shipped single-file ReadyToRun measurement (ADR-0009
-addendum).
+**Everything targets `net11.0`.** Union types and closed hierarchies — two of the four features we
+want — cannot compile for `net10.0`; they need the `net11.0` BCL. `Directory.Build.props` sets
+`net11.0` and no project overrides it with `TargetFrameworks`: the tool, the app, the self-contained
+release binaries (they carry their runtime, so the user still installs nothing), `Lunate.Tui`,
+`Mermaid.Terminal`, every internal and test project, the extension template and every published
+package — `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`,
+`Lunate.Extensibility.Testing` and the `Lunate.Ai` assemblies the harness carries.
 
 **The `dotnet tool` package requires .NET 11.** It is framework-dependent, so its one asset is
 `tools/net11.0`. `PackAsTool` can carry both `tools/net10.0` and `tools/net11.0` (verified with a
 throwaway pack), but #192 chose the simpler shape: the tool graph is `net11.0` only and the release
 note states the runtime requirement. The self-contained installers are unaffected.
 
-**Extension contract packages: multi-target `net10.0;net11.0`.** `Lunate.Contracts`,
-`Lunate.Extensibility.Abstractions`, and the published harness packages `Lunate.Agent` and the
-`Lunate.Ai` assemblies it carries keep a `net10.0` asset as the compatibility floor. Existing
-extensions built against net10 keep compiling and loading on the net11 host; new extensions can
-target net11 if they want the newer compiler. The public API stays identical between the two assets:
-do not put union or closed types on the contract surface while net10 remains a target. The
-motivating `AgentEvent`/hook-result unions are therefore the last slice, after a deliberate
-`ExtensionApi` decision; the internal `Lunate.Tui`/`Mermaid.Terminal` types go first.
+**The public contract has no `net10.0` floor.** There are no external extension authors and one user,
+so the `net10.0` asset the first decision kept bought nothing and cost the rule that no union or
+closed type may appear on the contract surface. The `AgentEvent`/hook-result unions are still the
+last slice, after a deliberate `ExtensionApi` decision; the internal `Lunate.Tui`/`Mermaid.Terminal`
+types go first. Reintroducing multi-targeting before the first external release or the first
+published library version is a deliberate, breaking decision with its own ADR, never a silent
+addition inside a feature card.
 
-Dropping `net10.0` from a published contract package is a breaking change for every existing
-extension: it needs an ADR entry and a deprecation window, never a silent target-framework bump. The
-extension template keeps a `net10.0` extension project as the floor proof; its test project is
-`net11.0` because the test kit references the `net11.0` tool graph.
+The startup and memory budgets are re-measured on .NET 11 after the merge (ADR-0005, ADR-0009), as a
+maintainer step: the pull request only moves the runtime, and the per-runner CI values come from the
+post-merge and nightly runs.
 
 ## Tooling steps before the first syntax commit
 

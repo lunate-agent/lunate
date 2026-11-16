@@ -22,7 +22,7 @@ This repo is developed with OpenCode and OpenSpec (schema: `intent-driven`).
 
 ## Build
 
-- .NET 11 (pinned in `global.json`), C# 15, nullable, warnings as errors. The app and tool target `net11.0`; the published extension contract packages multi-target `net10.0;net11.0` (ADR-0040).
+- .NET 11 (pinned in `global.json`), C# 15, nullable, warnings as errors. Everything targets `net11.0`; nothing multi-targets (ADR-0041).
 - Iterate behind the fast gate: `dotnet csharpier check .`, `openspec validate <change> --strict`, a Release build, and the test classes that cover what you touched.
 - `scripts/verify.sh` (Windows: `scripts/verify.ps1`) must pass before a change is marked ready for review or done: build, tests, single-file publish, performance budgets, public API, formatting (CSharpier) and documentation lint checks.
 - `ci-ok` must be green before a merge.

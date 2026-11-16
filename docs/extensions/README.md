@@ -74,10 +74,9 @@ release that publishes them, so the template switches on its own: a copy outside
 repository gets the packages, a copy inside gets the projects, and `LunateUseNuGetContracts=true`
 forces the package shape (the verify gate does, against a feed of freshly packed packages). The
 template declares its target framework, nullability and implicit usings itself, so a project of
-your own declares those too. Its extension project stays on `net10.0` while the host runs `net11.0`:
-the contract packages keep a `net10.0` asset as the compatibility floor (ADR-0040), and the template
-is where that floor is proven. Its test project targets `net11.0` because the test kit is `net11.0`
-only.
+your own declares those too. Both its projects target `net11.0`, like the host and the contract
+packages: the repository does not multi-target ([ADR-0041](../../adr/0041-net11-target-frameworks.md)),
+so an extension for this host is `net11.0` as well.
 
 The host owns `Lunate.Contracts` and `Lunate.Extensibility.Abstractions` — and `Lunate.Agent`,
 which ships as a preview package — and loads them once, so every extension binds to those copies.
@@ -151,13 +150,12 @@ resources belong in a registered background service or start on first use — se
 ```bash
 dotnet build -c Release
 mkdir -p ~/.lunate/extensions/hello
-cp bin/Release/net10.0/HelloExtension.dll \
-   bin/Release/net10.0/extension.json \
+cp bin/Release/net11.0/HelloExtension.dll \
+   bin/Release/net11.0/extension.json \
    ~/.lunate/extensions/hello/
 ```
 
-The `net10.0` output path is the extension's own target; the host runs `net11.0` and loads the
-extension from either asset. Copy any further dependencies next to the assembly. `Lunate.Contracts`,
+Copy any further dependencies next to the assembly. `Lunate.Contracts`,
 `Lunate.Extensibility.Abstractions`, `Lunate.Agent`, `Microsoft.Extensions.AI.Abstractions` and
 `System.Text.Json` are shared from the host and are never loaded from the extension folder: a copy
 shipped there anyway is ignored, and `/extensions` and the log say so once, naming what was dropped.
