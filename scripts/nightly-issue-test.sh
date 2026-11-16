@@ -296,6 +296,35 @@ _run "a cancelled job is red" 0 \
     '{"jobs":[{"id":16,"name":"red-main-issue","conclusion":"cancelled"}]}'
 _expect_gh "a cancelled job is reported" "CI failed: red-main-issue"
 
+# A job that never got a hosted runner (#922): GitHub concludes it `cancelled` with an empty step list
+# and its page says the runner was not acquired. Nothing ran, so nothing is filed; the run log names it.
+_defaults
+CASE_EVENT="push"
+_run "a job no runner ever acquired files nothing" 0 \
+    '{"jobs":[{"id":20,"name":"perf (macos-latest)","conclusion":"cancelled","steps":[]},{"id":21,"name":"verify (macos-latest, 2/2)","conclusion":"success","steps":[{"name":"Set up job","conclusion":"success"}]}]}'
+CASES=$((CASES + 1))
+if [ -s "$tmp/gh.log" ]; then
+    echo "self-test: FAIL: an unstarted job called gh" >&2
+    sed 's/^/    /' "$tmp/gh.log" >&2
+    FAILURES=$((FAILURES + 1))
+fi
+_expect_stderr "the run names the job that never started" "perf (macos-latest): never started"
+_expect_stderr "the run says what to do instead of filing" "rerunning https://example.test/runs/1"
+
+# A cancellation that reached a step is a job that ran and did not pass, so it still files.
+_defaults
+_run "a cancelled job that started is red" 0 \
+    '{"jobs":[{"id":16,"name":"red-main-issue","conclusion":"cancelled","steps":[{"name":"Set up job","conclusion":"cancelled"}]}]}'
+_expect_gh "a started cancellation is reported" "CI failed: red-main-issue"
+
+# The rule never swallows a real failure beside an unstarted job.
+_defaults
+CASE_EVENT="push"
+_run "a real failure beside an unstarted job files exactly one card" 0 \
+    '{"jobs":[{"id":22,"name":"verify (macos-latest, 1/2)","conclusion":"cancelled","steps":[]},{"id":11,"name":"verify (windows-latest, 2/4)","conclusion":"failure","steps":[{"name":"Run the gate","conclusion":"failure"}]}]}'
+_expect_gh "the real failure is filed" "CI failed: verify (windows-latest, 2/4)"
+_expect_no_gh "the unstarted job is not filed" "CI failed: verify (macos-latest, 1/2)"
+
 if [ "$FAILURES" -ne 0 ]; then
     echo "self-test: FAIL: ${FAILURES} of ${CASES} checks failed" >&2
     exit 1

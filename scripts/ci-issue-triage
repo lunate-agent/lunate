@@ -7,7 +7,12 @@ documents, so the decision is pure and its self-test needs no network. It mirror
 `scripts/ci-ok-state`.
 
 - `--jobs-json FILE` prints `id<TAB>name` for every red job. A job that did not run (skipped) is not a
-  failure; only a conclusion that means the job ran and did not pass is.
+  failure; only a conclusion that means the job ran and did not pass is. A job that never started is not
+  a red job either: GitHub concludes a job it never acquired a runner for as `cancelled` with an empty
+  step list ("The job was not acquired by Runner of type hosted even after multiple attempts"), so it
+  prints nothing for that job and names it on stderr instead, because no change in this repository can
+  fix it and the remedy is a rerun. A job cancelled after it reached a step, and any document whose
+  `steps` list is missing, stays red: the rule fails closed.
 - `--milestones-json FILE` prints the lowest open milestone whose title is a version
   (`MAJOR.MINOR.PATCH`), compared numerically. `backlog` and any other title never match, and a release
   that closes its milestone removes it from the open list, so no constant names a version here. The list
@@ -65,6 +70,15 @@ def _load(path):
         return json.load(handle)
 
 
+def never_started(job):
+    """True when the job never reached a step: a cancellation GitHub reports with an empty step list."""
+    if str(job.get("conclusion") or "") != "cancelled":
+        return False
+    steps = job.get("steps")
+    # A missing list is not evidence of anything, so only a present-and-empty one counts.
+    return isinstance(steps, list) and not steps
+
+
 def red_jobs(path):
     """One `id<TAB>name` line per red job, in the order the run lists them, without duplicates."""
     seen = set()
@@ -75,6 +89,12 @@ def red_jobs(path):
         if str(job.get("conclusion") or "") not in RED:
             continue
         seen.add(name)
+        if never_started(job):
+            print(
+                f"ci-issue-triage: {name}: never started (no runner was acquired); no card is filed for it",
+                file=sys.stderr,
+            )
+            continue
         print(f"{job.get('id') or ''}\t{name}")
 
 

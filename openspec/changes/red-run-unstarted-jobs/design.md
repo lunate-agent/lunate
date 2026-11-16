@@ -87,10 +87,12 @@ skipped job is named.
   cancellation before its first step (queue cancellation, never-acquired runner, a cancelled run). A
   regression in the tree cannot produce it, and a job cancelled after starting keeps its steps, so the
   case still files.
-- **A genuine capacity outage now files nothing and someone must notice the red run** -> The run log
-  names every unstarted job and the remedy ("rerun the run"), and `ci-ok` stays red on `main`, which the
-  lane's digest and the maintainer's own review see. The trade is deliberate: a card for an unstarted
-  leg is unactionable by any change in this repository.
+- **A genuine capacity outage now files fewer cards and someone must notice the red run** -> The run
+  still files once, for the `ci-ok` leg that a cancelled required job reddens, so the red `main` push
+  keeps its card; the run log additionally names every unstarted job and the rerun remedy. Only a run
+  whose every red job never started files nothing, and that run is visible in the Actions UI and in the
+  lane's digest. The trade is deliberate: a card for an unstarted leg is unactionable by any change in
+  this repository.
 - **The jobs document shape changes** -> `steps` starts carrying entries on a job that ran, so the
   fail-closed default (missing list = red) keeps the false-negative window to documents GitHub itself
   no longer produces.
