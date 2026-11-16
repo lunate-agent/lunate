@@ -9,7 +9,7 @@ the self-contained tool and app to `net11.0`, and to multi-target the extension-
 This is the inventory for step (a) of #192. It records what we want and what it costs; the
 target-framework change itself is step (b), and the refactor slices are step (c).
 
-## What step (b) did (ADR-0040)
+## What step (b) did (ADR-0041)
 
 The target frameworks are in: the tool, the app, the self-contained binaries, the `dotnet tool`
 package and every first-party project target `net11.0`, with one `LangVersion` in

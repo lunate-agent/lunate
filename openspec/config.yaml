@@ -2,7 +2,7 @@ schema: intent-driven
 
 context: |
   Tech stack: C# / .NET 11 (SDK pinned in global.json), C# 15, xUnit v3; the extension contract
-  packages also build a net10.0 asset (ADR-0040).
+  packages also build a net10.0 asset (ADR-0041).
   Project: Lunate — a native C# coding agent for the terminal (background: docs/dev/guide.md).
   OpenSpec specs under openspec/specs/ are the source of truth for behaviour;
   docs/dev/guide.md is background material only.

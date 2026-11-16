@@ -1,4 +1,4 @@
-# ADR-0040: .NET 11 for the tool, a `net10.0` asset for the extension contract
+# ADR-0041: .NET 11 for the tool, a `net10.0` asset for the extension contract
 
 Status: accepted — 2026-11-16
 

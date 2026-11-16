@@ -62,7 +62,7 @@
 - [x] 6.4 `docs/dev/csharp-15.md`: an outcome section recording what step (b) did and which examples
       the multi-targeting decision retires.
 - [x] 6.5 `openspec/config.yaml`: the tech-stack line.
-- [x] 6.6 `adr/0040-target-frameworks.md`, with `check-adr-numbers.py` and `check-adr-status.py` green.
+- [x] 6.6 `adr/0041-target-frameworks.md`, with `check-adr-numbers.py` and `check-adr-status.py` green.
 
 ## 7. Close-out
 

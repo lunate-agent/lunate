@@ -33,7 +33,7 @@ every existing extension.
   build's output or a reference pack's `ref/<tfm>` folder.
 - The startup budget is re-measured against a `net10.0` binary built from `origin/main` with the same
   SDK, on the same machine, in the same session.
-- `adr/0040-target-frameworks.md` records the split and why the contract packages keep `net10.0`.
+- `adr/0041-target-frameworks.md` records the split and why the contract packages keep `net10.0`.
 
 ## Capabilities
 
@@ -58,5 +58,5 @@ None.
   `Mermaid.Terminal` `.nupkg` files gain a `lib/net11.0` asset beside `lib/net10.0`; `lunate.<v>.nupkg`
   moves from `tools/net10.0` to `tools/net11.0`; `Lunate.Extensibility.Testing` packs `lib/net11.0`.
 - No public API change, no session-format change, no dependency added (five packages bumped).
-- `adr/0040-target-frameworks.md`, `docs/dev/guide.md`, `docs/dev/csharp-15.md`,
+- `adr/0041-target-frameworks.md`, `docs/dev/guide.md`, `docs/dev/csharp-15.md`,
   `docs/dev/distribution.md`, `CONTRIBUTING.md`.

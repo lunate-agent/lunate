@@ -118,7 +118,7 @@ Stick to .NET 11, Microsoft.Extensions.AI and a few well-known packages. No Nati
 
 | Concern | Choice | Project | Why |
 | --- | --- | --- | --- |
-| Runtime | .NET 11, C# 15, SDK pinned in `global.json`; the contract packages still ship a `net10.0` asset (ADR-0040, and the C# 15 inventory in [`csharp-15.md`](csharp-15.md)) | all | Current release |
+| Runtime | .NET 11, C# 15, SDK pinned in `global.json`; the contract packages still ship a `net10.0` asset (ADR-0041, and the C# 15 inventory in [`csharp-15.md`](csharp-15.md)) | all | Current release |
 | Release build | Self-contained single file, ReadyToRun, no single-file compression (ADR-0008); release archives are compressed, three targets | Lunate.Coding | One file, no runtime install, fast start |
 | Model access | `IChatClient`, `ChatMessage`, `ChatResponseUpdate` everywhere; no `FunctionInvokingChatClient` (the loop runs tools) | Lunate.Ai, Lunate.Agent | The .NET standard, maintained by Microsoft |
 | Providers | OpenAI-compatible via the Microsoft.Extensions.AI OpenAI adapter; Anthropic via the official `Anthropic` package and its first-party Microsoft.Extensions.AI adapter (`AsIChatClient`) | Lunate.Ai | One abstraction for every model |
@@ -288,7 +288,7 @@ MCP tools arrive from the SDK as functions and are wrapped as `ITool`s, so they 
 
 Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP and a possible web frontend later are thin mappings. Lunate-specific events are marked as extensions; in AG-UI they would travel as custom events. Check the AG-UI and ACP names against the pinned spec versions when writing the mappers.
 
-**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The tool and the first-party projects now target `net11.0`, so the compiler feature is available (ADR-0040); the union refactors land as their own slices, internal code first and this public contract last, and the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records what each one needs.
+**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The tool and the first-party projects now target `net11.0`, so the compiler feature is available (ADR-0041); the union refactors land as their own slices, internal code first and this public contract last, and the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records what each one needs.
 
 | Lunate event | AG-UI | ACP | TUI |
 | --- | --- | --- | --- |

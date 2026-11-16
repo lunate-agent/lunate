@@ -4,7 +4,7 @@
         <!--
             The extension contract. Its target framework is a promise to every extension author, so
             it keeps a `net10.0` asset: an extension compiled against the previous LTS keeps loading
-            in a net11 host (ADR-0040). The two assets carry the same public API - no union or closed
+            in a net11 host (ADR-0041). The two assets carry the same public API - no union or closed
             type on this surface while net10.0 is a target.
         -->
         <!--

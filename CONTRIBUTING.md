@@ -40,7 +40,7 @@ Prerequisite: the [.NET 11 SDK](https://dotnet.microsoft.com/download), pinned i
 [`global.json`](global.json) at 11.0.100 — exactly, as above. The product targets `net11.0`. The
 extension contract packages — `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`
 and `Mermaid.Terminal` — also build a `net10.0` asset, so the build needs the .NET 10 targeting
-packs too; the SDK fetches them from a feed in a normal build (ADR-0040).
+packs too; the SDK fetches them from a feed in a normal build (ADR-0041).
 
 **An extension author needs the .NET 11 SDK to build and test, and a host on .NET 11 to run.** An
 extension itself may target `net11.0` or the previous LTS `net10.0`: the contract packages publish

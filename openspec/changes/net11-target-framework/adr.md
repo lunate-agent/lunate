@@ -29,7 +29,7 @@ No superseded ADR constrains this change.
 
 ## New Durable ADRs Created
 
-- `adr/0040-target-frameworks.md` — the tool, the app and every first-party project target `net11.0`
+- `adr/0041-target-frameworks.md` — the tool, the app and every first-party project target `net11.0`
   with `LangVersion 15.0`; the extension-facing packages multi-target `net10.0;net11.0` with one
   public API; the `dotnet tool` package is the `net11.0` asset alone and the release note says so; the
   startup budget is re-measured rather than assumed.
@@ -37,5 +37,5 @@ No superseded ADR constrains this change.
 ## Open Questions
 
 None. The two breaking options — dropping `net10.0` from the contract packages, and a `net10.0` tool
-asset — are decided against in ADR-0040, per #192's decision, and stay separate decisions if they are
+asset — are decided against in ADR-0041, per #192's decision, and stay separate decisions if they are
 ever wanted.
