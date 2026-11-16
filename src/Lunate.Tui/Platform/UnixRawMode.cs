@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Lunate.Tui.Platform;
+namespace Lunate.Tui;
 
 internal static class UnixRawMode
 {

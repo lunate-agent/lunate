@@ -1,4 +1,4 @@
-namespace Lunate.Tui.Platform;
+namespace Lunate.Tui;
 
 /// <summary>
 /// One terminal-mode instance's transitions, serialised. The session's ordinary exit path (a scope

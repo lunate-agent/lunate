@@ -2,7 +2,7 @@ using System.Text.Json;
 using Acp.Schema;
 using Lunate.Agent;
 
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// Pure mapping from <see cref="AgentEvent"/> to ACP <c>session/update</c> payloads, following the

@@ -1,4 +1,4 @@
-namespace Lunate.Tui.Platform;
+namespace Lunate.Tui;
 
 /// <summary>
 /// The terminal's input mode as the process found it, captured when raw mode is entered. Suspending
