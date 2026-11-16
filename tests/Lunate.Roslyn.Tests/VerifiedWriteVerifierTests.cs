@@ -6,6 +6,20 @@ namespace Lunate.Roslyn.Tests;
 [Collection(RoslynIntegrationCollection.Name)]
 public sealed class VerifiedWriteVerifierTests
 {
+    /// <summary>
+    /// The repository commits no project that declares two frameworks (ADR-0041), so the copy starts
+    /// single-target and the multi-target shape is written into it here: the verifier still sees the
+    /// input it is about, while no project file in the tree multi-targets.
+    /// </summary>
+    private const string MultiTargetProject =
+        "<Project Sdk=\"Microsoft.NET.Sdk\">\n"
+        + "  <PropertyGroup>\n"
+        + "    <TargetFrameworks>net11.0;net11.0-windows</TargetFrameworks>\n"
+        + "    <ImplicitUsings>enable</ImplicitUsings>\n"
+        + "    <Nullable>enable</Nullable>\n"
+        + "  </PropertyGroup>\n"
+        + "</Project>\n";
+
     [Fact]
     public async Task EditIntroducingGeneratedRegexCallIsVerifiedNotRefused()
     {
@@ -38,6 +52,7 @@ public sealed class VerifiedWriteVerifierTests
     public async Task ChecksOnlyWorkspaceLoadedTfm()
     {
         using var fixture = Fixtures.CopyVerifiedProject("multi-target");
+        File.WriteAllText(Path.Combine(fixture.Root, "MultiTarget.csproj"), MultiTargetProject);
         Fixtures.Restore(fixture, "MultiTarget.slnx");
         using var backend = new RoslynBackend(fixture.Root);
         Assert.Equal(
