@@ -2,9 +2,11 @@ namespace Lunate.Tui;
 
 /// <summary>
 /// One committed item of the session's transcript, in commit order. The store keeps the full data
-/// (a tool block's whole output and diff included); excerpting stays a render concern.
+/// (a tool block's whole output and diff included); excerpting stays a render concern. The hierarchy
+/// is <c>closed</c>: the entries below are the whole set, so the renderer's and the picker's switches
+/// are exhaustive without a default arm.
 /// </summary>
-public abstract record TranscriptEntry;
+public closed record TranscriptEntry;
 
 /// <summary>A submitted user message, as the run received it (steering echoes included).</summary>
 public sealed record TranscriptUserEntry(string Text) : TranscriptEntry;
