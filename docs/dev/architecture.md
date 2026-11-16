@@ -31,6 +31,29 @@ flowchart TD
 
 Solid arrows are project references; dashed arrows are runtime composition or connections to separate processes. `Lunate.Tui` consumes the standalone `Mermaid.Terminal` renderer — a port of mermaid-ascii with no Lunate reference — as its Mermaid adapter ([ADR-0039](../../adr/0039-mermaid-terminal-library.md)). `Lunate.Coding` is the composition root. It supplies the Roslyn built-in descriptor to the extension host and runs the shared activation filter, which evaluates the manifest rule through the public abstractions API for chat, print, ACP, child runs and MCP. The adapter owns the typed factory and bridges the extension contract to `Lunate.Roslyn`. `Lunate.Coding` references the adapter only to provide the built-in factory list, and neither Roslyn project references upward into the host. The adapter and backend do not load Roslyn/MSBuild assemblies until the first C# tool call. See [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md) and the [extensions spec](../../openspec/specs/extensions/spec.md).
 
+## Source layout
+
+Inside a project the folders group files by the feature they serve, and the namespace stays where the
+assembly put it — a move never renames a type or a namespace. `src/Lunate.Protocols` is the small
+example: `Mcp/Client/` holds the configured server, its options and its tool adapter, `Mcp/Server/`
+holds the stdio server and the tool it exposes, `Acp/` holds the editor server, and every file
+declares `namespace Lunate.Protocols;`.
+
+```text
+src/Lunate.Protocols/
+├── Acp/            ACP server: IAcpServer, LibAcpServer, session mapper
+├── Mcp/Client/     configured servers: McpServerHost, McpToolAdapter, config, elicitation
+├── Mcp/Server/     the stdio server: McpToolServer, McpServerToolAdapter
+└── PublicAPI.*.txt
+```
+
+`Lunate.Contracts` shows why the namespace does not follow the folder: it declares `Lunate.Agent` and
+`Lunate.Ai` types beside its own so its `TypeForwardedTo` entries keep a compiled consumer binding,
+and no folder may claim a namespace segment. The test projects mirror the folders they test, with
+support files at the project root. `tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces the rule;
+the requirement lives in the [repo-quality spec](../../openspec/specs/repo-quality/spec.md) and the
+file-naming half in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
 ## The model pipeline
 
 ```mermaid
