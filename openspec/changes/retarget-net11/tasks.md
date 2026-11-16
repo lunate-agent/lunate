@@ -23,3 +23,10 @@
 
 - [x] 4.1 Run `dotnet csharpier format .` and the fast gate (Release build, focused tests, `openspec validate --all --strict`).
 - [x] 4.2 Archive as the last commit: `openspec archive retarget-net11 --yes`.
+
+## 5. Rework after review (fixture and Purpose)
+
+- [x] 5.1 Commit no project file that declares two frameworks: `tests/fixtures/verified-edits/multi-target/MultiTarget.csproj` is single-target `net11.0`, and `ChecksOnlyWorkspaceLoadedTfm` writes `net11.0;net11.0-windows` into the temporary copy before the restore.
+- [x] 5.2 Widen the target-framework test to the acceptance's full scope: it walks every project under the repository root with only `eval/tasks/` and `docs/dev/spikes/` exempt, and a new case proves a multi-targeting fixture under `tests/fixtures/` fails it.
+- [x] 5.3 Update the delta, the proposal, the design and ADR-0041 for the run-time multi-target input, and state the `repo-foundation` Purpose correction; OpenSpec has no lifecycle operation for an existing spec's Purpose, so the one Purpose line is updated in place as `openspec archive`'s warning instructs.
+- [x] 5.4 Re-run the named tests, `openspec validate --all --strict`, and re-archive as the last commit.

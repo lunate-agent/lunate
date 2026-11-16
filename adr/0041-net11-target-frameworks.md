@@ -37,14 +37,17 @@ runtime as a post-merge maintainer step rather than with the retarget's pull-req
    project, the test projects, the extension template and the published harness and contract
    packages: `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`,
    `Lunate.Extensibility.Testing`, and the `Lunate.Ai` / `Lunate.Ai.Decisions` assemblies
-   `Lunate.Agent` carries. The fixture solutions under `tests/fixtures/` are `net11.0` too, so the
-   gate restores them against the pinned SDK's own targeting packs; a fixture whose whole point is
-   the multi-target shape (`tests/fixtures/verified-edits/multi-target`) stays multi-target at
-   `net11.0` because modeling a user's multi-target project is what it tests.
+   `Lunate.Agent` carries. Every fixture solution under `tests/fixtures/` is `net11.0` too, so the
+   gate restores them against the pinned SDK's own targeting packs. A fixture whose subject is the
+   multi-target shape — `tests/fixtures/verified-edits/multi-target` — writes that shape into its
+   temporary copy at run time, so no project file in the repository declares more than one framework
+   and the test that enforces this reads the fixtures like any other project.
 
 2. **Nothing in the repository multi-targets.** A package ships one `lib/net11.0` asset, the tool
    ships one `tools/net11.0` asset, and the public API analyzer runs against one target. There is no
-   `net10.0` compatibility floor to keep the contract surface clear of `net11.0`-only types.
+   `net10.0` compatibility floor to keep the contract surface clear of `net11.0`-only types. The
+   target-framework test scans every project under the repository root, fixtures included; only
+   `eval/tasks/` and `docs/dev/spikes/` are exempt as data.
 
 3. **The `dotnet tool` package requires the .NET 11 runtime.** It is framework-dependent, so its one
    asset is `tools/net11.0`. The release note and the distribution documentation state the

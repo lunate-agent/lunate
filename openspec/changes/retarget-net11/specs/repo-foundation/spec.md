@@ -8,8 +8,9 @@ be `net11.0`. `Directory.Build.props` SHALL declare `net11.0` as the one framewo
 inherits. A published package SHALL carry a single `lib/net11.0` asset, and the `dotnet tool` package
 SHALL carry a single `tools/net11.0` asset. Directories holding somebody else's project rather than a
 project of this repository — an eval task under `eval/tasks/` and a spike record under
-`docs/dev/spikes/` — are data and are exempt; a fixture whose subject is the multi-target shape may
-multi-target at `net11.0`.
+`docs/dev/spikes/` — are data and are exempt. A fixture under `tests/fixtures/` SHALL NOT be exempt:
+a test that needs a multi-targeted input SHALL write that shape into a temporary copy at run time, so
+no project file in the repository declares more than one target framework.
 
 Reintroducing multi-targeting, or dropping `net11.0` for a published package, SHALL require its own
 ADR and a deprecation window, never a silent target-framework bump.
@@ -25,6 +26,12 @@ ADR and a deprecation window, never a silent target-framework bump.
 - **GIVEN** a project that declares `TargetFrameworks` or a `TargetFramework` other than `net11.0`
 - **WHEN** the target-framework test runs
 - **THEN** it fails and names the project and the framework it declares
+
+#### Scenario: A fixture is checked like any other project
+
+- **GIVEN** a fixture project under `tests/fixtures/` that declares `TargetFrameworks`
+- **WHEN** the target-framework test runs
+- **THEN** it checks the fixture and fails, naming the fixture and the frameworks it declares
 
 #### Scenario: The packed contract carries one asset
 

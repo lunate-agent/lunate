@@ -40,7 +40,7 @@ Alternative rejected: keep the `net10.0;net11.0` split for the published package
 
 ### 3. The extension template and the fixture solutions follow
 
-The template is a copy that builds outside this repository: its extension project and its test project are both `net11.0`, so it shows what an extension for this host looks like and the copy target reads one output path. The fixture solutions (`tests/fixtures/solutions/*`, `tests/fixtures/verified-edits/*`) move to `net11.0` because the gate restores them offline against the machine's global packages folder, which the repository's own build fills with the packs it needs — after the retarget, `net11.0` packs only. The `multi-target` fixture keeps two frameworks, at `net11.0`, because modeling a user's multi-target project is its subject.
+The template is a copy that builds outside this repository: its extension project and its test project are both `net11.0`, so it shows what an extension for this host looks like and the copy target reads one output path. The fixture solutions (`tests/fixtures/solutions/*`, `tests/fixtures/verified-edits/*`) move to `net11.0` because the gate restores them offline against the machine's global packages folder, which the repository's own build fills with the packs it needs — after the retarget, `net11.0` packs only. The `multi-target` fixture commits a single `net11.0` project and its test rewrites the temporary copy into `net11.0;net11.0-windows` before the restore, so modeling a user's multi-target project stays its subject while no project file in the tree declares two frameworks. The target-framework test scans the fixtures like any other project, so a committed `TargetFrameworks` would fail it.
 
 ### 4. Extension compile target follows the host
 
@@ -84,7 +84,7 @@ Boundaries: the self-contained binary and the tool are both the `net11.0` host; 
 
 - **An extension built against `net10.0` stops loading** → there are no external extension authors and one user; the template, the reference extensions and the samples move with the repository. ADR-0041 records that multi-targeting returns as a deliberate, breaking decision before the first external release.
 - **A fixture asks for a targeting pack the pinned SDK does not bundle** → the fixture solutions move to `net11.0`, so an offline restore resolves against the SDK's own packs; the offline fallback folder stays as the mechanism for a fixture that ever needs another framework.
-- **The gate's hard-coded output paths fall behind** → every live script that addresses build output is part of this change, and a new test asserts that no project targets or multi-targets anything but `net11.0`.
+- **The gate's hard-coded output paths fall behind** → every live script that addresses build output is part of this change, and a new test scans every project under the repository root, fixtures included, and asserts that none targets or multi-targets anything but `net11.0`.
 - **The tool's local roundtrip needs a .NET 11 runtime** → the pinned SDK and the CI runners already install .NET 11; the changelog and distribution docs state the requirement.
 - **A budget regresses on the new runtime** → re-measured by the maintainer after the merge (ADR-0005, ADR-0009); the pull request does not move a budget on local numbers.
 
