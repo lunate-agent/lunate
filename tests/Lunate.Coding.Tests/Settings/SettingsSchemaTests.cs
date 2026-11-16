@@ -571,7 +571,8 @@ public sealed partial class SettingsSchemaTests
     {
         string[] files = Directory.GetFiles(
             Path.Combine(TestPaths.RepositoryRoot, "src", "Lunate.Coding"),
-            "SettingsStore*.cs"
+            "SettingsStore*.cs",
+            SearchOption.AllDirectories
         );
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach ((string method, string prefix) in ParserPrefixes)

@@ -13,8 +13,12 @@ namespace Lunate.Coding.Tests;
 /// </summary>
 internal static class HomeResolutionChecker
 {
-    /// <summary>The one file that is allowed to resolve the profile: it is the rule.</summary>
-    internal const string StateRootFile = "src/Lunate.Ai/LunateHome.cs";
+    /// <summary>
+    /// The one file that is allowed to resolve the profile: it is the rule. Named, not pathed: the
+    /// feature folders under <c>src/</c> move a file without moving the rule (#695), and a second
+    /// file with this name would make the scan ambiguous rather than silent.
+    /// </summary>
+    internal const string StateRootFile = "LunateHome.cs";
 
     internal enum Resolution
     {
@@ -37,7 +41,7 @@ internal static class HomeResolutionChecker
         // GlobalPackagesFolder is the one type that states the precedence, so the restore, the
         // package install and the walk agree on the folder instead of each resolving it again.
         new(
-            "src/Lunate.Extensibility.Restore/GlobalPackagesFolder.cs",
+            "GlobalPackagesFolder.cs",
             Resolution.UserProfile,
             "NuGet's default global packages folder (`~/.nuget/packages`), shared with the SDK"
         ),
@@ -45,48 +49,48 @@ internal static class HomeResolutionChecker
         // into a path: the compile and the load must agree on the folder, so the rule lives there
         // rather than twice (it moved here with SingleFileExtensionBuilder's copy).
         new(
-            "src/Lunate.Extensibility/SingleFilePackages.cs",
+            "SingleFilePackages.cs",
             Resolution.UserProfile,
             "the same NuGet default (`~/.nuget/packages`), read for a compile and for a load's assets"
         ),
         // Scrubbing: the diagnostic path replaces the real home with `~` in a message it is about to
         // write. Same shape as PathText below — presentation only, it resolves no state.
         new(
-            "src/Lunate.Coding/DiagnosticScrubber.cs",
+            "DiagnosticScrubber.cs",
             Resolution.UserProfile,
             "scrubbing only: replaces the real home with `~` in a diagnostic message; resolves no state"
         ),
         // Presentation: `~` shortening of whatever path is being printed. It reads no state and
         // writes none, and the TUI assembly deliberately does not depend on Lunate.Ai.
         new(
-            "src/Lunate.Tui/ToolBlocks/PathText.cs",
+            "PathText.cs",
             Resolution.UserProfile,
             "display only: shortens a path under the real home to `~`; resolves no state"
         ),
         // Project-scoped directories: a `.lunate` inside the workspace, owned by the repository,
         // which is exactly where a store must not be — the guard's point, not a counter-example.
         new(
-            "src/Lunate.Extensibility/ExtensionLoader.cs",
+            "ExtensionLoader.cs",
             Resolution.LunateDirectory,
             "project-scoped: the worktree's own `.lunate/extensions` directory"
         ),
         new(
-            "src/Lunate.Coding/McpComposition.cs",
+            "McpComposition.cs",
             Resolution.LunateDirectory,
             "project-scoped: the worktree's `.lunate/mcp.json`, a file the repository owns"
         ),
         new(
-            "src/Lunate.Coding/SkillScanner.cs",
+            "SkillScanner.cs",
             Resolution.LunateDirectory,
             "project-scoped: `.lunate` is one of the worktree skill-root conventions"
         ),
         new(
-            "src/Lunate.Coding/SettingsStore.Project.cs",
+            "SettingsStore.Project.cs",
             Resolution.LunateDirectory,
             "project-scoped: `.lunate/settings.json` contains only references and tightened limits"
         ),
         new(
-            "src/Lunate.Extensibility.Testing/ExtensionTestHost.cs",
+            "ExtensionTestHost.cs",
             Resolution.LunateDirectory,
             "test kit: a temporary worktree's project extension directory"
         ),
@@ -102,7 +106,7 @@ internal static class HomeResolutionChecker
         {
             string relative = Path.GetRelativePath(repositoryRoot, file)
                 .Replace(Path.DirectorySeparatorChar, '/');
-            if (string.Equals(relative, StateRootFile, StringComparison.Ordinal))
+            if (string.Equals(Path.GetFileName(file), StateRootFile, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -118,7 +122,11 @@ internal static class HomeResolutionChecker
                 if (
                     AllowedSites.Any(site =>
                         site.Resolution == resolution
-                        && string.Equals(site.File, relative, StringComparison.Ordinal)
+                        && string.Equals(
+                            site.File,
+                            Path.GetFileName(file),
+                            StringComparison.Ordinal
+                        )
                     )
                 )
                 {

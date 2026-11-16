@@ -23,7 +23,11 @@ public sealed class HomeResolutionTests
         );
     }
 
-    /// <summary>An allow-list entry without a reason is a bug, not documentation debt.</summary>
+    /// <summary>
+    /// An allow-list entry without a reason is a bug, not documentation debt, and an entry that no
+    /// longer names one file is the same: the site is matched by file name, so exactly one file with
+    /// that name has to exist under <c>src/</c>.
+    /// </summary>
     [Fact]
     public void Every_allowed_site_carries_a_reason()
     {
@@ -34,7 +38,7 @@ public sealed class HomeResolutionTests
                 $"{site.File} ({site.Resolution}) is allow-listed without a reason"
             );
             Assert.True(
-                File.Exists(Path.Combine(RepositoryRoot.Find(), site.File)),
+                File.Exists(RepositoryRoot.FindFile("src", site.File)),
                 $"{site.File} is allow-listed but does not exist"
             );
         }
@@ -49,7 +53,7 @@ public sealed class HomeResolutionTests
     public void The_root_variable_is_read_from_the_process_environment_only()
     {
         string repositoryRoot = RepositoryRoot.Find();
-        string stateRoot = Path.Combine(repositoryRoot, HomeResolutionChecker.StateRootFile);
+        string stateRoot = RepositoryRoot.FindFile("src", HomeResolutionChecker.StateRootFile);
 
         var readers = new List<string>();
         foreach (string file in HomeResolutionChecker.SourceFiles(repositoryRoot))
@@ -68,7 +72,13 @@ public sealed class HomeResolutionTests
             }
         }
 
-        Assert.Equal([HomeResolutionChecker.StateRootFile], readers);
+        Assert.Equal(
+            [
+                Path.GetRelativePath(repositoryRoot, stateRoot)
+                    .Replace(Path.DirectorySeparatorChar, '/'),
+            ],
+            readers
+        );
         Assert.True(File.Exists(stateRoot));
 
         // Nothing in production may set it either: a settings or project loader that wrote the

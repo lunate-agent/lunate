@@ -14,16 +14,18 @@ public sealed class ExecutionEnvironmentInventoryTests
     /// <summary>
     /// Direct host/local process starts. Each is deliberately outside the tool-command seam: the
     /// platform batch spawn and interactive session (the local implementation), the process-table
-    /// read behind the local tree kill, and the editor, clipboard and guard helper processes.
+    /// read behind the local tree kill, and the editor, clipboard and guard helper processes. The
+    /// list names files, not paths: a feature folder moves a file without changing its classification
+    /// (#695), and a name that is no longer unique fails at the read.
     /// </summary>
     private static readonly string[] HostSupportStarts =
     [
-        "src/Lunate.Coding/ClipboardWriter.cs",
-        "src/Lunate.Coding/DraftEditor.cs",
-        "src/Lunate.Coding/GuardProbe.cs",
-        "src/Lunate.Coding/LocalExecutionEnvironment.Session.cs",
-        "src/Lunate.Coding/ProcessRunner.cs",
-        "src/Lunate.Coding/WindowsChildProcess.cs",
+        "ClipboardWriter.cs",
+        "DraftEditor.cs",
+        "GuardProbe.cs",
+        "LocalExecutionEnvironment.Session.cs",
+        "ProcessRunner.cs",
+        "WindowsChildProcess.cs",
     ];
 
     [Fact]
@@ -31,7 +33,7 @@ public sealed class ExecutionEnvironmentInventoryTests
     {
         string[] actual = SourceFiles()
             .Where(path => StartsAProcess(path))
-            .Select(Relative)
+            .Select(FileName)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
@@ -49,18 +51,18 @@ public sealed class ExecutionEnvironmentInventoryTests
                         && Regex.IsMatch(line, @"\bChildProcess\.Start\s*\(", RegexOptions.None)
                     )
             )
-            .Select(Relative)
+            .Select(FileName)
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(["src/Lunate.Coding/LocalExecutionEnvironment.cs"], actual);
+        Assert.Equal(["LocalExecutionEnvironment.cs"], actual);
     }
 
     [Fact]
     public void Tool_commands_name_the_seam_and_host_support_names_local()
     {
-        string coding = Path.Combine(RepositoryRoot.Find(), "src", "Lunate.Coding");
-        string Read(string file) => File.ReadAllText(Path.Combine(coding, file));
+        string Read(string file) =>
+            File.ReadAllText(RepositoryRoot.FindFile("src/Lunate.Coding", file));
 
         Assert.Contains("IExecutionEnvironment", Read("BashTool.cs"), StringComparison.Ordinal);
         Assert.Contains(
@@ -121,6 +123,5 @@ public sealed class ExecutionEnvironmentInventoryTests
     private static bool IsComment(string line) =>
         line.TrimStart().StartsWith("//", StringComparison.Ordinal);
 
-    private static string Relative(string path) =>
-        Path.GetRelativePath(RepositoryRoot.Find(), path).Replace('\\', '/');
+    private static string FileName(string path) => Path.GetFileName(path);
 }

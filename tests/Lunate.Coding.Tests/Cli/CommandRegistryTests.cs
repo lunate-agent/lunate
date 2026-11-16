@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Lunate.Extensibility.Abstractions;
+using Lunate.TestSupport;
 
 namespace Lunate.Coding.Tests;
 
@@ -236,12 +237,7 @@ public sealed class CommandRegistryTests
     private static IReadOnlyList<string> DispatchedNames()
     {
         string source = File.ReadAllText(
-            Path.Combine(
-                TestPaths.RepositoryRoot,
-                "src",
-                "Lunate.Coding",
-                "InteractiveSession.BuiltinCommands.cs"
-            )
+            RepositoryRoot.FindFile("src/Lunate.Coding", "InteractiveSession.BuiltinCommands.cs")
         );
         int start = source.IndexOf("BuiltinCommandSource", StringComparison.Ordinal);
         Assert.True(

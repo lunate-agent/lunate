@@ -141,7 +141,7 @@ internal static class WaitCeilingChecker
                 if (
                     AllowedSites.Any(site =>
                         site.Signal == signal
-                        && string.Equals(site.File, relative, StringComparison.Ordinal)
+                        && string.Equals(site.File, name, StringComparison.Ordinal)
                     )
                 )
                 {

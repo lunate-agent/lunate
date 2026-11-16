@@ -11,6 +11,8 @@ namespace Lunate.Coding.Tests;
 /// </summary>
 public sealed class WaitCeilingTests
 {
+    private const string TestsDirectory = "tests/Lunate.Coding.Tests";
+
     [Fact]
     public void No_call_site_bounds_a_wait_with_a_literal()
     {
@@ -24,12 +26,14 @@ public sealed class WaitCeilingTests
         );
     }
 
-    /// <summary>An allow-list entry without a reason is a bug, not documentation debt.</summary>
+    /// <summary>
+    /// An allow-list entry without a reason is a bug, not documentation debt, and an entry that no
+    /// longer names one file is the same: the site is matched by file name, so exactly one file with
+    /// that name has to exist under the test project.
+    /// </summary>
     [Fact]
     public void Every_allowed_site_carries_a_reason()
     {
-        string repositoryRoot = RepositoryRoot.Find();
-
         foreach (WaitCeilingChecker.AllowedSite site in WaitCeilingChecker.AllowedSites)
         {
             Assert.False(
@@ -37,14 +41,7 @@ public sealed class WaitCeilingTests
                 $"{site.File} ({site.Signal}) is allow-listed without a reason"
             );
             Assert.True(
-                File.Exists(
-                    Path.Combine(
-                        repositoryRoot,
-                        "tests",
-                        "Lunate.Coding.Tests",
-                        site.File.Replace('/', Path.DirectorySeparatorChar)
-                    )
-                ),
+                File.Exists(RepositoryRoot.FindFile(TestsDirectory, site.File)),
                 $"{site.File} is allow-listed but does not exist"
             );
         }
@@ -58,12 +55,7 @@ public sealed class WaitCeilingTests
     [Fact]
     public void Every_budget_explains_what_it_waits_for()
     {
-        string path = Path.Combine(
-            RepositoryRoot.Find(),
-            "tests",
-            "Lunate.Coding.Tests",
-            WaitCeilingChecker.BudgetsFile
-        );
+        string path = RepositoryRoot.FindFile(TestsDirectory, WaitCeilingChecker.BudgetsFile);
         string[] lines = File.ReadAllLines(path);
 
         var unexplained = new List<string>();
