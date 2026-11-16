@@ -54,10 +54,11 @@ by re-measuring rather than assuming.
    not, and they are the install path for a machine without it.
 
 6. **The extension template builds both assets.** `templates/extension/TemplateExtension` targets
-   `net10.0;net11.0`, so the compatibility floor is proven by the gate on every run rather than by a
-   claim in a README; the copied-template end-to-end test loads the `net10.0` output in a `net11.0`
-   host. The template's own test project targets `net11.0` because the test kit carries the tool's
-   assemblies.
+   `net10.0;net11.0` and clears the inherited `TargetFramework`, so MSBuild takes the cross-targeting
+   path and the solution build — `lunate.slnx` lists it — compiles both assets on every gate run. The
+   copied-template end-to-end test loads the `net10.0` output in a `net11.0` host, so the floor is
+   proven by building rather than by a claim in a README. The template's own test project targets
+   `net11.0` because the test kit carries the tool's assemblies.
 
 7. **The startup budget is re-measured, not assumed.** Per ADR-0005 and its floor addendum, the
    published binary was measured against a `net10.0` binary built from `origin/main` with the same SDK,

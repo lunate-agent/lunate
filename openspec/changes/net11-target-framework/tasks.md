@@ -8,8 +8,10 @@
       `Lunate.Agent`, `Lunate.Ai`, `Lunate.Ai.Decisions` and `Mermaid.Terminal`, each clearing the
       inherited `TargetFramework` (MSBuild's cross-targeting condition) with the comment saying why.
 - [x] 1.4 `Lunate.Extensibility.Testing` packs `lib/$(TargetFramework)` instead of `lib/net10.0`.
-- [x] 1.5 Extension template: the extension project targets `net10.0;net11.0` and its test project
-      `net11.0` (the test kit carries the tool's assemblies).
+- [x] 1.5 Extension template: the extension project targets `net10.0;net11.0` and clears the inherited
+      `TargetFramework` — without the clear MSBuild keeps `net11.0` and the solution build proves
+      nothing about the floor — and its test project targets `net11.0` (the test kit carries the
+      tool's assemblies). `ExtensionTemplateTests` pins the clear.
 - [x] 1.6 Build the solution in Release on the pinned SDK: every project compiles both declared assets
       with no warning, and `dotnet pack` of a contract package carries `lib/net10.0` and `lib/net11.0`.
 
