@@ -143,16 +143,18 @@ interactive session, with two sandbox substitutions:
   header and idles exactly as a configured install does. The missing terminal driver and the absent
   update check are the only differences from the shipped idle TUI.
 
-The subject binary is a scratch host that references the product's projects and is published with the
-release flags (`--self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true`); ADR-0009
-calibrated the 150 MB gate on the S-5 shell baseline (82 MB), so the same host is measured in three
-packaging shapes to separate the TUI's own footprint from the bundle mapping.
+The subject binary is a scratch host that references the product's projects, so its single-file
+ReadyToRun bundle is within 0.1 MiB of the published binary (439 MiB net11) and carries the same
+session. It is published with the release flags (`--self-contained true -p:PublishSingleFile=true
+-p:PublishReadyToRun=true`); ADR-0009 calibrated the 150 MB gate on the S-5 shell baseline (82 MB),
+so the same host is measured in three packaging shapes to separate the TUI's own footprint from the
+bundle mapping. RSS is reported in the gate's unit (`scripts/memory.sh`'s kB/1024 rounding).
 
 | Idle TUI peak RSS (20 s window, two runs each) | .NET 10 baseline | .NET 11 (#902) |
 | --- | --- | --- |
 | Framework-dependent (`dotnet <host>.dll`) | 85 MB | 88 MB |
-| Single-file + ReadyToRun (bundle 395 / 460 MB) | 298 MB | 353 MB |
-| Single-file, no ReadyToRun (bundle 143 MB) | not measured | 85 MB |
+| Single-file + ReadyToRun (bundle 377 / 439 MiB) | 298 MB | 353 MB |
+| Single-file, no ReadyToRun (bundle 137 MiB) | not measured | 85 MB |
 
 Verdict against the 150 MB gate (ADR-0009):
 
