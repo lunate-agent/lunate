@@ -6,13 +6,16 @@ through the GitHub API and owns the `gh` calls; this file owns what the reporter
 documents, so the decision is pure and its self-test needs no network. It mirrors
 `scripts/ci-ok-state`.
 
-- `--jobs-json FILE` prints `id<TAB>name` for every red job. A job that did not run (skipped) is not a
-  failure; only a conclusion that means the job ran and did not pass is. A job that never started is not
-  a red job either: GitHub concludes a job it never acquired a runner for as `cancelled` with an empty
-  step list ("The job was not acquired by Runner of type hosted even after multiple attempts"), so it
-  prints nothing for that job and names it on stderr instead, because no change in this repository can
-  fix it and the remedy is a rerun. A job cancelled after it reached a step, and any document whose
-  `steps` list is missing, stays red: the rule fails closed.
+- `--jobs-json FILE --run-url URL` prints `id<TAB>name` for every red job. A job that did not run
+  (skipped) is not a failure; only a conclusion that means the job ran and did not pass is. A job that
+  never started is not a red job either: GitHub concludes a job it never acquired a runner for as
+  `cancelled`, with `runner_id: 0` and an empty step list ("The job was not acquired by Runner of type
+  hosted even after multiple attempts"), so it prints nothing for that job and names it on stderr
+  instead, with the run link, because no change in this repository can fix it and the remedy is a rerun.
+  All three have to hold: a job cancelled by a superseding run also has no steps, and a started job can
+  still report `runner_id: 0`. A job cancelled after it reached a step, and any document whose `steps`
+  list or `runner_id` is missing, stays red: the rule fails closed. The run link is required with the
+  jobs because the reporter names the job and the run, never the job alone.
 - `--milestones-json FILE` prints the lowest open milestone whose title is a version
   (`MAJOR.MINOR.PATCH`), compared numerically. `backlog` and any other title never match, and a release
   that closes its milestone removes it from the open list, so no constant names a version here. The list
@@ -71,15 +74,19 @@ def _load(path):
 
 
 def never_started(job):
-    """True when the job never reached a step: a cancellation GitHub reports with an empty step list."""
+    """True when the job never reached a machine: cancelled, no runner and no step."""
     if str(job.get("conclusion") or "") != "cancelled":
+        return False
+    runner = job.get("runner_id")
+    # A missing runner is not evidence of anything, and `False == 0` in Python, so check the type.
+    if isinstance(runner, bool) or not isinstance(runner, int) or runner != 0:
         return False
     steps = job.get("steps")
     # A missing list is not evidence of anything, so only a present-and-empty one counts.
     return isinstance(steps, list) and not steps
 
 
-def red_jobs(path):
+def red_jobs(path, run_url):
     """One `id<TAB>name` line per red job, in the order the run lists them, without duplicates."""
     seen = set()
     for job in _records(_load(path), "jobs"):
@@ -91,7 +98,8 @@ def red_jobs(path):
         seen.add(name)
         if never_started(job):
             print(
-                f"ci-issue-triage: {name}: never started (no runner was acquired); no card is filed for it",
+                f"ci-issue-triage: {name}: never started (no runner was acquired); "
+                f"no card is filed for it; rerun {run_url}",
                 file=sys.stderr,
             )
             continue
@@ -197,13 +205,16 @@ def area_label(log_path, source_root):
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--jobs-json")
+    parser.add_argument("--run-url")
     parser.add_argument("--milestones-json")
     parser.add_argument("--log-file")
     parser.add_argument("--source-root")
     args = parser.parse_args(argv)
 
     if args.jobs_json:
-        red_jobs(args.jobs_json)
+        if not args.run_url:
+            parser.error("--jobs-json needs --run-url")
+        red_jobs(args.jobs_json, args.run_url)
         return 0
     if args.milestones_json:
         lowest_version_milestone(args.milestones_json)
