@@ -271,7 +271,8 @@ jobs:
           fi
 
   # The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs
-  # regions, the docs link/navigation check and the docs lint -- on the tree the queue is about to
+  # regions, the docs link/navigation check, the guard that no build input or test reads the docs
+  # tree and the docs lint -- on the tree the queue is about to
   # land. Each pull request proved only its own tree against its own base (#840 took a free ADR-0036
   # while #843's full-profile gate never asked about ADR numbers), so the batch that combined them was
   # the first tree to carry a duplicate and nothing in the queue ran the check that catches it
@@ -306,8 +307,9 @@ jobs:
           echo "checking the batch's range ${BASE_SHA}...HEAD"
           bash scripts/tree-checks.sh --base "${BASE_SHA}"
 
-  # The platform-independent half of the gate: formatting, the generated docs regions, markdownlint,
-  # the public API, the OpenSpec tree and the two agent-hygiene checks. Running it once on Linux is
+  # The platform-independent half of the gate: formatting, the generated docs regions, the docs-tree
+  # guard, markdownlint, the public API, the OpenSpec tree and the two agent-hygiene checks. Running
+  # it once on Linux is
   # the point -- a Windows runner formatting the same source as a macOS runner was cost, not depth.
   # The OS legs skip these steps (VERIFY_SKIP_PLATFORM_CHECKS=1) and keep build, test, publish and
   # the artifact proofs, which genuinely differ per OS. A merge group skips this job too: its pull
