@@ -46,8 +46,14 @@ public sealed class SettingsStoreTuiTests
     }
 
     [Theory]
-    [InlineData("""{ "theme": "banana" }""", "'tui.theme' must be 'default', 'ansi16' or 'mono'")]
-    [InlineData("""{ "theme": 4 }""", "'tui.theme' must be 'default', 'ansi16' or 'mono'")]
+    [InlineData(
+        """{ "theme": "banana" }""",
+        "'tui.theme' must be 'default', 'dark', 'light', 'ansi16' or 'mono'"
+    )]
+    [InlineData(
+        """{ "theme": 4 }""",
+        "'tui.theme' must be 'default', 'dark', 'light', 'ansi16' or 'mono'"
+    )]
     [InlineData("""{ "keys": { "ctrl-newline-who": ["Ctrl+T"] } }""", "is not a binding id")]
     [InlineData("""{ "keys": { "ctrl-o.transcript": ["banana"] } }""", "declares 'banana'")]
     [InlineData(
@@ -95,6 +101,19 @@ public sealed class SettingsStoreTuiTests
 
         Assert.Contains("the closest names are", exception.Message, StringComparison.Ordinal);
         Assert.Contains("'ctrl-o.transcript'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("light")]
+    [InlineData("dark")]
+    public void A_background_theme_round_trips_through_the_settings_file(string theme)
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("settings.json");
+
+        SettingsStore.WriteTui(new TuiSettings { Theme = theme }, path);
+
+        Assert.Equal(theme, SettingsStore.Resolve(path, _ => null).Tui.Theme);
     }
 
     [Fact]

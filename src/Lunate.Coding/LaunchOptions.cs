@@ -85,8 +85,9 @@ internal sealed record LaunchOptions
     public string? Keymap { get; init; }
 
     /// <summary>
-    /// The theme for this run: a built-in name (<c>default</c>, <c>ansi16</c>, <c>mono</c>) or the
-    /// path of a token file. Null keeps the resolved <c>tui.theme</c> setting, then <c>default</c>.
+    /// The theme for this run: a built-in name (<c>default</c>, <c>dark</c>, <c>light</c>,
+    /// <c>ansi16</c>, <c>mono</c>) or the path of a token file. Null keeps the resolved
+    /// <c>tui.theme</c> setting, then <c>default</c>.
     /// </summary>
     public string? Theme { get; init; }
 
