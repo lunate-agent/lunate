@@ -691,6 +691,14 @@ and the run link, or comment on the already-open issue for that job instead of f
 reporter SHALL key the duplicate check on the job's title, so a week of red runs for the same failing
 job is one open card. A green run SHALL file nothing.
 
+A job that never started is not a red job: a job whose conclusion is `cancelled` and whose `steps` list
+is present and empty was never acquired by a runner, so the reporter SHALL file no card and post no
+comment for it, and SHALL say so in the run's own log, naming the job and the run link, so the red run
+is still visible. The rule SHALL NOT cover a job that ran and did not pass: a `cancelled` job that
+reached at least one step, a `failure`, a `timed_out` and every other red conclusion SHALL still file,
+and a job whose `steps` list is missing or unreadable SHALL be treated as red, so the rule fails closed
+instead of passing on a document it cannot read.
+
 The issue SHALL be placed in the lowest-numbered open milestone whose title is a version
 (`MAJOR.MINOR.PATCH`), read from the GitHub API so the rule works on a GitHub runner from repository
 state alone. A release closes its milestone, so the next lowest open version becomes the target without
@@ -717,6 +725,30 @@ when it does not.
 - **GIVEN** a nightly run in which `verify (windows-latest, 2/4)` failed
 - **WHEN** the reporter runs
 - **THEN** it opens a `kind/bug` issue whose title names `verify (windows-latest, 2/4)` and whose body carries the run link
+
+#### Scenario: A job no runner ever acquired files nothing (#922)
+
+- **GIVEN** a `push` run on `main` whose `perf (macos-latest)` job concluded `cancelled` with an empty `steps` list, because the hosted runner was never acquired after multiple attempts
+- **WHEN** the reporter runs
+- **THEN** it files no card and posts no comment for that job, and the run's log names the job and the run link
+
+#### Scenario: A run whose only red jobs never started files nothing
+
+- **GIVEN** a push run in which every red job concluded `cancelled` with an empty `steps` list
+- **WHEN** the reporter runs
+- **THEN** it creates and comments on no issue, and the run's log says the jobs never got a runner and that a rerun is the remedy
+
+#### Scenario: A cancellation that started stays red
+
+- **GIVEN** a nightly run whose `verify (macos-latest, 2/2)` job concluded `cancelled` after reaching its first step, and a push run whose `perf (macos-latest)` job concluded `cancelled` with no `steps` field at all
+- **WHEN** the reporter runs on each
+- **THEN** both file a card, because neither is evidence of a job that never started
+
+#### Scenario: A real failure beside an unstarted job still files
+
+- **GIVEN** a push run in which `verify (macos-latest, 1/2)` concluded `cancelled` with an empty `steps` list and `verify (windows-latest, 2/4)` failed
+- **WHEN** the reporter runs
+- **THEN** it files exactly one card, naming `verify (windows-latest, 2/4)`
 
 #### Scenario: The card takes the lowest open version milestone
 
