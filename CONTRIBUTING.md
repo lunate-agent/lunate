@@ -65,7 +65,9 @@ markdownlint, `openspec validate --all --strict`, `scripts/docs-sync --check`,
 `docs/` becomes a build input or a test's subject). `scripts/ci-plan.sh` picks the profile from the
 PR's changed paths, deny-by-default: only `docs/`, `adr/`, `openspec/`, root-level `*.md` and
 `changes/*.md` qualify, and a change to the workflows, a rename out of those trees or anything else
-means the full gate. The default `--profile full` is the whole gate above, unchanged.
+means the full gate. The default `--profile full` is the whole gate above, unchanged — and its
+platform checks run `scripts/no-docs-references.sh` too, so a test that starts reading `docs/` is red
+on the pull request that adds it, not only on a prose one.
 
 Useful narrower commands while working:
 
@@ -201,7 +203,8 @@ A pull request that changes only prose — `docs/`, `adr/`, `openspec/`, or a ro
 file — runs the docs profile: markdownlint, the generated-region check, the link/navigation check,
 the "no test reads `docs/`" guard and `openspec validate --all --strict`, in seconds. Anything that
 touches source, tests, templates or workflows runs the fast gate: `plan`, the changed-path decision,
-the changelog guard, the platform checks and build plus tests on `ubuntu-latest` only. The decision
+the changelog guard, the platform checks — which run that guard too, so a test that reads a docs file
+cannot land on a code pull request — and build plus tests on `ubuntu-latest` only. The decision
 lives in `scripts/ci-plan.sh` and is deny-by-default, so a path nobody thought about runs the full
 gate rather than the cheap one. The single required `ci-ok` check judges the live head's newest
 attempt of each required job, not the run's trigger payload: rerunning an older or draft run reports
@@ -223,18 +226,30 @@ link, and comment on the open card for that job instead of filing a duplicate. A
 is not a failing job: GitHub concludes a job it never acquired a hosted runner for as `cancelled` with
 `runner_id: 0` and an empty step list, and because no change in this repository can fix that — the remedy
 is a rerun — the reporter files no card for it and names it, together with the run link, in the run's own
-log instead, so a hosted-runner shortage no longer produces an unactionable card (#922). The rule fails
-closed: a job cancelled after reaching a step, and a document whose step list or runner id is missing,
-still files. The card takes the lowest open version milestone (`0.5.0`
-rather than `backlog`; a release closes its milestone, so the next version becomes the target), read
-from the GitHub API, and an `area/tui` or `area/core` label only when the failing test's project decides
-it: a `Lunate.Tui` test is `area/tui`, a `Lunate.Coding` test is `area/tui` when its own source names
-`Lunate.Tui` and `area/core` otherwise, and a job that fails without a failing test in those projects
-carries no area label.
+log and job summary instead, also when the run's other red job that ran is filed as its own card, so a
+hosted-runner shortage no longer produces an unactionable card (#922). The rule fails closed: a job
+cancelled after reaching a step, and a document whose step list or runner id is missing, still files. The
+card takes the lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its
+milestone, so the next version becomes the target), read from the GitHub API, and an `area/tui` or
+`area/core` label only when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a
+`Lunate.Coding` test is `area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a
+job that fails without a failing test in those projects carries no area label.
+
+A run whose legs never acquired a hosted runner is a runner-capacity red, and it is retried instead of
+reported: GitHub cancels a job when no macOS arm64 runner is free, before its first step starts, so nothing
+the repository builds or tests ran. The reporter writes the abandoned legs into the run summary and fails,
+`ci-capacity-retry.yml` reruns that run's failed jobs once when it completes, and the attempt the retry
+budget does not cover says in the same summary that the retry is spent and that a rerun is the remedy. No
+card is ever filed for such a leg, and the summary names it even when another red job that ran is filed as
+its own card. The derived `ci-ok` aggregate and the reporter itself are never named
+as abandoned legs, because they failed only because a leg did not succeed. A red job that ran is never
+retried that way, so an executed failure is never retried away, and `ci-ok` still fails closed on an
+abandoned leg in every attempt (#923).
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the
-link/navigation check and the docs lint in one job of a few seconds. Both triggers call
+link/navigation check, the "no test reads `docs/`" guard and the docs lint in one job of a few
+seconds. Both triggers call
 `scripts/tree-checks.sh`, so the push to `main` and the queue run one command list. A docs-only push
 skips the matrix, so without that job a check that fails on `main` stays invisible until the first
 pull request that touches documentation — which is how `#738` (`check-adr-numbers.py` failing on

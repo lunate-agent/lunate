@@ -20,6 +20,12 @@
 # through the store that reads the real file, so a documented example cannot rot. Name the test
 # here and print the allowance -- never quietly bypass the shape checks above.
 #
+# A test may also *name* a docs path without reading it: a value it compares with or excludes from a
+# scan is data, not a file it opens. ALLOWED_DOCS_MENTIONS below names the file and the exact
+# reference it may name, so the allowance cannot hide a second docs path in that file, and a
+# File/Directory call on the allowed line still fails. Issue #929: TargetFrameworkTests excludes the
+# spike records under docs/dev/spikes from the list of projects it scans.
+#
 # What does not: a docs path handed to an in-memory fixture or a rendered value -- AddFile,
 # AddDirectory, AddTree, CompletionItem.File. That is a workspace or a display string, not a file
 # the test reads from the repository, and the allowance is printed so it is never silent.
@@ -44,6 +50,12 @@ FILESYSTEM_CALL='(File|Directory)\.[A-Za-z]+\([^;]*"docs[/"\\]'
 ALLOWED_DOCS_READERS=(
   tests/Lunate.Tui.Tests/Interaction/GuideKeyTableTests.cs
   tests/Lunate.Coding.Tests/Providers/DocsConfigExamplesTests.cs
+)
+
+# The docs references a test may name without reading them: <test file>|<exact reference>. The
+# reference is matched as written on the line, so any other docs path in the same file fails.
+ALLOWED_DOCS_MENTIONS=(
+  'tests/Lunate.Coding.Tests/TargetFrameworkTests.cs|Path.Combine("docs", "dev", "spikes")'
 )
 
 findings=0
@@ -82,11 +94,16 @@ scan_test_file() {
   local root="$1" file="$2" hit number text
   local candidates rootish=0
   scanned=$((scanned + 1))
-  local allowed
+  local allowed entry mentions="" mention named=0 named_mention=""
   for allowed in "${ALLOWED_DOCS_READERS[@]}"; do
     if [ "${file#"$root"/}" = "$allowed" ]; then
       printf 'no-docs-references: note: %s is an allowed docs reader\n' "${file#"$root"/}"
       return 0
+    fi
+  done
+  for entry in "${ALLOWED_DOCS_MENTIONS[@]}"; do
+    if [ "${entry%%|*}" = "${file#"$root"/}" ]; then
+      mentions="${mentions}${entry#*|}"$'\n'
     fi
   done
   candidates="$(grep -nE "$DOCS_PATH" "$file" || true)"
@@ -98,6 +115,29 @@ scan_test_file() {
     [ -n "$hit" ] || continue
     number="${hit%%:*}"
     text="${hit#*:}"
+    if [ -n "$mentions" ]; then
+      named=0
+      while IFS= read -r mention; do
+        [ -n "$mention" ] || continue
+        case "$text" in
+          *"$mention"*)
+            named=1
+            named_mention="$mention"
+            ;;
+        esac
+      done <<<"$mentions"
+      if [ "$named" -eq 1 ]; then
+        # A read is a read whatever the allowance names.
+        if printf '%s' "$text" | grep -qE "$FILESYSTEM_CALL"; then
+          report "FAIL: ${file#"${root}"/}:${number} reads a docs path: ${text}"
+          findings=$((findings + 1))
+        else
+          printf 'no-docs-references: note: %s:%s names %s without reading it\n' \
+            "${file#"${root}"/}" "$number" "$named_mention"
+        fi
+        continue
+      fi
+    fi
     case "$text" in
       # A fixture or a rendered value: the string never becomes a path in this repository.
       *'.AddFile("docs'* | *'.AddDirectory("docs'* | *'.AddTree("docs'* | *'CompletionItem.File("docs'*)
@@ -342,7 +382,63 @@ _self_test_cases() {
     return 1
   fi
 
-  echo "self-test: 12/12"
+  # 13. A docs path a root-resolving test names without reading it is an allowed mention, and the
+  #     allowance is printed so it is never silent (issue #929: TargetFrameworkTests excludes the
+  #     spike records under docs/dev/spikes from the projects it scans).
+  case_dir="${scratch}/named-mention"
+  mkdir -p "$case_dir/src/App" "$case_dir/tests/Lunate.Coding.Tests" "$case_dir/docs"
+  printf '<Project>\n</Project>\n' >"$case_dir/src/App/App.csproj"
+  printf 'public sealed class TargetFrameworkTests\n{\n    private static readonly string[] DataDirectories =\n    [\n        Path.Combine("docs", "dev", "spikes"),\n        Path.Combine("eval", "tasks"),\n    ];\n\n    void M() => _ = RepositoryRoot.Find();\n}\n' \
+    >"$case_dir/tests/Lunate.Coding.Tests/TargetFrameworkTests.cs"
+  if ! out="$(check_tree "$case_dir" 2>&1)"; then
+    printf 'self-test: an allowed docs mention must pass, said: %s\n' "$out" >&2
+    return 1
+  fi
+  case "$out" in
+    *"without reading it"*) ;;
+    *)
+      printf 'self-test: the mention allowance must be printed, said: %s\n' "$out" >&2
+      return 1
+      ;;
+  esac
+
+  # 14. The allowance names one file and one reference: another docs path in that file still fails.
+  case_dir="${scratch}/mention-second-path"
+  mkdir -p "$case_dir/src/App" "$case_dir/tests/Lunate.Coding.Tests" "$case_dir/docs"
+  printf '<Project>\n</Project>\n' >"$case_dir/src/App/App.csproj"
+  printf 'public sealed class TargetFrameworkTests\n{\n    private static readonly string[] DataDirectories =\n    [\n        Path.Combine("docs", "dev", "spikes"),\n    ];\n\n    string M() => File.ReadAllText(Path.Combine(RepositoryRoot.Find(), "docs", "guide.md"));\n}\n' \
+    >"$case_dir/tests/Lunate.Coding.Tests/TargetFrameworkTests.cs"
+  if out="$(check_tree "$case_dir" 2>&1)"; then
+    echo "self-test: a second docs path in the allowed file must fail" >&2
+    return 1
+  fi
+  case "$out" in
+    *"from the repository root"*) ;;
+    *)
+      printf 'self-test: the failure must name the unallowed path, said: %s\n' "$out" >&2
+      return 1
+      ;;
+  esac
+
+  # 15. A read call on the allowed line fails: the allowance is for a name, never for a read.
+  case_dir="${scratch}/mention-read"
+  mkdir -p "$case_dir/src/App" "$case_dir/tests/Lunate.Coding.Tests" "$case_dir/docs"
+  printf '<Project>\n</Project>\n' >"$case_dir/src/App/App.csproj"
+  printf 'public sealed class TargetFrameworkTests\n{\n    string M() => Directory.EnumerateFiles(Path.Combine("docs", "dev", "spikes")).First();\n\n    string R() => RepositoryRoot.Find();\n}\n' \
+    >"$case_dir/tests/Lunate.Coding.Tests/TargetFrameworkTests.cs"
+  if out="$(check_tree "$case_dir" 2>&1)"; then
+    echo "self-test: a read on the allowed line must fail" >&2
+    return 1
+  fi
+  case "$out" in
+    *"reads a docs path"*) ;;
+    *)
+      printf 'self-test: the read on the allowed line must be named, said: %s\n' "$out" >&2
+      return 1
+      ;;
+  esac
+
+  echo "self-test: 15/15"
 }
 
 case "${1:-}" in

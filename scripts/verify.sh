@@ -332,7 +332,14 @@ docs_profile() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
 
+  # A run whose red jobs never acquired a runner is retried once instead of being filed as a code
+  # failure: the workflow wiring and the reporter's deferral decision (#923).
+  step "the runner-capacity retry"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_ci_capacity_retry.py"
+  bash "${SCRIPT_DIR}/nightly-issue.sh" --self-test
+
   step "docs are not build inputs"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_no_docs_references.py"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
 
   step "docs lint"
@@ -366,7 +373,8 @@ sha256_file() {
 }
 
 # The steps that do not depend on the operating system: packaging files, formatting, the generated
-# docs regions, the link/navigation check, markdownlint, the two agent-hygiene checks, the public
+# docs regions, the link/navigation check, the guard that the docs tree is not a build input or a
+# test's subject, markdownlint, the two agent-hygiene checks, the public
 # API and — when the caller installed it — the OpenSpec tree. CI runs them once in the `platform`
 # job; an OS leg skips them
 # (VERIFY_SKIP_PLATFORM_CHECKS=1) because a second copy on every runner is cost, not depth. A local
@@ -416,6 +424,12 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/docs-check" --self-test
   python3 "${SCRIPT_DIR}/docs-check" --check
 
+  # A code pull request never runs the docs profile, and the docs tree becoming a test's subject came
+  # from exactly such a pull request (#929), so the platform checks run the guard too.
+  step "docs are not build inputs"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_no_docs_references.py"
+  bash "${SCRIPT_DIR}/no-docs-references.sh"
+
   step "docs lint"
   if ! command -v node >/dev/null 2>&1; then
     echo "verify: node is required for the documentation lint step; install Node.js (npx runs the pinned markdownlint-cli2)" >&2
@@ -447,6 +461,12 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
+
+  # The wiring test for .github/workflows/ci-capacity-retry.yml and the reporter's deferral: a run whose
+  # legs never acquired a runner is retried once instead of being filed as a code failure (#923).
+  step "the runner-capacity retry"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_ci_capacity_retry.py"
+  bash "${SCRIPT_DIR}/nightly-issue.sh" --self-test
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
