@@ -37,25 +37,26 @@ What an extension compiles against is versioned under `ExtensionApi`, and a cont
 author can feel gets a note here. The notes are additive: the version a note names is the one an
 extension declares in its manifest's `apiVersion`.
 
-### 1.16.0 — the event and hook-result sets are closed
+### 1.16.0 — the event and hook-result families are unions
 
-The contract's closed sets are closed in the compiler ([ADR-0042](../../adr/0042-contract-closed-sets.md)):
+The contract's closed sets are C# 15 `union` types ([ADR-0043](../../adr/0043-contract-unions.md)):
 `AgentEvent` and `ExtensionEvent`, and the seven hook-result families `ProjectTrustResult`,
 `InputReceivedResult`, `RunStartingResult`, `MessageCompletedResult`, `ToolCallingResult`,
-`TurnEndedResult` and `CompactingResult`, are C# 15 `closed` records. They are not `union` types, and
-[ADR-0042](../../adr/0042-contract-closed-sets.md) records the measurements behind that choice.
+`TurnEndedResult` and `CompactingResult`. Each union is declared over its cases, so the set of kinds
+and outcomes is a compile-time fact. ADR-0043 supersedes
+[ADR-0042](../../adr/0042-contract-closed-sets.md), which had chosen `closed` hierarchies.
 
 - **What stays:** every type name, case name and constructor, and the `IHookResult` / `IHookPayload`
-  markers. `new ToolCallingResult.Block("held")`, `result is ToolCallingResult.Block block` and the
-  hook wire shapes compile and behave exactly as before.
-- **What you gain:** a `switch` over an event or over a hook-result family is checked for
-  exhaustiveness. Cover every kind, or keep a `_` arm for the kinds you ignore — an arm you forget is
-  a build error in this repository and a compiler warning in yours, never a silent fall-through.
-- **What you lose:** you cannot declare your own subclass of `AgentEvent`, `ExtensionEvent` or a
-  hook-result family. The set is a compile-time fact, so a kind the contract never declared cannot
-  reach a consumer. A hook outcome is one of the declared cases, and the observer stream
-  ([ADR-0040](../../adr/0040-hook-based-extensibility-on-observables.md)) delivers the declared
-  event kinds — not an extension's own.
+  markers. `new ToolCallingResult.Block("held")` converts to the family, `result is
+  ToolCallingResult.Block block` and `result switch { ToolCallingResult.Block block => …, … }` match,
+  and the hook wire and the `--json` event stream are unchanged.
+- **What you gain:** a `switch` over the union is checked for exhaustiveness. Cover every declared
+  case, or keep a `_` arm for the ones you ignore — an arm you forget is a build error in this
+  repository and a compiler warning in yours, never a silent fall-through. `@event.Value` is the
+  concrete event record when you need its type; `events.OfType<ToolCallResult>()` keeps working.
+- **What you lose:** a union has no base to derive from, so you cannot declare your own subclass of
+  `AgentEvent`, `ExtensionEvent` or a hook-result family, and `AgentEvent` is now a struct: compare
+  events by value (`==`), and use `Kind` where you used `GetType()`.
 - **If a case is added:** it is a breaking contract change, it moves the API version and it gets a
   note here. Your exhaustive `switch` is why that is announced rather than shipped quietly.
 

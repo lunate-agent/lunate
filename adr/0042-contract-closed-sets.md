@@ -1,6 +1,7 @@
 # 0042 — The contract's closed sets are closed hierarchies, not union wrappers
 
-- Status: accepted — 2026-11-16 (decision taken on #919, the card #192 deferred it to)
+- Status: superseded by [ADR-0043](0043-contract-unions.md) — 2026-11-16. The contract's closed sets
+  are unions, not `closed` hierarchies; the measurements below still hold, the shape decision does not.
 - Date: 2026-11-16
 - Relates to: ADR-0002 (layering and MEAI model types), ADR-0017 and its addenda (extensibility
   architecture and the contract assembly), ADR-0040 (hook-based extensibility on observables),

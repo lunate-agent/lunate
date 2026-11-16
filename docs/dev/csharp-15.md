@@ -45,16 +45,17 @@ property and conversions.
   it. A union makes the two variants closed and deletes the base record.
 
 The contract's closed sets were the case this inventory deferred, and #919 decided them as
-[ADR-0042](../../adr/0042-contract-closed-sets.md): `AgentEvent`/`ExtensionEvent`
+[ADR-0043](../../adr/0043-contract-unions.md) (superseding
+[ADR-0042](../../adr/0042-contract-closed-sets.md)): `AgentEvent`/`ExtensionEvent`
 ([`AgentEvent.cs`](../../src/Lunate.Contracts/AgentEvent.cs)) and the seven hook-result families
-([`HookResults.cs`](../../src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs)) are `closed`
-records, not unions. The inventory called `AgentEvent` "union-ready" before the shape was measured;
-the measurement is in the ADR. In short: a union's `Value` is `object`, so a wrapper erases the base
-that carries the stamped `SessionId`/`ParentRunId`/`Source` or the `IHookResult` marker, loses record
-equality, and `System.Text.Json` cannot deserialize a union without a custom classifier while the
-extensions spec requires every hook result DTO to round-trip. `closed` gives the same exhaustive
-`switch` for both, and `IUnion`/`UnionAttribute` stay the shape for a family whose cases are
-otherwise unrelated types with no shared base.
+([`HookResults.cs`](../../src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs)) are unions over
+their case records. Two union facts shape that code, both measured: a union declaration may not carry
+instance fields or auto-properties (CS9373), so the stamped `SessionId`/`ParentRunId`/`Source` stay on
+the `AgentEventBase` record and the channel stamps through it before converting once; and a union's
+`Value` is `object`, so `Enumerable.OfType<T>` over it never matches — the contract ships an
+`OfType<T>` overload and a `Kind` property so the existing consumer idiom keeps working. The wire is
+projected from the case by both protocols, never serialized as a union, so no JSON classifier exists
+and no fixture moved.
 
 **Runtime / BCL.** Needs `net11.0`. The compiler requires the `net11.0` BCL types
 `System.Runtime.CompilerServices.IUnion` and `UnionAttribute`; a `net10.0` target fails with CS0518
@@ -171,8 +172,8 @@ note states the runtime requirement. The self-contained installers are unaffecte
 
 **The public contract has no `net10.0` floor.** There are no external extension authors and one user,
 so the `net10.0` asset the first decision kept bought nothing and cost the rule that no union or
-closed type may appear on the contract surface. The contract's closed sets are now `closed` records
-(#919, [ADR-0042](../../adr/0042-contract-closed-sets.md)); the `Lunate.Tui`/`Mermaid.Terminal`
+closed type may appear on the contract surface. The contract's closed sets are now unions
+(#919, [ADR-0043](../../adr/0043-contract-unions.md)); the `Lunate.Tui`/`Mermaid.Terminal`
 refactor slices stay their own work. Reintroducing multi-targeting before the first external release
 or the first published library version is a deliberate, breaking decision with its own ADR, never a
 silent addition inside a feature card.

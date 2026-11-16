@@ -78,7 +78,7 @@ public sealed class AgentEventTests
         [
             .. typeof(AgentEvent)
                 .Assembly.GetTypes()
-                .Where(type => typeof(AgentEvent).IsAssignableFrom(type) && !type.IsAbstract),
+                .Where(type => typeof(AgentEventBase).IsAssignableFrom(type) && !type.IsAbstract),
         ];
 
         Assert.Equal(27, concreteTypes.Length);
@@ -90,9 +90,20 @@ public sealed class AgentEventTests
     [Fact]
     public void The_event_set_is_closed_by_concrete_types_only()
     {
-        Assert.True(typeof(AgentEvent).IsAbstract);
-        Assert.DoesNotContain(typeof(AgentEvent).Assembly.GetTypes(), type =>
-            typeof(AgentEvent).IsAssignableFrom(type) && type.IsInterface
+        // The union over the sealed records is what closes the set: an assembly outside the
+        // contract cannot add a kind, and a consumer's switch is exhaustive (ADR-0043).
+        Assert.True(
+            typeof(System.Runtime.CompilerServices.IUnion).IsAssignableFrom(typeof(AgentEvent))
+        );
+        Assert.All(
+            typeof(AgentEvent)
+                .GetConstructors()
+                .Select(constructor => constructor.GetParameters()[0].ParameterType),
+            caseType =>
+            {
+                Assert.True(caseType.IsSealed, $"{caseType.Name} must be sealed");
+                Assert.Same(typeof(AgentEvent).Assembly, caseType.Assembly);
+            }
         );
     }
 
