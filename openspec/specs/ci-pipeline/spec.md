@@ -691,40 +691,12 @@ and the run link, or comment on the already-open issue for that job instead of f
 reporter SHALL key the duplicate check on the job's title, so a week of red runs for the same failing
 job is one open card. A green run SHALL file nothing.
 
-A job that never started SHALL NOT be a red job: GitHub concludes a job it never acquired a hosted
-runner for as `cancelled`, so a job whose conclusion is `cancelled` and which reports `runner_id: 0`
-with a present, empty `steps` list SHALL file no card and SHALL NOT be commented on, because no change in
-this repository can acquire a runner for it and the remedy is a rerun. The reporter SHALL name that job
-and the run link in the run's own summary instead, so the red run is still visible. The rule SHALL NOT
-cover a job that ran and did not pass: a `cancelled` job that reached at least one step, a `failure`, a
-`timed_out` and every other red conclusion SHALL still file, and a job whose `steps` list is missing or
-unreadable SHALL be treated as red, so the rule fails closed instead of passing on a document it cannot
-read.
-
 The issue SHALL be placed in the lowest-numbered open milestone whose title is a version
 (`MAJOR.MINOR.PATCH`), read from the GitHub API so the rule works on a GitHub runner from repository
 state alone. A release closes its milestone, so the next lowest open version becomes the target without
 a code change, and a `backlog` or any other non-version milestone SHALL never be selected. When no
 version milestone is open, the card SHALL still be filed and the reporter SHALL say it filed the card
 without a milestone.
-
-A run whose red jobs never reached a machine SHALL be a capacity red, not a code red: GitHub cancels a
-job when it never acquires a hosted runner for it, so nothing the repository builds or tests has run and
-no step exists to triage. The two jobs whose result is derived from the others' — the `ci-ok` aggregate
-and this reporter — SHALL be allowed beside the abandoned jobs, because they fail exactly because a leg
-did not succeed; they SHALL NOT be named as abandoned jobs themselves, and no card and no comment SHALL
-be produced for them as part of a capacity red. One red job that ran and is neither of those SHALL make
-the run an ordinary red.
-
-The reporter SHALL NOT open a card for a capacity red, in any attempt: it SHALL record the abandoned jobs
-and what it saw in the run's job summary, SHALL fail while the retry budget is unspent, because the retry
-reruns only failed jobs and the reporter has to be one of them to observe the retry, and SHALL succeed at
-the budget with the summary naming the rerun as the remedy. The pipeline SHALL retry a capacity red's
-failed jobs once, from a workflow triggered when the run completes, because a run cannot rerun itself
-while it is in progress, and the retry SHALL be limited to a `push` to `main` and the nightly, the events
-that run the full matrix and that this requirement reports on. The budget SHALL be one retry: a run at
-its second attempt SHALL NOT be retried again, so a runner shortage costs one extra attempt rather than a
-loop. A red job that ran SHALL NEVER be retried this way, so no failure that executed is retried away.
 
 The reporter SHALL add `area/tui` or `area/core` from the failing test's project only when the project,
 its namespace and the failing test decide it: a test in the `Lunate.Tui` project is `area/tui`, a test
@@ -745,30 +717,6 @@ when it does not.
 - **GIVEN** a nightly run in which `verify (windows-latest, 2/4)` failed
 - **WHEN** the reporter runs
 - **THEN** it opens a `kind/bug` issue whose title names `verify (windows-latest, 2/4)` and whose body carries the run link
-
-#### Scenario: A job no runner ever acquired files nothing
-
-- **GIVEN** a `push` run on `main` whose `perf (macos-latest)` job concluded `cancelled` with `runner_id: 0` and an empty `steps` list, because the hosted runner was never acquired after multiple attempts
-- **WHEN** the reporter runs
-- **THEN** it files no card and posts no comment for that job, and the run's log names the job and the run link
-
-#### Scenario: A run whose only red jobs never started files nothing
-
-- **GIVEN** a push run in which every red job concluded `cancelled` with `runner_id: 0` and an empty `steps` list
-- **WHEN** the reporter runs
-- **THEN** it creates and comments on no issue, and the run's log says the jobs never got a runner and that a rerun is the remedy
-
-#### Scenario: A cancellation that started stays red
-
-- **GIVEN** a nightly run whose `verify (macos-latest, 2/2)` job concluded `cancelled` after reaching its first step, and a push run whose `perf (macos-latest)` job concluded `cancelled` with no `steps` field at all
-- **WHEN** the reporter runs on each
-- **THEN** both file a card, because neither is evidence of a job that never started
-
-#### Scenario: A real failure beside an unstarted job still files
-
-- **GIVEN** a push run in which `verify (macos-latest, 1/2)` concluded `cancelled` with `runner_id: 0` and an empty `steps` list and `verify (windows-latest, 2/4)` failed
-- **WHEN** the reporter runs
-- **THEN** it files exactly one card, naming `verify (windows-latest, 2/4)`
 
 #### Scenario: The card takes the lowest open version milestone
 
@@ -805,30 +753,6 @@ when it does not.
 - **GIVEN** a run in which every job succeeded
 - **WHEN** the reporter runs, on a push or the nightly
 - **THEN** it creates and comments on no issue
-
-#### Scenario: A leg that never acquired a runner is retried, not reported
-
-- **GIVEN** a `push` run on `main` in which `verify (macos-latest, 1/2)` and `perf (macos-latest)` were cancelled before any step started, and every job that ran succeeded
-- **WHEN** the reporter runs at the run's first attempt
-- **THEN** it opens no card, names the abandoned legs in the run's job summary, and the run's failed jobs are retried once
-
-#### Scenario: A capacity red that survives the retry names the rerun and files nothing
-
-- **GIVEN** the retry of that run in which the same legs were cancelled before any step started
-- **WHEN** the reporter runs at the second attempt
-- **THEN** it opens and comments on no card, and the run's job summary says the retry is spent and that a rerun is the remedy
-
-#### Scenario: The derived jobs are never named as abandoned legs
-
-- **GIVEN** a capacity red in which `ci-ok` and `red-main-issue` are red because the abandoned legs did not succeed
-- **WHEN** the reporter runs
-- **THEN** the run's job summary names neither job, and neither `CI failed: ci-ok` nor `CI failed: red-main-issue` is filed
-
-#### Scenario: A job that ran is never retried away
-
-- **GIVEN** a red run in which at least one red job started a step and failed
-- **WHEN** the reporter and the retry decision run
-- **THEN** the run is not retried and that job's card is filed as before
 
 ### Requirement: Fixture restores resolve the SDK's targeting packs offline
 
