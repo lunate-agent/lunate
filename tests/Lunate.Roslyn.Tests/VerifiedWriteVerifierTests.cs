@@ -31,7 +31,7 @@ public sealed class VerifiedWriteVerifierTests
         );
 
         Assert.True(result.Status is WriteVerificationStatus.Verified, result.Reason);
-        Assert.Contains("net10.0", result.Reason, StringComparison.Ordinal);
+        Assert.Contains("net11.0", result.Reason, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -57,8 +57,8 @@ public sealed class VerifiedWriteVerifierTests
         );
 
         Assert.NotNull(result.Reason);
-        bool windowsTarget = result.Reason.Contains("net10.0-windows", StringComparison.Ordinal);
-        Assert.True(result.Reason.Contains("net10.0", StringComparison.Ordinal), result.Reason);
+        bool windowsTarget = result.Reason.Contains("net11.0-windows", StringComparison.Ordinal);
+        Assert.True(result.Reason.Contains("net11.0", StringComparison.Ordinal), result.Reason);
         Assert.Equal(
             windowsTarget ? WriteVerificationStatus.Refused : WriteVerificationStatus.Verified,
             result.Status

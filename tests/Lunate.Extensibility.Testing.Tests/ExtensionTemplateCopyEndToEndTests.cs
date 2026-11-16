@@ -30,7 +30,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
         string feed = temp.Subdirectory("contract-feed");
         Pack(repository, feed);
-        AssertContractPackageCarriesBothAssets(feed);
+        AssertContractPackageTargetsNet11(feed);
 
         string copy = CopyTemplate(repository, temp.Subdirectory("my-extension"));
         // Both projects a copy carries: the extension a host loads and the test project the
@@ -93,15 +93,27 @@ public sealed class ExtensionTemplateCopyEndToEndTests
     }
 
     private const string Configuration = "Release";
-    private const string TargetFramework = "net10.0";
+    private const string TargetFramework = "net11.0";
 
-    private static void AssertContractPackageCarriesBothAssets(string feed)
+    /// <summary>
+    /// The contract package carries one <c>net11.0</c> asset and nothing else (ADR-0041): the
+    /// repository does not multi-target, so a <c>lib/net10.0</c> entry would be a target framework
+    /// the build no longer proves.
+    /// </summary>
+    private static void AssertContractPackageTargetsNet11(string feed)
     {
         string package = Assert.Single(Directory.GetFiles(feed, "Lunate.Contracts.*.nupkg"));
         using ZipArchive archive = ZipFile.OpenRead(package);
-        string[] entries = [.. archive.Entries.Select(entry => entry.FullName)];
-        Assert.Contains("lib/net10.0/Lunate.Contracts.dll", entries);
-        Assert.Contains("lib/net11.0/Lunate.Contracts.dll", entries);
+        string[] libraries =
+        [
+            .. archive
+                .Entries.Select(entry => entry.FullName)
+                .Where(name => name.StartsWith("lib/", StringComparison.Ordinal)),
+        ];
+        Assert.Contains("lib/net11.0/Lunate.Contracts.dll", libraries);
+        Assert.All(libraries, name =>
+            Assert.StartsWith("lib/net11.0/", name, StringComparison.Ordinal)
+        );
     }
 
     private static void Pack(string repository, string feed)

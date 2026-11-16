@@ -25,7 +25,7 @@ REPO_ROOT="${CI_PATHS_REPO_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 # Markers that make a source file Windows-specific. Keep this list short and literal: a marker that
 # never appears in the code is noise, and a marker that appears everywhere (e.g. "Windows") would
 # make every change run the leg.
-MARKERS='OperatingSystem\.IsWindows|OSPlatform\.Windows|SupportedOSPlatform\("windows"\)|RuntimeInformation\.IsOSPlatform|#if WINDOWS|net10\.0-windows|RuntimeIdentifier>[[:space:]]*(win|windows)'
+MARKERS='OperatingSystem\.IsWindows|OSPlatform\.Windows|SupportedOSPlatform\("windows"\)|RuntimeInformation\.IsOSPlatform|#if WINDOWS|net11\.0-windows|RuntimeIdentifier>[[:space:]]*(win|windows)'
 
 # Paths that always run the leg, whatever their content.
 always_path() {

@@ -2,21 +2,12 @@
     <!--
         Same self-containedness as the extension project (#464): a copied template does not see
         the repository's Directory.Build.props, so the properties every SDK project needs live here.
-        The test project targets net11.0 because the test kit (Lunate.Extensibility.Testing) is
-        net11.0 only; the extension under test stays net10.0 (ADR-0040).
+        Both projects target net11.0 (ADR-0041), so the extension and the kit that proves it agree.
     -->
     <PropertyGroup>
         <TargetFramework>net11.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-    </PropertyGroup>
-
-    <!--
-        The extension keeps its own target framework, so the copy target reads its output by that
-        TFM rather than by this project's.
-    -->
-    <PropertyGroup>
-        <ExtensionTargetFramework>net10.0</ExtensionTargetFramework>
     </PropertyGroup>
 
     <!--
@@ -103,7 +94,7 @@
             Properties="Configuration=$(Configuration);LunateContractsVersion=$(LunateContractsVersion);LunateUseNuGetContracts=$(LunateUseNuGetContracts)"
         />
         <ItemGroup>
-            <TemplateExtensionFiles Include="$(MSBuildThisFileDirectory)../TemplateExtension/bin/$(Configuration)/$(ExtensionTargetFramework)/**/*" />
+            <TemplateExtensionFiles Include="$(MSBuildThisFileDirectory)../TemplateExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
         </ItemGroup>
         <Copy
             SourceFiles="@(TemplateExtensionFiles)"

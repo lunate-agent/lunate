@@ -6,19 +6,17 @@
 #   ci            selftest + idle report (CI); idle subject via MEMORY_SUBJECT
 #                 (absent -> skip until T-18 provides the TUI)
 #   selftest      proves the sampler and the gate logic
-#   defaults      print the calibrated gate and target without sampling
 #   idle CMD...   measure CMD's peak RSS; CMD must stay alive (gate: MEMORY_GATE_MB)
 #   workingset    TODO - enabled by T-22 (placeholder gate 250 MB)
 #   roslyn        TODO - enabled by T-25 (gate 750 MB from the S-4 addendum per loaded
 #                 workspace); the per-workspace cap (default 2, roslyn.maxLoadedWorkspaces)
 #                 makes up to 2x the measured peak the worst case (ADR-0021)
 #
-# Env: MEMORY_GATE_MB (default 550; the net11 published single-file R2R
-#      recalibration in ADR-0009's addendum), MEMORY_TARGET_MB (default 100),
+# Env: MEMORY_GATE_MB (default 150), MEMORY_TARGET_MB (default 100),
 #      MEMORY_SAMPLES_MIN (default 5; minimum ticks for a valid idle window).
 set -euo pipefail
 
-GATE_MB="${MEMORY_GATE_MB:-550}"
+GATE_MB="${MEMORY_GATE_MB:-150}"
 TARGET_MB="${MEMORY_TARGET_MB:-100}"
 MIN_TICKS="${MEMORY_SAMPLES_MIN:-5}"
 
@@ -127,14 +125,9 @@ mode_todo() { # name card gate note
   echo "memory $1: not yet runnable - enabled by $2; planned gate $3 MB ($4)"
 }
 
-mode_defaults() {
-  echo "memory defaults: gate=${GATE_MB}MB target=${TARGET_MB}MB"
-}
-
 case "${1:-}" in
   ci) mode_ci ;;
   selftest) mode_selftest ;;
-  defaults) mode_defaults ;;
   idle) shift; mode_idle "$@" ;;
   workingset) mode_todo workingset T-22 250 "placeholder until calibrated" ;;
   roslyn) mode_todo roslyn T-25 750 "calibrated from the S-4 addendum" ;;

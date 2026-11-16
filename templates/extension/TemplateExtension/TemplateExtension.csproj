@@ -2,12 +2,12 @@
     <!--
         A copy of this template does not see the repository's Directory.Build.props, so the three
         properties every SDK project needs live here. #464: `dotnet build` on the copy failed with
-        NETSDK1013 before. The extension stays on net10.0 while the host runs net11.0: that is the
-        compatibility floor the contract packages keep a net10.0 asset for (ADR-0040), and the
-        template is where the floor is proven.
+        NETSDK1013 before. The extension targets net11.0 like the host and the contract packages
+        (ADR-0041): the repository does not multi-target, and this template is a network-free proof
+        that a copy outside it builds.
     -->
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
