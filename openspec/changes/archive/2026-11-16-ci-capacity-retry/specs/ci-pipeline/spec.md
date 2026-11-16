@@ -16,6 +16,27 @@ a code change, and a `backlog` or any other non-version milestone SHALL never be
 version milestone is open, the card SHALL still be filed and the reporter SHALL say it filed the card
 without a milestone.
 
+A run whose red jobs never reached a machine SHALL be a capacity red, not a code red: GitHub cancels a
+job when it never acquires a hosted runner for it, so nothing the repository builds or tests has run and
+no step exists to triage. A job SHALL count as never acquired only when all three hold — its conclusion is
+`cancelled`, its `runner_id` is `0` and it has no steps — because each alone is ambiguous: a job cancelled
+by a superseding run also has no steps, and a started job can still report `runner_id: 0`. The two jobs
+whose result is derived from the others' — the `ci-ok` aggregate and this reporter — SHALL be allowed
+beside the abandoned jobs, because they fail exactly because a leg did not succeed. One red job that ran
+and is neither of those SHALL make the run an ordinary red.
+
+The reporter SHALL NOT open a card for a capacity red while the retry budget is unspent: it SHALL record
+the abandoned jobs and what it saw in the run's job summary, SHALL comment on an already-open card for such
+a job when one exists rather than opening a second, and SHALL fail, because the retry reruns only failed
+jobs and the reporter has to be one of them to report the retry's outcome. The pipeline SHALL retry a
+capacity red's failed jobs once, from a workflow triggered when the run completes, because a run cannot
+rerun itself while it is in progress, and the retry SHALL be limited to a `push` to `main` and the nightly,
+the events that run the full matrix and that this requirement reports on. The budget SHALL be one retry: a
+run at its second attempt SHALL NOT be retried again, so a runner shortage costs one extra attempt rather
+than a loop. A capacity red that survives the retry SHALL be filed as the same deduplicated card, and the
+card's body SHALL state that no hosted runner was acquired and that the red is not a code failure. A red
+job that ran SHALL NEVER be retried this way, so no failure that executed is retried away.
+
 The reporter SHALL add `area/tui` or `area/core` from the failing test's project only when the project,
 its namespace and the failing test decide it: a test in the `Lunate.Tui` project is `area/tui`, a test
 in the `Lunate.Coding` project is `area/tui` when its test source names the `Lunate.Tui` namespace and
