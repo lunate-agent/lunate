@@ -11,11 +11,17 @@ documents, so the decision is pure and its self-test needs no network. It mirror
   never started is not a red job either: GitHub concludes a job it never acquired a runner for as
   `cancelled`, with `runner_id: 0` and an empty step list ("The job was not acquired by Runner of type
   hosted even after multiple attempts"), so it prints nothing for that job and names it on stderr
-  instead, with the run link, because no change in this repository can fix it and the remedy is a rerun.
-  All three have to hold: a job cancelled by a superseding run also has no steps, and a started job can
-  still report `runner_id: 0`. A job cancelled after it reached a step, and any document whose `steps`
-  list or `runner_id` is missing, stays red: the rule fails closed. The run link is required with the
-  jobs because the reporter names the job and the run, never the job alone.
+  instead, with the run link, because no change in this repository can fix it and the remedy is a
+  rerun. All three have to hold: a job cancelled by a superseding run also has no steps, and a started
+  job can still report `runner_id: 0`. A job cancelled after it reached a step, and any document whose
+  `steps` list or `runner_id` is missing, stays red: the rule fails closed. The run link is required with
+  the jobs because the reporter names the job and the run, never the job alone.
+- `--abandoned-json FILE` prints `id<TAB>name` for the red jobs that never acquired a runner, without the
+  two jobs whose result is derived from the others' (`ci-ok` and `red-main-issue`). That is the list the
+  run's job summary names, and the list no card is ever filed for (#922, #923).
+- `--capacity-json FILE` prints `capacity` when every red job of the run was cancelled before it reached a
+  machine, and nothing otherwise. That is the red no code can fix, so the pipeline retries it instead of
+  reporting it. One red job that ran makes the run an ordinary red.
 - `--milestones-json FILE` prints the lowest open milestone whose title is a version
   (`MAJOR.MINOR.PATCH`), compared numerically. `backlog` and any other title never match, and a release
   that closes its milestone removes it from the open list, so no constant names a version here. The list
@@ -73,30 +79,15 @@ def _load(path):
         return json.load(handle)
 
 
-def never_started(job):
-    """True when the job never reached a machine: cancelled, no runner and no step."""
-    if str(job.get("conclusion") or "") != "cancelled":
-        return False
-    runner = job.get("runner_id")
-    # A missing runner is not evidence of anything, and `False == 0` in Python, so check the type.
-    if isinstance(runner, bool) or not isinstance(runner, int) or runner != 0:
-        return False
-    steps = job.get("steps")
-    # A missing list is not evidence of anything, so only a present-and-empty one counts.
-    return isinstance(steps, list) and not steps
-
-
 def red_jobs(path, run_url):
     """One `id<TAB>name` line per red job, in the order the run lists them, without duplicates."""
     seen = set()
-    for job in _records(_load(path), "jobs"):
+    for job in _red_jobs(path):
         name = str(job.get("name") or "").strip()
         if not name or name in seen:
             continue
-        if str(job.get("conclusion") or "") not in RED:
-            continue
         seen.add(name)
-        if never_started(job):
+        if _never_acquired(job):
             print(
                 f"ci-issue-triage: {name}: never started (no runner was acquired); "
                 f"no card is filed for it; rerun {run_url}",
@@ -104,6 +95,58 @@ def red_jobs(path, run_url):
             )
             continue
         print(f"{job.get('id') or ''}\t{name}")
+
+
+def abandoned_jobs(path):
+    """One `id<TAB>name` line per red job that never acquired a runner, minus the two derived jobs."""
+    seen = set()
+    for job in _red_jobs(path):
+        name = str(job.get("name") or "").strip()
+        if not name or name in seen or _derived(job) or not _never_acquired(job):
+            continue
+        seen.add(name)
+        print(f"{job.get('id') or ''}\t{name}")
+
+
+def _red_jobs(path):
+    """The red job records of the run, in the order the payload lists them."""
+    return [job for job in _records(_load(path), "jobs") if str(job.get("conclusion") or "") in RED]
+
+
+# The two jobs whose result is derived from the others': the aggregate gate fails because a required leg
+# did not succeed, and the reporter fails because it deferred a capacity red to the retry. Neither carries
+# coverage of its own, so they never make a run an ordinary red beside the abandoned legs, and neither is
+# named as an abandoned leg (#923).
+DERIVED_JOBS = {"ci-ok", "red-main-issue"}
+
+
+def _never_acquired(job):
+    """A job GitHub cancelled before it reached a machine: no runner assigned, a present and empty step list."""
+    if str(job.get("conclusion") or "") != "cancelled":
+        return False
+    runner = job.get("runner_id")
+    # A missing runner is not evidence of anything, and `False == 0` in Python, so check the type.
+    if isinstance(runner, bool) or not isinstance(runner, int) or runner != 0:
+        return False
+    steps = job.get("steps")
+    # A missing list is not evidence that nothing ran, so only a present and empty one counts.
+    return isinstance(steps, list) and not steps
+
+
+def _derived(job):
+    """A job that only restates the other jobs' results: the aggregate gate and the reporter."""
+    return str(job.get("name") or "").strip() in DERIVED_JOBS
+
+
+def capacity_red(path):
+    """`capacity` when the run is red only because no runner was acquired, so a retry is the report."""
+    reds = _red_jobs(path)
+    if not reds:
+        return
+    if not any(_never_acquired(job) for job in reds):
+        return
+    if all(_never_acquired(job) or _derived(job) for job in reds):
+        print("capacity")
 
 
 def lowest_version_milestone(path):
@@ -206,6 +249,8 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--jobs-json")
     parser.add_argument("--run-url")
+    parser.add_argument("--abandoned-json")
+    parser.add_argument("--capacity-json")
     parser.add_argument("--milestones-json")
     parser.add_argument("--log-file")
     parser.add_argument("--source-root")
@@ -216,6 +261,12 @@ def main(argv):
             parser.error("--jobs-json needs --run-url")
         red_jobs(args.jobs_json, args.run_url)
         return 0
+    if args.abandoned_json:
+        abandoned_jobs(args.abandoned_json)
+        return 0
+    if args.capacity_json:
+        capacity_red(args.capacity_json)
+        return 0
     if args.milestones_json:
         lowest_version_milestone(args.milestones_json)
         return 0
@@ -224,7 +275,9 @@ def main(argv):
             parser.error("--log-file needs --source-root")
         area_label(args.log_file, Path(args.source_root))
         return 0
-    parser.error("one of --jobs-json, --milestones-json or --log-file is required")
+    parser.error(
+        "one of --jobs-json, --abandoned-json, --capacity-json, --milestones-json or --log-file is required"
+    )
 
 
 if __name__ == "__main__":
