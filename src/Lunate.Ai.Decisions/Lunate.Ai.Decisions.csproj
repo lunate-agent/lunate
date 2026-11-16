@@ -2,6 +2,11 @@
     <PropertyGroup>
         <RootNamespace>Lunate.Ai.Decisions</RootNamespace>
         <IsPackable>false</IsPackable>
+        <!--
+            Carried inside the `Lunate.Agent` package through the harness, so it follows that
+            package's target frameworks (ADR-0041).
+        -->
+        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
     </PropertyGroup>
 
     <ItemGroup>

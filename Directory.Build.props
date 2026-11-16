@@ -1,6 +1,20 @@
 <Project>
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <!--
+            The tool, the app and every first-party project target the runtime the pinned SDK ships,
+            so the C# 15 features that need its BCL (`union`, `closed`) compile here (ADR-0041).
+            The extension contract packages are the exception and set their own
+            `TargetFrameworks`: they keep a net10.0 asset so an extension built against the previous
+            LTS keeps working.
+        -->
+        <TargetFramework>net11.0</TargetFramework>
+        <!--
+            One compiler for the whole repository: the fixed language version rather than
+            `latest`, so a feature that needs both target frameworks is visible in the diff. SDK 11
+            selects C# 15 for net11.0 anyway; the contract packages need the line because they still
+            build a net10.0 asset.
+        -->
+        <LangVersion>15.0</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

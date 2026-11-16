@@ -1,12 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <!--
-            `EditMatcher` and `SkillScanner` name the enclosing loop a nested `break`/`continue`
-            leaves or advances, which is C# 15 syntax. SDK 11 compiles it for `net10.0` once the
-            language version is set; targeting `net11.0` selects C# 15 by default, so this line goes
-            with the framework move. The SDK itself is pinned in `global.json`.
-        -->
-        <LangVersion>15.0</LangVersion>
         <OutputType>Exe</OutputType>
         <AssemblyName>lunate</AssemblyName>
         <RootNamespace>Lunate.Coding</RootNamespace>

@@ -6,7 +6,13 @@
         failed with NETSDK1013 before.
     -->
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <!--
+            An extension compiles against the contract package's own assets, so the template builds
+            for both: net10.0 is the previous LTS and the compatibility floor, net11.0 the current
+            one. A copied template therefore proves, by building, that the extension it produces
+            still works for an author who has not moved. The tool itself needs only net11.0.
+        -->
+        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>

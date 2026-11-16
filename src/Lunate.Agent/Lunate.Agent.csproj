@@ -11,6 +11,12 @@
     <PropertyGroup>
         <IsPackable>true</IsPackable>
         <PackageId>Lunate.Agent</PackageId>
+        <!--
+            The harness is a published package an embedder compiles against, so it keeps a net10.0
+            asset beside the net11.0 one (ADR-0041). Its public API is identical on both: no union
+            or closed type while net10.0 is a target.
+        -->
+        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
         <Version>$(PreviewVersion)</Version>
         <Description>
             The Lunate agent harness: the loop, tools, events, steering, approvals and the

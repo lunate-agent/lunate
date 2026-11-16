@@ -73,7 +73,7 @@
                     $(OutDir)Lunate.Roslyn.BuiltIn.dll;
                     $(OutDir)Lunate.Roslyn.dll
                 "
-                PackagePath="lib/net10.0"
+                PackagePath="lib/$(TargetFramework)"
             />
         </ItemGroup>
     </Target>

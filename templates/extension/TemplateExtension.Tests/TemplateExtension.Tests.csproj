@@ -4,7 +4,11 @@
         the repository's Directory.Build.props, so the properties every SDK project needs live here.
     -->
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <!--
+            The test kit (`Lunate.Extensibility.Testing`) carries the tool's assemblies and therefore
+            targets net11.0; the extension under test is the multi-targeted project beside this one.
+        -->
+        <TargetFramework>net11.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>

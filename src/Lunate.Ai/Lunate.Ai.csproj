@@ -1,4 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <!--
+            Carried inside the `Lunate.Agent` package, so it follows the harness package's target
+            frameworks: a net10.0 asset for an embedder still on the previous LTS, plus net11.0
+            (ADR-0041).
+        -->
+        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
+    </PropertyGroup>
+
     <ItemGroup>
         <ProjectReference Include="../Lunate.Contracts/Lunate.Contracts.csproj" />
     </ItemGroup>
