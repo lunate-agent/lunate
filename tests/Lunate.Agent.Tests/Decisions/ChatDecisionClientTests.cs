@@ -12,9 +12,9 @@ public sealed class ChatDecisionClientTests
             """{"type":"image","mimeType":"image/png","data":"AA=="}"""
         );
         var request = new DecisionRequest(
-            "test-model",
             state.RootElement.Clone(),
-            [new DecisionQuestion("logo", "Locate the logo.", DecisionQuestionKind.Box)]
+            [new DecisionQuestion("logo", "Locate the logo.", DecisionQuestionKind.Box)],
+            "test-model"
         );
         var chat = new ScriptedChatClient().Enqueue(
             LoopScripts.Text(
@@ -43,15 +43,9 @@ public sealed class ChatDecisionClientTests
         using JsonDocument state = JsonDocument.Parse(
             """{"type":"image","mimeType":"image/png","data":"AA=="}"""
         );
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [
-                new Lunate.Contracts.DecisionQuestion(
-                    "logo",
-                    "Locate the logo.",
-                    Lunate.Contracts.DecisionQuestionKind.Box
-                ),
-            ]
+            [new DecisionQuestion("logo", "Locate the logo.", DecisionQuestionKind.Box)]
         );
         var chat = new ScriptedChatClient();
 
@@ -77,7 +71,6 @@ public sealed class ChatDecisionClientTests
     {
         using JsonDocument state = JsonDocument.Parse("""{"untrusted_content":"data"}""");
         DecisionRequest request = new(
-            "test-model",
             state.RootElement.Clone(),
             [
                 new DecisionQuestion(
@@ -86,7 +79,8 @@ public sealed class ChatDecisionClientTests
                     DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
-            ]
+            ],
+            "test-model"
         );
         var chat = new ScriptedChatClient().Enqueue(
             LoopScripts.Text(
@@ -126,7 +120,6 @@ public sealed class ChatDecisionClientTests
     {
         using JsonDocument state = JsonDocument.Parse("""{"untrusted_content":"data"}""");
         DecisionRequest request = new(
-            "test-model",
             state.RootElement.Clone(),
             [
                 new DecisionQuestion(
@@ -135,7 +128,8 @@ public sealed class ChatDecisionClientTests
                     DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
-            ]
+            ],
+            "test-model"
         );
         var chat = new ScriptedChatClient()
             .Enqueue(LoopScripts.Text("not json"), LoopScripts.Usage(120, 8), LoopScripts.Stop())
@@ -166,15 +160,9 @@ public sealed class ChatDecisionClientTests
     public async Task Engine_records_every_failed_attempt_usage_before_it_throws()
     {
         using JsonDocument state = JsonDocument.Parse("""{"untrusted_content":"data"}""");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [
-                new Lunate.Contracts.DecisionQuestion(
-                    "risk",
-                    "Is this risky?",
-                    Lunate.Contracts.DecisionQuestionKind.YesNo
-                ),
-            ]
+            [new DecisionQuestion("risk", "Is this risky?", DecisionQuestionKind.YesNo)]
         );
         var chat = new ScriptedChatClient()
             .Enqueue(LoopScripts.Text("not json"), LoopScripts.Usage(120, 8), LoopScripts.Stop())

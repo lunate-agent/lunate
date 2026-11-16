@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 
 namespace Lunate.Agent.Tests;
@@ -139,7 +140,7 @@ public sealed class AskUserToolTests
             questionDecisionAsync: (request, _) =>
             {
                 decisionRequest = request;
-                return Task.FromResult(DecisionResponseFor("Option 2", 0.82d));
+                return Task.FromResult(DecisionResultFor("Option 2", 0.82d));
             },
             events: events
         );
@@ -168,7 +169,7 @@ public sealed class AskUserToolTests
                 return Task.FromResult(new UserQuestionResult(UserQuestionStatus.Skipped, []));
             },
             questionSuggestionsEnabled: true,
-            questionDecisionAsync: (_, _) => Task.FromResult(DecisionResponseFor("Option 1", 0.91d))
+            questionDecisionAsync: (_, _) => Task.FromResult(DecisionResultFor("Option 1", 0.91d))
         );
 
         ToolResult result = await Execute(new AskUserTool(), context, Arguments(1, 2));
@@ -191,7 +192,7 @@ public sealed class AskUserToolTests
                 QuestionDecisionAsync: (_, _) =>
                 {
                     decided = true;
-                    return Task.FromResult(DecisionResponseFor("Option 1", 0.99d));
+                    return Task.FromResult(DecisionResultFor("Option 1", 0.99d));
                 }
             ),
         };
@@ -296,7 +297,7 @@ public sealed class AskUserToolTests
     private static ToolContext CreateContext(
         Func<IReadOnlyList<UserQuestion>, CancellationToken, Task<UserQuestionResult>> handler,
         bool questionSuggestionsEnabled = false,
-        Func<DecisionRequest, CancellationToken, Task<DecisionResponse>>? questionDecisionAsync =
+        Func<DecisionRequest, CancellationToken, Task<DecisionResult>>? questionDecisionAsync =
             null,
         RecordingAgentEvents? events = null
     ) =>
@@ -312,7 +313,7 @@ public sealed class AskUserToolTests
             ),
         };
 
-    private static DecisionResponse DecisionResponseFor(string answer, double probability) =>
+    private static DecisionResult DecisionResultFor(string answer, double probability) =>
         new(
             new Dictionary<string, DecisionAnswer>(StringComparer.Ordinal)
             {
@@ -324,7 +325,8 @@ public sealed class AskUserToolTests
                         new("Option 2", answer == "Option 2" ? probability : 1d - probability),
                     ],
                     "decision-model",
-                    "adapter"
+                    "adapter",
+                    probability
                 ),
             }
         );

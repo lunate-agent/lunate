@@ -36,10 +36,16 @@ public sealed class GraphLayoutTests
         Assert.Equal(Direction.Up, Geometry.DetermineDirection(origin, new GridCoord(1, 0)));
         Assert.Equal(Direction.Right, Geometry.DetermineDirection(origin, new GridCoord(2, 1)));
         Assert.Equal(Direction.Left, Geometry.DetermineDirection(origin, new GridCoord(0, 1)));
-        Assert.Equal(Direction.LowerRight, Geometry.DetermineDirection(origin, new GridCoord(2, 2)));
+        Assert.Equal(
+            Direction.LowerRight,
+            Geometry.DetermineDirection(origin, new GridCoord(2, 2))
+        );
         Assert.Equal(Direction.UpperLeft, Geometry.DetermineDirection(origin, new GridCoord(0, 0)));
         Assert.Equal(Direction.LowerLeft, Geometry.DetermineDirection(origin, new GridCoord(0, 2)));
-        Assert.Equal(Direction.UpperRight, Geometry.DetermineDirection(origin, new GridCoord(2, 0)));
+        Assert.Equal(
+            Direction.UpperRight,
+            Geometry.DetermineDirection(origin, new GridCoord(2, 0))
+        );
         Assert.Equal(Direction.Down, Direction.Up.Opposite());
         Assert.Equal(2, Geometry.CeilDiv(3, 2));
     }

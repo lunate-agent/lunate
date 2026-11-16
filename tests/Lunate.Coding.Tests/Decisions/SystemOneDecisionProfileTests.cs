@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Lunate.Agent;
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -74,21 +75,15 @@ public sealed class SystemOneDecisionProfileTests
             )
         );
         using JsonDocument state = JsonDocument.Parse("{}");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [
-                new Lunate.Contracts.DecisionQuestion(
-                    "is_bug",
-                    "Is this a bug?",
-                    Lunate.Contracts.DecisionQuestionKind.YesNo
-                ),
-            ]
+            [new DecisionQuestion("is_bug", "Is this a bug?", DecisionQuestionKind.YesNo)]
         );
         UsageDetails? recordedUsage = null;
         string? recordedMethod = null;
         double? recordedCost = null;
 
-        Lunate.Contracts.DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             decisionModel.Client,
             decisionModel.Model.Id,
@@ -103,7 +98,7 @@ public sealed class SystemOneDecisionProfileTests
             supportsImages: DecisionClientResolver.SupportsImageInput(decisionModel.Model)
         );
 
-        Lunate.Contracts.DecisionAnswer answer = response.Results["is_bug"];
+        DecisionAnswer answer = response.Results["is_bug"];
         Assert.Equal("yes", answer.Answer);
         Assert.Equal("native", answer.Method);
         Assert.Equal("typesafe/jev-1.14-20261014", answer.ModelId);

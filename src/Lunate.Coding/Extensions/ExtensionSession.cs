@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Lunate.Agent;
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Lunate.Extensibility;
 using Lunate.Extensibility.Abstractions;

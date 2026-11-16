@@ -89,9 +89,9 @@ public sealed class DecisionConfidenceTests
     {
         using JsonDocument state = JsonDocument.Parse("{}");
         return new DecisionRequest(
-            "typesafe/jev-1.14",
             state.RootElement.Clone(),
-            [new DecisionQuestion("q", "Evaluate this question.", kind, answers)]
+            [new DecisionQuestion("q", "Evaluate this question.", kind, answers)],
+            "typesafe/jev-1.14"
         );
     }
 }

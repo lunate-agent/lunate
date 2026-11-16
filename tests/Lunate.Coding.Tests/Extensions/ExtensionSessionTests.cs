@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lunate.Agent;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Lunate.Extensibility;
 using Lunate.Extensibility.Abstractions;
@@ -38,7 +39,7 @@ public sealed class ExtensionSessionTests
         );
         Assert.Same(host.DecisionService, registered);
 
-        DecisionResponse response = await host.DecisionService.DecideAsync(
+        DecisionResult response = await host.DecisionService.DecideAsync(
             new DecisionRequest(
                 JsonDocument.Parse("{}").RootElement.Clone(),
                 [
@@ -654,7 +655,7 @@ public sealed class ExtensionSessionTests
 
     private sealed class TestAgentDecisionService : IAgentDecisionService
     {
-        public DecisionResponse Response { get; } =
+        public DecisionResult Response { get; } =
             new(
                 new Dictionary<string, DecisionAnswer>(StringComparer.Ordinal)
                 {
@@ -663,12 +664,13 @@ public sealed class ExtensionSessionTests
                         0.82d,
                         [new("A", 0.18d), new("B", 0.82d)],
                         "decision-model",
-                        "adapter"
+                        "adapter",
+                        0.82d
                     ),
                 }
             );
 
-        public Task<DecisionResponse> DecideAsync(
+        public Task<DecisionResult> DecideAsync(
             DecisionRequest request,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Response);

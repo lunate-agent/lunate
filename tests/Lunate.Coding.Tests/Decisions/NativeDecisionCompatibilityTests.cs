@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Lunate.Ai.Decisions;
 using Lunate.Ai.SystemOne;
 using Lunate.Contracts;
 
@@ -25,15 +26,9 @@ public sealed class NativeDecisionCompatibilityTests
         using JsonDocument state = JsonDocument.Parse("{}");
 
         string response = await legacy.GetDecisionAsync(
-            new Lunate.Contracts.DecisionRequest(
+            new DecisionRequest(
                 state.RootElement.Clone(),
-                [
-                    new Lunate.Contracts.DecisionQuestion(
-                        "safe",
-                        "Is it safe?",
-                        DecisionQuestionKind.YesNo
-                    ),
-                ]
+                [new DecisionQuestion("safe", "Is it safe?", DecisionQuestionKind.YesNo)]
             ),
             TestContext.Current.CancellationToken
         );

@@ -1,3 +1,5 @@
+using Lunate.Contracts;
+
 namespace Lunate.Ai.Decisions;
 
 internal static class DecisionResultValidator

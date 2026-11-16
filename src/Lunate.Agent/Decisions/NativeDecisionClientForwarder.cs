@@ -1,10 +1,5 @@
 using System.Text.Json;
 using Lunate.Ai.Decisions;
-using Lunate.Contracts;
-using InternalDecisionAnswer = Lunate.Ai.Decisions.DecisionAnswer;
-using InternalDecisionQuestion = Lunate.Ai.Decisions.DecisionQuestion;
-using InternalDecisionQuestionKind = Lunate.Ai.Decisions.DecisionQuestionKind;
-using InternalDecisionRequest = Lunate.Ai.Decisions.DecisionRequest;
 
 namespace Lunate.Agent;
 
@@ -13,44 +8,37 @@ internal sealed class NativeDecisionClientForwarder(IDecisionClient inner, strin
     : INativeDecisionClient
 {
     public async Task<string> GetDecisionAsync(
-        Lunate.Contracts.DecisionRequest request,
+        DecisionRequest request,
         CancellationToken cancellationToken = default
     )
     {
         ArgumentNullException.ThrowIfNull(request);
-        InternalDecisionQuestion[] questions = request
-            .Questions.Select(question => new InternalDecisionQuestion(
-                question.Id,
-                question.Text,
-                question.Kind switch
-                {
-                    Lunate.Contracts.DecisionQuestionKind.YesNo =>
-                        InternalDecisionQuestionKind.YesNo,
-                    Lunate.Contracts.DecisionQuestionKind.Choice =>
-                        InternalDecisionQuestionKind.Choice,
-                    Lunate.Contracts.DecisionQuestionKind.Score =>
-                        InternalDecisionQuestionKind.Score,
-                    Lunate.Contracts.DecisionQuestionKind.Box => InternalDecisionQuestionKind.Box,
-                    _ => throw new InvalidOperationException(
-                        "The decision question kind is unsupported."
-                    ),
-                },
-                question.Kind == Lunate.Contracts.DecisionQuestionKind.YesNo
-                    ? ["yes", "no"]
-                    : question.Answers,
-                JsonPath: question.JsonPath
-            ))
-            .ToArray();
         DecisionResult response = await inner
             .GetDecisionAsync(
-                new InternalDecisionRequest(modelId, request.State, questions),
+                request with
+                {
+                    ModelId = request.ModelId ?? modelId,
+                    // The legacy native contract leaves a yes/no question's answers implicit; the
+                    // one decision model carries them, so the interface's rule is applied here.
+                    Questions =
+                    [
+                        .. request.Questions.Select(question =>
+                            question.Kind == DecisionQuestionKind.YesNo && question.Answers is null
+                                ? question with
+                                {
+                                    Answers = ["yes", "no"],
+                                }
+                                : question
+                        ),
+                    ],
+                },
                 new DecisionOptions(ModelId: modelId),
                 cancellationToken
             )
             .ConfigureAwait(false);
 
         Dictionary<string, object> results = new(StringComparer.Ordinal);
-        foreach ((string id, InternalDecisionAnswer answer) in response.Results)
+        foreach ((string id, DecisionAnswer answer) in response.Results)
         {
             Dictionary<string, object> mapped = new(StringComparer.Ordinal)
             {

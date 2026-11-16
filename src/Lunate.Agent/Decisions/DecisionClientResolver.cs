@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Lunate.Ai;
 using Lunate.Ai.Decisions;
-using Lunate.Contracts;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Agent;
@@ -35,52 +34,23 @@ internal static class DecisionClientResolver
     private sealed class LegacyNativeDecisionClient(INativeDecisionClient legacy) : IDecisionClient
     {
         public async Task<DecisionResult> GetDecisionAsync(
-            Lunate.Ai.Decisions.DecisionRequest request,
+            DecisionRequest request,
             DecisionOptions? options = null,
             CancellationToken cancellationToken = default
         )
         {
-            Lunate.Contracts.DecisionRequest contractRequest = new(
-                request.State,
-                request
-                    .Questions.Select(question => new Lunate.Contracts.DecisionQuestion(
-                        question.Id,
-                        question.Instructions,
-                        question.Kind switch
-                        {
-                            Lunate.Ai.Decisions.DecisionQuestionKind.YesNo => Lunate
-                                .Contracts
-                                .DecisionQuestionKind
-                                .YesNo,
-                            Lunate.Ai.Decisions.DecisionQuestionKind.Choice => Lunate
-                                .Contracts
-                                .DecisionQuestionKind
-                                .Choice,
-                            Lunate.Ai.Decisions.DecisionQuestionKind.Score => Lunate
-                                .Contracts
-                                .DecisionQuestionKind
-                                .Score,
-                            _ => throw new InvalidOperationException(
-                                "The legacy decision client does not support box questions."
-                            ),
-                        },
-                        question.Answers,
-                        question.JsonPath
-                    ))
-                    .ToArray()
-            );
             string? failure = null;
             for (int attempt = 0; attempt < 2; attempt++)
             {
                 string response = await legacy
-                    .GetDecisionAsync(contractRequest, cancellationToken)
+                    .GetDecisionAsync(request, cancellationToken)
                     .ConfigureAwait(false);
                 try
                 {
                     return DecisionResponseParser.Parse(
                         response,
                         request,
-                        options?.ModelId ?? request.ModelId,
+                        options?.ModelId ?? request.ModelId ?? "unknown",
                         "native"
                     );
                 }
@@ -95,11 +65,11 @@ internal static class DecisionClientResolver
             }
 
             throw new InvalidDataException(
-                $"Decision for model '{options?.ModelId ?? request.ModelId}' failed after retry: {failure ?? "response did not match the decision contract"}."
+                $"Decision for model '{options?.ModelId ?? request.ModelId ?? "unknown"}' failed after retry: {failure ?? "response did not match the decision contract"}."
             );
         }
 
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(Lunate.Contracts.INativeDecisionClient) ? legacy : null;
+            serviceType == typeof(INativeDecisionClient) ? legacy : null;
     }
 }

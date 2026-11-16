@@ -1,4 +1,5 @@
 using System.Reflection;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Lunate.Extensibility.Abstractions;
 
@@ -7,14 +8,19 @@ namespace Lunate.Extensibility.Tests;
 public sealed class DecisionServiceContractTests
 {
     [Fact]
-    public void The_abstractions_service_references_only_the_bottom_contract()
+    public void The_abstractions_service_references_the_contract_and_the_decision_model_only()
     {
         Assembly assembly = typeof(IDecisionService).Assembly;
 
-        Assert.DoesNotContain(assembly.GetReferencedAssemblies(), reference =>
-            reference.Name?.StartsWith("Lunate.", StringComparison.Ordinal) == true
-            && reference.Name != "Lunate.Contracts"
-        );
+        string[] lunate = assembly
+            .GetReferencedAssemblies()
+            .Select(reference => reference.Name!)
+            .Where(name => name.StartsWith("Lunate.", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        // The decision model lives in Lunate.Ai.Decisions and the edge runs down from it to the
+        // contract (ADR-0042); the extension contract never reaches up into the loop.
+        Assert.Equal(["Lunate.Ai.Decisions", "Lunate.Contracts"], lunate);
         Assert.All(
             typeof(IDecisionService)
                 .GetMethods()
@@ -51,7 +57,7 @@ public sealed class DecisionServiceContractTests
 
     private sealed class TestDecisionService : IDecisionService
     {
-        public Task<DecisionResponse> DecideAsync(
+        public Task<DecisionResult> DecideAsync(
             DecisionRequest request,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();

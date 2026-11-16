@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 
 namespace Lunate.Agent;
@@ -8,7 +9,7 @@ internal sealed partial class AskUserTool
 {
     private static async Task<List<UserQuestion>> AddDecisionSuggestionsAsync(
         List<UserQuestion> questions,
-        Func<DecisionRequest, CancellationToken, Task<DecisionResponse>>? decideAsync,
+        Func<DecisionRequest, CancellationToken, Task<DecisionResult>>? decideAsync,
         ToolContext context,
         CancellationToken cancellationToken
     )
@@ -51,7 +52,7 @@ internal sealed partial class AskUserTool
                 .ToArray()
         );
 
-        DecisionResponse response;
+        DecisionResult response;
         try
         {
             response = await decideAsync(request, cancellationToken).ConfigureAwait(false);

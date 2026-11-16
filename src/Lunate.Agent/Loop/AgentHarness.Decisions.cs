@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Microsoft.Extensions.AI;
 using DecisionTransportException = Lunate.Ai.Decisions.DecisionTransportException;
@@ -9,7 +10,7 @@ namespace Lunate.Agent;
 
 public sealed partial class AgentHarness
 {
-    private async Task<DecisionResponse> EvaluateToolDecisionAsync(
+    private async Task<DecisionResult> EvaluateToolDecisionAsync(
         string runId,
         DecisionRequest request,
         AgentEventChannel channel,
@@ -40,7 +41,7 @@ public sealed partial class AgentHarness
                 );
             }
 
-            DecisionResponse response = await DecisionEngine.EvaluateAsync(
+            DecisionResult response = await DecisionEngine.EvaluateAsync(
                 request,
                 model.Client,
                 modelId,

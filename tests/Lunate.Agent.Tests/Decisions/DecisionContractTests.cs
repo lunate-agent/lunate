@@ -12,9 +12,9 @@ public sealed class DecisionContractTests
         using JsonDocument state = JsonDocument.Parse(
             """{"parts":[{"type":"image","mimeType":"image/png","data":"AQ=="}]}"""
         );
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [new("logo", "Locate the logo.", Lunate.Contracts.DecisionQuestionKind.Box)]
+            [new("logo", "Locate the logo.", DecisionQuestionKind.Box)]
         );
         ScriptedChatClient chat = new ScriptedChatClient().Enqueue(
             LoopScripts.Text(
@@ -22,7 +22,7 @@ public sealed class DecisionContractTests
             )
         );
 
-        Lunate.Contracts.DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             chat,
             "vision-model",
@@ -30,12 +30,12 @@ public sealed class DecisionContractTests
             TestContext.Current.CancellationToken,
             supportsImages: true
         );
-        Lunate.Contracts.DecisionAnswer answer = response.Results["logo"];
+        DecisionAnswer answer = response.Results["logo"];
 
         Assert.Equal(0.75d, answer.Probability);
         Assert.Equal(0.75d, answer.Confidence, precision: 12);
         Assert.Empty(answer.Distribution);
-        Assert.Equal(new Lunate.Contracts.DecisionBox(0.1, 0.4, 0.2, 0.8, 0.75), answer.Box);
+        Assert.Equal(new DecisionBox(0.1, 0.4, 0.2, 0.8), answer.Box);
     }
 
     [Fact]
@@ -45,9 +45,9 @@ public sealed class DecisionContractTests
         using JsonDocument state = JsonDocument.Parse(
             """{"parts":[{"type":"image","mimeType":"image/png","data":"AQ=="}]}"""
         );
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [new("safe", "Is this safe?", Lunate.Contracts.DecisionQuestionKind.YesNo)]
+            [new("safe", "Is this safe?", DecisionQuestionKind.YesNo)]
         );
         ScriptedChatClient chat = new();
 
@@ -72,9 +72,9 @@ public sealed class DecisionContractTests
     {
         using JsonDocument state = JsonDocument.Parse("{}");
         DecisionRequest request = new(
-            "vision-model",
             state.RootElement.Clone(),
-            [new("logo", "Locate the logo.", DecisionQuestionKind.Box)]
+            [new("logo", "Locate the logo.", DecisionQuestionKind.Box)],
+            "vision-model"
         );
 
         InvalidDataException error = Assert.Throws<InvalidDataException>(() =>
@@ -95,9 +95,9 @@ public sealed class DecisionContractTests
     {
         using JsonDocument state = JsonDocument.Parse("{}");
         DecisionRequest request = new(
-            "decision-model",
             state.RootElement.Clone(),
-            [new("allow", "Is this safe?", DecisionQuestionKind.Choice, ["yes", "no"])]
+            [new("allow", "Is this safe?", DecisionQuestionKind.Choice, ["yes", "no"])],
+            "decision-model"
         );
 
         InvalidDataException error = Assert.Throws<InvalidDataException>(() =>

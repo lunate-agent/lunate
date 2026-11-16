@@ -83,7 +83,6 @@ public sealed class SystemOneLiveSmokeTests
             """{"message":"A short live smoke check."}"""
         );
         return new DecisionRequest(
-            modelId,
             state.RootElement.Clone(),
             [
                 new DecisionQuestion(
@@ -92,7 +91,8 @@ public sealed class SystemOneLiveSmokeTests
                     DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
-            ]
+            ],
+            modelId
         );
     }
 }

@@ -7,6 +7,12 @@ internal static class LayeringChecker
         {
             ("Lunate.Agent", "Lunate.Ai"),
             ("Lunate.Agent", "Lunate.Ai.Decisions"),
+            // The decision model lives in Lunate.Ai.Decisions: IDecisionService is typed with it, and
+            // the decision layer reads the event contract's DecisionProbability, so the edge runs
+            // down from the decision loop to the contract and never back (ADR-0042).
+            ("Lunate.Ai.Decisions", "Lunate.Contracts"),
+            ("Lunate.Extensibility.Abstractions", "Lunate.Ai.Decisions"),
+            ("Lunate.Extensibility", "Lunate.Ai.Decisions"),
             ("Lunate.Coding", "Lunate.Ai.Decisions"),
             ("Lunate.Coding", "Lunate.Ai.SystemOne"),
             ("Lunate.Ai.SystemOne", "Lunate.Ai.Decisions"),
@@ -214,12 +220,18 @@ internal static class LayeringChecker
         };
 
     /// <summary>
-    /// The assemblies the host loads once and every extension binds to: the contract, and the host
-    /// types its signatures expose (<c>ToolContext</c>, <c>ToolResult</c>, the provider surface).
-    /// An extension may reference them — compile-only, never copied — and nothing else of the host.
+    /// The assemblies the host loads once and every extension binds to: the contract, the decision
+    /// model <c>IDecisionService</c> is typed with, and the host types its signatures expose
+    /// (<c>ToolContext</c>, <c>ToolResult</c>, the provider surface). An extension may reference
+    /// them — compile-only, never copied — and nothing else of the host.
     /// </summary>
     public static IReadOnlySet<string> ExtensionHostAssemblies { get; } =
-        new HashSet<string> { "Lunate.Extensibility.Abstractions", "Lunate.Contracts" };
+        new HashSet<string>
+        {
+            "Lunate.Extensibility.Abstractions",
+            "Lunate.Contracts",
+            "Lunate.Ai.Decisions",
+        };
 
     /// <summary>
     /// An extension is a project outside the host's own <c>Lunate.*</c> set — a sample, the template,

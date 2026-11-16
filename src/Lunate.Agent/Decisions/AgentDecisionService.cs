@@ -1,4 +1,4 @@
-using Lunate.Contracts;
+using Lunate.Ai.Decisions;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Agent;
@@ -16,7 +16,7 @@ internal sealed class AgentDecisionService(
     /// the harness, so a recorder handed in at composition also sees their usage and provider
     /// cost: without it a suggestion's spend never reaches the session, the budget or <c>/cost</c>.
     /// </summary>
-    public Task<DecisionResponse> DecideAsync(
+    public Task<DecisionResult> DecideAsync(
         DecisionRequest request,
         CancellationToken cancellationToken = default
     ) =>

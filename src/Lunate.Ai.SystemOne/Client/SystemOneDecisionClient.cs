@@ -19,7 +19,7 @@ internal sealed class SystemOneDecisionClient(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        string modelId = options?.ModelId ?? request.ModelId;
+        string modelId = options?.ModelId ?? request.ModelId ?? "unknown";
         // The wire carries the provider's model id; the catalog id or profile name never does.
         byte[] body = SystemOneRequestMapper.Serialize(request, preset.WireModelId ?? modelId);
         for (int attempt = 0; attempt < 3; attempt++)

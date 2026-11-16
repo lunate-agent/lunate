@@ -140,6 +140,6 @@ public sealed class SystemOneDecisionMappingTests
     private static DecisionRequest CreateRequest(DecisionQuestion question)
     {
         using JsonDocument state = JsonDocument.Parse("{}");
-        return new DecisionRequest("typesafe/jev-1.14", state.RootElement.Clone(), [question]);
+        return new DecisionRequest(state.RootElement.Clone(), [question], "typesafe/jev-1.14");
     }
 }

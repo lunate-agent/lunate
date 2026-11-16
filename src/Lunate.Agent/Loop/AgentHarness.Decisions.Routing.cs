@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Microsoft.Extensions.AI;
 
@@ -60,7 +61,7 @@ public sealed partial class AgentHarness
             );
             var request = new DecisionRequest(state, plan.Questions);
 
-            DecisionResponse response = await DecisionEngine.EvaluateAsync(
+            DecisionResult response = await DecisionEngine.EvaluateAsync(
                 request,
                 model.Client,
                 modelId,
@@ -210,7 +211,7 @@ public sealed partial class AgentHarness
     }
 
     private static RoutingSelection SelectRoutingResult(
-        DecisionResponse response,
+        DecisionResult response,
         string[] profiles,
         RoutingPlan plan
     )

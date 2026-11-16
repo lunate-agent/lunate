@@ -53,3 +53,11 @@ API. Approvals, questions, model routing and a model-facing tool are consumers o
   usage; the tool returns information and grants nothing.
 - A consumer that needs a shape the three kinds do not express adds a kind or a vocabulary to this
   primitive rather than a parallel contract.
+
+## Addendum — 2026-11-16: the contract is the decision layer's, not `Lunate.Contracts`'
+
+Point 2 placed the decision contract in `Lunate.Extensibility.Abstractions`. It keeps `IDecisionService`
+there, but the request, question, answer and result types move down into `Lunate.Ai.Decisions`, one
+model with one home, with the edge running to `Lunate.Contracts` rather than from it. The service is
+still how an extension requests a decision, and the host still bridges it. Recorded in
+[ADR-0042](0042-decision-model-ownership.md).

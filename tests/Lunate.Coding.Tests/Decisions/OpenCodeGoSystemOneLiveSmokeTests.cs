@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Lunate.Agent;
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -87,20 +88,20 @@ public sealed class OpenCodeGoSystemOneLiveSmokeTests
         Assert.Equal("native", decisionModel.Model.ApiType);
 
         using JsonDocument state = JsonDocument.Parse("{}");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
             [
-                new Lunate.Contracts.DecisionQuestion(
+                new DecisionQuestion(
                     "smoke",
                     "Does this message contain words?",
-                    Lunate.Contracts.DecisionQuestionKind.YesNo
+                    DecisionQuestionKind.YesNo
                 ),
             ]
         );
         UsageDetails? recordedUsage = null;
         string? recordedMethod = null;
 
-        Lunate.Contracts.DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             decisionModel.Client,
             decisionModel.Model.Id,
@@ -114,7 +115,7 @@ public sealed class OpenCodeGoSystemOneLiveSmokeTests
             supportsImages: DecisionClientResolver.SupportsImageInput(decisionModel.Model)
         );
 
-        Lunate.Contracts.DecisionAnswer answer = Assert.Single(response.Results).Value;
+        DecisionAnswer answer = Assert.Single(response.Results).Value;
         Assert.Equal("native", answer.Method);
         Assert.False(string.IsNullOrWhiteSpace(answer.Answer), "the decision returned no answer");
         Assert.InRange(answer.Probability, 0.0, 1.0);

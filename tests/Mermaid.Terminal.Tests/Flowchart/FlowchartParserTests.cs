@@ -18,13 +18,23 @@ public sealed class FlowchartParserTests
             "B -.-> D[Four];",
         ];
 
-        Assert.True(FlowchartParser.TryParse(source, "flowchart", out var model, out string? failure));
+        Assert.True(
+            FlowchartParser.TryParse(source, "flowchart", out var model, out string? failure)
+        );
         Assert.Null(failure);
         Assert.NotNull(model);
 
         Assert.False(model!.Horizontal);
         Assert.Equal(["A", "B", "C", "D"], model.Nodes.Select(static node => node.Id));
-        Assert.Equal([["One"], ["Two"], ["Three"], ["Four"]], model.Nodes.Select(static node => node.LabelLines));
+        Assert.Equal(
+            [
+                ["One"],
+                ["Two"],
+                ["Three"],
+                ["Four"],
+            ],
+            model.Nodes.Select(static node => node.LabelLines)
+        );
         Assert.Equal([0, 1, 1, 2], model.Layers);
 
         Assert.Collection(
@@ -40,10 +50,18 @@ public sealed class FlowchartParserTests
     {
         string[] source = ["flowchart LR", "A[\"One<br/>two\"] --> B"];
 
-        Assert.True(FlowchartParser.TryParse(source, "flowchart", out var model, out string? failure));
+        Assert.True(
+            FlowchartParser.TryParse(source, "flowchart", out var model, out string? failure)
+        );
         Assert.Null(failure);
         Assert.True(model!.Horizontal);
-        Assert.Equal([["One", "two"], ["B"]], model.Nodes.Select(static node => node.LabelLines));
+        Assert.Equal(
+            [
+                ["One", "two"],
+                ["B"],
+            ],
+            model.Nodes.Select(static node => node.LabelLines)
+        );
     }
 
     [Fact]

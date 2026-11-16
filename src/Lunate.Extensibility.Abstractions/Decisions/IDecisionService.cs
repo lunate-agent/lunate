@@ -1,4 +1,4 @@
-using Lunate.Contracts;
+using Lunate.Ai.Decisions;
 
 namespace Lunate.Extensibility.Abstractions;
 
@@ -6,7 +6,7 @@ namespace Lunate.Extensibility.Abstractions;
 public interface IDecisionService
 {
     /// <summary>Evaluates every question independently and returns results keyed by question id.</summary>
-    Task<DecisionResponse> DecideAsync(
+    Task<DecisionResult> DecideAsync(
         DecisionRequest request,
         CancellationToken cancellationToken = default
     );

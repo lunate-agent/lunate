@@ -1,4 +1,4 @@
-using Lunate.Contracts;
+using Lunate.Ai.Decisions;
 
 namespace Lunate.Coding.Tests;
 

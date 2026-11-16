@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lunate.Agent;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Microsoft.Extensions.AI;
 
@@ -101,7 +102,7 @@ public sealed class DecisionPrimitiveTests
             ]
         );
 
-        DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             client,
             "decision-model",
@@ -185,7 +186,7 @@ public sealed class DecisionPrimitiveTests
             ]
         );
 
-        DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             client,
             "decision-model",
@@ -217,7 +218,7 @@ public sealed class DecisionPrimitiveTests
         );
         var client = new ScriptedChatClient { NativeDecisionClient = native };
 
-        DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             client,
             "decision-model",
@@ -256,7 +257,7 @@ public sealed class DecisionPrimitiveTests
             ]
         );
 
-        DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             client,
             "decision-model",
@@ -319,7 +320,7 @@ public sealed class DecisionPrimitiveTests
             [new DecisionQuestion("confirm", "Is it ready?", DecisionQuestionKind.YesNo)]
         );
 
-        DecisionResponse response = await DecisionEngine.EvaluateAsync(
+        DecisionResult response = await DecisionEngine.EvaluateAsync(
             request,
             client,
             "decision-model",

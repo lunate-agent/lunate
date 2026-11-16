@@ -26,7 +26,7 @@ internal sealed class ChatDecisionClient(IChatClient chatClient) : IDecisionClie
                     cancellationToken
                 )
                 .ConfigureAwait(false);
-            string modelId = response.ModelId ?? options?.ModelId ?? request.ModelId;
+            string modelId = response.ModelId ?? options?.ModelId ?? request.ModelId ?? "unknown";
             if (response.Usage is { } usage)
             {
                 usages.Add(usage);
@@ -56,7 +56,7 @@ internal sealed class ChatDecisionClient(IChatClient chatClient) : IDecisionClie
         // Both attempts were paid for: the usages travel on the exception so the engine records
         // them before the failure reaches the caller (0.2.1 recorded each attempt).
         throw new DecisionUsageAttemptsException(
-            $"Decision for model '{options?.ModelId ?? request.ModelId}' failed after retry: {failure ?? "response did not match the decision contract"}.",
+            $"Decision for model '{options?.ModelId ?? request.ModelId ?? "unknown"}' failed after retry: {failure ?? "response did not match the decision contract"}.",
             attempts
         );
     }

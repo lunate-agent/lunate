@@ -259,16 +259,16 @@ internal static class WizardModelCheck
     /// an empty state. The question id is the check's own, so a decision transport's reply is read
     /// against exactly one question.
     /// </summary>
-    private static Lunate.Contracts.DecisionRequest DecisionCheckRequest()
+    private static Lunate.Ai.Decisions.DecisionRequest DecisionCheckRequest()
     {
         using JsonDocument state = JsonDocument.Parse("{}");
         return new(
             state.RootElement.Clone(),
             [
-                new Lunate.Contracts.DecisionQuestion(
+                new Lunate.Ai.Decisions.DecisionQuestion(
                     "transport_reachable",
                     "Answer yes when the decision transport answered this request.",
-                    Lunate.Contracts.DecisionQuestionKind.YesNo
+                    Lunate.Ai.Decisions.DecisionQuestionKind.YesNo
                 ),
             ]
         );

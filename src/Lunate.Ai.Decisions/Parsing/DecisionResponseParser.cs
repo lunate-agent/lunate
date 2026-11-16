@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lunate.Contracts;
 
 namespace Lunate.Ai.Decisions;
 

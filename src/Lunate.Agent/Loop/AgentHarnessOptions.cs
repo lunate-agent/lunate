@@ -1,4 +1,5 @@
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Microsoft.Extensions.AI;
 
@@ -114,7 +115,7 @@ public sealed record AgentHarnessOptions
     internal Func<
         DecisionRequest,
         CancellationToken,
-        Task<DecisionResponse>
+        Task<DecisionResult>
     >? QuestionDecisionAsync { get; init; }
 
     /// <summary>The steering queue the loop drains before each model request; null disables steering.</summary>

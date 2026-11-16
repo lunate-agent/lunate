@@ -11,7 +11,6 @@ internal static class SystemOneDecisionTestData
     {
         using JsonDocument state = JsonDocument.Parse("{}");
         return new DecisionRequest(
-            "typesafe/jev-1.14",
             providedState ?? state.RootElement.Clone(),
             [
                 new DecisionQuestion(
@@ -20,7 +19,8 @@ internal static class SystemOneDecisionTestData
                     DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
-            ]
+            ],
+            "typesafe/jev-1.14"
         );
     }
 }

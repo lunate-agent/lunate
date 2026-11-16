@@ -1,16 +1,13 @@
+using System.Text.Json;
 using Lunate.Ai.Decisions;
-using Lunate.Contracts;
 using Microsoft.Extensions.AI;
-using InternalDecisionAnswer = Lunate.Ai.Decisions.DecisionAnswer;
-using InternalDecisionQuestion = Lunate.Ai.Decisions.DecisionQuestion;
-using InternalDecisionQuestionKind = Lunate.Ai.Decisions.DecisionQuestionKind;
 
 namespace Lunate.Agent;
 
 internal static class DecisionEngine
 {
-    public static async Task<DecisionResponse> EvaluateAsync(
-        Lunate.Contracts.DecisionRequest request,
+    public static async Task<DecisionResult> EvaluateAsync(
+        DecisionRequest request,
         IChatClient client,
         string modelId,
         string method,
@@ -24,7 +21,7 @@ internal static class DecisionEngine
         ArgumentNullException.ThrowIfNull(client);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
         bool hasBoxQuestion = request.Questions.Any(question =>
-            question.Kind == Lunate.Contracts.DecisionQuestionKind.Box
+            question.Kind == DecisionQuestionKind.Box
         );
         if (hasBoxQuestion && !supportsImages)
         {
@@ -43,10 +40,12 @@ internal static class DecisionEngine
         IReadOnlyList<PreparedDecisionQuestion> prepared = DecisionRequestValidator.Prepare(
             request
         );
-        Lunate.Ai.Decisions.DecisionRequest internalRequest = new(
-            modelId,
+        // The boundary validates once and hands the client the resolved per-question answer sets,
+        // criteria and states — the one model the client, the parser and the consumers share.
+        var clientRequest = new DecisionRequest(
             request.State,
-            prepared.Select(question => ToInternalQuestion(question, questionCriteria)).ToArray()
+            [.. prepared.Select(question => ToClientQuestion(question, questionCriteria))],
+            modelId
         );
         IDecisionClient decisionClient = DecisionClientResolver.Resolve(client, method);
         DecisionResult result;
@@ -54,7 +53,7 @@ internal static class DecisionEngine
         {
             result = await decisionClient
                 .GetDecisionAsync(
-                    internalRequest,
+                    clientRequest,
                     new DecisionOptions(ModelId: modelId),
                     cancellationToken
                 )
@@ -77,7 +76,7 @@ internal static class DecisionEngine
 
         if (result.ChatUsageAttempts is { Count: > 0 } usages && recordUsage is not null)
         {
-            InternalDecisionAnswer? first = result.Results.Values.FirstOrDefault();
+            DecisionAnswer? first = result.Results.Values.FirstOrDefault();
             for (int index = 0; index < usages.Count; index++)
             {
                 bool isFinalAttempt = index == usages.Count - 1;
@@ -100,7 +99,7 @@ internal static class DecisionEngine
                 InputTokenCount = providerUsage.InputTokens,
                 OutputTokenCount = providerUsage.OutputTokens,
             };
-            InternalDecisionAnswer? sample = result.Results.Values.FirstOrDefault();
+            DecisionAnswer? sample = result.Results.Values.FirstOrDefault();
             recordUsage(
                 details,
                 sample?.ModelId ?? modelId,
@@ -110,68 +109,24 @@ internal static class DecisionEngine
             );
         }
 
-        Dictionary<string, Lunate.Contracts.DecisionAnswer> answers = new(StringComparer.Ordinal);
-        foreach ((string id, InternalDecisionAnswer answer) in result.Results)
-        {
-            answers.Add(
-                id,
-                new Lunate.Contracts.DecisionAnswer(
-                    answer.Answer,
-                    answer.Probability,
-                    answer
-                        .Distribution.Select(item => new Lunate.Contracts.DecisionProbability(
-                            item.Answer,
-                            item.Probability
-                        ))
-                        .ToArray(),
-                    answer.ModelId,
-                    answer.Method
-                )
-                {
-                    Confidence = answer.Confidence,
-                    Box = answer.Box is { } box
-                        ? new Lunate.Contracts.DecisionBox(
-                            box.Top,
-                            box.Bottom,
-                            box.Left,
-                            box.Right,
-                            answer.Confidence
-                        )
-                        : null,
-                }
-            );
-        }
-
-        return new DecisionResponse(answers);
+        return result;
     }
 
-    private static InternalDecisionQuestion ToInternalQuestion(
+    private static DecisionQuestion ToClientQuestion(
         PreparedDecisionQuestion prepared,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? questionCriteria
     )
     {
-        Lunate.Contracts.DecisionQuestion question = prepared.Question;
+        DecisionQuestion question = prepared.Question;
         IReadOnlyDictionary<string, string>? criteria =
             questionCriteria is not null && questionCriteria.TryGetValue(question.Id, out var value)
                 ? value
                 : null;
-        return new InternalDecisionQuestion(
-            question.Id,
-            question.Text,
-            question.Kind switch
-            {
-                Lunate.Contracts.DecisionQuestionKind.YesNo => InternalDecisionQuestionKind.YesNo,
-                Lunate.Contracts.DecisionQuestionKind.Choice => InternalDecisionQuestionKind.Choice,
-                Lunate.Contracts.DecisionQuestionKind.Score => InternalDecisionQuestionKind.Score,
-                Lunate.Contracts.DecisionQuestionKind.Box => InternalDecisionQuestionKind.Box,
-                _ => throw new InvalidOperationException(
-                    "The validated question kind is unsupported."
-                ),
-            },
-            prepared.Answers,
-            Criteria: criteria,
-            JsonPath: question.JsonPath,
-            State: prepared.State
-        );
+        return question with
+        {
+            Answers = prepared.Answers,
+            Criteria = criteria,
+            State = prepared.State,
+        };
     }
 }

@@ -140,10 +140,10 @@ public sealed class SystemOneFixtureReplayTests
         CreateRequest(questions, JsonDocument.Parse("{}").RootElement.Clone());
 
     private static DecisionRequest CreateRequest(DecisionQuestion question, JsonElement state) =>
-        new("typesafe/jev-1.14", state, [question]);
+        new(state, [question], "typesafe/jev-1.14");
 
     private static DecisionRequest CreateRequest(DecisionQuestion[] questions, JsonElement state) =>
-        new("typesafe/jev-1.14", state, questions);
+        new(state, questions, "typesafe/jev-1.14");
 
     private static string ReadFixture(string fileName) =>
         File.ReadAllText(

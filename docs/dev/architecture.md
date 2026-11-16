@@ -19,8 +19,9 @@ flowchart TD
     Coding -. "evaluates manifest rule" .-> ExtApi
     Protocols --> Agent
     Agent --> Ai["Lunate.Ai<br/>model pipeline, catalog"]
-    Agent --> Decisions["Lunate.Ai.Decisions<br/>decision engine, contracts"]
+    Agent --> Decisions["Lunate.Ai.Decisions<br/>decision engine and its model"]
     Agent --> Contracts["Lunate.Contracts<br/>shared wire contracts"]
+    Decisions --> Contracts
     Coding --> Decisions
     Coding --> SystemOne["Lunate.Ai.SystemOne<br/>native System One transport"]
     SystemOne --> Decisions
@@ -49,10 +50,17 @@ src/Lunate.Protocols/
 
 `Lunate.Contracts` shows why the namespace does not follow the folder: it declares `Lunate.Agent` and
 `Lunate.Ai` types beside its own so its `TypeForwardedTo` entries keep a compiled consumer binding,
-and no folder may claim a namespace segment. The test projects mirror the folders they test, with
-support files at the project root. `tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces the rule;
+and no folder may claim a namespace segment. The test projects mirror the folders they test — every
+source feature folder has a test folder and no test folder exists without one — with support files at
+the project root. `tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces both halves;
 the requirement lives in the [repo-quality spec](../../openspec/specs/repo-quality/spec.md) and the
 file-naming half in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+The decision model sits in `Lunate.Ai.Decisions` rather than in the contract: `Lunate.Contracts` keeps
+only the `DecisionProbability` record the `DecisionEvaluated` event publishes, and the edge runs
+`Lunate.Ai.Decisions` → `Lunate.Contracts`, never back. `Lunate.Extensibility.Abstractions` types
+`IDecisionService` with that model, so the contract package carries the decision assembly in `lib/` and
+the host owns it at load. See [ADR-0042](../../adr/0042-decision-model-ownership.md).
 
 ## The model pipeline
 

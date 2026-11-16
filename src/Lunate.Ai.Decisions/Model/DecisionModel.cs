@@ -1,15 +1,22 @@
 using System.Text.Json;
+using Lunate.Contracts;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Ai.Decisions;
 
-internal sealed record DecisionRequest(
-    string ModelId,
+/// <summary>A batch of independent questions evaluated against one text or JSON state.</summary>
+/// <remarks>
+/// <paramref name="ModelId"/> is the caller's hint; the resolved model travels in
+/// <see cref="DecisionOptions.ModelId"/> and wins, because a routed call may resolve another id.
+/// </remarks>
+public sealed record DecisionRequest(
     JsonElement State,
-    IReadOnlyList<DecisionQuestion> Questions
+    IReadOnlyList<DecisionQuestion> Questions,
+    string? ModelId = null
 );
 
-internal sealed record DecisionQuestion(
+/// <summary>One named decision question; choice answers and score levels retain their declared order.</summary>
+public sealed record DecisionQuestion(
     string Id,
     string Instructions,
     DecisionQuestionKind Kind,
@@ -19,7 +26,8 @@ internal sealed record DecisionQuestion(
     JsonElement? State = null
 );
 
-internal enum DecisionQuestionKind
+/// <summary>The four question kinds supported by the decision primitive.</summary>
+public enum DecisionQuestionKind
 {
     YesNo,
     Choice,
@@ -27,18 +35,19 @@ internal enum DecisionQuestionKind
     Box,
 }
 
-internal sealed record DecisionOptions(
+/// <summary>The per-call options a decision client accepts beside the request.</summary>
+public sealed record DecisionOptions(
     string? ModelId = null,
     TimeSpan? Timeout = null,
     string? SessionId = null,
     string? RunId = null
 );
 
-internal sealed record DecisionProbability(string Answer, double Probability);
+/// <summary>A normalized image rectangle and the model's confidence in its placement.</summary>
+public sealed record DecisionBox(double Top, double Bottom, double Left, double Right);
 
-internal sealed record DecisionBox(double Top, double Bottom, double Left, double Right);
-
-internal sealed record DecisionAnswer(
+/// <summary>A validated answer and the provenance of its model exchange.</summary>
+public sealed record DecisionAnswer(
     string Answer,
     double Probability,
     IReadOnlyList<DecisionProbability> Distribution,
@@ -49,7 +58,8 @@ internal sealed record DecisionAnswer(
     double? ExpectedScore = null
 );
 
-internal sealed record DecisionUsage(
+/// <summary>The tokens and provider cost one decision exchange recorded.</summary>
+public sealed record DecisionUsage(
     long? InputTokens = null,
     long? OutputTokens = null,
     double? Cost = null,
@@ -62,10 +72,11 @@ internal sealed record DecisionUsage(
     /// </summary>
     public OpencodeUsage? Opencode { get; init; }
 
-    internal sealed record OpencodeUsage(string? BillingSource, double? ListCost);
+    public sealed record OpencodeUsage(string? BillingSource, double? ListCost);
 }
 
-internal sealed record DecisionResult(
+/// <summary>Validated answers keyed by question id, with what the exchange cost.</summary>
+public sealed record DecisionResult(
     IReadOnlyDictionary<string, DecisionAnswer> Results,
     DecisionUsage? Usage = null,
     IReadOnlyList<UsageDetails>? ChatUsageAttempts = null

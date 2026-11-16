@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 
 namespace Lunate.Agent.Tests;
@@ -24,7 +25,7 @@ public sealed class DecisionCultureTests
                 [new DecisionQuestion("confirm", "Is it ready?", DecisionQuestionKind.YesNo)]
             );
 
-            DecisionResponse result = await DecisionEngine.EvaluateAsync(
+            DecisionResult result = await DecisionEngine.EvaluateAsync(
                 request,
                 client,
                 "decision-model",

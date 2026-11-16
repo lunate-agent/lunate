@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Lunate.Ai.Decisions;
+using Lunate.Contracts;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Agent.Tests;
@@ -10,13 +11,13 @@ public sealed class AgentDecisionServiceTests
     public async Task Native_service_decision_reports_its_tokens_and_provider_cost()
     {
         using JsonDocument state = JsonDocument.Parse("""{"plan":"flexible"}""");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
             [
-                new Lunate.Contracts.DecisionQuestion(
+                new DecisionQuestion(
                     "question-1",
                     "Which plan should I use?",
-                    Lunate.Contracts.DecisionQuestionKind.Choice,
+                    DecisionQuestionKind.Choice,
                     ["Simple", "Flexible"]
                 ),
             ]
@@ -50,7 +51,7 @@ public sealed class AgentDecisionServiceTests
                 )
         );
 
-        Lunate.Contracts.DecisionResponse response = await service.DecideAsync(
+        DecisionResult response = await service.DecideAsync(
             request,
             TestContext.Current.CancellationToken
         );
@@ -67,13 +68,13 @@ public sealed class AgentDecisionServiceTests
     public async Task Adapter_service_decision_records_every_failed_attempt()
     {
         using JsonDocument state = JsonDocument.Parse("""{"plan":"flexible"}""");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
             [
-                new Lunate.Contracts.DecisionQuestion(
+                new DecisionQuestion(
                     "question-1",
                     "Which plan should I use?",
-                    Lunate.Contracts.DecisionQuestionKind.Choice,
+                    DecisionQuestionKind.Choice,
                     ["Simple", "Flexible"]
                 ),
             ]

@@ -119,10 +119,12 @@ folder never changes a file's namespace: every file in a project keeps the names
 established, so `src/Lunate.Coding/Tools/ReadTool.cs` still declares `namespace Lunate.Coding;`.
 A namespace records compatibility, not location: `src/Lunate.Contracts` deliberately declares
 `Lunate.Agent` and `Lunate.Ai` types beside its own, so its `TypeForwardedTo` entries keep a
-compiled consumer binding after the assemblies were split. Tests mirror `src`: a test file sits in
-the folder of the feature it exercises, and support files (a `TempDirectory`, a scripted client, a
-collection definition) stay at the test project root. `tests/Lunate.Coding.Tests/LayoutRuleTests.cs`
-enforces both halves, and a folder that tries to become a namespace fails it by name.
+compiled consumer binding after the assemblies were split. Tests mirror `src` in both directions: a
+feature folder has a folder of the same relative path under its test project, no test folder exists
+without one, and a test file sits in the folder of the feature it exercises. Support files (a
+`TempDirectory`, a scripted client, a collection definition) stay at the test project root.
+`tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces all of it, and a folder that tries to become a
+namespace fails it by name.
 
 ## Documentation
 

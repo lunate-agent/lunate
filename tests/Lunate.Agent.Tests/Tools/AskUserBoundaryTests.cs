@@ -1,4 +1,5 @@
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using static Lunate.Agent.Tests.AgentTestSupport;
 
@@ -124,7 +125,7 @@ public sealed class AskUserBoundaryTests
         );
     }
 
-    private static DecisionResponse QuestionDecision() =>
+    private static DecisionResult QuestionDecision() =>
         new(
             new Dictionary<string, DecisionAnswer>(StringComparer.Ordinal)
             {
@@ -133,7 +134,8 @@ public sealed class AskUserBoundaryTests
                     0.91d,
                     [new("Yes", 0.91d), new("No", 0.09d)],
                     "decision-model",
-                    "native"
+                    "native",
+                    0.91d
                 ),
             }
         );

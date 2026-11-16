@@ -1,26 +1,18 @@
 using System.Text.Json;
 using Lunate.Ai.Decisions;
 using Lunate.Contracts;
-using ContractDecisionQuestion = Lunate.Contracts.DecisionQuestion;
-using ContractDecisionQuestionKind = Lunate.Contracts.DecisionQuestionKind;
 
 namespace Lunate.Agent.Tests;
 
 public sealed class NativeDecisionCompatibilityTests
 {
     [Fact]
-    public async Task Legacy_native_contract_forwards_requests_to_the_decision_client()
+    public async Task Legacy_native_contract_forwards_the_one_decision_request()
     {
         using JsonDocument state = JsonDocument.Parse("{\"path\":\"src\"}");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [
-                new ContractDecisionQuestion(
-                    "safe",
-                    "Is this safe?",
-                    ContractDecisionQuestionKind.YesNo
-                ),
-            ]
+            [new DecisionQuestion("safe", "Is this safe?", DecisionQuestionKind.YesNo)]
         );
         RecordingDecisionClient inner = new();
         INativeDecisionClient adapter = new NativeDecisionClientForwarder(inner, "model-x");
@@ -34,36 +26,36 @@ public sealed class NativeDecisionCompatibilityTests
         JsonElement result = parsed.RootElement.GetProperty("results").GetProperty("safe");
         Assert.Equal("yes", result.GetProperty("answer").GetString());
         Assert.Equal(0.8, result.GetProperty("probabilities").GetProperty("yes").GetDouble());
+        // The forwarder stamps the model it was built for when the caller left the hint empty, and
+        // applies the legacy contract's rule that a yes/no question's answers are implicit.
         Assert.Equal("model-x", inner.Request!.ModelId);
-        Assert.Equal(
-            Lunate.Ai.Decisions.DecisionQuestionKind.YesNo,
-            inner.Request.Questions[0].Kind
-        );
+        Assert.Equal("safe", inner.Request.Questions[0].Id);
+        Assert.Equal(["yes", "no"], inner.Request.Questions[0].Answers);
     }
 
     private sealed class RecordingDecisionClient : IDecisionClient
     {
-        public Lunate.Ai.Decisions.DecisionRequest? Request { get; private set; }
+        public DecisionRequest? Request { get; private set; }
 
-        public Task<Lunate.Ai.Decisions.DecisionResult> GetDecisionAsync(
-            Lunate.Ai.Decisions.DecisionRequest request,
+        public Task<DecisionResult> GetDecisionAsync(
+            DecisionRequest request,
             DecisionOptions? options = null,
             CancellationToken cancellationToken = default
         )
         {
             Request = request;
             return Task.FromResult(
-                new Lunate.Ai.Decisions.DecisionResult(
-                    new Dictionary<string, Lunate.Ai.Decisions.DecisionAnswer>
+                new DecisionResult(
+                    new Dictionary<string, DecisionAnswer>
                     {
                         ["safe"] = new(
                             "yes",
                             0.8,
                             [
-                                new Lunate.Ai.Decisions.DecisionProbability("yes", 0.8),
-                                new Lunate.Ai.Decisions.DecisionProbability("no", 0.2),
+                                new DecisionProbability("yes", 0.8),
+                                new DecisionProbability("no", 0.2),
                             ],
-                            request.ModelId,
+                            request.ModelId ?? "model-x",
                             "native",
                             0.6
                         ),

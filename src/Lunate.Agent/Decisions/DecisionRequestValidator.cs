@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
-using Lunate.Contracts;
+using Lunate.Ai.Decisions;
 
 namespace Lunate.Agent;
 
@@ -31,7 +31,7 @@ internal static class DecisionRequestValidator
         {
             ArgumentNullException.ThrowIfNull(question);
             ArgumentException.ThrowIfNullOrWhiteSpace(question.Id);
-            ArgumentException.ThrowIfNullOrWhiteSpace(question.Text);
+            ArgumentException.ThrowIfNullOrWhiteSpace(question.Instructions);
             if (!ids.Add(question.Id))
             {
                 throw new ArgumentException(

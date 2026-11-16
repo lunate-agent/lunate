@@ -1,4 +1,6 @@
 using Lunate.Ai;
+using Lunate.Ai.Decisions;
+using Lunate.Contracts;
 
 namespace Lunate.Agent.Tests;
 
@@ -101,35 +103,23 @@ public sealed class ContractsAssemblyTests
     }
 
     [Fact]
-    public void Box_decision_contract_types_live_in_the_contract_assembly()
+    public void The_decision_model_lives_in_the_decision_assembly()
     {
-        Assert.Equal(
-            typeof(Lunate.Contracts.DecisionRequest).Assembly,
-            typeof(Lunate.Contracts.DecisionBox).Assembly
-        );
-        Assert.Equal(0, (int)Lunate.Contracts.DecisionQuestionKind.YesNo);
-        Assert.Equal(1, (int)Lunate.Contracts.DecisionQuestionKind.Choice);
-        Assert.Equal(2, (int)Lunate.Contracts.DecisionQuestionKind.Score);
-        Assert.Equal(3, (int)Lunate.Contracts.DecisionQuestionKind.Box);
-    }
+        // One model, one home (ADR-0042): the request/result records belong to the decision loop, and
+        // the contract keeps only the event distribution it publishes.
+        System.Reflection.Assembly decisions = typeof(DecisionRequest).Assembly;
 
-    [Fact]
-    public void Decision_answer_keeps_its_1_15_constructor_and_deconstruction_signatures()
-    {
-        Type[] constructorParameters =
-        [
-            typeof(string),
-            typeof(double),
-            typeof(IReadOnlyList<Lunate.Contracts.DecisionProbability>),
-            typeof(string),
-            typeof(string),
-        ];
-        Assert.NotNull(
-            typeof(Lunate.Contracts.DecisionAnswer).GetConstructor(constructorParameters)
-        );
-        Assert.Contains(typeof(Lunate.Contracts.DecisionAnswer).GetMethods(), method =>
-            method.Name == "Deconstruct" && method.GetParameters().Length == 5
-        );
+        Assert.Equal("Lunate.Ai.Decisions", decisions.GetName().Name);
+        Assert.Equal(decisions, typeof(DecisionQuestion).Assembly);
+        Assert.Equal(decisions, typeof(DecisionAnswer).Assembly);
+        Assert.Equal(decisions, typeof(DecisionBox).Assembly);
+        Assert.Equal(decisions, typeof(DecisionResult).Assembly);
+        Assert.Equal(typeof(DecisionEvaluated).Assembly, typeof(DecisionProbability).Assembly);
+        Assert.NotEqual(typeof(DecisionEvaluated).Assembly, decisions);
+        Assert.Equal(0, (int)DecisionQuestionKind.YesNo);
+        Assert.Equal(1, (int)DecisionQuestionKind.Choice);
+        Assert.Equal(2, (int)DecisionQuestionKind.Score);
+        Assert.Equal(3, (int)DecisionQuestionKind.Box);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 
 namespace Lunate.Agent;
@@ -7,17 +8,13 @@ internal sealed record AgentToolContextState(
     IReadLedger? Reads,
     Func<IReadOnlyList<UserQuestion>, CancellationToken, Task<UserQuestionResult>>? AskUserAsync,
     bool QuestionSuggestionsEnabled = false,
-    Func<
-        Lunate.Contracts.DecisionRequest,
-        CancellationToken,
-        Task<Lunate.Contracts.DecisionResponse>
-    >? QuestionDecisionAsync = null
+    Func<DecisionRequest, CancellationToken, Task<DecisionResult>>? QuestionDecisionAsync = null
 )
 {
     internal Func<
         DecisionRequest,
         CancellationToken,
-        Task<DecisionResponse>
+        Task<DecisionResult>
     >? DecideAsync { get; init; }
 
     internal static Session? SessionFor(ToolContext context) =>

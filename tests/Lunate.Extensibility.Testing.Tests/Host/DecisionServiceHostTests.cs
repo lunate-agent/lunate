@@ -1,3 +1,4 @@
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 using Lunate.Extensibility.Abstractions;
 using Lunate.Extensibility.Testing;
@@ -33,7 +34,7 @@ public sealed class DecisionServiceHostTests
 
     private sealed class TestDecisionService : IDecisionService
     {
-        public Task<DecisionResponse> DecideAsync(
+        public Task<DecisionResult> DecideAsync(
             DecisionRequest request,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();

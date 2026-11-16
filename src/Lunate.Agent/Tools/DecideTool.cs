@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lunate.Ai.Decisions;
 using Lunate.Contracts;
 
 namespace Lunate.Agent;
@@ -48,7 +49,7 @@ internal sealed class DecideTool : ITool
 
         try
         {
-            DecisionResponse response = await decide(request!, ct).ConfigureAwait(false);
+            DecisionResult response = await decide(request!, ct).ConfigureAwait(false);
             return new ToolResult(
                 JsonSerializer.Serialize(new { results = response.Results }, OutputJsonOptions),
                 IsError: false
@@ -148,7 +149,9 @@ internal sealed class DecideTool : ITool
                 jsonPath = pathElement.GetString();
             }
 
-            questions.Add(new DecisionQuestion(id!, text!, questionKind, answers, jsonPath));
+            questions.Add(
+                new DecisionQuestion(id!, text!, questionKind, answers, JsonPath: jsonPath)
+            );
         }
 
         request = new DecisionRequest(state.Clone(), questions);

@@ -55,7 +55,6 @@ public sealed class DecisionClientTests
         ActivitySource.AddActivityListener(listener);
         using JsonDocument state = JsonDocument.Parse("{\"secret\":\"do not record\"}");
         DecisionRequest request = new(
-            "decision-model",
             state.RootElement.Clone(),
             [
                 new DecisionQuestion(
@@ -64,7 +63,8 @@ public sealed class DecisionClientTests
                     DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
-            ]
+            ],
+            "decision-model"
         );
         IDecisionClient client = new DecisionClientBuilder()
             .UseClient(
@@ -95,7 +95,6 @@ public sealed class DecisionClientTests
     {
         using JsonDocument state = JsonDocument.Parse("{\"path\":\"src\"}");
         DecisionRequest request = new(
-            "decision-model",
             state.RootElement.Clone(),
             [
                 new DecisionQuestion(
@@ -104,7 +103,8 @@ public sealed class DecisionClientTests
                     DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
-            ]
+            ],
+            "decision-model"
         );
         ScriptedChatClient chat = new ScriptedChatClient().Enqueue(
             LoopScripts.Text(
@@ -130,9 +130,9 @@ public sealed class DecisionClientTests
     public async Task Agent_uses_a_native_decision_client_instead_of_chat()
     {
         using JsonDocument state = JsonDocument.Parse("{}");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [new("allow", "Is this safe?", Lunate.Contracts.DecisionQuestionKind.YesNo)]
+            [new("allow", "Is this safe?", DecisionQuestionKind.YesNo)]
         );
         DecisionAnswer answer = new(
             "yes",
@@ -151,7 +151,7 @@ public sealed class DecisionClientTests
             )
         );
 
-        Lunate.Contracts.DecisionResponse result = await DecisionEngine.EvaluateAsync(
+        DecisionResult result = await DecisionEngine.EvaluateAsync(
             request,
             chat,
             "decision-model",
@@ -169,9 +169,9 @@ public sealed class DecisionClientTests
     public async Task Legacy_native_client_retries_one_off_contract_response()
     {
         using JsonDocument state = JsonDocument.Parse("{}");
-        Lunate.Contracts.DecisionRequest request = new(
+        DecisionRequest request = new(
             state.RootElement.Clone(),
-            [new("allow", "Is this safe?", Lunate.Contracts.DecisionQuestionKind.YesNo)]
+            [new("allow", "Is this safe?", DecisionQuestionKind.YesNo)]
         );
         StubLegacyNativeDecisionClient native = new(
             "not json",
@@ -179,7 +179,7 @@ public sealed class DecisionClientTests
         );
         ScriptedChatClient chat = new() { NativeDecisionClient = native };
 
-        Lunate.Contracts.DecisionResponse result = await DecisionEngine.EvaluateAsync(
+        DecisionResult result = await DecisionEngine.EvaluateAsync(
             request,
             chat,
             "decision-model",
@@ -198,7 +198,7 @@ public sealed class DecisionClientTests
     public async Task Delegating_client_forwards_the_request_options_and_cancellation()
     {
         using JsonDocument state = JsonDocument.Parse("{}");
-        DecisionRequest request = new("model", state.RootElement.Clone(), []);
+        DecisionRequest request = new(state.RootElement.Clone(), [], "model");
         DecisionOptions options = new(ModelId: "override");
         DecisionResult expected = new(new Dictionary<string, DecisionAnswer>());
         StubDecisionClient inner = new(expected);
@@ -237,14 +237,14 @@ public sealed class DecisionClientTests
     }
 
     private sealed class StubLegacyNativeDecisionClient(params string[] responses)
-        : Lunate.Contracts.INativeDecisionClient
+        : INativeDecisionClient
     {
         private readonly Queue<string> _responses = new(responses);
 
         public int Requests { get; private set; }
 
         public Task<string> GetDecisionAsync(
-            Lunate.Contracts.DecisionRequest request,
+            DecisionRequest request,
             CancellationToken cancellationToken = default
         )
         {
