@@ -102,13 +102,17 @@ Re-measure on the locally published single-file binary with `scripts/perf.sh` an
 `scripts/memory.sh`, record the floor/median and peak RSS in this design and in the pull request.
 Keep the 150 ms local startup default and the 150 MB memory gate when the measurement is inside their
 headroom; the CI matrix values are re-calibrated from the post-merge/nightly runners, which are the
-only source of their evidence (ADR-0005, ADR-0009).
+only source of their evidence (ADR-0005, ADR-0009). Where the sandbox denies a gate's own seam — no
+pty can be allocated and `ps` is blocked — the same subject is measured with the gate's method and
+the substitution is recorded (see Measurements).
 
 ## Measurements
 
-Taken on the implementation machine (macOS 26.3, osx-arm64, self-contained single-file Release
-publish with ReadyToRun, load average about 5). The .NET 10 baseline is the same publish built from
-`493c401f` (the branch base) in a scratch directory.
+Taken on the implementation machine (macOS 26.3.1, osx-arm64, self-contained single-file Release
+publish with ReadyToRun, load average about 2-5). The .NET 10 baseline is the same source at
+`493c401f` (the branch base), published and measured with the same commands.
+
+### Startup
 
 | Measurement | .NET 10 baseline | .NET 11 (#902) |
 | --- | --- | --- |
@@ -116,7 +120,6 @@ publish with ReadyToRun, load average about 5). The .NET 10 baseline is the same
 | `scripts/perf.sh` startup floor | 122 ms | 131–148 ms (three runs) |
 | `scripts/perf.sh` startup median | 158 ms | 186–202 ms (three runs) |
 | `--version` peak RSS (`/usr/bin/time -l`) | 434 MiB | 537 MiB |
-| Idle `lunate mcp roslyn` peak RSS (10 s, libproc sampler) | 276 MiB | 330 MiB |
 
 The startup floor is the gate's statistic (ADR-0005 addendum); on net11 it is at or below the 150 ms
 local default in all three runs, so the local budget is unchanged. The medians on this machine are
@@ -124,12 +127,51 @@ above 150 ms for the **net10 baseline as well**, so the shared-machine load, not
 dominant term; a quiet re-calibration and the per-runner CI numbers belong to the post-merge/nightly
 run (ADR-0005).
 
-The idle-TUI memory subject could not be measured in this session: the sandbox denies `openpty`
-(`script: openpty: Operation not permitted`) and `ps` (`/bin/ps: Operation not permitted`), so
-`scripts/memory.sh ci` cannot sample the subject the 150 MB gate is calibrated on. The two RSS rows
-above are supplementary measurements of the published binary; they are not the gate's subject
-(`mcp roslyn` loads Roslyn, the TUI's idle budget does not). `MEMORY_SUBJECT` must be run on a
-normal machine or a runner after merge.
+### Idle TUI memory (ADR-0009)
+
+`scripts/memory.sh idle` needs a long-lived interactive subject and `ps`, and this sandbox denies
+the terminal it needs (`/dev/ptmx: Operation not permitted`, so no pty can be allocated) and `/bin/ps`.
+The subject was therefore measured with the ADR-0009 method — peak RSS of the whole process tree,
+sampled every 150 ms from outside the process over a 20 s idle window — over the product's own
+interactive session, with two sandbox substitutions:
+
+- the RSS source is libproc's `proc_pid_rusage(RUSAGE_INFO_V2).ri_resident_size`, the counter `ps`
+  reads (it reports 531 MB for `lunate --version`, against the 537 MiB `/usr/bin/time -l` row above);
+- the terminal is the product's own `IConsoleIO` seam implemented as a virtual 120x30 screen that
+  never sends a key. The session itself is composed by the real `Cli.Run` with an empty argument
+  list, over a configured stub model with the update check off (`--offline`); it paints the welcome
+  header and idles exactly as a configured install does. The missing terminal driver and the absent
+  update check are the only differences from the shipped idle TUI.
+
+The subject binary is a scratch host that references the product's projects and is published with the
+release flags (`--self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=true`); ADR-0009
+calibrated the 150 MB gate on the S-5 shell baseline (82 MB), so the same host is measured in three
+packaging shapes to separate the TUI's own footprint from the bundle mapping.
+
+| Idle TUI peak RSS (20 s window, two runs each) | .NET 10 baseline | .NET 11 (#902) |
+| --- | --- | --- |
+| Framework-dependent (`dotnet <host>.dll`) | 85 MB | 88 MB |
+| Single-file + ReadyToRun (bundle 395 / 460 MB) | 298 MB | 353 MB |
+| Single-file, no ReadyToRun (bundle 143 MB) | not measured | 85 MB |
+
+Verdict against the 150 MB gate (ADR-0009):
+
+- The TUI's own footprint is **inside** the gate on net11. At 88 MB it is 3 MB above the net10
+  baseline (85 MB, +3.5%) and 6 MB above the 82 MB S-5 shell baseline, so the 150 MB gate and its
+  100 MB target stay as they are; the retarget does not re-calibrate them.
+- The published single-file **ReadyToRun** shape is above the gate in both runtimes (298 MB net10,
+  353 MB net11). The excess is the mapped ReadyToRun images of the uncompressed bundle, not the
+  session: the same net11 host without ReadyToRun maps 143 MB of bundle and peaks at 85 MB, and the
+  framework-dependent host peaks at 88 MB. The retarget moves this row by 55 MB (+18%) because the
+  bundle grew 395 → 460 MB, tracking the row rather than the session.
+
+ADR-0009 gated the idle TUI at 150 MB against the S-5 shell baseline before the shipped stack and the
+ReadyToRun R2R bundle existed; the shipped session now has a subject, and the number that represents
+it is 88 MB on net11. Gating the published ReadyToRun shape at a re-calibrated value (ADR-0009's
+median + 50% rule would put it near 550 MB) is a budget decision for the maintainer, not part of this
+retarget: it would gate the bundle mapping rather than the session's own memory. The CI memory step
+still has no `MEMORY_SUBJECT` configured (`scripts/memory.sh` reports no subject and skips), so the
+per-runner evidence stays a post-merge item (ADR-0005, ADR-0009).
 
 ## Diagram
 
