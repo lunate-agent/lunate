@@ -333,6 +333,7 @@ docs_profile() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
 
   step "docs are not build inputs"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_no_docs_references.py"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
 
   step "docs lint"
@@ -420,6 +421,7 @@ platform_checks() {
   # A code pull request never runs the docs profile, and the docs tree becoming a test's subject came
   # from exactly such a pull request (#929), so the platform checks run the guard too.
   step "docs are not build inputs"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_no_docs_references.py"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
 
   step "docs lint"

@@ -56,8 +56,10 @@ two tests exist to read pages; a mention is narrower because the file is not a r
 (the `platform` job on a full-profile pull request, and every local `--profile full`) and
 `scripts/tree-checks.sh` (every push to `main` and the merge queue's `tree-checks` job). It costs about
 1.3 s, needs no build and no test — the tree checks' cheapness contract holds. The docs profile keeps
-its own step, and `tests/scripts/test_tree_checks.py` pins the shared command list so the two triggers
-cannot drift from it.
+its own step. `tests/scripts/test_tree_checks.py` pins the shared command list so the two triggers
+cannot drift from it, and `tests/scripts/test_no_docs_references.py` pins all three placements — the
+docs profile, the platform checks and the tree checks — because a step that quietly disappears is
+exactly the #929 failure mode.
 
 **4. The spec delta names the guard for the first time.** The guard was introduced by an archived change
 that only described it inside the matrix requirement's prose; this change adds a requirement of its own

@@ -93,7 +93,7 @@ scan_test_file() {
   local root="$1" file="$2" hit number text
   local candidates rootish=0
   scanned=$((scanned + 1))
-  local allowed entry mentions="" mention named
+  local allowed entry mentions="" mention named=0 named_mention=""
   for allowed in "${ALLOWED_DOCS_READERS[@]}"; do
     if [ "${file#"$root"/}" = "$allowed" ]; then
       printf 'no-docs-references: note: %s is an allowed docs reader\n' "${file#"$root"/}"
@@ -119,7 +119,10 @@ scan_test_file() {
       while IFS= read -r mention; do
         [ -n "$mention" ] || continue
         case "$text" in
-          *"$mention"*) named=1 ;;
+          *"$mention"*)
+            named=1
+            named_mention="$mention"
+            ;;
         esac
       done <<<"$mentions"
       if [ "$named" -eq 1 ]; then
@@ -128,8 +131,8 @@ scan_test_file() {
           report "FAIL: ${file#"${root}"/}:${number} reads a docs path: ${text}"
           findings=$((findings + 1))
         else
-          printf 'no-docs-references: note: %s:%s names a docs path without reading it\n' \
-            "${file#"${root}"/}" "$number"
+          printf 'no-docs-references: note: %s:%s names %s without reading it\n' \
+            "${file#"${root}"/}" "$number" "$named_mention"
         fi
         continue
       fi
@@ -391,7 +394,7 @@ _self_test_cases() {
     return 1
   fi
   case "$out" in
-    *"names a docs path without reading it"*) ;;
+    *"without reading it"*) ;;
     *)
       printf 'self-test: the mention allowance must be printed, said: %s\n' "$out" >&2
       return 1
