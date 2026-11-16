@@ -101,15 +101,15 @@ public sealed class HookRunnerFailurePolicyTests
         {
             case "ProjectTrust":
                 var trust = Assert.IsType<ProjectTrustDispatch>(observation.Result);
-                Assert.IsType<ProjectTrustResult.Deny>(trust.Result);
+                Assert.IsType<ProjectTrustResult.Deny>(trust.Result!.Value.Value);
                 Assert.False(observation.HealthyRan);
                 break;
             case "ToolCalling":
-                Assert.IsType<ToolCallingResult.Block>(observation.Result);
+                Assert.IsType<ToolCallingResult.Block>(((ToolCallingResult)observation.Result!).Value);
                 Assert.False(observation.HealthyRan);
                 break;
             case "Compacting":
-                Assert.IsType<CompactingResult.UseDefault>(observation.Result);
+                Assert.IsType<CompactingResult.UseDefault>(((CompactingResult)observation.Result!).Value);
                 Assert.False(observation.HealthyRan);
                 break;
             default:

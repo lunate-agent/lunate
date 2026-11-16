@@ -27,8 +27,8 @@ public sealed class AgentHookPointsTests
         );
 
         Assert.Equal(
-            without.Select(agentEvent => agentEvent.GetType()),
-            with.Select(e => e.GetType())
+            without.Select(agentEvent => agentEvent.Kind),
+            with.Select(e => e.Kind)
         );
         Assert.Equal(Messages(withoutClient), Messages(withClient));
     }

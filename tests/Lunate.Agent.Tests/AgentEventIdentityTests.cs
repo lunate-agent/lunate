@@ -82,7 +82,7 @@ public sealed class AgentEventIdentityTests
             ("run_1", "call_1", "half way"),
             (progress.RunId, progress.CallId, progress.Message)
         );
-        Assert.IsAssignableFrom<ExtensionEvent>(progress);
+        Assert.IsAssignableFrom<ExtensionEventBase>(progress);
     }
 
     [Fact]

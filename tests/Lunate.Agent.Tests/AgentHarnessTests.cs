@@ -31,13 +31,13 @@ public sealed class AgentHarnessTests
             .RunAsync("Hi", TestContext.Current.CancellationToken)
             .ToListAsync(TestContext.Current.CancellationToken);
 
-        RunStarted started = Assert.IsType<RunStarted>(events[0]);
+        RunStarted started = Assert.IsType<RunStarted>(events[0].Value);
         Assert.All(events, agentEvent => Assert.Equal(started.RunId, agentEvent.RunId));
-        TextMessageStart textStart = Assert.IsType<TextMessageStart>(events[1]);
-        Assert.Equal("Hello ", Assert.IsType<TextMessageContent>(events[2]).Text);
-        Assert.Equal("world", Assert.IsType<TextMessageContent>(events[3]).Text);
-        Assert.Equal(textStart.MessageId, Assert.IsType<TextMessageEnd>(events[4]).MessageId);
-        RunFinished finished = Assert.IsType<RunFinished>(events[5]);
+        TextMessageStart textStart = Assert.IsType<TextMessageStart>(events[1].Value);
+        Assert.Equal("Hello ", Assert.IsType<TextMessageContent>(events[2].Value).Text);
+        Assert.Equal("world", Assert.IsType<TextMessageContent>(events[3].Value).Text);
+        Assert.Equal(textStart.MessageId, Assert.IsType<TextMessageEnd>(events[4].Value).MessageId);
+        RunFinished finished = Assert.IsType<RunFinished>(events[5].Value);
         Assert.Equal(StopReasons.Stop, finished.StopReason);
         Assert.Equal(6, events.Count);
         Assert.Empty(EventSequenceValidator.Validate(events));
@@ -144,8 +144,8 @@ public sealed class AgentHarnessTests
             .RunAsync("Hi", TestContext.Current.CancellationToken)
             .ToListAsync(TestContext.Current.CancellationToken);
 
-        Assert.IsType<RunStarted>(events[0]);
-        RunError error = Assert.IsType<RunError>(events[1]);
+        Assert.IsType<RunStarted>(events[0].Value);
+        RunError error = Assert.IsType<RunError>(events[1].Value);
         Assert.Contains("provider exploded", error.Message);
         Assert.Equal(2, events.Count);
         Assert.Empty(EventSequenceValidator.Validate(events));
@@ -168,7 +168,7 @@ public sealed class AgentHarnessTests
             .ToListAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(EventSequenceValidator.Validate(events));
-        Assert.Equal(StopReasons.Length, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Length, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
     }
 
     [Fact]

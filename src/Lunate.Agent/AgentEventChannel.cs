@@ -14,19 +14,24 @@ internal sealed class AgentEventChannel(string? sessionId = null) : IAgentEvents
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false }
     );
 
-    public void Emit(AgentEvent agentEvent) =>
-        _channel.Writer.TryWrite(
-            sessionId is not null && agentEvent.SessionId is null
-                ? agentEvent with
-                {
-                    SessionId = sessionId,
-                }
-                : agentEvent
-        );
+    public void Emit(AgentEvent agentEvent) => _channel.Writer.TryWrite(Stamp(agentEvent));
 
     public void Complete() => _channel.Writer.TryComplete();
 
     public IAsyncEnumerable<AgentEvent> ReadAllAsync(
         CancellationToken cancellationToken = default
     ) => _channel.Reader.ReadAllAsync(cancellationToken);
+
+    /// <summary>
+    /// Stamps the session onto an event that does not carry one. The stamp goes through the record
+    /// base, because a union has no state of its own; the conversion back to the union is the one
+    /// place an event is re-wrapped.
+    /// </summary>
+    private AgentEvent Stamp(AgentEvent agentEvent) =>
+        sessionId is not null && agentEvent.Value is AgentEventBase { SessionId: null } record
+            ? record with
+            {
+                SessionId = sessionId,
+            }
+            : agentEvent;
 }

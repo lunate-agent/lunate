@@ -16,7 +16,7 @@ public sealed class AgentRetryTests
         Retrying retry = Assert.Single(events.OfType<Retrying>());
         Assert.Equal(1, retry.Attempt);
         Assert.Contains("connection reset", retry.Reason);
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
         Assert.Equal(2, client.Requests.Count);
     }
 
@@ -35,7 +35,7 @@ public sealed class AgentRetryTests
 
         Assert.Empty(EventSequenceValidator.Validate(events));
         Assert.Equal([1, 2, 3], events.OfType<Retrying>().Select(retrying => retrying.Attempt));
-        Assert.Contains("provider timed out", Assert.IsType<RunError>(events[^1]).Message);
+        Assert.Contains("provider timed out", Assert.IsType<RunError>(events[^1].Value).Message);
         Assert.Equal(4, client.Requests.Count);
     }
 
@@ -50,7 +50,7 @@ public sealed class AgentRetryTests
         List<AgentEvent> events = await AgentTestSupport.Run(harness);
 
         Assert.Empty(events.OfType<Retrying>());
-        Assert.Equal("Run failed: bad request", Assert.IsType<RunError>(events[^1]).Message);
+        Assert.Equal("Run failed: bad request", Assert.IsType<RunError>(events[^1].Value).Message);
         Assert.Single(client.Requests);
     }
 
@@ -68,7 +68,7 @@ public sealed class AgentRetryTests
         Assert.Empty(events.OfType<Retrying>());
         Assert.Single(events.OfType<TextMessageStart>());
         Assert.Single(events.OfType<TextMessageEnd>());
-        Assert.IsType<RunError>(events[^1]);
+        Assert.IsType<RunError>(events[^1].Value);
         Assert.Single(client.Requests);
     }
 

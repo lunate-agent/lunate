@@ -76,7 +76,7 @@ public sealed class AgentSteeringTests
 
         List<AgentEvent> events = await Run(harness);
 
-        Assert.Equal(StopReasons.StepLimit, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.StepLimit, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
         Assert.DoesNotContain(events, agentEvent => agentEvent is SteeringInjected);
         Assert.True(steering.TryDequeue(out string? leftover));
         Assert.Equal("too late", leftover);
@@ -132,7 +132,7 @@ public sealed class AgentSteeringTests
         Assert.True(
             events.IndexOf(nestedResult) < events.IndexOf(outerResult)
                 && events.IndexOf(outerResult) < events.IndexOf(injected),
-            string.Join(" | ", events.Select(agentEvent => agentEvent.GetType().Name))
+            string.Join(" | ", events.Select(agentEvent => agentEvent.Kind.Name))
         );
     }
 

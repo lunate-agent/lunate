@@ -14,8 +14,8 @@ public sealed class RecordingAgentEventsTests
 
         Assert.Collection(
             recording.Events,
-            agentEvent => Assert.Same(started, agentEvent),
-            agentEvent => Assert.Same(finished, agentEvent)
+            agentEvent => Assert.Equal(started, agentEvent),
+            agentEvent => Assert.Equal(finished, agentEvent)
         );
     }
 }

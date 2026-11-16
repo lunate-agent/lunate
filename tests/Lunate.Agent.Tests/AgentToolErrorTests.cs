@@ -25,7 +25,7 @@ public sealed class AgentToolErrorTests
         Assert.True(result.IsError);
         Assert.Contains("nope", result.Output);
         Assert.Contains("read", result.Output);
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
         Assert.Equal(2, client.Requests.Count);
     }
 
@@ -222,7 +222,7 @@ public sealed class AgentToolErrorTests
         Assert.True(result.IsError);
         Assert.Contains("tool timed out", result.Output);
         Assert.Empty(events.OfType<Retrying>());
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
         Assert.Equal(2, client.Requests.Count);
     }
 
@@ -283,7 +283,7 @@ public sealed class AgentToolErrorTests
         Assert.True(result.IsError);
         Assert.Contains("Tools may only emit extension events", result.Output);
         Assert.Contains("RunFinished", result.Output);
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
         Assert.Equal(2, client.Requests.Count);
     }
 
@@ -304,7 +304,7 @@ public sealed class AgentToolErrorTests
 
         Assert.Empty(EventSequenceValidator.Validate(events));
         Assert.Equal(string.Empty, Assert.Single(events.OfType<ToolCallResult>()).Output);
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
     }
 
     private sealed class ThrowingApprover(Exception failure) : IToolApprover

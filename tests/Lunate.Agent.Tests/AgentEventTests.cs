@@ -59,7 +59,7 @@ public sealed class AgentEventTests
     [Theory]
     [MemberData(nameof(ExtensionEvents))]
     public void Extension_events_are_identifiable_as_extensions(AgentEvent extensionEvent) =>
-        Assert.IsAssignableFrom<ExtensionEvent>(extensionEvent);
+        Assert.IsAssignableFrom<ExtensionEventBase>(extensionEvent.Value);
 
     [Fact]
     public void Core_events_are_not_extensions()
@@ -67,8 +67,8 @@ public sealed class AgentEventTests
         AgentEvent started = new RunStarted(RunId);
         AgentEvent result = new ToolCallResult(RunId, "call_1", "out", IsError: false);
 
-        Assert.False(started is ExtensionEvent);
-        Assert.False(result is ExtensionEvent);
+        Assert.False(started.Value is ExtensionEventBase);
+        Assert.False(result.Value is ExtensionEventBase);
     }
 
     [Fact]
