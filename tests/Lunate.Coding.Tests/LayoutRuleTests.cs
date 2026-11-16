@@ -1,27 +1,27 @@
-using System.Text.RegularExpressions;
 using Lunate.TestSupport;
 
 namespace Lunate.Coding.Tests;
 
 /// <summary>
 /// The layout rule the 0.4 solution-layout change settled: a folder groups files by feature and never
-/// adds or changes a namespace segment, and a test project mirrors the folders of the project it
-/// tests. The scan reads text, like <see cref="TargetFrameworkTests"/> and the source-file-names
-/// rule, so it needs no Roslyn reference and stays fast.
+/// adds a namespace segment, every feature folder of a source project is mirrored by its test
+/// project, and a test folder always names a source folder. The scans themselves live in
+/// <see cref="LayoutRule"/>, so the regression cases below can feed them a synthetic repository.
 /// </summary>
-public sealed partial class LayoutRuleTests
+public sealed class LayoutRuleTests
 {
     [Fact]
     public void No_folder_adds_a_namespace_segment()
     {
-        string root = RepositoryRoot.Find();
+        IReadOnlyList<string> violations = LayoutRule.NamespaceViolations(RepositoryRoot.Find());
 
-        string[] violations = Directory
-            .GetFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
-            .Where(file => !IsGenerated(file))
-            .SelectMany(file => FolderNamespaceViolations(root, file))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Every_source_folder_has_a_mirrored_test_folder()
+    {
+        IReadOnlyList<string> violations = LayoutRule.MissingTestFolders(RepositoryRoot.Find());
 
         Assert.Empty(violations);
     }
@@ -29,106 +29,57 @@ public sealed partial class LayoutRuleTests
     [Fact]
     public void Every_test_folder_mirrors_a_source_folder()
     {
-        string root = RepositoryRoot.Find();
-
-        string[] violations = Directory
-            .GetDirectories(Path.Combine(root, "tests"))
-            .Select(project =>
-                (
-                    Source: Path.Combine(root, "src", Path.GetFileNameWithoutExtension(project)),
-                    Tests: project
-                )
-            )
-            .Where(pair => Directory.Exists(pair.Source))
-            .SelectMany(pair =>
-                Folders(pair.Tests)
-                    .Where(folder => !Directory.Exists(Path.Combine(pair.Source, folder)))
-                    .Select(folder =>
-                        $"{Relative(root, Path.Combine(pair.Tests, folder))} has no mirror under {Relative(root, pair.Source)}"
-                    )
-            )
-            .Order(StringComparer.Ordinal)
-            .ToArray();
+        IReadOnlyList<string> violations = LayoutRule.FoldersWithoutSource(RepositoryRoot.Find());
 
         Assert.Empty(violations);
     }
 
-    private static IEnumerable<string> FolderNamespaceViolations(string root, string file)
+    [Fact]
+    public void The_namespace_scan_rejects_a_folder_segment_that_reappears()
     {
-        using StreamReader reader = File.OpenText(file);
-        while (reader.ReadLine() is { } line)
-        {
-            Match match = NamespacePattern().Match(line);
-            if (!match.Success)
-            {
-                continue;
-            }
+        using var repository = new TempDirectory();
+        string project = Path.Combine(repository.Root, "src", "Lunate.Example");
+        WriteProject(project);
+        Write(Path.Combine(project, "Mcp", "Client", "Client.cs"), "namespace Lunate.Example.Mcp;");
+        Write(Path.Combine(project, "Tools", "Read.cs"), "namespace Lunate.Example;");
 
-            string project = ProjectDirectory(file);
-            string folder = Path.GetRelativePath(project, Path.GetDirectoryName(file)!);
-            if (folder == ".")
-            {
-                yield break;
-            }
+        IReadOnlyList<string> violations = LayoutRule.NamespaceViolations(repository.Root);
 
-            foreach (
-                string segment in folder.Split(
-                    Path.DirectorySeparatorChar,
-                    StringSplitOptions.RemoveEmptyEntries
-                )
-            )
-            {
-                string ns = match.Groups[1].Value;
-                if (ns.EndsWith($".{segment}", StringComparison.Ordinal))
-                {
-                    yield return $"{Relative(root, file)} declares {ns}; the folder '{segment}' must not add a namespace segment";
-                }
-            }
-
-            yield break;
-        }
+        string violation = Assert.Single(violations);
+        Assert.Contains("Mcp/Client/Client.cs", violation, StringComparison.Ordinal);
+        Assert.Contains("declares Lunate.Example.Mcp", violation, StringComparison.Ordinal);
+        Assert.Contains("the folder 'Mcp'", violation, StringComparison.Ordinal);
     }
 
-    private static string ProjectDirectory(string file)
+    [Fact]
+    public void The_mirror_scan_rejects_a_source_folder_without_a_test_folder()
     {
-        for (
-            DirectoryInfo? directory = new(Path.GetDirectoryName(file)!);
-            directory is not null;
-            directory = directory.Parent
-        )
-        {
-            if (directory.GetFiles("*.csproj").Length > 0)
-            {
-                return directory.FullName;
-            }
-        }
+        using var repository = new TempDirectory();
+        string project = Path.Combine(repository.Root, "src", "Lunate.Example");
+        string tests = Path.Combine(repository.Root, "tests", "Lunate.Example.Tests");
+        WriteProject(project);
+        WriteProject(tests);
+        Write(Path.Combine(project, "Remote", "Runner.cs"), "namespace Lunate.Example;");
+        Write(Path.Combine(project, "Host", "Host.cs"), "namespace Lunate.Example;");
+        Write(Path.Combine(tests, "Host", "HostTests.cs"), "namespace Lunate.Example.Tests;");
 
-        return Path.GetDirectoryName(file)!;
+        IReadOnlyList<string> violations = LayoutRule.MissingTestFolders(repository.Root);
+
+        string violation = Assert.Single(violations);
+        Assert.Contains("src/Lunate.Example/Remote", violation, StringComparison.Ordinal);
+        Assert.DoesNotContain("Host", violation, StringComparison.Ordinal);
+        Assert.Empty(LayoutRule.FoldersWithoutSource(repository.Root));
     }
 
-    private static IEnumerable<string> Folders(string project) =>
-        Directory
-            .GetDirectories(project, "*", SearchOption.AllDirectories)
-            .Select(directory => Path.GetRelativePath(project, directory))
-            .Where(folder => !IsGenerated(folder))
-            .Where(folder =>
-                !folder
-                    .Split(Path.DirectorySeparatorChar)
-                    .Any(segment =>
-                        string.Equals(segment, "fixtures", StringComparison.OrdinalIgnoreCase)
-                    )
-            );
+    private static void WriteProject(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        Write(Path.Combine(directory, Path.GetFileName(directory) + ".csproj"), "<Project />");
+    }
 
-    private static bool IsGenerated(string path) =>
-        path.Split(Path.DirectorySeparatorChar)
-            .Any(segment =>
-                string.Equals(segment, "bin", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(segment, "obj", StringComparison.OrdinalIgnoreCase)
-            );
-
-    private static string Relative(string root, string path) =>
-        Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/');
-
-    [GeneratedRegex(@"^\s*namespace\s+([A-Za-z_][\w.]*)", RegexOptions.CultureInvariant)]
-    private static partial Regex NamespacePattern();
+    private static void Write(string path, string text)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, text + "\n");
+    }
 }

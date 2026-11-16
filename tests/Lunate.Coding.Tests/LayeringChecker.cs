@@ -128,6 +128,9 @@ internal static class LayeringChecker
             ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility"),
             ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility.Testing"),
             ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility.Abstractions"),
+            // The wire-schema test generates the schema from the remote DTOs, so the kit's test
+            // project reads the same codec the published schema describes.
+            ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility.Remote"),
             ("Lunate.Extensibility.Testing.Tests", "HelloExtension"),
             ("Lunate.Extensibility.Testing.Tests", "McpExtension"),
             ("Lunate.Extensibility.Testing.Tests", "ToolExtension"),

@@ -2,10 +2,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Lunate.Extensibility.Abstractions;
 using Lunate.Extensibility.Remote;
-using Lunate.Extensibility.Testing;
 using Lunate.TestSupport;
 
-namespace Lunate.Extensibility.Remote.Tests;
+namespace Lunate.Extensibility.Testing.Tests;
 
 /// <summary>
 /// The published JSON Schema: every payload DTO and result family has a definition, and every
