@@ -8,6 +8,10 @@
 - [x] 1.3 Add `LayoutRuleTests` (red first): no namespace under `src/` ends with a folder segment of
       its own path, and every feature folder under a project is mirrored under its test project. The
       first run fails on `src/Lunate.Protocols/Acp` and `src/Lunate.Tui/Platform`.
+- [x] 1.4 Move the scan into `LayoutRule` and check the mirror in both directions (red first: it
+      fails on `Lunate.Extensibility.Testing/Remote`, `Mermaid.Terminal/Flowchart` and
+      `Mermaid.Terminal/Graph`), reject a folder segment that reappears anywhere in a namespace, and
+      give each half a regression case on a synthetic repository.
 
 ## 2. Protocols
 
@@ -64,7 +68,9 @@
 
 - [x] 10.1 Move each test file into the folder of its subject's src feature folder (type→src-file
       index over each test project); support doubles and collection definitions stay at the test
-      project root; `fixtures/` keeps its path.
+      project root; `fixtures/` keeps its path. The three folders the mirror rule found get their
+      tests: the remote wire schema test moves beside its generator, the flowchart parser and the
+      graph layout get the unit tests their folders were missing.
 - [x] 10.2 Build every test project and run the focused suites that cover a moved subject.
 
 ## 11. The decision layer's dead plumbing
@@ -74,22 +80,36 @@
       still rejects an empty question text and a duplicated id.
 - [x] 11.2 Rename the internal `DecisionQuestionKind.Noul` to `YesNo`, the name the contract model
       uses, so the two models name the four kinds the same way.
-- [x] 11.3 Record the follow-up the card's "unify the decision type model" needs: one DTO set instead
-      of two requires a new project edge (`Lunate.Ai.Decisions` → `Lunate.Contracts`), which
-      `LayeringTests` enumerates and AGENTS.md draws. Not taken here: it is a dependency decision for
-      the maintainer.
+- [x] 11.3 Take the merge with the maintainer's sign-off (ADR-0042): delete
+      `Lunate.Contracts/Decisions/DecisionRequest.cs`, make `Lunate.Ai.Decisions`' model the one model
+      (public request, question, kinds, answer, box and result), add the `Lunate.Ai.Decisions` →
+      `Lunate.Contracts` edge, and keep only `DecisionProbability` in the contract because
+      `DecisionEvaluated` publishes it.
+- [x] 11.4 Point every consumer at the one model — the engine, the chat adapter, the System One
+      transport, the parser and validator, the `decide` tool, the ask-user suggestions, the wizard
+      check, the extension session and `IDecisionService` — and delete the conversions between the two
+      sets, including the `1.15` answer-constructor compatibility test.
+- [x] 11.5 Prove the merge: `Decision_projects_use_the_approved_dependency_edges`,
+      `Contracts_does_not_reference_internal_decision_projects`,
+      `The_abstractions_service_references_the_contract_and_the_decision_model_only`, the decision
+      suites in `Lunate.Agent.Tests` and the System One replay fixtures stay green.
 
 ## 12. The public surface and packaging
 
-- [x] 12.1 Settle the public surface: no type, member or signature changes; `PublicAPI.Shipped.txt`
-      untouched; `PublicAPI.Unshipped.txt` follows the `Acp` fold. No package, assembly or project
-      change.
-- [x] 12.2 Prove it: `PublicApiTests`, `LayeringTests`, `TargetFrameworkTests`,
-      `ContractTypeForwardingTests`, `PackagedApiGateTests` and the ACP suites stay green.
+- [x] 12.1 Settle the public surface: no shipped type, member or signature changes;
+      `PublicAPI.Shipped.txt` is untouched; the unshipped entries follow the `Acp` fold and the
+      decision-model merge. No assembly rename and no published package id change.
+- [x] 12.2 Carry the decision model in the packages that ship it: `Lunate.Extensibility.Abstractions`
+      references `Lunate.Ai.Decisions` privates and packs its file in `lib/`, the host-owned list and
+      the embedded compile contract name it, and the extension host-assembly rule allows it.
+- [x] 12.3 Prove it: `PublicApiTests`, `LayeringTests`, `TargetFrameworkTests`,
+      `ContractTypeForwardingTests`, `PackagedApiGateTests`, the template's NuGet-mode build against a
+      packed contract feed, and the ACP suites stay green.
 
 ## 13. Finish
 
 - [x] 13.1 `dotnet csharpier format .`, the fast gate (Release build, the named suites,
-      `openspec validate --all --strict`).
+      `openspec validate --all --strict`) — the full suite, `scripts/verify.sh`, is the maintainer's
+      gate after the merge.
 - [x] 13.2 Write `changes/<pull request>.md` under the release's headings.
 - [x] 13.3 Archive as the last commit: `openspec archive reorganize-solution-layout --yes`.

@@ -32,8 +32,8 @@ therefore a move, not a rename of the public surface, and the extension SDK's na
   - `Lunate.Ai`: `Providers/`, `Families/`, `Catalog/`, `Requests/`, `Storage/`.
   - `Lunate.Ai.Decisions` and `Lunate.Ai.SystemOne`: one folder per concern (client, transport,
     mapping).
-  - `Lunate.Contracts`: `Events/`, `Tools/`, `Models/`, `Decisions/`, `Runtime/` — file moves only,
-    no public API change.
+  - `Lunate.Contracts`: `Events/`, `Tools/`, `Models/`, `Runtime/` — file moves, plus removing the
+    decision model it duplicated (below).
   - `Lunate.Extensibility.Abstractions`: `Manifest/`, `Hooks/`, `Mcp/`, `Ui/`, `Tools/`,
     `Services/`, `Commands/`, `Models/`, `Decisions/`; the grab-bag files (`ExtensionApi.cs`,
     `Services.cs`, `CommandDescriptor.cs`, `WriteVerification.cs`) split into one file per type
@@ -49,9 +49,16 @@ therefore a move, not a rename of the public surface, and the extension SDK's na
 - The decision layer loses its dead plumbing: the per-request validator inside
   `Lunate.Ai.Decisions` duplicates checks the `Lunate.Agent` boundary already performs on every
   request, and the internal question-kind name `Noul` becomes `YesNo`, the name the contract model
-  already uses. The full merge of the two decision DTO sets needs a new project reference
-  (`Lunate.Ai.Decisions` → `Lunate.Contracts`), which is a dependency decision for the maintainer;
-  this change records it as the follow-up instead of taking it.
+  already uses.
+- The decision model has one home. `Lunate.Contracts/Decisions/DecisionRequest.cs` — the second
+  request, question, answer and result set — is deleted; `Lunate.Ai.Decisions` owns the one model,
+  made public, and every consumer (the engine, the chat adapter, the System One transport, the
+  `decide` tool, the ask-user suggestions, the wizard check, the extension-facing
+  `IDecisionService`) uses it. The assembly edge is `Lunate.Ai.Decisions` → `Lunate.Contracts`, never
+  the other way: the contract keeps only the `DecisionProbability` record its
+  `DecisionEvaluated` event publishes, and the decision model is the decision loop's own type.
+  `IDecisionService` stays in `Lunate.Extensibility.Abstractions`, which references the decision
+  assembly, and the package carries that assembly in `lib/` beside the contract.
 - Tests mirror `src`: each test project gains the same feature folders as the project it tests, and
   test files (and their supporting doubles) move into the folder of the feature they exercise.
 - `docs/dev/architecture.md`, `CONTRIBUTING.md` and the `repo-quality` spec name the rule and the
@@ -66,9 +73,12 @@ _None._
 ### Modified Capabilities
 
 - `repo-quality`: a new requirement pins the folder/namespace rule (a folder groups files by feature
-  and never changes a namespace; a test project mirrors the folders of the project it tests) and a
-  source-scanning test enforces it, so the next folder that tries to become a namespace fails the
-  fast gate.
+  and never changes a namespace; a test project mirrors the folders of the project it tests, in both
+  directions) and a source-scanning test with a regression case enforces it, so the next folder that
+  tries to become a namespace — or arrives without a place for its tests — fails the fast gate.
+- `decision-layer`: the extension-facing service requirement names the one decision model and its
+  home (`Lunate.Ai.Decisions`), the dependency direction to `Lunate.Contracts`, and the one
+  distribution record the event channel keeps in the contract.
 
 ## Impact
 
@@ -76,13 +86,22 @@ _None._
   type, member or signature moves, no project moves, no csproj change, no package change.
 - `tests/**`: file moves mirroring `src` (about 950 files); `tests/fixtures/**` and
   `tests/Lunate.Coding.Tests/fixtures/**` stay where they are.
-- `Lunate.Ai.Decisions`: one deleted validator file, its one call site, and the `Noul` → `YesNo`
-  rename inside the internal model.
+- `Lunate.Ai.Decisions`: one deleted validator file, its one call site, the `Noul` → `YesNo` rename,
+  and the one public decision model that replaces both DTO sets — a new project reference down to
+  `Lunate.Contracts`, and `INativeDecisionClient` / `IAgentDecisionService` moving in beside it.
+- `Lunate.Extensibility.Abstractions`: `IDecisionService` is typed with the decision model, so the
+  contract package references `Lunate.Ai.Decisions` (private to the package) and carries the
+  assembly in `lib/`; the host-owned assembly list, the embedded compile contract and the extension
+  host-assembly rule gain the same assembly.
+- A new ADR records the boundary (ADR-0042): one model, one home, and which way the edge runs.
 - Public API: `Lunate.Protocols.Acp.*` becomes `Lunate.Protocols.*` (entries are in
   `PublicAPI.Unshipped.txt`, so no shipped member changes); `Lunate.Tui.Platform` types are internal.
-  No entry is added to or removed from a `PublicAPI.Shipped.txt`.
-- Documentation: `docs/dev/architecture.md` (the component map is unaffected; the page gains the
-  folder rule), `CONTRIBUTING.md`'s repository map, `docs/dev/README.md` only if a path it names
-  moves (no documentation page moves in this change).
-- No behaviour change: no golden session fixture, no settings key, no wire shape and no test
-  expectation changes; the focused suites named in `tasks.md` prove it.
+  The decision request/result entries leave `Lunate.Contracts`' `PublicAPI.Unshipped.txt` (they were
+  never shipped) and the one model is public in `Lunate.Ai.Decisions`, which has no API-analyzer
+  file; `IDecisionService`'s signature in `Lunate.Extensibility.Abstractions` follows it. No entry is
+  added to or removed from a `PublicAPI.Shipped.txt`.
+- Documentation: `docs/dev/architecture.md` (the page gains the folder rule and the one decision
+  model edge), `CONTRIBUTING.md`'s repository map, `AGENTS.md`'s dependency list,
+  `docs/dev/README.md` only if a path it names moves (no documentation page moves in this change).
+- No behaviour change: no golden session fixture, no settings key, no wire shape and no decision
+  outcome changes; the focused suites named in `tasks.md` prove it.

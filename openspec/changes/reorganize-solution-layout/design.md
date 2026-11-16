@@ -38,14 +38,15 @@ flowchart TB
 
 - One written rule and one test that fails when a folder tries to become a namespace.
 - Every project under `src/` split into feature folders; every test project mirrors them.
-- No public surface change beyond folding the two folder-derived namespaces back.
-- No behaviour change: same tests, same golden fixtures, same wire shapes.
+- One decision model in `Lunate.Ai.Decisions`, and the contract free of it.
+- No behaviour change: same tests, same golden fixtures, same wire shapes, same decision outcomes.
 
 **Non-Goals**
 
 - No project moves, no csproj change, no assembly rename, no package change.
-- No type rename and no member change.
-- Not the full merge of the two decision DTO sets: that needs a new project reference (below).
+- No type rename beyond folding the two folder-derived namespaces back and the decision model's own
+  merge (below).
+- No new published package and no release-pipeline change.
 
 ## Decisions
 
@@ -109,26 +110,70 @@ project has a folder only when the src project has it.
 ### The layout rule is enforced by a source-scanning test
 
 `LayoutRuleTests` (in `tests/Lunate.Coding.Tests`, beside `LayeringTests`, `TargetFrameworkTests` and
-the other repository-hygiene scans) walks `src/` and asserts two things: no declared namespace ends
-with a folder segment of its own path, and every folder under a project is mirrored by the same folder
-under the test project when one exists. It reads text, not Roslyn, like its siblings, so it adds no
-dependency and stays fast.
+the other repository-hygiene scans) walks `src/` and `tests/` and asserts that no declared namespace
+repeats a folder segment of its own path, that every feature folder of a source project is mirrored by
+the same folder under its test project, and that no test folder exists without one. The scan lives in
+`LayoutRule` so the regression cases can feed it a synthetic repository. It reads text, not Roslyn,
+like its siblings, so it adds no dependency and stays fast.
 
-### The decision layer: delete the duplicated validator, record the merge
+### The decision layer: one model, one home
 
-`Lunate.Ai.Decisions.DecisionRequestValidator.Validate` re-checks what `Lunate.Agent`'s
+`Lunate.Ai.Decisions.DecisionRequestValidator.Validate` re-checked what `Lunate.Agent`'s
 `DecisionRequestValidator.Prepare` and `DecisionEngine` already checked on every request (a state, at
-least one question, non-empty `Instructions`, unique answer sets), and every production call reaches
-it through `DecisionEngine`; it is a second pass over the same object, and the second model's kind
-name `Noul` for the contract's `YesNo` is the only reason the mapping switch reads oddly. This change
-deletes the second validator, keeps the single validation at the boundary, and renames the internal
-kind to `YesNo` so both models name the four kinds the same way.
+least one question, non-empty instructions, unique answer sets), and every production call reached it
+through `DecisionEngine`; it is a second pass over the same object. This change deletes the second
+validator, keeps the single validation at the boundary, and renames the internal kind `Noul` to
+`YesNo`.
 
-The full merge — one `DecisionRequest`/`DecisionQuestion`/`DecisionAnswer` set instead of two — needs
-`Lunate.Ai.Decisions` to reference `Lunate.Contracts`, a new project edge in the layer graph that
-`LayeringTests` enumerates and AGENTS.md draws. That is a dependency decision for the maintainer, so
-this change leaves the two DTO sets in place, names the follow-up in `tasks.md`, and does not add an
-edge.
+The two DTO sets are merged, which is the boundary work the card's "unify the decision type model"
+asked for and the maintainer signed off (ADR-0042). The decision model — `DecisionRequest`,
+`DecisionQuestion`, `DecisionQuestionKind`, `DecisionAnswer`, `DecisionBox`, `DecisionResult`, its
+usage records and the two seams `INativeDecisionClient` and `IAgentDecisionService` — lives in
+`Lunate.Ai.Decisions`, public, and is the type the engine, the chat adapter, the System One transport,
+the parser, the validator, the `decide` tool, the ask-user suggestions, the wizard check and
+`IDecisionService` all use. `Lunate.Contracts/Decisions/DecisionRequest.cs` is deleted.
+
+```mermaid
+flowchart LR
+    Ext["Lunate.Extensibility.Abstractions<br/>IDecisionService"] --> Dec["Lunate.Ai.Decisions<br/>the one decision model"]
+    Dec --> Contract["Lunate.Contracts<br/>DecisionProbability on DecisionEvaluated"]
+    Agent["Lunate.Agent<br/>the loop and the engine"] --> Dec
+    Coding["Lunate.Coding"] --> Dec
+```
+
+The edge runs `Lunate.Ai.Decisions` → `Lunate.Contracts` and never back. The one record that stays in
+the contract is `DecisionProbability`, because `AgentEvent.DecisionEvaluated.Distribution` publishes
+it to every event consumer; the decision loop reads it from the contract instead of defining a second
+copy. Everything else moved down to the loop.
+
+`IDecisionService` stays where the decision-layer spec puts it — `Lunate.Extensibility.Abstractions`,
+so an extension resolves it from the extension contract — and that assembly now references
+`Lunate.Ai.Decisions` for the model its signature names. The assembly is not published on its own, so
+the contract package carries it in `lib/` beside the contract (`Private` to the package, the shape
+`Lunate.Agent` and the test kit already use), the host-owned list and the embedded compile contract
+gain it, and the extension host-assembly rule allows an extension to reference it. The contract's API
+version does not move: the decision types were never shipped, so no published consumer changes.
+
+Rejected: **keep both models and map between them.** Two DTOs with the same meaning is the technical
+debt the card exists to kill, and every new field needs a mapping on both sides.
+
+Rejected: **move `IDecisionService` into the decision assembly.** It would take the extension-facing
+service out of the extension contract, which is the one assembly an extension compiles against, and
+the decision-layer spec places it in Abstractions.
+
+Rejected: **publish `Lunate.Ai.Decisions` as its own package.** Correct eventually, and out of scope
+here: the release pipeline names the packages it publishes one by one, and no consumer needs the
+assembly on its own.
+
+### The mirror rule is checked in both directions
+
+The test-project scan only walked `tests/` and asked whether each folder had a source folder, so a
+feature folder could arrive without a place for its tests and nothing noticed — three had
+(`Lunate.Extensibility.Testing/Remote`, `Mermaid.Terminal/Flowchart`, `Mermaid.Terminal/Graph`). The
+scan now walks both ways and both halves carry a regression case on a synthetic repository, so a scan
+that stopped detecting a violation fails instead of passing on a clean tree. The namespace half got
+the same treatment: a folder segment that reappears anywhere in the declared namespace fails, not
+only one at its end.
 
 ## Risks / Trade-offs
 
@@ -141,7 +186,10 @@ edge.
   types are internal; the API-analyzer files are updated in the same commit and the focused suites
   include `PublicApiTests` and the ACP tests.
 - **The diff is large** → it is moves: `git status` shows renames, and no file's content changes
-  except the namespace fold and the decision-layer deletion, which carry their own tests.
+  except the namespace fold and the decision-layer merge, which carry their own tests.
+- **The decision model is public in an unpacked assembly** → the contract package carries it in
+  `lib/`, the host owns it at load, and the embedded compile contract offers it to a compiled
+  extension; the API version does not move because nothing was shipped.
 
 ## Migration Plan
 
@@ -150,6 +198,5 @@ settings, wire format or session fixture is affected, so no migration is needed.
 
 ## Open Questions
 
-The full decision-model merge needs the maintainer's sign-off on one project edge
-(`Lunate.Ai.Decisions` → `Lunate.Contracts`, or moving the DTOs down into `Lunate.Ai.Decisions` and
-forwarding them from `Lunate.Contracts`). Recorded in `tasks.md` as the follow-up; not taken here.
+None. The one project edge the earlier draft left open (`Lunate.Ai.Decisions` → `Lunate.Contracts`) is
+taken with the maintainer's sign-off and recorded in ADR-0042.
