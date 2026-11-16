@@ -441,6 +441,8 @@ internal sealed partial class LiveArea : IDisposable
         {
             // NoticeInput never reaches the reducer: Post applies it, because the slot's generation
             // and a clear held for a notice no frame has shown yet need the slot's own bookkeeping.
+            // The arm keeps the union's match exhaustive and leaves the state untouched.
+            NoticeInput => state,
             KeyInput key => state with { Input = InputLine.Apply(state.Input, key.Key) },
             InputStateInput inputState => state with
             {
@@ -549,7 +551,6 @@ internal sealed partial class LiveArea : IDisposable
                 QueuedCount = queued.Count,
                 QueuedFirst = queued.First,
             },
-            _ => state,
         };
 
     /// <summary>Elapsed seconds come from the tick's clock, never a wall clock in the renderer.</summary>
@@ -565,63 +566,94 @@ internal sealed partial class LiveArea : IDisposable
     private static int SecondsSince(DateTimeOffset startedAt, DateTimeOffset at) =>
         (int)Math.Max(0, (at - startedAt).TotalSeconds);
 
-    private abstract record LiveAreaInput;
+    /// <summary>
+    /// Everything the live area accepts: one case per public setter and one per terminal or tick
+    /// event. The closed union makes the reducer's match exhaustive, so a new case without a rule
+    /// fails the build instead of reaching the frame unchanged.
+    /// </summary>
+    private union LiveAreaInput(
+        KeyInput,
+        InputStateInput,
+        ResizeInput,
+        SpinnerTick,
+        TailInput,
+        TailSetInput,
+        ThinkingInput,
+        NoticeInput,
+        SecretPromptInput,
+        ApprovalInput,
+        TrustPromptInput,
+        QuestionInput,
+        LoadingInput,
+        PickerInput,
+        KeyHelpInput,
+        AutocompleteInput,
+        ToolInput,
+        ToolSummaryInput,
+        RunningInput,
+        VerifyingInput,
+        CancellableInput,
+        ColorInput,
+        ThemeInput,
+        RunUsageInput,
+        SubagentInput,
+        FooterInput,
+        QueuedInput
+    );
 
-    private sealed record KeyInput(KeyEvent Key) : LiveAreaInput;
+    private sealed record KeyInput(KeyEvent Key);
 
-    private sealed record InputStateInput(InputLineState State, bool BashMode) : LiveAreaInput;
+    private sealed record InputStateInput(InputLineState State, bool BashMode);
 
-    private sealed record ResizeInput(ConsoleSize Size) : LiveAreaInput;
+    private sealed record ResizeInput(ConsoleSize Size);
 
-    private sealed record SpinnerTick(DateTimeOffset At) : LiveAreaInput;
+    private sealed record SpinnerTick(DateTimeOffset At);
 
-    private sealed record TailInput(string Text) : LiveAreaInput;
+    private sealed record TailInput(string Text);
 
-    private sealed record TailSetInput(string Text) : LiveAreaInput;
+    private sealed record TailSetInput(string Text);
 
-    private sealed record ThinkingInput(string? Text, DateTimeOffset At) : LiveAreaInput;
+    private sealed record ThinkingInput(string? Text, DateTimeOffset At);
 
-    private sealed record NoticeInput(string? Notice, int Generation, string Origin)
-        : LiveAreaInput;
+    private sealed record NoticeInput(string? Notice, int Generation, string Origin);
 
-    private sealed record SecretPromptInput(SecretPromptState? Prompt) : LiveAreaInput;
+    private sealed record SecretPromptInput(SecretPromptState? Prompt);
 
-    private sealed record ApprovalInput(ApprovalPromptModel? Prompt) : LiveAreaInput;
+    private sealed record ApprovalInput(ApprovalPromptModel? Prompt);
 
-    private sealed record TrustPromptInput(TrustPromptModel? Prompt) : LiveAreaInput;
+    private sealed record TrustPromptInput(TrustPromptModel? Prompt);
 
-    private sealed record QuestionInput(SelectListQuestionModel? Question) : LiveAreaInput;
+    private sealed record QuestionInput(SelectListQuestionModel? Question);
 
-    private sealed record LoadingInput(string? Text) : LiveAreaInput;
+    private sealed record LoadingInput(string? Text);
 
-    private sealed record PickerInput(SelectListModel? Picker) : LiveAreaInput;
+    private sealed record PickerInput(SelectListModel? Picker);
 
-    private sealed record KeyHelpInput(KeyHelpModel? KeyHelp) : LiveAreaInput;
+    private sealed record KeyHelpInput(KeyHelpModel? KeyHelp);
 
-    private sealed record AutocompleteInput(AutocompleteState? State) : LiveAreaInput;
+    private sealed record AutocompleteInput(AutocompleteState? State);
 
-    private sealed record ToolInput(string? Name, DateTimeOffset At) : LiveAreaInput;
+    private sealed record ToolInput(string? Name, DateTimeOffset At);
 
-    private sealed record ToolSummaryInput(string? Summary) : LiveAreaInput;
+    private sealed record ToolSummaryInput(string? Summary);
 
-    private sealed record RunningInput(bool Running, DateTimeOffset At) : LiveAreaInput;
+    private sealed record RunningInput(bool Running, DateTimeOffset At);
 
-    private sealed record VerifyingInput(bool Verifying, DateTimeOffset At) : LiveAreaInput;
+    private sealed record VerifyingInput(bool Verifying, DateTimeOffset At);
 
-    private sealed record CancellableInput(bool Cancellable) : LiveAreaInput;
+    private sealed record CancellableInput(bool Cancellable);
 
-    private sealed record ColorInput(ColorSystemSupport Color) : LiveAreaInput;
+    private sealed record ColorInput(ColorSystemSupport Color);
 
-    private sealed record ThemeInput(TuiTheme Theme) : LiveAreaInput;
+    private sealed record ThemeInput(TuiTheme Theme);
 
-    private sealed record RunUsageInput(long? InputTokens, long? OutputTokens) : LiveAreaInput;
+    private sealed record RunUsageInput(long? InputTokens, long? OutputTokens);
 
-    private sealed record SubagentInput(bool Running) : LiveAreaInput;
+    private sealed record SubagentInput(bool Running);
 
-    private sealed record FooterInput(StatusFooterModel? Footer, IReadOnlyList<string> Widgets)
-        : LiveAreaInput;
+    private sealed record FooterInput(StatusFooterModel? Footer, IReadOnlyList<string> Widgets);
 
-    private sealed record QueuedInput(int Count, string? First) : LiveAreaInput;
+    private sealed record QueuedInput(int Count, string? First);
 
     private sealed class ConsoleTextWriter(IConsoleIO console) : TextWriter
     {
