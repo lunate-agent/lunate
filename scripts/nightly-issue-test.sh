@@ -9,6 +9,13 @@
 # `area/core` for a coding test with no TUI in its source, none for a job that does not decide it, and
 # none when any failing test is outside the classified projects), an open card is commented on instead
 # of duplicated, and a green run calls nothing at all.
+#
+# The capacity cases (#923) cover the red the gate cannot report: a run whose red jobs were cancelled
+# before a single step started, because GitHub never acquired a hosted runner for them. Attempt one
+# records what it saw and defers to the retry (`.github/workflows/ci-capacity-retry.yml`) without
+# opening a card, and only the attempt the retry budget does not cover files the card -- with the
+# capacity cause named. A job that ran keeps the ordinary path, so no executed failure is ever retried
+# away.
 
 set -euo pipefail
 
@@ -145,6 +152,7 @@ _run() {
     printf '%s\n' "$jobs" >"$tmp/jobs.json"
     : >"$tmp/gh.log"
     : >"$tmp/err.log"
+    : >"$tmp/summary.md"
     local status=0
     PATH="$tmp/bin:${PATH}" \
         FAKE_GH_LOG="$tmp/gh.log" \
@@ -152,8 +160,10 @@ _run() {
         FAKE_GH_MILESTONES="$CASE_MILESTONES" \
         FAKE_GH_LOGS="$CASE_LOGS" \
         FAKE_GH_LABELS="$CASE_LABELS" \
+        GITHUB_STEP_SUMMARY="$tmp/summary.md" \
         bash "$REPORTER" --jobs-json "$tmp/jobs.json" --repo lunate-agent/lunate \
             --run-url https://example.test/runs/1 --commit abc123 --event "$CASE_EVENT" \
+            --attempt "${CASE_ATTEMPT:-1}" \
             >/dev/null 2>"$tmp/err.log" || status=$?
     CASES=$((CASES + 1))
     if [ "$status" -ne "$expected_exit" ]; then
@@ -189,6 +199,26 @@ _expect_stderr() {
     if ! grep -Fq -- "$pattern" "$tmp/err.log"; then
         echo "self-test: FAIL: ${name}: stderr does not say '${pattern}'" >&2
         sed 's/^/    /' "$tmp/err.log" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
+_expect_no_stderr() {
+    local name="$1" pattern="$2"
+    CASES=$((CASES + 1))
+    if grep -Fq -- "$pattern" "$tmp/err.log"; then
+        echo "self-test: FAIL: ${name}: stderr unexpectedly says '${pattern}'" >&2
+        sed 's/^/    /' "$tmp/err.log" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
+_expect_summary() {
+    local name="$1" pattern="$2"
+    CASES=$((CASES + 1))
+    if ! grep -Fq -- "$pattern" "$tmp/summary.md"; then
+        echo "self-test: FAIL: ${name}: the job summary does not say '${pattern}'" >&2
+        sed 's/^/    /' "$tmp/summary.md" >&2
         FAILURES=$((FAILURES + 1))
     fi
 }
@@ -295,6 +325,59 @@ _defaults
 _run "a cancelled job is red" 0 \
     '{"jobs":[{"id":16,"name":"red-main-issue","conclusion":"cancelled"}]}'
 _expect_gh "a cancelled job is reported" "CI failed: red-main-issue"
+
+# The run 43904858046 shape (#923): two legs GitHub never gave a runner, the aggregate that failed
+# because they did not succeed, the reporter that deferred them, and everything that ran green.
+CAPACITY_JOBS='{"jobs":[{"id":"101","name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"102","name":"perf (macos-latest)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"103","name":"verify (macos-latest, 2/2)","conclusion":"success","runner_id":1000009114,"steps":[{"name":"Verify (bash)","conclusion":"success"}]},{"id":"104","name":"ci-ok","conclusion":"failure","runner_id":1000009115,"steps":[{"name":"Every required job succeeded","conclusion":"failure"}]},{"id":"105","name":"red-main-issue","conclusion":"failure","runner_id":1000009116,"steps":[{"name":"File one card per failing job","conclusion":"failure"}]}]}'
+
+_defaults
+CASE_ATTEMPT=1
+_run "a capacity red is deferred, not filed" 1 "$CAPACITY_JOBS"
+_expect_no_gh "a capacity red opens no card" "issue create"
+_expect_no_gh "a capacity red comments on nothing when no card is open" "issue comment"
+_expect_stderr "the run says the legs never acquired a runner" "no hosted runner was acquired"
+_expect_summary "the summary names the first abandoned leg" "verify (macos-latest, 1/2)"
+_expect_summary "the summary names the perf leg" "perf (macos-latest)"
+_expect_summary "the summary says the run is retried" "retried"
+_expect_no_gh "a green leg is not named in the summary" "verify (macos-latest, 2/2)"
+
+_defaults
+CASE_ATTEMPT=1
+_run "a capacity red comments on an open card, opening no second one" 1 "$CAPACITY_JOBS" "42"
+_expect_gh "the open card receives the capacity comment" "issue comment 42"
+_expect_no_gh "the open card is not duplicated" "issue create"
+_expect_gh "the comment says no runner was acquired" "No hosted runner was acquired"
+
+_defaults
+CASE_ATTEMPT=2
+_run "a capacity red that survives the retry is filed with its cause" 0 "$CAPACITY_JOBS"
+_expect_gh "the retried capacity red files the card" "CI failed: verify (macos-latest, 1/2)"
+_expect_gh "the card says no runner was acquired" "No hosted runner was acquired"
+_expect_gh "the card says the red is not a code failure" "not a code failure"
+_expect_gh "the card keeps the milestone rule" "--milestone 0.5.0"
+
+_defaults
+CASE_ATTEMPT=1
+_run "another leg that ran makes it an ordinary red" 0 \
+    '{"jobs":[{"id":"301","name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"302","name":"verify (ubuntu-latest, 2/4)","conclusion":"failure","runner_id":1000009117,"steps":[{"name":"Verify (bash)","conclusion":"failure"}]},{"id":"303","name":"ci-ok","conclusion":"failure","runner_id":1000009118,"steps":[{"name":"Every required job succeeded","conclusion":"failure"}]}]}'
+_expect_gh "a run with a red leg that ran still files its cards" "CI failed: verify (ubuntu-latest, 2/4)"
+_expect_no_stderr "a run with a red leg that ran is not deferred" "deferring to the retry"
+CASES=$((CASES + 1))
+if grep -Fq -- "CI failed: verify (macos-latest, 1/2)" "$tmp/gh.log"; then
+    true
+else
+    echo "self-test: FAIL: the abandoned leg's card is filed beside the red that ran" >&2
+    sed 's/^/    /' "$tmp/gh.log" >&2
+    FAILURES=$((FAILURES + 1))
+fi
+
+_defaults
+CASE_ATTEMPT=1
+_run "a job that ran is never a capacity red" 0 \
+    '{"jobs":[{"id":"201","name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":1000009114,"steps":[{"name":"Verify (bash)","conclusion":"cancelled"}]},{"id":"202","name":"perf (macos-latest)","conclusion":"cancelled","runner_id":0,"steps":[]}]}'
+_expect_gh "a started job is filed, not deferred" "CI failed: verify (macos-latest, 1/2)"
+_expect_gh "a started job is filed, not deferred (perf)" "CI failed: perf (macos-latest)"
+_expect_no_gh "a started job is never deferred" "issue comment"
 
 if [ "$FAILURES" -ne 0 ]; then
     echo "self-test: FAIL: ${FAILURES} of ${CASES} checks failed" >&2

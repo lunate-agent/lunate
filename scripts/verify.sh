@@ -332,6 +332,12 @@ docs_profile() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
 
+  # A run whose red jobs never acquired a runner is retried once instead of being filed as a code
+  # failure: the workflow wiring and the reporter's deferral decision (#923).
+  step "the runner-capacity retry"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_ci_capacity_retry.py"
+  bash "${SCRIPT_DIR}/nightly-issue.sh" --self-test
+
   step "docs are not build inputs"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
 
@@ -447,6 +453,12 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
+
+  # The wiring test for .github/workflows/ci-capacity-retry.yml and the reporter's deferral: a run whose
+  # legs never acquired a runner is retried once instead of being filed as a code failure (#923).
+  step "the runner-capacity retry"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_ci_capacity_retry.py"
+  bash "${SCRIPT_DIR}/nightly-issue.sh" --self-test
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"

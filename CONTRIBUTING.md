@@ -214,6 +214,14 @@ when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a
 `area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a job that fails without
 a failing test in those projects carries no area label.
 
+A red run whose legs never acquired a hosted runner is retried instead of reported: GitHub cancels a job
+when no macOS arm64 runner is free, before its first step starts, so nothing the repository builds or
+tests ran and the card would send a session after a step that never executed. The reporter then writes the
+abandoned legs into the run summary and fails, `ci-capacity-retry.yml` reruns that run's failed jobs once
+when it completes, and only the attempt the retry budget does not cover files the card — with the capacity
+cause named in its body. A red job that ran is never retried that way, so an executed failure is never
+retried away, and `ci-ok` still fails closed on an abandoned leg in every attempt.
+
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the
 link/navigation check and the docs lint in one job of a few seconds. Both triggers call

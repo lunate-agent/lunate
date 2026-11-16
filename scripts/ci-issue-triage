@@ -8,6 +8,13 @@ documents, so the decision is pure and its self-test needs no network. It mirror
 
 - `--jobs-json FILE` prints `id<TAB>name` for every red job. A job that did not run (skipped) is not a
   failure; only a conclusion that means the job ran and did not pass is.
+- `--capacity-json FILE` prints `capacity` when every red job of the run was cancelled before it reached a
+  machine, and nothing otherwise. That is the red no code can fix: GitHub cancels a job whose hosted
+  runner it never acquired ("The job was not acquired by Runner of type hosted even after multiple
+  attempts"), so the pipeline retries it instead of reporting it. A job counts as never acquired only when
+  all three hold -- `conclusion` is `cancelled`, `runner_id` is `0` and `steps` is empty -- because each
+  alone is ambiguous: a job cancelled by a `cancel-in-progress` run also has no steps, and a started job
+  can still report `runner_id: 0`. One red job that ran makes the run an ordinary red.
 - `--milestones-json FILE` prints the lowest open milestone whose title is a version
   (`MAJOR.MINOR.PATCH`), compared numerically. `backlog` and any other title never match, and a release
   that closes its milestone removes it from the open list, so no constant names a version here. The list
@@ -68,14 +75,48 @@ def _load(path):
 def red_jobs(path):
     """One `id<TAB>name` line per red job, in the order the run lists them, without duplicates."""
     seen = set()
-    for job in _records(_load(path), "jobs"):
+    for job in _red_jobs(path):
         name = str(job.get("name") or "").strip()
         if not name or name in seen:
             continue
-        if str(job.get("conclusion") or "") not in RED:
-            continue
         seen.add(name)
         print(f"{job.get('id') or ''}\t{name}")
+
+
+def _red_jobs(path):
+    """The red job records of the run, in the order the payload lists them."""
+    return [job for job in _records(_load(path), "jobs") if str(job.get("conclusion") or "") in RED]
+
+
+# The two jobs whose result is derived from the others': the aggregate gate fails because a required leg
+# did not succeed, and the reporter fails because it deferred a capacity red to the retry. Neither carries
+# coverage of its own, so a capacity red carries them beside the abandoned legs (#923).
+DERIVED_JOBS = {"ci-ok", "red-main-issue"}
+
+
+def _never_acquired(job):
+    """A job GitHub cancelled before it reached a machine: no runner was ever assigned, no step ran."""
+    if str(job.get("conclusion") or "") != "cancelled":
+        return False
+    if job.get("runner_id") != 0:
+        return False
+    return not job.get("steps")
+
+
+def _derived(job):
+    """A job that only restates the other jobs' results: the aggregate gate and the reporter."""
+    return str(job.get("name") or "").strip() in DERIVED_JOBS
+
+
+def capacity_red(path):
+    """`capacity` when the run is red only because no runner was acquired, so a retry is the report."""
+    reds = _red_jobs(path)
+    if not reds:
+        return
+    if not any(_never_acquired(job) for job in reds):
+        return
+    if all(_never_acquired(job) or _derived(job) for job in reds):
+        print("capacity")
 
 
 def lowest_version_milestone(path):
@@ -177,6 +218,7 @@ def area_label(log_path, source_root):
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--jobs-json")
+    parser.add_argument("--capacity-json")
     parser.add_argument("--milestones-json")
     parser.add_argument("--log-file")
     parser.add_argument("--source-root")
@@ -184,6 +226,9 @@ def main(argv):
 
     if args.jobs_json:
         red_jobs(args.jobs_json)
+        return 0
+    if args.capacity_json:
+        capacity_red(args.capacity_json)
         return 0
     if args.milestones_json:
         lowest_version_milestone(args.milestones_json)
@@ -193,7 +238,7 @@ def main(argv):
             parser.error("--log-file needs --source-root")
         area_label(args.log_file, Path(args.source_root))
         return 0
-    parser.error("one of --jobs-json, --milestones-json or --log-file is required")
+    parser.error("one of --jobs-json, --capacity-json, --milestones-json or --log-file is required")
 
 
 if __name__ == "__main__":
