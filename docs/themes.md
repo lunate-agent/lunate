@@ -1,8 +1,7 @@
 # Themes
 
-This page answers how to change the terminal's colours: the three built-in themes, the token file
-that replaces individual colours, and what happens on a terminal that cannot show the colour you
-picked.
+This page answers how to change the terminal's colours: the built-in themes, the token file that
+replaces individual colours, and what happens on a terminal that cannot show the colour you picked.
 
 Every colour in the interface is a *semantic token*, never a widget's own value, so a token file
 survives a new surface and a new surface inherits every theme.
@@ -13,14 +12,21 @@ The theme is chosen once at startup, and `/settings tui.theme` changes it for th
 session. The order is the flag, then the setting, then the default:
 
 ```bash
-lunate --theme ansi16
+lunate --theme light    # a light-background terminal
+lunate --theme ansi16   # a sixteen-colour terminal
 ```
 
 | Theme | What it paints |
 | --- | --- |
 | `default` | The palette Lunate ships: hex values on a true-colour or 256-colour terminal, their ANSI fallbacks on the sixteen-colour set |
+| `dark` | The same palette as `default`, under the name that says which background it is for |
+| `light` | Dark ANSI inks for a light-background terminal: teal accent, grey muted, maroon error, green success, olive warning, navy code and prompt, purple notice |
 | `ansi16` | Named ANSI colours only, for a sixteen-colour terminal |
 | `mono` | No colour at all; emphasis stays in the weight and the words |
+
+`light` and `dark` choose a palette, not a colour depth: on a sixteen-colour terminal the light
+inks still render as their names, and `NO_COLOR` still removes every colour. `ansi16` and `mono`
+remain the depth policies.
 
 `--theme` also accepts the path of a [token file](#a-theme-file): that file is read for this run
 instead of the one in the Lunate home. `--theme <name>` still reads the home file and overlays it on

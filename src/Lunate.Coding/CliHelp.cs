@@ -223,11 +223,12 @@ internal static class CliHelp
         );
         output.WriteLine("                                 the default");
         output.WriteLine(
-            "  --theme <name|path>            paint with default, ansi16 or mono, or read the"
+            "  --theme <name|path>            paint with default, dark, light, ansi16 or mono, or"
         );
         output.WriteLine(
-            "                                 token file at <path> instead of the user's theme.json"
+            "                                 read the token file at <path> instead of the user's"
         );
+        output.WriteLine("                                 theme.json");
         output.WriteLine(
             "  --system-prompt <text>         replace the composed system prompt wholesale,"
         );

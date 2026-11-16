@@ -70,7 +70,10 @@ public sealed class InteractiveSessionTuiSettingsTests
         await host.WaitUntilAsync(() => host.Session.IsComposed);
 
         await host.SendLineAsync("/settings tui.theme neon");
-        await WaitForFrameAsync(host, "tui.theme must be 'default', 'ansi16' or 'mono'");
+        await WaitForFrameAsync(
+            host,
+            "tui.theme must be 'default', 'dark', 'light', 'ansi16' or 'mono'"
+        );
 
         // The refusal left nothing behind: the settings file holds no tui section.
         AssertNoTuiSettings(host.Temp.File("settings.json"));

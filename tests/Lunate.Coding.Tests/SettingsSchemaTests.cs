@@ -178,7 +178,7 @@ public sealed partial class SettingsSchemaTests
     [Fact]
     public void The_schema_allowed_values_match_the_tables_the_parsers_use()
     {
-        Assert.Equal(["default", "ansi16", "mono"], Entry("tui.theme").Allowed);
+        Assert.Equal(["default", "dark", "light", "ansi16", "mono"], Entry("tui.theme").Allowed);
         foreach (string theme in Entry("tui.theme").Allowed)
         {
             Assert.True(

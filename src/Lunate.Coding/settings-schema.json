@@ -406,8 +406,8 @@
       "type": "string",
       "default": "default",
       "scope": "user",
-      "allowed": ["default", "ansi16", "mono"],
-      "description": "The theme applied to the transcript and status line: `default` keeps the detected colour depth, `ansi16` names the sixteen colours, `mono` drops every attribute. A theme can only lower the depth, so `NO_COLOR` still wins; a theme file overlays the selected theme's tokens."
+      "allowed": ["default", "dark", "light", "ansi16", "mono"],
+      "description": "The theme applied to the transcript and status line: `default` and `dark` paint the shipped palette and keep the detected colour depth, `light` paints dark inks for a light-background terminal, `ansi16` names the sixteen colours, `mono` drops every attribute. A theme can only lower the depth, so `NO_COLOR` still wins; a theme file overlays the selected theme's tokens."
     },
     {
       "name": "updateCheck",

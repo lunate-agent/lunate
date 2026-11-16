@@ -6,8 +6,9 @@ one key, both persisted so they survive a restart.
 
 ## Choose a theme
 
-`/settings tui.theme` chooses the built-in theme for the session: `default` keeps the terminal's
-detection, `ansi16` pins the high-contrast sixteen-colour system, and `mono` drops every attribute.
+`/settings tui.theme` chooses the built-in theme for the session: `default` and `dark` paint the
+shipped palette and keep the terminal's detection, `light` paints dark inks for a light-background
+terminal, `ansi16` pins the high-contrast sixteen-colour system, and `mono` drops every attribute.
 The choice persists in the settings file's `tui` section, and a [theme file](themes.md) can recolor
 the tokens of whichever built-in is selected. A theme can only lower the depth, so `NO_COLOR` still
 wins.
