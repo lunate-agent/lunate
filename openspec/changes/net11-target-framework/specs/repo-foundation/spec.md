@@ -28,11 +28,12 @@ projects that build a single target.
 
 ### Requirement: Which projects may target more than one framework
 
-A project SHALL build more than one target framework only when it is an extension-facing package:
-`Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent` and `Mermaid.Terminal`. Every
-other project SHALL build the single `net11.0` target. A multi-targeted project SHALL clear the
-inherited `TargetFramework` before declaring its `TargetFrameworks`, because MSBuild only takes the
-cross-targeting path when `TargetFramework` is empty.
+A project SHALL build more than one target framework only when it is an extension-facing published
+package: `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`, `Lunate.Ai` and
+`Lunate.Ai.Decisions` (the two assemblies the `Lunate.Agent` package carries) and `Mermaid.Terminal`.
+Every other project SHALL build the single `net11.0` target. A multi-targeted project SHALL clear
+the inherited `TargetFramework` before declaring its `TargetFrameworks`, because MSBuild only takes
+the cross-targeting path when `TargetFramework` is empty.
 
 #### Scenario: A multi-targeted project builds every declared asset
 
