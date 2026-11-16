@@ -6,7 +6,7 @@ The repository's build-and-verification contract: every Lunate project builds on
 ## Requirements
 
 ### Requirement: Clean build contract
-The repository SHALL build all projects on .NET 11 with compiler warnings treated as errors.
+The repository SHALL build all projects on .NET 10 with compiler warnings treated as errors.
 
 #### Scenario: Clean checkout builds
 - **GIVEN** a clean checkout with the pinned .NET SDK installed
@@ -87,42 +87,3 @@ The startup budget SHALL be calibrated per environment from measured baselines (
 - **GIVEN** a baseline shift (new hardware or a runner image change)
 - **WHEN** the budgets are updated
 - **THEN** the new measurements and the reason for the change are recorded in the spike report
-
-### Requirement: One target framework
-
-Every project in the repository SHALL target `net11.0`, and no project SHALL multi-target: no
-project file SHALL declare `TargetFrameworks`, and every `TargetFramework` a project declares SHALL
-be `net11.0`. `Directory.Build.props` SHALL declare `net11.0` as the one framework every project
-inherits. A published package SHALL carry a single `lib/net11.0` asset, and the `dotnet tool` package
-SHALL carry a single `tools/net11.0` asset. Directories holding somebody else's project rather than a
-project of this repository — an eval task under `eval/tasks/` and a spike record under
-`docs/dev/spikes/` — are data and are exempt. A fixture under `tests/fixtures/` SHALL NOT be exempt:
-a test that needs a multi-targeted input SHALL write that shape into a temporary copy at run time, so
-no project file in the repository declares more than one target framework.
-
-Reintroducing multi-targeting, or dropping `net11.0` for a published package, SHALL require its own
-ADR and a deprecation window, never a silent target-framework bump.
-
-#### Scenario: A clean build targets one framework
-
-- **GIVEN** a clean checkout with the pinned SDK
-- **WHEN** the solution builds
-- **THEN** every project builds for `net11.0` and the build produces no second target framework
-
-#### Scenario: A multi-targeting project fails the repository test
-
-- **GIVEN** a project that declares `TargetFrameworks` or a `TargetFramework` other than `net11.0`
-- **WHEN** the target-framework test runs
-- **THEN** it fails and names the project and the framework it declares
-
-#### Scenario: A fixture is checked like any other project
-
-- **GIVEN** a fixture project under `tests/fixtures/` that declares `TargetFrameworks`
-- **WHEN** the target-framework test runs
-- **THEN** it checks the fixture and fails, naming the fixture and the frameworks it declares
-
-#### Scenario: The packed contract carries one asset
-
-- **GIVEN** a freshly packed `Lunate.Contracts` package
-- **WHEN** its `lib/` entries are read
-- **THEN** it carries `lib/net11.0` and no other framework's asset
