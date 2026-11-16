@@ -210,7 +210,8 @@ to `main` and a red nightly each file one `kind/bug` card per failing job, namin
 link, and comment on the open card for that job instead of filing a duplicate. A job that never started
 is not a failing job: GitHub concludes a job it never acquired a hosted runner for as `cancelled` with an
 empty step list, and because no change in this repository can fix that — the remedy is a rerun — the
-reporter files no card and posts no comment for it, naming it in the run's own summary instead (#922). The
+reporter files no card and posts no comment for it, naming it in the run's own summary instead — also
+when the run's other red job that ran is filed as its own card (#922). The
 card takes the lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its milestone, so the
 next version becomes the target), read from the GitHub API, and an `area/tui` or `area/core` label only
 when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a `Lunate.Coding` test is
@@ -222,7 +223,8 @@ reported: GitHub cancels a job when no macOS arm64 runner is free, before its fi
 the repository builds or tests ran. The reporter writes the abandoned legs into the run summary and fails,
 `ci-capacity-retry.yml` reruns that run's failed jobs once when it completes, and the attempt the retry
 budget does not cover says in the same summary that the retry is spent and that a rerun is the remedy. No
-card is ever filed for such a leg, and the derived `ci-ok` aggregate and the reporter itself are never named
+card is ever filed for such a leg, and the summary names it even when another red job that ran is filed as
+its own card. The derived `ci-ok` aggregate and the reporter itself are never named
 as abandoned legs, because they failed only because a leg did not succeed. A red job that ran is never
 retried that way, so an executed failure is never retried away, and `ci-ok` still fails closed on an
 abandoned leg in every attempt (#923).

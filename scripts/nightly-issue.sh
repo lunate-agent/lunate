@@ -21,8 +21,10 @@
 # GitHub never acquired a hosted runner for it -- run 43904858046's `verify (macos-latest, 1/2)` and
 # `perf (macos-latest)`. Nothing the repository builds or tests ran, so a card would send a session after
 # a step that never executed, and no change in this repository acquires a hosted runner: a job that never
-# started is not filed here and is not commented on (#922). The reporter names the abandoned legs in the
-# run's job summary and fails, so that `.github/workflows/ci-capacity-retry.yml` reruns the run's failed
+# started is not filed here and is not commented on (#922). The reporter names the abandoned leg in the
+# run's job summary -- also in an ordinary red, where another job that ran is filed as its own card, so a
+# run never loses sight of a leg it did not file. A capacity red fails, so that
+# `.github/workflows/ci-capacity-retry.yml` reruns the run's failed
 # jobs -- a succeeded job is not rerun, which is why this job has to be one of the failures. The attempt
 # the retry budget does not cover says so in the same summary and exits clean, with the rerun as the
 # remedy. `ci-ok` does not need this job, so the gate's verdict is unchanged either way.
@@ -126,11 +128,18 @@ job_log() {
 
 report() {
     local jobs_json="$1" repo="$2" run_url="$3" commit="$4" event="$5" attempt="$6"
-    local jobs job_id job title body existing area milestone log labels tmp capacity
+    local jobs job_id job title body existing area milestone log labels tmp capacity abandoned
     capacity="$(python3 "$TRIAGE" --capacity-json "$jobs_json")"
     if [ -n "$capacity" ]; then
         defer_capacity_red "$jobs_json" "$run_url" "$attempt" || return 1
         return 0
+    fi
+    # An ordinary red can still hold a leg that never started while another job ran and failed. The leg
+    # files no card, so the run's own summary has to name it and link the run; the card for the job that
+    # ran does not speak for it (#923).
+    abandoned="$(python3 "$TRIAGE" --abandoned-json "$jobs_json")"
+    if [ -n "$abandoned" ]; then
+        name_abandoned_legs "$abandoned" "$run_url"
     fi
     jobs="$(python3 "$TRIAGE" --jobs-json "$jobs_json")"
     if [ -z "$jobs" ]; then
@@ -173,6 +182,34 @@ report() {
     rm -rf "$tmp"
 }
 
+# The `- leg` lines of a summary that names abandoned legs, or the note for a run whose only abandoned
+# reds are the derived ones.
+abandoned_lines() {
+    local abandoned="$1" job_id job
+    if [ -n "$abandoned" ]; then
+        while IFS=$'\t' read -r job_id job; do
+            [ -n "$job" ] || continue
+            printf -- '- `%s` -- cancelled before its first step; no hosted runner was acquired\n' "$job"
+        done <<<"$abandoned"
+    else
+        printf -- '- every red job of this run only restates the other jobs\n'
+    fi
+}
+
+# An ordinary red's abandoned leg: the card for the job that ran does not cover it, so the run's summary
+# names it and the run link, and says which card the run did file (#923).
+name_abandoned_legs() {
+    local abandoned="$1" run_url="$2"
+    [ -n "${GITHUB_STEP_SUMMARY:-}" ] || return 0
+    {
+        printf '### Runner capacity: a leg never started, so no card is filed for it\n\n'
+        printf 'GitHub cancelled these legs before their first step because it never acquired a hosted runner for them, so nothing the repository builds or tests ran for them:\n\n'
+        abandoned_lines "$abandoned"
+        printf '\nThe red jobs that ran are filed as their own cards.\n\n'
+        printf 'Run: %s\n' "$run_url"
+    } >>"$GITHUB_STEP_SUMMARY"
+}
+
 # A capacity red is named in the run, never in an issue (#922, #923). The abandoned legs never ran, so
 # there is no step to triage and no change in this repository acquires a hosted runner. The reporter
 # writes the legs into the run's job summary, calls nothing else, and fails while the retry budget is
@@ -193,14 +230,7 @@ defer_capacity_red() {
         {
             printf '### Runner capacity: no card is filed\n\n'
             printf 'GitHub cancelled these legs before their first step because it never acquired a hosted runner for them, so nothing the repository builds or tests ran:\n\n'
-            if [ -n "$abandoned" ]; then
-                while IFS=$'\t' read -r job_id job; do
-                    [ -n "$job" ] || continue
-                    printf -- '- `%s` -- cancelled before its first step; no hosted runner was acquired\n' "$job"
-                done <<<"$abandoned"
-            else
-                printf -- '- every red job of this run only restates the other jobs\n'
-            fi
+            abandoned_lines "$abandoned"
             printf '\n'
             if [ "$attempt" -lt "$RETRY_BUDGET" ]; then
                 printf 'The run is retried once (`.github/workflows/ci-capacity-retry.yml`); rerun it if it is still red afterwards.\n\n'

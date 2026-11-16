@@ -340,7 +340,8 @@ _expect_gh "a cancelled job is reported" "CI failed: red-main-issue"
 
 # A job GitHub never gave a runner is not a red job (#922): it concluded `cancelled`, holds no runner and
 # its `steps` list is present and empty. A missing list is not evidence of anything, so the cancelled case
-# above stays red. The leg is never filed beside a red that ran, and the run says which leg it was.
+# above stays red. The leg is never filed beside a red that ran, and the run's summary names it with the
+# run link anyway: the card for the job that ran does not speak for the leg that never started.
 _defaults
 CASE_ATTEMPT=1
 _run "a leg that never started is not filed beside a red that ran" 0 \
@@ -348,6 +349,11 @@ _run "a leg that never started is not filed beside a red that ran" 0 \
 _expect_gh "a run with a red leg that ran still files its cards" "CI failed: verify (ubuntu-latest, 2/4)"
 _expect_no_gh "the abandoned leg is not filed beside the red that ran" "CI failed: verify (macos-latest, 1/2)"
 _expect_stderr "the run names the leg that never started" "verify (macos-latest, 1/2): never started"
+_expect_summary "the summary names the leg that never started beside the card that ran" "verify (macos-latest, 1/2)"
+_expect_summary "the summary carries the run link" "Run: https://example.test/runs/1"
+_expect_no_summary "the leg that ran is not named as an abandoned leg" "verify (ubuntu-latest, 2/4)"
+_expect_no_summary "the aggregate is not named as an abandoned leg" "ci-ok"
+_expect_no_summary "an ordinary red is not retried" "retried once"
 _expect_no_stderr "a run with a red leg that ran is not deferred" "deferring to the capacity retry"
 
 # The run 43904858046 shape (#923): two legs GitHub never gave a runner, the aggregate that failed
