@@ -51,20 +51,21 @@ None.
 ## Relationship to the unstarted-job rule (#922, PR #925)
 
 Card #922 reached the same run from the other side — the reporter should file no card for a job GitHub
-never gave a runner — and its pull request is open with a delta on this same requirement. The two cards
-agree on the outcome that matters, and the delta here is written as the union so that neither lands a spec
-that contradicts the other:
+never gave a runner — and its pull request (#925) has landed on `main`, syncing its delta into
+`openspec/specs/ci-pipeline/spec.md`. The two cards agree on the outcome that matters, and the delta here
+is the union so that neither left a spec that contradicts the other:
 
-- A job that never started files no card and gets no comment. #922 states that rule; this card adds that
-  the run's summary names the leg, and that a run whose red jobs are all such legs is retried once.
-- A `cancelled` job that reached at least one step stays red, and a document whose `steps` list is missing
-  stays red (fail closed). Both cards keep that.
+- A job that never started files no card and gets no comment, and its `conclusion`, `runner_id` and
+  `steps` are all three required before it counts as such (#922's rule, kept verbatim). This card adds
+  that the run's summary names the leg, and that a run whose red jobs are all such legs is retried once.
+- A `cancelled` job that reached at least one step stays red, and a document whose `steps` list or
+  `runner_id` is missing stays red (fail closed). Both cards keep that.
 - The first draft of this card filed the card once the retry budget was spent. That contradicts #922's
   rule, and the trade is not worth it: such a card sends a session after a step that never executed, while
   the summary and the rerun already say what to do. The exhausted attempt exits clean instead.
-- The delta carries #922's scenarios (`A job no runner ever acquired files nothing`, `A cancellation that
-  started stays red`, `A real failure beside an unstarted job still files`), so main's requirement is
-  complete whichever pull request lands first and the later archive is a union rather than a hand edit.
+- #925 landed first, so this delta is re-applied on the synced requirement: it keeps #922's wording and
+  scenarios, replaces #925's "this requirement does not decide the run level" paragraph with the
+  capacity-retry rule, and adds this card's scenarios beside them.
 
 ## Impact
 

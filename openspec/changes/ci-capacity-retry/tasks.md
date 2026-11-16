@@ -71,3 +71,20 @@
   before the change).
 - [x] 6.3 `CONTRIBUTING.md` and `changes/924.md` say the summary names the leg also when another job that
   ran is filed, and the delta gains the mixed-run scenario.
+
+## 7. Rework: the merge with #925's landed delta
+
+- [x] 7.1 Merge `origin/main` (never rebase), clear the archive first, and resolve the conflicts in
+  `scripts/ci-issue-triage`, `scripts/nightly-issue.sh`, `scripts/nightly-issue-test.sh` and
+  `CONTRIBUTING.md` as the union of the two cards: one never-acquired predicate, `--jobs-json` naming the
+  leg with the run link, `--abandoned-json`/`--capacity-json` beside it.
+- [x] 7.2 Re-apply the delta on the synced requirement: keep #922's wording and its scenarios, replace
+  #925's "this requirement does not decide the run level" paragraph with the capacity-retry rule, and keep
+  the merged scenario set.
+- [x] 7.3 Keep both self-tests' cases: #925's unstarted-leg, started-cancellation, held-runner,
+  missing-`runner_id` and mixed-run cases beside the capacity, budget, derived-job and mixed-run-summary
+  cases, adapted where the union changes the outcome (a run whose only red leg never started is a capacity
+  red and defers).
+- [x] 7.4 Re-run `bash scripts/nightly-issue.sh --self-test` (105 checks), `bash scripts/ci-ok.sh
+  --self-test`, `python3 tests/scripts/test_ci_capacity_retry.py`, `dotnet csharpier check .` and
+  `openspec validate --all --strict`, then archive again as the last commit.

@@ -6,22 +6,22 @@ through the GitHub API and owns the `gh` calls; this file owns what the reporter
 documents, so the decision is pure and its self-test needs no network. It mirrors
 `scripts/ci-ok-state`.
 
-- `--jobs-json FILE` prints `id<TAB>name` for every red job a card is filed for. A job that did not run
+- `--jobs-json FILE --run-url URL` prints `id<TAB>name` for every red job. A job that did not run
   (skipped) is not a failure; only a conclusion that means the job ran and did not pass is. A job that
-  never started is not a red job either: GitHub concludes a job it never acquired a hosted runner for as
-  `cancelled` with `runner_id: 0` and an empty step list ("The job was not acquired by Runner of type
-  hosted even after multiple attempts"), no change in this repository can fix that, and the remedy is a
-  rerun. Such a job is named on stderr instead, and a missing or unreadable `steps` list stays red, so the
-  rule fails closed.
+  never started is not a red job either: GitHub concludes a job it never acquired a runner for as
+  `cancelled`, with `runner_id: 0` and an empty step list ("The job was not acquired by Runner of type
+  hosted even after multiple attempts"), so it prints nothing for that job and names it on stderr
+  instead, with the run link, because no change in this repository can fix it and the remedy is a
+  rerun. All three have to hold: a job cancelled by a superseding run also has no steps, and a started
+  job can still report `runner_id: 0`. A job cancelled after it reached a step, and any document whose
+  `steps` list or `runner_id` is missing, stays red: the rule fails closed. The run link is required with
+  the jobs because the reporter names the job and the run, never the job alone.
 - `--abandoned-json FILE` prints `id<TAB>name` for the red jobs that never acquired a runner, without the
-  two jobs whose result is derived from the others' (`ci-ok` and `red-main-issue`). That is the list a
-  capacity red's job summary names, and the list no card is ever filed for (#922, #923).
+  two jobs whose result is derived from the others' (`ci-ok` and `red-main-issue`). That is the list the
+  run's job summary names, and the list no card is ever filed for (#922, #923).
 - `--capacity-json FILE` prints `capacity` when every red job of the run was cancelled before it reached a
   machine, and nothing otherwise. That is the red no code can fix, so the pipeline retries it instead of
-  reporting it. A job counts as never acquired only when all three hold -- `conclusion` is `cancelled`,
-  `runner_id` is `0` and `steps` is a present, empty list -- because each alone is ambiguous: a job
-  cancelled by a `cancel-in-progress` run also has no steps, and a started job can still report
-  `runner_id: 0`. One red job that ran makes the run an ordinary red.
+  reporting it. One red job that ran makes the run an ordinary red.
 - `--milestones-json FILE` prints the lowest open milestone whose title is a version
   (`MAJOR.MINOR.PATCH`), compared numerically. `backlog` and any other title never match, and a release
   that closes its milestone removes it from the open list, so no constant names a version here. The list
@@ -79,8 +79,8 @@ def _load(path):
         return json.load(handle)
 
 
-def red_jobs(path):
-    """One `id<TAB>name` line per red job to file, in the order the run lists them, without duplicates."""
+def red_jobs(path, run_url):
+    """One `id<TAB>name` line per red job, in the order the run lists them, without duplicates."""
     seen = set()
     for job in _red_jobs(path):
         name = str(job.get("name") or "").strip()
@@ -89,7 +89,8 @@ def red_jobs(path):
         seen.add(name)
         if _never_acquired(job):
             print(
-                f"ci-issue-triage: {name}: never started (no runner was acquired); no card is filed for it",
+                f"ci-issue-triage: {name}: never started (no runner was acquired); "
+                f"no card is filed for it; rerun {run_url}",
                 file=sys.stderr,
             )
             continue
@@ -123,7 +124,9 @@ def _never_acquired(job):
     """A job GitHub cancelled before it reached a machine: no runner assigned, a present and empty step list."""
     if str(job.get("conclusion") or "") != "cancelled":
         return False
-    if job.get("runner_id") != 0:
+    runner = job.get("runner_id")
+    # A missing runner is not evidence of anything, and `False == 0` in Python, so check the type.
+    if isinstance(runner, bool) or not isinstance(runner, int) or runner != 0:
         return False
     steps = job.get("steps")
     # A missing list is not evidence that nothing ran, so only a present and empty one counts.
@@ -245,6 +248,7 @@ def area_label(log_path, source_root):
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--jobs-json")
+    parser.add_argument("--run-url")
     parser.add_argument("--abandoned-json")
     parser.add_argument("--capacity-json")
     parser.add_argument("--milestones-json")
@@ -253,7 +257,9 @@ def main(argv):
     args = parser.parse_args(argv)
 
     if args.jobs_json:
-        red_jobs(args.jobs_json)
+        if not args.run_url:
+            parser.error("--jobs-json needs --run-url")
+        red_jobs(args.jobs_json, args.run_url)
         return 0
     if args.abandoned_json:
         abandoned_jobs(args.abandoned_json)

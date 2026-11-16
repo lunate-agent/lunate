@@ -208,15 +208,17 @@ every shard, the PowerShell twin and the dedicated perf measurement — runs on 
 nightly; CodeQL runs on a push to `main` and its weekly schedule, not on a pull request. A red push
 to `main` and a red nightly each file one `kind/bug` card per failing job, naming the job and the run
 link, and comment on the open card for that job instead of filing a duplicate. A job that never started
-is not a failing job: GitHub concludes a job it never acquired a hosted runner for as `cancelled` with an
-empty step list, and because no change in this repository can fix that — the remedy is a rerun — the
-reporter files no card and posts no comment for it, naming it in the run's own summary instead — also
-when the run's other red job that ran is filed as its own card (#922). The
-card takes the lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its milestone, so the
-next version becomes the target), read from the GitHub API, and an `area/tui` or `area/core` label only
-when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a `Lunate.Coding` test is
-`area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a job that fails without
-a failing test in those projects carries no area label.
+is not a failing job: GitHub concludes a job it never acquired a hosted runner for as `cancelled` with
+`runner_id: 0` and an empty step list, and because no change in this repository can fix that — the remedy
+is a rerun — the reporter files no card for it and names it, together with the run link, in the run's own
+log and job summary instead, also when the run's other red job that ran is filed as its own card, so a
+hosted-runner shortage no longer produces an unactionable card (#922). The rule fails closed: a job
+cancelled after reaching a step, and a document whose step list or runner id is missing, still files. The
+card takes the lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its
+milestone, so the next version becomes the target), read from the GitHub API, and an `area/tui` or
+`area/core` label only when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a
+`Lunate.Coding` test is `area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a
+job that fails without a failing test in those projects carries no area label.
 
 A run whose legs never acquired a hosted runner is a runner-capacity red, and it is retried instead of
 reported: GitHub cancels a job when no macOS arm64 runner is free, before its first step starts, so nothing
