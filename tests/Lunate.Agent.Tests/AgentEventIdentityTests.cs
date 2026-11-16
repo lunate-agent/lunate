@@ -106,12 +106,12 @@ public sealed class AgentEventIdentityTests
     }
 
     [Fact]
-    public void A_consumer_ignores_an_unknown_extension_event_kind()
+    public void A_consumer_ignores_an_event_kind_it_does_not_handle()
     {
         List<AgentEvent> stream =
         [
             new RunStarted("run_1"),
-            new UnrecognizedEvent("run_1"),
+            new ToolProgressUpdate("run_1", "call_1", "half way"),
             new RunFinished("run_1", StopReasons.Stop),
         ];
 
@@ -134,6 +134,4 @@ public sealed class AgentEventIdentityTests
             RunFinished => "finished",
             _ => null,
         };
-
-    private sealed record UnrecognizedEvent(string RunId) : ExtensionEvent(RunId);
 }

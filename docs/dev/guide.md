@@ -288,7 +288,7 @@ MCP tools arrive from the SDK as functions and are wrapped as `ITool`s, so they 
 
 Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP and a possible web frontend later are thin mappings. Lunate-specific events are marked as extensions; in AG-UI they would travel as custom events. Check the AG-UI and ACP names against the pinned spec versions when writing the mappers.
 
-**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The retarget is applied (#902, [ADR-0041](../../adr/0041-net11-target-frameworks.md)); the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt and what each needs, and step (c) of #192 applies the refactor, internal code first and the public contract last.
+**Closed set:** `AgentEvent` is a `closed` record hierarchy — `ExtensionEvent` too, because closure is not transitive — so no assembly outside the contract can declare a kind and a consumer's `switch` is checked for exhaustiveness. The same holds for the hook-result families. It is not a C# 15 `union`: a union's `Value` is `object`, which would erase the base that carries the stamped session fields ([ADR-0042](../../adr/0042-contract-closed-sets.md), decided on #919). The retarget is applied (#902, [ADR-0041](../../adr/0041-net11-target-frameworks.md)); the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt and what each needs.
 
 | Lunate event | AG-UI | ACP | TUI |
 | --- | --- | --- | --- |

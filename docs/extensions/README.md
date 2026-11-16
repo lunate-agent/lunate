@@ -31,6 +31,34 @@ the spec wins.
 | [Reference extensions](../../samples/extensions/) | The fitness suite that runs in CI |
 | [Supported extensions](../../extensions/) | The first-party tier users install and rely on |
 
+## Contract version notes
+
+What an extension compiles against is versioned under `ExtensionApi`, and a contract change that an
+author can feel gets a note here. The notes are additive: the version a note names is the one an
+extension declares in its manifest's `apiVersion`.
+
+### 1.16.0 — the event and hook-result sets are closed
+
+The contract's closed sets are closed in the compiler ([ADR-0042](../../adr/0042-contract-closed-sets.md)):
+`AgentEvent` and `ExtensionEvent`, and the seven hook-result families `ProjectTrustResult`,
+`InputReceivedResult`, `RunStartingResult`, `MessageCompletedResult`, `ToolCallingResult`,
+`TurnEndedResult` and `CompactingResult`, are C# 15 `closed` records. They are not `union` types, and
+[ADR-0042](../../adr/0042-contract-closed-sets.md) records the measurements behind that choice.
+
+- **What stays:** every type name, case name and constructor, and the `IHookResult` / `IHookPayload`
+  markers. `new ToolCallingResult.Block("held")`, `result is ToolCallingResult.Block block` and the
+  hook wire shapes compile and behave exactly as before.
+- **What you gain:** a `switch` over an event or over a hook-result family is checked for
+  exhaustiveness. Cover every kind, or keep a `_` arm for the kinds you ignore — an arm you forget is
+  a build error in this repository and a compiler warning in yours, never a silent fall-through.
+- **What you lose:** you cannot declare your own subclass of `AgentEvent`, `ExtensionEvent` or a
+  hook-result family. The set is a compile-time fact, so a kind the contract never declared cannot
+  reach a consumer. A hook outcome is one of the declared cases, and the observer stream
+  ([ADR-0040](../../adr/0040-hook-based-extensibility-on-observables.md)) delivers the declared
+  event kinds — not an extension's own.
+- **If a case is added:** it is a breaking contract change, it moves the API version and it gets a
+  note here. Your exhaustive `switch` is why that is announced rather than shipped quietly.
+
 ## Quickstart
 
 ### 1. Create the project
@@ -67,8 +95,8 @@ cannot drift from the file:
 />
 ```
 
-The contract packages are pinned to `ExtensionApi.Current` (currently `1.15.0`); their READMEs
-carry the versioning and deprecation policy. Inside this repository the same template binds the
+The contract packages are pinned to `ExtensionApi.Current`; their READMEs carry the versioning and
+deprecation policy. Inside this repository the same template binds the
 contract as project references instead — the packages a feed serves may not exist before the
 release that publishes them, so the template switches on its own: a copy outside this
 repository gets the packages, a copy inside gets the projects, and `LunateUseNuGetContracts=true`

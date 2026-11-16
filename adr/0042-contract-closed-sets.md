@@ -8,7 +8,7 @@
 
 ## Context
 
-#192's inventory ([`docs/dev/csharp-15.md`](../../docs/dev/csharp-15.md)) adopted four C# 15 features
+Issue #192's inventory ([`docs/dev/csharp-15.md`](../../docs/dev/csharp-15.md)) adopted four C# 15 features
 and deferred the two that touch the public contract: *"AgentEvent and hook-result unions come last,
 as their own decision."* The retarget (ADR-0041) removed the `net10.0` floor that forbade union and
 closed types on the contract surface, so the question became answerable, and #919 is the card it was

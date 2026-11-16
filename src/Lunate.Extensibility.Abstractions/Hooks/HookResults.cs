@@ -2,8 +2,16 @@ using System.Text.Json;
 
 namespace Lunate.Extensibility.Abstractions;
 
+// Every result family below heads a closed set and is declared `closed`: its cases are the whole set,
+// so the host's dispatch switch is checked for exhaustiveness and no assembly outside this contract
+// can add a variant. Adding a case is a contract change — it moves the API version and carries a
+// version note for extension authors (ADR-0042). A `union` is the wrong shape here: its Value is
+// object, which would erase the IHookResult marker and the families' value equality, and
+// System.Text.Json cannot deserialize one without a custom classifier. Each family keeps its
+// private constructor so the compiler's synthesized one stays off the public surface.
+
 /// <summary>The outcome of the project-trust hook.</summary>
-public abstract record ProjectTrustResult : IHookResult
+public closed record ProjectTrustResult : IHookResult
 {
     private ProjectTrustResult() { }
 
@@ -15,7 +23,7 @@ public abstract record ProjectTrustResult : IHookResult
 }
 
 /// <summary>The outcome of the raw-input hook.</summary>
-public abstract record InputReceivedResult : IHookResult
+public closed record InputReceivedResult : IHookResult
 {
     private InputReceivedResult() { }
 
@@ -30,7 +38,7 @@ public abstract record InputReceivedResult : IHookResult
 }
 
 /// <summary>The outcome of the run-starting hook.</summary>
-public abstract record RunStartingResult : IHookResult
+public closed record RunStartingResult : IHookResult
 {
     private RunStartingResult() { }
 
@@ -53,7 +61,7 @@ public sealed record ContextBuildingResult(IReadOnlyList<ContextMessage> AddedMe
 }
 
 /// <summary>The outcome of the message-completed hook.</summary>
-public abstract record MessageCompletedResult : IHookResult
+public closed record MessageCompletedResult : IHookResult
 {
     private MessageCompletedResult() { }
 
@@ -65,7 +73,7 @@ public abstract record MessageCompletedResult : IHookResult
 }
 
 /// <summary>The outcome of the tool-calling hook.</summary>
-public abstract record ToolCallingResult : IHookResult
+public closed record ToolCallingResult : IHookResult
 {
     private ToolCallingResult() { }
 
@@ -84,7 +92,7 @@ public sealed record ToolResultReadyResult(
 ) : IHookResult;
 
 /// <summary>The outcome of the turn-ended hook.</summary>
-public abstract record TurnEndedResult : IHookResult
+public closed record TurnEndedResult : IHookResult
 {
     private TurnEndedResult() { }
 
@@ -97,7 +105,7 @@ public abstract record TurnEndedResult : IHookResult
 }
 
 /// <summary>The outcome of the compacting hook.</summary>
-public abstract record CompactingResult : IHookResult
+public closed record CompactingResult : IHookResult
 {
     private CompactingResult() { }
 

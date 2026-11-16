@@ -4,10 +4,12 @@ using Microsoft.Extensions.AI;
 namespace Lunate.Agent;
 
 /// <summary>
-/// One event in a run's stream. The set is closed: every concrete event is a sealed record declared
-/// here, so the hierarchy stays union-ready (see `docs/dev/csharp-15.md`).
+/// One event in a run's stream. The set is closed in the compiler — the type is <c>closed</c> and
+/// every concrete event is a sealed record declared here — so no assembly outside this contract can
+/// add a kind, and a consumer's <c>switch</c> over an event is checked for exhaustiveness. Adding a
+/// kind is a contract change: it moves the API version and carries a version note (ADR-0042).
 /// </summary>
-public abstract record AgentEvent(string RunId)
+public closed record AgentEvent(string RunId)
 {
     /// <summary>
     /// The session the event belongs to; stamped centrally by the event channel when the run has a
@@ -76,8 +78,11 @@ public sealed record ToolCallResult(
     public bool HasImages { get; init; }
 }
 
-/// <summary>Base for Lunate-specific events; mappers forward or filter them generically.</summary>
-public abstract record ExtensionEvent(string RunId) : AgentEvent(RunId);
+/// <summary>
+/// Base for Lunate-specific events; mappers forward or filter them generically. Closed as well,
+/// because closure is not transitive: the root fixes its direct descendants, and this base its own.
+/// </summary>
+public closed record ExtensionEvent(string RunId) : AgentEvent(RunId);
 
 public sealed record ApprovalRequested(string RunId, string CallId, string ToolName, string Args)
     : ExtensionEvent(RunId)
