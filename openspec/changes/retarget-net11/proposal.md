@@ -23,7 +23,7 @@ _None._
 
 ## Impact
 
-- Build: `Directory.Build.props`, `.github/workflows` budget comments, `scripts/verify.sh`, `scripts/verify.ps1`, `scripts/gate-tests.sh`, `scripts/test-parallel.sh`, `scripts/eval.sh`, `scripts/mermaid-tape.sh`, `scripts/render-*.sh`.
+- Build: `Directory.Build.props`, `.github/workflows` budget comments, `scripts/memory.sh`, `scripts/gate-tests.sh`, `scripts/verify.sh`, `scripts/verify.ps1`, `scripts/test-parallel.sh`, `scripts/eval.sh`, `scripts/mermaid-tape.sh`, `scripts/render-*.sh`.
 - Projects: `src/Lunate.Contracts`, `src/Lunate.Extensibility.Abstractions`, `src/Lunate.Agent`, `src/Lunate.Ai`, `src/Lunate.Ai.Decisions` multi-target; `src/Lunate.Coding` (tool) and `src/Lunate.Extensibility.Testing` stay `net11.0`; the template and the extension-copy end-to-end test move their test project to `net11.0`.
 - Tests: the reference-pack fixtures locate the runtime's own `ref/<tfm>`; `TestMcpServer` resolution and build-output paths follow `net11.0`; the template copy test asserts both contract assets are packed.
 - Docs: `AGENTS.md`, `openspec/config.yaml`, `CONTRIBUTING.md`, `docs/dev/guide.md`, `docs/dev/csharp-15.md`, `docs/extensions/README.md`, `README.md`, `docs/quickstart.md`, `docs/dev/distribution.md`.
@@ -39,6 +39,6 @@ _None._
 4. **Does dropping `net10.0` from a published contract package happen here?** No. Dropping it would be a breaking change needing an ADR and a deprecation window; the net10 asset stays as the compatibility floor.
 5. **Does the extension template stay `net10.0`?** The extension project does, because it is the floor proof. Its test project moves to `net11.0` because the test kit is `net11.0`; the copy test builds both and reads the extension output from its own TFM.
 6. **What does the host compile extensions against now?** The host's own runtime TFM, computed by `SingleFileTarget.Current()` — `net11.0` after this change. No hard-coded `net10.0` remains in the product; tests that need the current TFM derive it instead of pinning it.
-7. **Are the budgets re-calibrated now?** They are re-measured on this machine on the .NET 11 publish. Local default and CI values stay unless the measurement moves past their headroom; CI per-runner re-calibration is a post-merge/nightly maintainer step because only those runners can produce its evidence.
-8. **Is this an architecture decision needing an ADR?** No new ADR: #192 already decided the target frameworks, and ADR-0005/ADR-0009 own budget calibration. The change records the decision and its measurements in its design.
+7. **Are the budgets re-calibrated now?** They are re-measured on this machine on the .NET 11 publish. The startup floor stays under the 150 ms local default. The shipped single-file ReadyToRun memory subject is 353 MB, above the old 150 MB gate, so the local memory default moves to 550 MB under ADR-0009's median + 50% rule; the 100 MB target stays the session-footprint goal. CI per-runner re-calibration is a post-merge/nightly maintainer step because only those runners can produce its evidence.
+8. **Is this an architecture decision needing an ADR?** No new ADR: #192 already decided the target frameworks, and ADR-0005/ADR-0009 own budget calibration. The memory recalibration is recorded in an ADR-0009 addendum; the change records the measurements in its design.
 9. **Is a public API change expected?** No. The public surface must be identical on both assets; `PublicAPI.Unshipped.txt` should not move.

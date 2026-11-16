@@ -23,6 +23,17 @@ if ! dotnet csharpier --version >/dev/null 2>&1; then
   exit 1
 fi
 
+echo "gate-tests: memory.sh default gate is the recalibrated net11 idle gate (550 MB)"
+if ! "${SCRIPT_DIR}/memory.sh" defaults | grep -qx "memory defaults: gate=550MB target=100MB"; then
+  echo "gate-tests: FAIL: memory.sh default gate is not the recalibrated 550 MB / target 100 MB" >&2
+  exit 1
+fi
+
+if ! MEMORY_GATE_MB=150 "${SCRIPT_DIR}/memory.sh" defaults | grep -qx "memory defaults: gate=150MB target=100MB"; then
+  echo "gate-tests: FAIL: memory.sh ignored MEMORY_GATE_MB" >&2
+  exit 1
+fi
+
 echo "gate-tests: perf.sh must fail with BUDGET_MS=1"
 if BUDGET_MS=1 PERF_RUNS=5 PERF_WARMUP=1 PERF_RESULTS=artifacts/perf-gate-breach.json \
   "${SCRIPT_DIR}/perf.sh" "$BINARY" >/dev/null 2>&1; then

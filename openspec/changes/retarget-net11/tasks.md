@@ -15,7 +15,7 @@
 
 - [x] 3.1 Publish the single-file binary for this RID and run `scripts/perf.sh`; record the startup floor/median.
 - [x] 3.2 Measure the idle-TUI peak RSS on net11 and on the net10 baseline with the ADR-0009 method (external 150 ms sampler, 20 s window). The sandbox denies `/dev/ptmx` and `/bin/ps`, so the terminal is the product's `IConsoleIO` seam (a virtual screen that sends no keys) and the RSS source is libproc's `proc_pid_rusage`; record both substitutions and the three packaging shapes.
-- [x] 3.3 Record both measurements in `design.md` and keep or re-calibrate the local budget per the measurement.
+- [x] 3.3 Record both measurements in `design.md`; re-calibrate the local memory gate from the net11 published ReadyToRun subject (150 → 550 MB per ADR-0009's median + 50% rule) and record the value and reason in an ADR-0009 addendum.
 
 ## 4. Documentation and release note
 

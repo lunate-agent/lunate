@@ -67,6 +67,8 @@ are re-measured on the new runtime by #902.
   is bounded to the contract/harness packages.
 - The tool's runtime floor rises: an existing `dotnet tool` user on .NET 10 must install the .NET 11
   runtime or switch to a self-contained installer. The release note says so.
-- The startup and memory budgets are re-measured on .NET 11 by #902; the per-runner CI values are
-  re-calibrated from the post-merge/nightly runs under ADR-0005/ADR-0009, not guessed here.
+- The startup and memory budgets are re-measured on .NET 11 by #902; the local memory default is
+  re-calibrated from the shipped ReadyToRun subject in the ADR-0009 addendum, and the per-runner CI
+  values are re-calibrated from the post-merge/nightly runs under ADR-0005/ADR-0009, not guessed
+  here.
 - No new NuGet package and no public API change follow from this decision.

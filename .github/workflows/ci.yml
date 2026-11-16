@@ -135,8 +135,11 @@ jobs:
       # budget_ms: calibrated in spike S-3 (docs/dev/spikes/S-3/report.md, ADR 0005 accepted
       # 2026-10-04) -- runner startup median + ~50% headroom, rounded up to 50 ms. Re-calibrate when a
       # runner image or baseline shifts. The local default in scripts/perf.sh stays 150 ms.
-      # memory_gate_mb: idle peak-RSS gate (MB) per OS (ADR 0009); provisional 150 until the T-18 TUI
-      # subject exists (report-only until then).
+      # memory_gate_mb: idle peak-RSS gate (MB) per OS (ADR 0009); 150 is still the
+      # provisional shell-baseline value until the post-merge/nightly runners measure their
+      # own subject (the CI memory step has no MEMORY_SUBJECT yet, so it self-tests only).
+      # The local default in scripts/memory.sh is 550 MB, recalibrated by #902 from the
+      # net11 published single-file ReadyToRun subject (353 MB, 353 x 1.5 rounded up).
       # The shared macOS runner's floor is bimodal (~80-240 ms quiet, ~310-330 ms loaded), so a breach
       # there is measured and printed, not fatal (budget_enforce 0); `perf (macos-latest)` enforces
       # the budget on a leg that runs nothing else.

@@ -156,7 +156,9 @@ cannot compile for `net10.0`; they need the `net11.0` BCL. The self-contained re
 their runtime, so the user still installs nothing. `Directory.Build.props` sets `net11.0`; the
 first-party projects that use the features (`Lunate.Tui`, `Mermaid.Terminal`, `Lunate.Coding`, and
 whatever else adopts them) build for it. The startup and memory budgets were re-measured on the new
-runtime during #902, not carried over from the .NET 10 numbers.
+runtime during #902; the startup floor stayed inside the local 150 ms default, and the local memory
+gate was recalibrated to 550 MB from the shipped single-file ReadyToRun measurement (ADR-0009
+addendum).
 
 **The `dotnet tool` package requires .NET 11.** It is framework-dependent, so its one asset is
 `tools/net11.0`. `PackAsTool` can carry both `tools/net10.0` and `tools/net11.0` (verified with a

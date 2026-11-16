@@ -99,12 +99,16 @@ that address build output use `net11.0`. Historical records (`docs/dev/spikes/**
 ### 7. Budgets
 
 Re-measure on the locally published single-file binary with `scripts/perf.sh` and
-`scripts/memory.sh`, record the floor/median and peak RSS in this design and in the pull request.
-Keep the 150 ms local startup default and the 150 MB memory gate when the measurement is inside their
-headroom; the CI matrix values are re-calibrated from the post-merge/nightly runners, which are the
-only source of their evidence (ADR-0005, ADR-0009). Where the sandbox denies a gate's own seam — no
-pty can be allocated and `ps` is blocked — the same subject is measured with the gate's method and
-the substitution is recorded (see Measurements).
+`scripts/memory.sh`, record the floor/median and peak RSS in this design and in the pull request. The
+150 ms local startup default stays: every measured floor (131–148 ms) is inside it (ADR-0005
+addendum). The published single-file ReadyToRun memory subject is above the old 150 MB gate, so the
+local default is re-calibrated under ADR-0009's own rule: 353 × 1.5 = 529.5, rounded up to the next
+50 MB, gives 550 MB. The ADR-0009 addendum records the value and reason. The 100 MB target stays the
+session-footprint goal (reported, not enforced), and the per-runner CI `memory_gate_mb` values stay
+provisional until the post-merge/nightly runners supply their own subject and measurement (ADR-0005,
+ADR-0009). Where the sandbox denies a gate's own seam — no pty can be allocated and `ps` is blocked —
+the same subject is measured with the gate's method and the substitution is recorded (see
+Measurements).
 
 ## Measurements
 
@@ -156,24 +160,25 @@ bundle mapping. RSS is reported in the gate's unit (`scripts/memory.sh`'s kB/102
 | Single-file + ReadyToRun (bundle 377 / 439 MiB) | 298 MB | 353 MB |
 | Single-file, no ReadyToRun (bundle 137 MiB) | not measured | 85 MB |
 
-Verdict against the 150 MB gate (ADR-0009):
+Verdict against the idle memory gate (ADR-0009):
 
-- The TUI's own footprint is **inside** the gate on net11. At 88 MB it is 3 MB above the net10
-  baseline (85 MB, +3.5%) and 6 MB above the 82 MB S-5 shell baseline, so the 150 MB gate and its
-  100 MB target stay as they are; the retarget does not re-calibrate them.
-- The published single-file **ReadyToRun** shape is above the gate in both runtimes (298 MB net10,
-  353 MB net11). The excess is the mapped ReadyToRun images of the uncompressed bundle, not the
-  session: the same net11 host without ReadyToRun maps 137 MiB of bundle and peaks at 85 MB, and the
-  framework-dependent host peaks at 88 MB. The retarget moves this row by 55 MB (+18%) because the
-  bundle grew 377 → 439 MiB, tracking the row rather than the session.
+- The shipped single-file **ReadyToRun** subject peaks at 353 MB on net11 (298 MB on net10), above
+  the old 150 MB gate. ADR-0009 calibrated that gate on a single-file + ReadyToRun subject, so the
+  88 MB framework-dependent row does not replace it. Under ADR-0009's median + 50% rule, 353 × 1.5 =
+  529.5 rounds up to 550 MB; the local default gate is now 550 MB and the ADR-0009 addendum records
+  the value and reason.
+- The TUI's own footprint remains inside the old gate. At 88 MB it is 3 MB above the net10 baseline
+  (85 MB, +3.5%) and 6 MB above the 82 MB S-5 shell baseline, so the 100 MB target stays the
+  session-footprint goal; it is reported, not enforced.
+- The excess is the mapped ReadyToRun images of the uncompressed bundle, not the session: the same
+  net11 host without ReadyToRun maps 137 MiB of bundle and peaks at 85 MB, and the
+  framework-dependent host peaks at 88 MB. The retarget moves the ReadyToRun row by 55 MB (+18%)
+  because the bundle grew 377 → 439 MiB, tracking the bundle rather than the session.
 
-ADR-0009 gated the idle TUI at 150 MB against the S-5 shell baseline before the shipped stack and the
-ReadyToRun R2R bundle existed; the shipped session now has a subject, and the number that represents
-it is 88 MB on net11. Gating the published ReadyToRun shape at a re-calibrated value (ADR-0009's
-median + 50% rule would put it near 550 MB) is a budget decision for the maintainer, not part of this
-retarget: it would gate the bundle mapping rather than the session's own memory. The CI memory step
-still has no `MEMORY_SUBJECT` configured (`scripts/memory.sh` reports no subject and skips), so the
-per-runner evidence stays a post-merge item (ADR-0005, ADR-0009).
+The per-runner CI `memory_gate_mb` values stay provisional until the post-merge/nightly runners
+measure their own subject; the CI memory step has no `MEMORY_SUBJECT` configured
+(`scripts/memory.sh` reports no subject and self-tests), so only then can its numbers be
+re-calibrated (ADR-0005, ADR-0009).
 
 ## Diagram
 
@@ -231,12 +236,14 @@ identical; that is already the loader's behaviour and the reason the net10 asset
 2. Update the tests/fixtures and live script paths that name the host TFM.
 3. Move the template test project to `net11.0` and assert both contract assets in the copy test.
 4. Update live docs and the OpenSpec config; add the changelog fragment.
-5. Build Release, run the focused tests, publish locally, measure startup and memory.
+5. Build Release, run the focused tests, publish locally, measure startup and memory, and
+   re-calibrate the local memory gate from the shipped ReadyToRun result (ADR-0009 addendum).
 6. Roll back by reverting the branch; no data migration is involved.
 
 ## Open Questions
 
 - The per-runner CI startup/memory budgets are calibrated from data only the post-merge (main push,
-  nightly) runners produce. This change records the local re-measurement and leaves the CI numbers
-  untouched; a maintainer re-calibrates them from the first post-merge run if the net11 numbers move
-  past their headroom. No in-force ADR needs supersession.
+  nightly) runners produce. This change records the local re-measurement and re-calibrates the local
+  memory default to 550 MB from the shipped ReadyToRun subject; the CI matrix values stay
+  provisional until the first post-merge/nightly run with a subject. No in-force ADR needs
+  supersession; ADR-0009 is amended by an addendum that records the recalibration.
