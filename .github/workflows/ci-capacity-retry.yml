@@ -12,9 +12,10 @@ name: CI capacity retry
 #
 # The retry covers what failed and nothing else (`rerun-failed-jobs`), so the green Ubuntu and Windows
 # work is not paid for twice. That is also why `red-main-issue` fails on the deferral path: a job that
-# succeeded is not rerun, so the reporter has to be one of the failures to see attempt two and file the
-# card when the runners are still not there. The decision is `scripts/ci-issue-triage --capacity-json`,
-# the same pure decision the reporter uses, so the two cannot disagree about what a capacity red is.
+# succeeded is not rerun, so the reporter has to be one of the failures to see attempt two and say that the
+# retry is spent and a rerun is the remedy. No card is filed for such a leg in either attempt (#922). The
+# decision is `scripts/ci-issue-triage --capacity-json`, the same pure decision the reporter uses, so the
+# two cannot disagree about what a capacity red is.
 on:
   workflow_run:
     workflows: [CI]

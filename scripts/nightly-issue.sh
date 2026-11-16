@@ -20,19 +20,19 @@
 # A **capacity red** (#923) is a run whose every red job was cancelled before its first step, because
 # GitHub never acquired a hosted runner for it -- run 43904858046's `verify (macos-latest, 1/2)` and
 # `perf (macos-latest)`. Nothing the repository builds or tests ran, so a card would send a session after
-# a step that never executed. The reporter defers instead: it records the abandoned legs in the run's job
-# summary, comments on the card that is already open for such a leg (never opening one) and fails, so that
-# `.github/workflows/ci-capacity-retry.yml` reruns the run's failed jobs -- a succeeded job is not rerun,
-# which is why this job has to be one of the failures. Only the attempt the retry budget does not cover
-# files the card, and then the card names the capacity cause. `ci-ok` does not need this job, so the
-# gate's verdict is unchanged either way.
+# a step that never executed, and no change in this repository acquires a hosted runner: a job that never
+# started is not filed here and is not commented on (#922). The reporter names the abandoned legs in the
+# run's job summary and fails, so that `.github/workflows/ci-capacity-retry.yml` reruns the run's failed
+# jobs -- a succeeded job is not rerun, which is why this job has to be one of the failures. The attempt
+# the retry budget does not cover says so in the same summary and exits clean, with the rerun as the
+# remedy. `ci-ok` does not need this job, so the gate's verdict is unchanged either way.
 #
 # Usage:
 #   nightly-issue.sh --jobs-json <file> --repo <owner/name> --run-url <url> [--commit <sha>] [--event <name>] [--attempt <n>]
 #   nightly-issue.sh --self-test
 #
 # `--attempt` defaults to `GITHUB_RUN_ATTEMPT` (then 1) and is the run's attempt number: at or above the
-# retry budget a capacity red is reported rather than deferred.
+# retry budget a capacity red is named in the summary and exits clean instead of deferring.
 #
 # `--self-test` stubs `gh` on PATH and asserts create/comment/no-op, the milestone, the area label and the
 # capacity deferral for synthetic runs.
@@ -45,8 +45,8 @@ TRIAGE="${SCRIPT_DIR}/ci-issue-triage"
 
 LABEL_KIND="kind/bug"
 TITLE_PREFIX="CI failed: "
-# One retry of a capacity red, so attempt 2 is the last one that can be deferred and the attempt that
-# files the card when the runners are still not there.
+# One retry of a capacity red: below this attempt the reporter defers to the retry, and at it the run's
+# summary says the retry is spent and a rerun is the remedy.
 RETRY_BUDGET=2
 
 usage() {
@@ -67,7 +67,7 @@ event_phrase() {
 }
 
 issue_body() {
-    local job="$1" run_url="$2" commit="$3" event="$4" capacity="${5:-}"
+    local job="$1" run_url="$2" commit="$3" event="$4"
     local body
     body="The $(event_phrase "$event") \`ci.yml\` run failed in **${job}**.
 
@@ -76,42 +76,12 @@ Run: ${run_url}"
         body="${body}
 Commit: \`${commit}\`"
     fi
-    if [ "$capacity" = "capacity" ]; then
-        body="${body}
-
-$(capacity_note)"
-    fi
     body="${body}
 
 This job carries the full matrix, the PowerShell twin or the perf measurement that runs on \`main\` and
 the nightly rather than on every pull request (#831). Triage the failing step. If it is a runner flake,
 rerun the run and comment what you saw instead of opening a second card."
     printf '%s' "$body"
-}
-
-# The paragraph a card carries when the red survived the retry without a runner, so the next session
-# reruns instead of triaging a step that never executed (#923).
-capacity_note() {
-    cat <<'TEXT'
-No hosted runner was acquired for this job: GitHub cancelled it before its first step ("The job was not
-acquired by Runner of type hosted even after multiple attempts"), so nothing the repository builds or
-tests ran. The red is a runner-capacity red, not a code failure, and the run was already retried once.
-Rerun the run rather than triage a step, and only file a code card if a job with a runner fails.
-TEXT
-}
-
-# What the deferral says on a card that was already open for such a leg.
-capacity_comment() {
-    local job="$1" run_url="$2"
-    cat <<TEXT
-Runner capacity: **${job}** did not run.
-
-No hosted runner was acquired for it, so GitHub cancelled it before its first step. That is a
-runner-capacity red, not a code failure: this run's failed jobs are retried once automatically, and no
-new card is filed while that retry is unspent.
-
-Run: ${run_url}
-TEXT
 }
 
 # The number of an open issue whose title is exactly this job's card, or empty.
@@ -157,18 +127,15 @@ job_log() {
 report() {
     local jobs_json="$1" repo="$2" run_url="$3" commit="$4" event="$5" attempt="$6"
     local jobs job_id job title body existing area milestone log labels tmp capacity
+    capacity="$(python3 "$TRIAGE" --capacity-json "$jobs_json")"
+    if [ -n "$capacity" ]; then
+        defer_capacity_red "$jobs_json" "$run_url" "$attempt" || return 1
+        return 0
+    fi
     jobs="$(python3 "$TRIAGE" --jobs-json "$jobs_json")"
     if [ -z "$jobs" ]; then
         echo "nightly-issue: no red job in the run; nothing to file" >&2
         return 0
-    fi
-    capacity="$(python3 "$TRIAGE" --capacity-json "$jobs_json")"
-    if [ -n "$capacity" ] && [ "$attempt" -lt "$RETRY_BUDGET" ]; then
-        defer_capacity_red "$repo" "$run_url" "$jobs"
-        return 1
-    fi
-    if [ -n "$capacity" ]; then
-        echo "nightly-issue: the capacity red survived attempt ${attempt}; filing it with its cause" >&2
     fi
     tmp="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/nightly-issue.XXXXXX")"
     milestone="$(lowest_milestone "$repo" "${tmp}/milestones.json")"
@@ -179,7 +146,7 @@ report() {
     while IFS=$'\t' read -r job_id job; do
         [ -n "$job" ] || continue
         title="$(issue_title "$job")"
-        body="$(issue_body "$job" "$run_url" "$commit" "$event" "$capacity")"
+        body="$(issue_body "$job" "$run_url" "$commit" "$event")"
         log="${tmp}/job-${job_id:-unknown}.log"
         job_log "$repo" "$job_id" "$log"
         area="$(python3 "$TRIAGE" --log-file "$log" --source-root "$REPO_ROOT")"
@@ -206,34 +173,49 @@ report() {
     rm -rf "$tmp"
 }
 
-# A capacity red defers to the retry workflow instead of filing: the legs never ran, so there is no step
-# to triage, and a card per capacity event is the cost this rule removes (#923). The job fails on purpose
-# -- `rerun-failed-jobs` reruns only failures, and the reporter has to be one of them to see the retry's
-# outcome and file the card when that outcome is still a missing runner.
+# A capacity red is named in the run, never in an issue (#922, #923). The abandoned legs never ran, so
+# there is no step to triage and no change in this repository acquires a hosted runner. The reporter
+# writes the legs into the run's job summary, calls nothing else, and fails while the retry budget is
+# unspent: `.github/workflows/ci-capacity-retry.yml` reruns only the run's failed jobs, so this job has to
+# be one of the failures to be here for the retry's outcome. At the budget the same summary says the retry
+# is spent and the rerun is the remedy, and the reporter exits clean: failing again would only turn a
+# runner shortage into a red reporting step. The derived `ci-ok` and this reporter are never named: they
+# failed because a leg did not succeed, not because they were abandoned.
 defer_capacity_red() {
-    local repo="$1" run_url="$2" jobs="$3"
-    local job_id job existing
+    local jobs_json="$1" run_url="$2" attempt="$3"
+    local abandoned job_id job
+    abandoned="$(python3 "$TRIAGE" --abandoned-json "$jobs_json")"
     while IFS=$'\t' read -r job_id job; do
         [ -n "$job" ] || continue
-        echo "nightly-issue: ${job}: no hosted runner was acquired; deferring to the retry instead of filing" >&2
-        existing="$(existing_issue "$repo" "$(issue_title "$job")")"
-        if [ -n "$existing" ]; then
-            echo "nightly-issue: ${job}: commenting on #${existing}" >&2
-            gh issue comment "$existing" --repo "$repo" --body "$(capacity_comment "$job" "$run_url")"
-        fi
-    done <<<"$jobs"
+        echo "nightly-issue: ${job}: no hosted runner was acquired; no card is filed for it" >&2
+    done <<<"$abandoned"
     if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
         {
-            printf '### Runner capacity: the run is retried, not reported (#923)\n\n'
-            printf 'No hosted runner was acquired for these legs, so GitHub cancelled them before their first step:\n\n'
-            while IFS=$'\t' read -r job_id job; do
-                [ -n "$job" ] || continue
-                printf -- '- `%s` -- cancelled before its first step; no hosted runner was acquired\n' "$job"
-            done <<<"$jobs"
-            printf '\nThe run is retried once. Nothing the repository builds or tests ran, so there is no step to triage.\n\nRun: %s\n' "$run_url"
+            printf '### Runner capacity: no card is filed\n\n'
+            printf 'GitHub cancelled these legs before their first step because it never acquired a hosted runner for them, so nothing the repository builds or tests ran:\n\n'
+            if [ -n "$abandoned" ]; then
+                while IFS=$'\t' read -r job_id job; do
+                    [ -n "$job" ] || continue
+                    printf -- '- `%s` -- cancelled before its first step; no hosted runner was acquired\n' "$job"
+                done <<<"$abandoned"
+            else
+                printf -- '- every red job of this run only restates the other jobs\n'
+            fi
+            printf '\n'
+            if [ "$attempt" -lt "$RETRY_BUDGET" ]; then
+                printf 'The run is retried once (`.github/workflows/ci-capacity-retry.yml`); rerun it if it is still red afterwards.\n\n'
+            else
+                printf 'The retry is spent, so the remedy is a rerun: this red is a runner shortage, not a code failure, and no card is filed for it.\n\n'
+            fi
+            printf 'Run: %s\n' "$run_url"
         } >>"$GITHUB_STEP_SUMMARY"
     fi
-    return 1
+    if [ "$attempt" -lt "$RETRY_BUDGET" ]; then
+        echo "nightly-issue: deferring to the capacity retry: ${run_url}" >&2
+        return 1
+    fi
+    echo "nightly-issue: the capacity retry is spent; rerunning ${run_url} is the remedy" >&2
+    return 0
 }
 
 mode=""

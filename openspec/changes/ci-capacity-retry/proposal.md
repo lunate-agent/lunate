@@ -14,22 +14,24 @@ rerun the run and comment what you saw instead of opening a second card."*
 ## What Changes
 
 - **A leg that never ran is not a failure to report, it is one to retry.** A run is a *capacity* red when
-  every red job of the run was cancelled before any step started and never held a runner. Such a run is
-  retried once, and only a red that survives the retry becomes a card.
+  every red job either never started or only restates the others' results: a job GitHub never gave a runner
+  is `cancelled` with `runner_id: 0` and an empty step list. Such a run is retried once and is never filed,
+  because no change in this repository acquires a hosted runner.
 - **The retry is requested after the run completes.** A run cannot rerun itself while it is in progress,
   so a new workflow, `.github/workflows/ci-capacity-retry.yml`, is triggered by `workflow_run: [CI]` on
   `completed` and issues `rerun-failed-jobs` for the triggering run when the decision says capacity and
   the attempt budget (`run_attempt < 2`) is unspent. It is restricted to a `push` to `main` and the
   nightly, the two events that run the full matrix and the only two the reporter reports on.
-- **The reporter defers instead of filing.** `scripts/nightly-issue.sh` detects the capacity red, writes
-  what it saw into the job summary, comments on an already-open card for the leg when one exists (never
-  opening a new one) and fails, so `rerun-failed-jobs` reruns it with the abandoned legs and the retry's
-  outcome is reported by the same job that owns reporting. `ci-ok` does not need the reporter, so the
-  gate's verdict is unchanged.
-- **A capacity red that survives the retry is still filed, with the cause named.** Attempt two files the
-  same deduplicated `CI failed: <job>` card as today, but its body states that no hosted runner was
-  acquired and that the red is not a code failure, so the next session reruns or escalates instead of
-  triaging a step that never executed.
+- **The reporter names the abandoned legs in the run and defers.** `scripts/nightly-issue.sh` detects the
+  capacity red, writes the abandoned legs into the job summary and fails, so `rerun-failed-jobs` reruns the
+  run with those legs and this job is present to see the retry. It opens no card and posts no comment.
+  `ci-ok` does not need the reporter, so the gate's verdict is unchanged.
+- **The budget's last attempt names the rerun.** At attempt two the same summary says the retry is spent
+  and that a rerun is the remedy, and the reporter exits clean: a runner shortage never becomes a red
+  reporting step, and a session is never sent after a step that never executed.
+- **Derived jobs are not abandoned legs.** `ci-ok` fails because a required leg did not succeed and this
+  reporter fails because it deferred: both qualify a run as a capacity red but are never named in the
+  summary and never get a `CI failed: ci-ok` card.
 - **One decision, one place.** The capacity predicate lives in `scripts/ci-issue-triage`
   (`--capacity-json`) beside the red-job, milestone and area decisions, is pure, and is covered by the
   existing `--self-test`; `scripts/nightly-issue.sh` keeps only the `gh` calls.
@@ -42,9 +44,27 @@ None.
 
 ### Modified Capabilities
 
-- `ci-pipeline`: "Main-run failure reporting" gains the capacity-retry rule — a red run whose red jobs
-  never acquired a runner is retried once and reported only when the retry is spent, and its card names
-  the capacity cause.
+- `ci-pipeline`: "Main-run failure reporting" gains the capacity-retry rule — a run whose red jobs never
+  acquired a runner is retried once and never filed, the run's summary names the abandoned legs, and the
+  budget's last attempt says a rerun is the remedy.
+
+## Relationship to the unstarted-job rule (#922, PR #925)
+
+Card #922 reached the same run from the other side — the reporter should file no card for a job GitHub
+never gave a runner — and its pull request is open with a delta on this same requirement. The two cards
+agree on the outcome that matters, and the delta here is written as the union so that neither lands a spec
+that contradicts the other:
+
+- A job that never started files no card and gets no comment. #922 states that rule; this card adds that
+  the run's summary names the leg, and that a run whose red jobs are all such legs is retried once.
+- A `cancelled` job that reached at least one step stays red, and a document whose `steps` list is missing
+  stays red (fail closed). Both cards keep that.
+- The first draft of this card filed the card once the retry budget was spent. That contradicts #922's
+  rule, and the trade is not worth it: such a card sends a session after a step that never executed, while
+  the summary and the rerun already say what to do. The exhausted attempt exits clean instead.
+- The delta carries #922's scenarios (`A job no runner ever acquired files nothing`, `A cancellation that
+  started stays red`, `A real failure beside an unstarted job still files`), so main's requirement is
+  complete whichever pull request lands first and the later archive is a union rather than a hand edit.
 
 ## Impact
 
