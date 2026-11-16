@@ -8,7 +8,6 @@ The C# 15 / .NET 11 inventory in [`docs/dev/csharp-15.md`](../../../docs/dev/csh
 - **BREAKING** (for `dotnet tool` users): the `lunate` tool package is a `net11.0` framework-dependent tool and requires the .NET 11 runtime. The self-contained installers are unchanged and still install no runtime. The release note states the new requirement.
 - **BREAKING** (for an extension built elsewhere): `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`, `Lunate.Extensibility.Testing` and the `Lunate.Ai` / `Lunate.Ai.Decisions` assemblies `Lunate.Agent` carries each ship one `lib/net11.0` asset. The extension template's extension project moves to `net11.0` with its test project, so a copy shows what an extension for this host looks like.
 - The fixture solutions the gate restores move to `net11.0` with the repository, so an offline restore resolves against the pinned SDK's own targeting packs instead of packs the net10 build no longer pulls. The fixture whose subject is the multi-target shape writes that shape into its temporary copy at run time, so no committed project file declares two frameworks and the target-framework test reads the fixtures like any other project.
-- The `repo-foundation` Purpose names .NET 11 instead of .NET 10, so it agrees with the clean-build requirement. OpenSpec 1.14 has no lifecycle operation that rewrites an existing spec's Purpose — `openspec archive` treats the main spec's Purpose as authoritative and warns that the target file must be edited directly — so the change records the correction here and the one Purpose line is updated in place as that warning instructs.
 - Live scripts, docs and the OpenSpec project context name the new framework; the startup and memory budgets are re-measured on .NET 11 after the merge, as the maintainer's step (ADR-0005, ADR-0009), not as this change's evidence.
 
 ## Capabilities
@@ -19,7 +18,7 @@ _None._
 
 ### Modified Capabilities
 
-- `repo-foundation`: the clean-build contract moves from .NET 10 to .NET 11, its Purpose is brought into agreement with the requirements, and a new requirement pins one target framework for every project — fixtures included — with no multi-targeting.
+- `repo-foundation`: the clean-build contract moves from .NET 10 to .NET 11, and a new requirement pins one target framework for every project — fixtures included — with no multi-targeting.
 - `distribution`: the `dotnet tool` package requires the .NET 11 runtime and the release note says so.
 
 ## Impact
