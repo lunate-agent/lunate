@@ -9,7 +9,7 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `lunate-osx-arm64.tar.gz` | macOS Apple Silicon single-file binary (`lunate` at the archive root) |
 | `lunate-linux-x64.tar.gz` | Linux x86_64 binary |
 | `lunate-win-x64.zip` | Windows x64 binary (`lunate.exe`) |
-| `lunate.<version>.nupkg` | framework-dependent `dotnet tool` (package and command `lunate`) |
+| `lunate.<version>.nupkg` | framework-dependent `dotnet tool` (package and command `lunate`), `net11.0` tools asset — it needs the .NET 11 runtime; the archives beside it do not |
 | `Lunate.Extensions.Subagents.<version>.nupkg` | the reference subagents extension, installed with `lunate install Lunate.Extensions.Subagents` |
 | `Lunate.Contracts.<ExtensionApi.Current>[-rc.<n>].nupkg` | the message/tool contract half (versioned with `ExtensionApi`, not the tool; an RC tag publishes the `-rc.<n>` prerelease and only the final tag publishes the stable version) |
 | `Lunate.Extensibility.Abstractions.<ExtensionApi.Current>.nupkg` | the stable extension contract the template installs from NuGet |

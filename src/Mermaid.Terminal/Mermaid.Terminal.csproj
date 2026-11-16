@@ -5,7 +5,7 @@
             The renderer ships independently of Lunate: a host that knows nothing about the agent
             can parse a Mermaid fence and draw it. It references no Lunate project, by design
             (ADR-0039), and carries the product version like the other release packages. It keeps a
-            net10.0 asset beside the net11.0 one, like the extension packages (ADR-0041).
+            net10.0 asset beside the net11.0 one, like the extension packages (ADR-0040).
         -->
         <!--
             `TargetFrameworks` selects a cross-targeting build only when `TargetFramework` is

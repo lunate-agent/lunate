@@ -2,7 +2,7 @@
     <PropertyGroup>
         <!--
             The tool, the app and every first-party project target the runtime the pinned SDK ships,
-            so the C# 15 features that need its BCL (`union`, `closed`) compile here (ADR-0041).
+            so the C# 15 features that need its BCL (`union`, `closed`) compile here (ADR-0040).
             The extension contract packages are the exception and set their own
             `TargetFrameworks`: they keep a net10.0 asset so an extension built against the previous
             LTS keeps working.

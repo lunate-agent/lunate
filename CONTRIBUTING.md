@@ -37,12 +37,20 @@ metadata (licence, readme, repository) inside the `.nupkg` itself, formats (CSha
 change is not done until it is green — on the CI matrix, all three operating systems count.
 
 Prerequisite: the [.NET 11 SDK](https://dotnet.microsoft.com/download), pinned in
-[`global.json`](global.json) at 11.0.100 — exactly, as above. The product targets `net10.0`; the SDK
-pinned to build it is the newer one, and it needs the .NET 10 targeting packs, which the SDK fetches
-from a feed in a normal build. Running the built binary on a machine with no tool installed yet:
+[`global.json`](global.json) at 11.0.100 — exactly, as above. The product targets `net11.0`. The
+extension contract packages — `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`
+and `Mermaid.Terminal` — also build a `net10.0` asset, so the build needs the .NET 10 targeting
+packs too; the SDK fetches them from a feed in a normal build (ADR-0040).
+
+**An extension author needs the .NET 11 SDK to build and test, and a host on .NET 11 to run.** An
+extension itself may target `net11.0` or the previous LTS `net10.0`: the contract packages publish
+both assets with the same API, so an extension built against `net10.0` keeps loading. The extension
+template builds both so the floor stays proven on every gate run.
+
+Running the built binary on a machine with no tool installed yet:
 
 ```bash
-src/Lunate.Coding/bin/Release/net10.0/lunate --version   # lunate.exe on Windows
+src/Lunate.Coding/bin/Release/net11.0/lunate --version   # lunate.exe on Windows
 ```
 
 The release archives are self-contained single files; publish one the same way (Windows: `win-x64`,
@@ -57,7 +65,8 @@ artifacts/publish/osx-arm64/lunate
 
 To install your built tool locally instead of publishing it, pack it and install from that feed:
 `dotnet pack src/Lunate.Coding -c Release`, then `dotnet tool install --global --add-source
-<path-to-the-nupkg> lunate`.
+<path-to-the-nupkg> lunate`. The tool package is the `net11.0` asset, so it needs the .NET 11 runtime;
+the self-contained release archives do not.
 
 A docs-only or proposal-only pull request runs `bash scripts/verify.sh --profile docs` instead:
 markdownlint, `openspec validate --all --strict`, `scripts/docs-sync --check`,

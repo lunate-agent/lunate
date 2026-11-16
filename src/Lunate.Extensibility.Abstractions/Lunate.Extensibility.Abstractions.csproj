@@ -3,7 +3,7 @@
         <RootNamespace>Lunate.Extensibility.Abstractions</RootNamespace>
         <!--
             The extension contract. It keeps a `net10.0` asset beside the net11.0 one so an
-            extension built against the previous LTS keeps working (ADR-0041); the public API is the
+            extension built against the previous LTS keeps working (ADR-0040); the public API is the
             same on both, so it carries no union or closed type.
         -->
         <!--

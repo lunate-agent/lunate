@@ -9,6 +9,23 @@ the self-contained tool and app to `net11.0`, and to multi-target the extension-
 This is the inventory for step (a) of #192. It records what we want and what it costs; the
 target-framework change itself is step (b), and the refactor slices are step (c).
 
+## What step (b) did (ADR-0040)
+
+The target frameworks are in: the tool, the app, the self-contained binaries, the `dotnet tool`
+package and every first-party project target `net11.0`, with one `LangVersion` in
+`Directory.Build.props`. `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent` (and
+the `Lunate.Ai`/`Lunate.Ai.Decisions` assemblies it carries) and `Mermaid.Terminal` multi-target
+`net10.0;net11.0`, and the extension template builds both.
+
+Two consequences for the examples below. First, the tool package is the `net11.0` asset alone: the
+release note says the `dotnet tool` needs the .NET 11 runtime (the archives are self-contained), as
+decided in #192. Second, a multi-targeted project cannot use union types or closed hierarchies at
+all — the feature needs the `net11.0` BCL and the `net10.0` asset would fail with CS0518/CS0656 — so
+`Mermaid.Terminal`'s `SequenceStatement` (internal) and `MermaidRenderResult` (public) are not
+candidates while it keeps its `net10.0` asset, and no public type on a contract package may be one.
+The internally-scoped candidates that remain are `Lunate.Tui`'s `LiveArea`/`TranscriptEntry`, and
+step (c) takes them.
+
 ## How this was checked
 
 All probes used SDK `11.0.100` (`csc` 5.12.0) in throwaway projects. Each feature was compiled twice,

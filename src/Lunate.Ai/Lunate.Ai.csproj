@@ -3,7 +3,7 @@
         <!--
             Carried inside the `Lunate.Agent` package, so it follows the harness package's target
             frameworks: a net10.0 asset for an embedder still on the previous LTS, plus net11.0
-            (ADR-0041).
+            (ADR-0040).
         -->
         <!--
             `TargetFrameworks` selects a cross-targeting build only when `TargetFramework` is

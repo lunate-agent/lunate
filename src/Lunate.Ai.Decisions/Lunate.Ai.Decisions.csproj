@@ -4,7 +4,7 @@
         <IsPackable>false</IsPackable>
         <!--
             Carried inside the `Lunate.Agent` package through the harness, so it follows that
-            package's target frameworks (ADR-0041).
+            package's target frameworks (ADR-0040).
         -->
         <!--
             `TargetFrameworks` selects a cross-targeting build only when `TargetFramework` is
