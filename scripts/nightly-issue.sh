@@ -7,6 +7,14 @@
 # every job whose conclusion is red, and files one `kind/bug` card per job, or comments on the open card
 # for that job: a week of red runs for the same job is one card with comments, not seven cards.
 #
+# A job that never started files nothing. GitHub concludes a job it never acquired a hosted runner for as
+# `cancelled`, with `runner_id: 0` and an empty step list, and no change in this repository can fix that:
+# the remedy is a rerun, which an issue cannot carry out, so `scripts/ci-issue-triage` names the job and
+# the run link on stderr and this script says in the run log that the run is fixed by rerunning it (#922
+# filed a card for such a leg, and one for its twin on the same run). A run reddened only through such
+# jobs is a capacity red: whether it is retried before any card is filed is the capacity-retry rule's
+# business (#923), not this script's, and this script still names every abandoned leg.
+#
 # The card takes the lowest open version milestone (`0.5.0`, never `backlog`), read from the GitHub API
 # so it works on a runner that cannot see the lane's state; a release closes its milestone and the next
 # version becomes the target. The area label comes from the failing test's project, and only when it
@@ -110,9 +118,13 @@ job_log() {
 report() {
     local jobs_json="$1" repo="$2" run_url="$3" commit="$4" event="$5"
     local jobs job_id job title body existing area milestone log labels tmp
-    jobs="$(python3 "$TRIAGE" --jobs-json "$jobs_json")"
+    jobs="$(python3 "$TRIAGE" --jobs-json "$jobs_json" --run-url "$run_url")"
     if [ -z "$jobs" ]; then
-        echo "nightly-issue: no red job in the run; nothing to file" >&2
+        # Either the run was green, or every red job was one GitHub never acquired a runner for; the
+        # triage names those on stderr, each with the run link. A rerun is the remedy for the second
+        # case and no card can carry it out, so the red run says so here rather than in an issue that
+        # nothing can close.
+        echo "nightly-issue: nothing to file: no job in the run ran and did not pass; a job that never started is not a red job, and a run reddened by one is fixed by rerunning ${run_url}" >&2
         return 0
     fi
     tmp="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/nightly-issue.XXXXXX")"

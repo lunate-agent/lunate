@@ -8,7 +8,8 @@
 # failing test's project (`area/tui` for the theme-file failure that lived in the coding test project,
 # `area/core` for a coding test with no TUI in its source, none for a job that does not decide it, and
 # none when any failing test is outside the classified projects), an open card is commented on instead
-# of duplicated, and a green run calls nothing at all.
+# of duplicated, a job no runner ever acquired files nothing and is named with the run link, and a green
+# run calls nothing at all.
 
 set -euo pipefail
 
@@ -193,6 +194,16 @@ _expect_stderr() {
     fi
 }
 
+_expect_no_stderr() {
+    local name="$1" pattern="$2"
+    CASES=$((CASES + 1))
+    if grep -Fq -- "$pattern" "$tmp/err.log"; then
+        echo "self-test: FAIL: ${name}: stderr says '${pattern}'" >&2
+        sed 's/^/    /' "$tmp/err.log" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
 _defaults
 _run "a red nightly job creates one card" 0 \
     '{"jobs":[{"id":11,"name":"verify (windows-latest, 2/4)","conclusion":"failure"},{"id":12,"name":"plan","conclusion":"success"},{"id":13,"name":"perf (macos-latest)","conclusion":"skipped"}]}'
@@ -295,6 +306,53 @@ _defaults
 _run "a cancelled job is red" 0 \
     '{"jobs":[{"id":16,"name":"red-main-issue","conclusion":"cancelled"}]}'
 _expect_gh "a cancelled job is reported" "CI failed: red-main-issue"
+
+# A job that never got a hosted runner (#922): GitHub concludes it `cancelled` with `runner_id: 0` and an
+# empty step list, and its page says the runner was not acquired. Nothing ran, so nothing is filed; the
+# run log names it with the run link.
+_defaults
+CASE_EVENT="push"
+_run "a job no runner ever acquired files nothing" 0 \
+    '{"jobs":[{"id":20,"name":"perf (macos-latest)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":21,"name":"verify (macos-latest, 2/2)","conclusion":"success","runner_id":3,"steps":[{"name":"Set up job","conclusion":"success"}]}]}'
+CASES=$((CASES + 1))
+if [ -s "$tmp/gh.log" ]; then
+    echo "self-test: FAIL: an unstarted job called gh" >&2
+    sed 's/^/    /' "$tmp/gh.log" >&2
+    FAILURES=$((FAILURES + 1))
+fi
+_expect_stderr "the run names the job that never started" "perf (macos-latest): never started"
+_expect_stderr "the run links the job that never started" "perf (macos-latest): never started (no runner was acquired); no card is filed for it; rerun https://example.test/runs/1"
+_expect_stderr "the run says what to do instead of filing" "rerunning https://example.test/runs/1"
+
+# A cancellation that reached a step is a job that ran and did not pass, so it still files.
+_defaults
+_run "a cancelled job that started is red" 0 \
+    '{"jobs":[{"id":16,"name":"red-main-issue","conclusion":"cancelled","runner_id":7,"steps":[{"name":"Set up job","conclusion":"cancelled"}]}]}'
+_expect_gh "a started cancellation is reported" "CI failed: red-main-issue"
+
+# No steps is not enough on its own: a job cancelled by a superseding run also has an empty step list,
+# and it held a runner, so it is red and still files.
+_defaults
+_run "a cancellation by a superseding run is red" 0 \
+    '{"jobs":[{"id":23,"name":"verify (macos-latest, 2/2)","conclusion":"cancelled","runner_id":5,"steps":[]}]}'
+_expect_gh "the superseded cancellation is reported" "CI failed: verify (macos-latest, 2/2)"
+_expect_no_stderr "the superseded cancellation is not called unstarted" "never started"
+
+# The rule fails closed: without a runner id the document is not evidence that no runner was acquired.
+_defaults
+_run "a cancelled job with no runner_id stays red" 0 \
+    '{"jobs":[{"id":24,"name":"verify (ubuntu-latest, 4/4)","conclusion":"cancelled","steps":[]}]}'
+_expect_gh "a missing runner_id files a card" "CI failed: verify (ubuntu-latest, 4/4)"
+
+# The rule never swallows a real failure beside an unstarted job, and the mixed run's log still links
+# the abandoned leg so the red run is visible without a card.
+_defaults
+CASE_EVENT="push"
+_run "a real failure beside an unstarted job files exactly one card" 0 \
+    '{"jobs":[{"id":22,"name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":11,"name":"verify (windows-latest, 2/4)","conclusion":"failure","runner_id":4,"steps":[{"name":"Run the gate","conclusion":"failure"}]}]}'
+_expect_gh "the real failure is filed" "CI failed: verify (windows-latest, 2/4)"
+_expect_no_gh "the unstarted job is not filed" "CI failed: verify (macos-latest, 1/2)"
+_expect_stderr "the mixed run links the unstarted job" "verify (macos-latest, 1/2): never started (no runner was acquired); no card is filed for it; rerun https://example.test/runs/1"
 
 if [ "$FAILURES" -ne 0 ]; then
     echo "self-test: FAIL: ${FAILURES} of ${CASES} checks failed" >&2
