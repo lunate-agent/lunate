@@ -35,19 +35,26 @@ CodeQL schedule SHALL keep analyzing `main`.
 The checks whose result does not depend on the operating system — formatting, the generated
 documentation regions, the documentation link, anchor, redirect and navigation check
 (`scripts/docs-check --check`), markdownlint, the public API, `openspec validate --all --strict`, the
-scratch-path and spec-archive checks, and the packaging-file assertion — SHALL run once in a single
+scratch-path and spec-archive checks, the docs-tree guard (`scripts/no-docs-references.sh`) and the
+packaging-file assertion — SHALL run once in a single
 Linux job that the aggregate gate requires; an OS leg SHALL NOT repeat them. Each OS leg SHALL keep
 the checks whose result is a property of that machine: build, test, publish, the startup budget and
 the artifact proofs.
 
 The tree checks — ADR numbering, the spec-archive rule, the generated documentation regions, the
-documentation link, anchor, redirect and navigation check, and markdownlint — SHALL run in one job on
+documentation link, anchor, redirect and navigation check, the docs-tree guard, and markdownlint —
+SHALL run in one job on
 a `merge_group` run, judged against the batch's base commit. The batch is the first tree on which two
 pull requests meet, and each pull request proved only its own tree against its own base, so only the
 queue can see a rule both of them break together. The same command list SHALL be what the push to
 `main` runs, so the two triggers cannot drift. The job SHALL need no build and no test, and it SHALL
 take the batch's full history and its release tags, because the spec-archive check diffs the batch's
 range and the version region is derived from the tags.
+
+Because a docs-only push skips the matrix and a code pull request never runs the documentation
+profile, the docs-tree guard SHALL be part of the platform checks **and** of the shared tree-check
+command list: a test that reads the docs tree is red on the pull request that adds it, and the push
+that lands it cannot carry the failure unseen.
 
 Pushes that touch only documentation MAY skip the matrix but SHALL still run the documentation lint
 and the documentation link, anchor, redirect and navigation check.
@@ -121,6 +128,12 @@ and the documentation link, anchor, redirect and navigation check.
 - **GIVEN** a pull request that selects the full gate
 - **WHEN** the run completes
 - **THEN** the formatting, docs, public-API and OpenSpec checks ran in exactly one job, and each OS leg ran them zero times
+
+#### Scenario: A test that reads the docs tree is red before review
+- **GIVEN** a pull request that adds a test which opens a file under `docs/`
+- **WHEN** the pull request's full gate runs
+- **THEN** the platform checks fail naming the test's line, so the read is caught before review and
+  again by the tree checks on the push to `main`
 
 #### Scenario: A broken documentation link cannot land
 
@@ -840,3 +853,35 @@ SHALL be produced by one helper, so they cannot drift apart.
 - **WHEN** either writes its `NuGet.config`
 - **THEN** both texts come from the same helper, name no network source, and name the same fallback
   folder
+
+### Requirement: Docs-tree guard
+
+`scripts/no-docs-references.sh` SHALL fail when the docs tree becomes a build input or a test's
+subject: a project, props, targets or solution item that names a docs path; a test that resolves the
+repository root and names a docs path; or a `File`/`Directory` call on a docs path. It SHALL accept a
+docs reference that a test names without reading it — a value the test compares with or excludes from
+a scan — only through a committed allowance that names the file and the exact reference, and it SHALL
+print every allowance it applies, so an exception is never silent. Any other docs reference in that
+file, and any read call on the allowed line, SHALL still fail. It SHALL also accept an in-memory
+fixture path or a rendered value, printing that allowance, and SHALL fail when it scanned no test
+source at all, because a scan that finds nothing cannot fail.
+
+#### Scenario: A named but unread docs path is not a read
+- **GIVEN** a test that resolves the repository root and names `docs/dev/spikes` only as a directory its scan excludes
+- **WHEN** `scripts/no-docs-references.sh` runs
+- **THEN** it prints the allowance and passes, because the reference is never opened
+
+#### Scenario: A second docs path in the allowed file still fails
+- **GIVEN** the same test file also names another docs path
+- **WHEN** the guard runs
+- **THEN** it fails naming that line, so the allowance cannot hide a read
+
+#### Scenario: A read of the allowed reference fails
+- **GIVEN** a file in which the allowed reference appears inside a `File` or `Directory` call
+- **WHEN** the guard runs
+- **THEN** it fails with the read message, because a read is a read whatever the allowance names
+
+#### Scenario: The guard runs in the docs profile and the full gate
+- **GIVEN** the repository verification gate runs with `--profile docs`, `--profile full` or `--profile platform`
+- **WHEN** the gate reaches its docs checks
+- **THEN** `scripts/no-docs-references.sh` runs and a read it reports turns the run red
