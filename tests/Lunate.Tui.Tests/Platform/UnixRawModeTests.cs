@@ -1,6 +1,5 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
-using Lunate.Tui.Platform;
 
 namespace Lunate.Tui.Tests;
 

@@ -36,7 +36,7 @@ public sealed class NativeDecisionCompatibilityTests
         Assert.Equal(0.8, result.GetProperty("probabilities").GetProperty("yes").GetDouble());
         Assert.Equal("model-x", inner.Request!.ModelId);
         Assert.Equal(
-            Lunate.Ai.Decisions.DecisionQuestionKind.Noul,
+            Lunate.Ai.Decisions.DecisionQuestionKind.YesNo,
             inner.Request.Questions[0].Kind
         );
     }

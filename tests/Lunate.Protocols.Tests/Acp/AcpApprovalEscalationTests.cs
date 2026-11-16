@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Acp.Schema;
 using Lunate.Agent;
-using Lunate.Protocols.Acp;
 
 namespace Lunate.Protocols.Tests;
 

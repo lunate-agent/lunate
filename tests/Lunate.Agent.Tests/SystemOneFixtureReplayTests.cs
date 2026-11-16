@@ -19,7 +19,7 @@ public sealed class SystemOneFixtureReplayTests
             new DecisionQuestion(
                 "is_bug",
                 "Is this a bug?",
-                DecisionQuestionKind.Noul,
+                DecisionQuestionKind.YesNo,
                 ["yes", "no"]
             ),
             new DecisionQuestion(
@@ -85,7 +85,12 @@ public sealed class SystemOneFixtureReplayTests
 
         DecisionResult result = await client.GetDecisionAsync(
             CreateRequest(
-                new DecisionQuestion("q", "Is this true?", DecisionQuestionKind.Noul, ["yes", "no"])
+                new DecisionQuestion(
+                    "q",
+                    "Is this true?",
+                    DecisionQuestionKind.YesNo,
+                    ["yes", "no"]
+                )
             ),
             cancellationToken: TestContext.Current.CancellationToken
         );

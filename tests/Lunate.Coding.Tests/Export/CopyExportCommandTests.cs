@@ -1,7 +1,6 @@
 using Lunate.Agent;
 using Lunate.Ai;
 using Lunate.Protocols;
-using Lunate.Protocols.Acp;
 using Lunate.Tui;
 
 namespace Lunate.Coding.Tests;

@@ -2,7 +2,7 @@ using Acp.JsonRpc;
 using Acp.Schema;
 using Lunate.Agent;
 using Lunate.Coding;
-using Lunate.Protocols.Acp;
+using Lunate.Protocols;
 using ChatRole = Microsoft.Extensions.AI.ChatRole;
 using FunctionResultContent = Microsoft.Extensions.AI.FunctionResultContent;
 using IChatClient = Microsoft.Extensions.AI.IChatClient;

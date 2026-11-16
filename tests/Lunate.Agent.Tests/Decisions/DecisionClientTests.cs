@@ -61,7 +61,7 @@ public sealed class DecisionClientTests
                 new DecisionQuestion(
                     "secret-question",
                     "private question text",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
             ]
@@ -101,7 +101,7 @@ public sealed class DecisionClientTests
                 new DecisionQuestion(
                     "allow",
                     "Is this safe?",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
             ]

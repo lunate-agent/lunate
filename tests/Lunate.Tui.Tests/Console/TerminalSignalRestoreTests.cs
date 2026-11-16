@@ -1,5 +1,3 @@
-using Lunate.Tui.Platform;
-
 namespace Lunate.Tui.Tests;
 
 /// <summary>

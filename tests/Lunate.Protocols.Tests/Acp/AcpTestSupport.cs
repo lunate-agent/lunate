@@ -6,7 +6,7 @@ using Acp.JsonRpc;
 using Acp.Schema;
 using Acp.Streaming;
 using Lunate.Agent;
-using Lunate.Protocols.Acp;
+using Lunate.Protocols;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Protocols.Tests;

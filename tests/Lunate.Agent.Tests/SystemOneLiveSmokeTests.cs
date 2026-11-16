@@ -89,7 +89,7 @@ public sealed class SystemOneLiveSmokeTests
                 new DecisionQuestion(
                     "smoke",
                     "Does the message contain words?",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
             ]

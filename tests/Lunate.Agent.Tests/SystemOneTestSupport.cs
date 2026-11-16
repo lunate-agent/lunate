@@ -17,7 +17,7 @@ internal static class SystemOneDecisionTestData
                 new DecisionQuestion(
                     "safe",
                     "Is the call safe?",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
             ]

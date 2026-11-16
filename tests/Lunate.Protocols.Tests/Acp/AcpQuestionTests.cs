@@ -2,7 +2,6 @@ using Acp.Schema;
 using Lunate.Agent;
 using Lunate.Ai;
 using Lunate.Coding;
-using Lunate.Protocols.Acp;
 using FunctionResultContent = Microsoft.Extensions.AI.FunctionResultContent;
 using IChatClient = Microsoft.Extensions.AI.IChatClient;
 

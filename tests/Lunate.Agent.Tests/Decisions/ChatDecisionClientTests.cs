@@ -83,7 +83,7 @@ public sealed class ChatDecisionClientTests
                 new DecisionQuestion(
                     "risk",
                     "Is this risky?",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
             ]
@@ -132,7 +132,7 @@ public sealed class ChatDecisionClientTests
                 new DecisionQuestion(
                     "risk",
                     "Is this risky?",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"]
                 ),
             ]

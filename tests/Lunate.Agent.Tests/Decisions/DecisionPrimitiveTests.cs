@@ -31,6 +31,55 @@ public sealed class DecisionPrimitiveTests
     }
 
     [Fact]
+    public async Task A_duplicated_question_id_is_refused_before_a_model_call()
+    {
+        using JsonDocument state = JsonDocument.Parse("\"state\"");
+        var request = new DecisionRequest(
+            state.RootElement,
+            [
+                new DecisionQuestion("same", "One", DecisionQuestionKind.YesNo),
+                new DecisionQuestion("same", "Two", DecisionQuestionKind.YesNo),
+            ]
+        );
+        var client = new ScriptedChatClient();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            DecisionEngine.EvaluateAsync(
+                request,
+                client,
+                "decision-model",
+                "adapter",
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Empty(client.Requests);
+    }
+
+    [Fact]
+    public async Task An_empty_question_text_is_refused_before_a_model_call()
+    {
+        using JsonDocument state = JsonDocument.Parse("\"state\"");
+        var request = new DecisionRequest(
+            state.RootElement,
+            [new DecisionQuestion("empty", " ", DecisionQuestionKind.YesNo)]
+        );
+        var client = new ScriptedChatClient();
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            DecisionEngine.EvaluateAsync(
+                request,
+                client,
+                "decision-model",
+                "adapter",
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Empty(client.Requests);
+    }
+
+    [Fact]
     public async Task Several_questions_return_keyed_answers_from_one_exchange()
     {
         var client = new ScriptedChatClient().Enqueue(

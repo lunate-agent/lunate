@@ -10,7 +10,7 @@ public sealed class DecisionConfidenceTests
     [InlineData(0d, 1d)]
     [InlineData(0.5d, 0d)]
     [InlineData(1d, 1d)]
-    public async Task Noul_confidence_is_distance_from_half(double yesProbability, double expected)
+    public async Task YesNo_confidence_is_distance_from_half(double yesProbability, double expected)
     {
         string response = JsonSerializer.Serialize(
             new
@@ -30,7 +30,7 @@ public sealed class DecisionConfidenceTests
         );
 
         DecisionResult result = await client.GetDecisionAsync(
-            CreateRequest(DecisionQuestionKind.Noul, ["yes", "no"]),
+            CreateRequest(DecisionQuestionKind.YesNo, ["yes", "no"]),
             cancellationToken: TestContext.Current.CancellationToken
         );
 
@@ -60,7 +60,7 @@ public sealed class DecisionConfidenceTests
     [Fact]
     public async Task Adapter_and_native_confidence_match_for_the_same_distribution()
     {
-        DecisionRequest request = CreateRequest(DecisionQuestionKind.Noul, ["yes", "no"]);
+        DecisionRequest request = CreateRequest(DecisionQuestionKind.YesNo, ["yes", "no"]);
         using SystemOneRecordingHandler handler = new(
             """{"model":"jev-1.14","answers":{"q":{"type":"noul","noul":0.8}}}"""
         );

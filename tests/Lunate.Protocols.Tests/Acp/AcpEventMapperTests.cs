@@ -1,6 +1,6 @@
 using Acp.Schema;
 using Lunate.Agent;
-using Lunate.Protocols.Acp;
+using Lunate.Protocols;
 
 namespace Lunate.Protocols.Tests;
 

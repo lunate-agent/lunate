@@ -1,6 +1,6 @@
 using Lunate.Agent;
 using Lunate.Ai;
-using Lunate.Protocols.Acp;
+using Lunate.Protocols;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Coding.Tests;

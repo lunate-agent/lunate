@@ -1,5 +1,5 @@
 using Lunate.Ai;
-using Lunate.Protocols.Acp;
+using Lunate.Protocols;
 
 namespace Lunate.Coding.Tests;
 

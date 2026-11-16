@@ -82,7 +82,7 @@ public sealed class ModelRoutingDecisionTests
     }
 
     [Fact]
-    public async Task Noul_margin_at_threshold_routes_the_winning_profile()
+    public async Task YesNo_margin_at_threshold_routes_the_winning_profile()
     {
         DecisionRun run = await RunAsync(
             DecisionMode.Enforce,

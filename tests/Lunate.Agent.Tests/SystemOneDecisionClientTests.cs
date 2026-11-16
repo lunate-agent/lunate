@@ -26,7 +26,7 @@ public sealed class SystemOneDecisionClientTests
                 new DecisionQuestion(
                     "safe",
                     "Is the call safe?",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"],
                     new Dictionary<string, string>
                     {
