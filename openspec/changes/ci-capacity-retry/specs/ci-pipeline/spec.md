@@ -142,6 +142,12 @@ when it does not.
 - **WHEN** the reporter runs
 - **THEN** the run's job summary names neither job, and neither `CI failed: ci-ok` nor `CI failed: red-main-issue` is filed
 
+#### Scenario: A leg that never started is named beside the card a run files
+
+- **GIVEN** a red run in which `verify (macos-latest, 1/2)` was cancelled before any step started and `verify (ubuntu-latest, 2/4)` started a step and failed
+- **WHEN** the reporter runs
+- **THEN** it files the card for `verify (ubuntu-latest, 2/4)` and the run's job summary names `verify (macos-latest, 1/2)` with the run link
+
 #### Scenario: A job that ran is never retried away
 
 - **GIVEN** a red run in which at least one red job started a step and failed

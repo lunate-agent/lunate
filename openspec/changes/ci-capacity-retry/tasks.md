@@ -59,3 +59,15 @@
   exclusion.
 - [x] 5.5 Update `changes/924.md`, run `openspec validate --all --strict`, clear the archive and archive
   again as the last commit.
+
+## 6. Rework: the abandoned leg in an ordinary red's summary
+
+- [x] 6.1 Write the abandoned legs into `GITHUB_STEP_SUMMARY` with the run link on the ordinary path too,
+  so a run that files a card for a job that ran still names the leg it did not file, as the requirement
+  already said; `report` reads `--abandoned-json` before the red-job decision and the shared
+  `abandoned_lines` renders both summaries.
+- [x] 6.2 Test-first: the mixed-run case asserts the leg in the summary with the run link, the card for the
+  leg that ran, and no derived job or retry line in the summary (86 checks; the two summary checks failed
+  before the change).
+- [x] 6.3 `CONTRIBUTING.md` and `changes/924.md` say the summary names the leg also when another job that
+  ran is filed, and the delta gains the mixed-run scenario.

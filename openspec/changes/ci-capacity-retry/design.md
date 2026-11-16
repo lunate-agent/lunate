@@ -80,7 +80,9 @@ Boundaries and responsibilities, in prose:
 - `scripts/nightly-issue.sh` owns the `gh` calls and the run's own attempt number
   (`GITHUB_RUN_ATTEMPT`), so it decides "defer and fail" (the budget is unspent) versus "say the rerun is
   the remedy and exit clean" (the budget is spent). No capacity red is filed: a job that never started is
-  not a red job (#922), and the summary is where the run reports it.
+  not a red job (#922), and the summary is where the run reports it -- also in an ordinary red, where a
+  job that ran is filed as its own card: the card does not speak for the leg, so the run's summary names it
+  and the run link beside the card.
 - `.github/workflows/ci-capacity-retry.yml` owns the one side effect a run cannot perform on itself:
   requesting the rerun, gated on the same decision. It needs `actions: write`, which no other CI job holds.
 - `ci-ok` stays unchanged: it keeps requiring every leg of the plan's matrix, in whichever attempt it runs.
