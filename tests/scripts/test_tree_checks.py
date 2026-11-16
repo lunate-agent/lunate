@@ -1,7 +1,8 @@
-"""Pins the wiring of the cheap tree checks (#740, #854).
+"""Pins the wiring of the cheap tree checks (#740, #854, #929).
 
 The checks -- ADR numbering, the spec-archive rule, the generated docs regions, the docs
-link/navigation check and the docs lint -- need no build and no test. They run from two triggers:
+link/navigation check, the guard that no build input or test reads the docs tree, and the docs lint
+-- need no build and no test. They run from two triggers:
 
 - a push to `main`, because a docs-only push skips `ci.yml` entirely (its `paths-ignore`) and
   `verify-docs` is selected only for a *docs pull request*, so a defect in one of them stayed
@@ -34,6 +35,7 @@ CHECKS = {
     "spec changes are archived": "scripts/check-spec-archive.py",
     "generated docs regions": "scripts/docs-sync --check",
     "docs links and navigation": "scripts/docs-check --check",
+    "docs are not build inputs": "scripts/no-docs-references.sh",
     "docs lint": "markdownlint-cli2",
 }
 

@@ -366,7 +366,8 @@ sha256_file() {
 }
 
 # The steps that do not depend on the operating system: packaging files, formatting, the generated
-# docs regions, the link/navigation check, markdownlint, the two agent-hygiene checks, the public
+# docs regions, the link/navigation check, the guard that the docs tree is not a build input or a
+# test's subject, markdownlint, the two agent-hygiene checks, the public
 # API and — when the caller installed it — the OpenSpec tree. CI runs them once in the `platform`
 # job; an OS leg skips them
 # (VERIFY_SKIP_PLATFORM_CHECKS=1) because a second copy on every runner is cost, not depth. A local
@@ -415,6 +416,11 @@ platform_checks() {
   step "docs links and navigation"
   python3 "${SCRIPT_DIR}/docs-check" --self-test
   python3 "${SCRIPT_DIR}/docs-check" --check
+
+  # A code pull request never runs the docs profile, and the docs tree becoming a test's subject came
+  # from exactly such a pull request (#929), so the platform checks run the guard too.
+  step "docs are not build inputs"
+  bash "${SCRIPT_DIR}/no-docs-references.sh"
 
   step "docs lint"
   if ! command -v node >/dev/null 2>&1; then
