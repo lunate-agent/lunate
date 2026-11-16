@@ -7,7 +7,7 @@ targets `net11.0`, with no multi-targeting.
 
 This is the inventory for step (a) of #192: it records what we want and what it costs. Step (b), the
 target-framework change, is applied by #902 ([ADR-0041](../../adr/0041-net11-target-frameworks.md));
-the refactor slices are step (c).
+the refactor slices are step (c). The first of them, the TUI's live area input, is applied by #920.
 
 ## How this was checked
 
@@ -36,10 +36,11 @@ property and conversions.
 
 **Two real examples.**
 
-- [`LiveArea.cs`](../../src/Lunate.Tui/LiveArea.cs) — `LiveArea.LiveAreaInput` is a private abstract
-  record with more than a dozen sealed cases (`KeyInput`, `ResizeInput`, `SpinnerTick`,
-  `ApprovalInput`, …). A union removes the abstract base and the private-constructor ceremony, and the
-  one dispatch method becomes an exhaustive match over the cases.
+- [`LiveArea.cs`](../../src/Lunate.Tui/LiveArea.cs) — `LiveArea.LiveAreaInput` is a `private union`
+  over the live area's setter, tick and terminal inputs (`KeyInput`, `ResizeInput`, `SpinnerTick`,
+  `ApprovalInput`, …). It replaced a private abstract record with more than a dozen sealed cases
+  (#903, #920): the abstract base and the `: LiveAreaInput` clause on every case are gone, and the
+  reducer is one exhaustive match with no `default` arm.
 - [`SequenceParser.cs`](../../src/Mermaid.Terminal/SequenceParser.cs) — `SequenceStatement` is an
   internal abstract record with `SequenceMessage` and `SequenceNote`; `SequenceDraw` pattern-matches
   it. A union makes the two variants closed and deletes the base record.
