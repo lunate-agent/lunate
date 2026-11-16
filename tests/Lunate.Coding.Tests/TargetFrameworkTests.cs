@@ -10,28 +10,27 @@ namespace Lunate.Coding.Tests;
 /// first published library version.
 /// </summary>
 /// <remarks>
-/// The scan covers the folders that hold this repository's projects. A fixture under
-/// <c>tests/fixtures</c> models somebody else's repository and is data, so it is skipped; that is
-/// also why the multi-target fixture may keep its shape.
+/// The scan walks the whole repository, fixture projects included, so a fixture that declares a
+/// second framework fails it like any other project. Only the directories that hold somebody else's
+/// project or a record — an eval task under <c>eval/tasks</c>, a spike under <c>docs/dev/spikes</c> —
+/// are data and stay out, together with build output. A test that needs a multi-target input writes
+/// that shape into a temporary copy, so no project file in the tree declares one.
 /// </remarks>
 public sealed class TargetFrameworkTests
 {
     private const string TargetFramework = "net11.0";
 
-    private static readonly string[] ProjectRoots =
+    private static readonly string[] DataDirectories =
     [
-        "src",
-        "tests",
-        "extensions",
-        "samples",
-        "templates",
+        Path.Combine("docs", "dev", "spikes"),
+        Path.Combine("eval", "tasks"),
     ];
 
     [Fact]
     public void Every_project_targets_net11_without_multi_targeting()
     {
         string repository = RepositoryRoot.Find();
-        string[] violations = [.. ReadProjects(repository).SelectMany(ViolationsOf)];
+        string[] violations = [.. ProjectsIn(repository).SelectMany(ViolationsOf)];
 
         Assert.True(
             violations.Length == 0,
@@ -39,6 +38,38 @@ public sealed class TargetFrameworkTests
                 $"the repository targets {TargetFramework} only:{Environment.NewLine}{string.Join(Environment.NewLine, violations)}"
             )
         );
+    }
+
+    [Fact]
+    public void The_scan_reads_the_fixture_projects()
+    {
+        string repository = RepositoryRoot.Find();
+        string fixtures = Path.Combine(repository, "tests", "fixtures");
+        string[] projects = [.. ProjectsIn(repository)];
+
+        Assert.Contains(projects, project =>
+            project.StartsWith(fixtures + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void A_multi_targeting_fixture_fails_the_scan()
+    {
+        using var temp = new TempDirectory();
+        string fixture = Path.Combine(temp.Root, "tests", "fixtures", "multi-target");
+        Directory.CreateDirectory(fixture);
+        File.WriteAllText(
+            Path.Combine(fixture, "MultiTarget.csproj"),
+            "<Project Sdk=\"Microsoft.NET.Sdk\">"
+                + "<PropertyGroup><TargetFrameworks>net11.0;net11.0-windows</TargetFrameworks></PropertyGroup>"
+                + "</Project>"
+        );
+
+        string[] violations = [.. ProjectsIn(temp.Root).SelectMany(ViolationsOf)];
+
+        string violation = Assert.Single(violations);
+        Assert.Contains("MultiTarget.csproj", violation, StringComparison.Ordinal);
+        Assert.Contains("net11.0;net11.0-windows", violation, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -69,15 +100,9 @@ public sealed class TargetFrameworkTests
         }
     }
 
-    private static IEnumerable<string> ReadProjects(string repository) =>
-        ProjectRoots
-            .SelectMany(root =>
-                Directory.EnumerateFiles(
-                    Path.Combine(repository, root),
-                    "*.csproj",
-                    SearchOption.AllDirectories
-                )
-            )
+    private static IEnumerable<string> ProjectsIn(string repository) =>
+        Directory
+            .EnumerateFiles(repository, "*.csproj", SearchOption.AllDirectories)
             .Where(project => !IsData(repository, project))
             .OrderBy(project => project, StringComparer.Ordinal);
 
@@ -85,7 +110,12 @@ public sealed class TargetFrameworkTests
     {
         string relative = Path.GetRelativePath(repository, project);
         string[] segments = relative.Split(Path.DirectorySeparatorChar);
-        return segments.Any(segment => segment is "bin" or "obj")
-            || relative.StartsWith(Path.Combine("tests", "fixtures"), StringComparison.Ordinal);
+        return segments.Any(segment => segment is "bin" or "obj" or ".git" or "node_modules")
+            || DataDirectories.Any(directory =>
+                relative.StartsWith(
+                    directory + Path.DirectorySeparatorChar,
+                    StringComparison.Ordinal
+                )
+            );
     }
 }
