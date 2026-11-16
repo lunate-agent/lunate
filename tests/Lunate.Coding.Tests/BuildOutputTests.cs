@@ -24,10 +24,7 @@ public sealed class BuildOutputTests
         Assert.Equal(".NETCoreApp", target.FrameworkName.Split(',')[0]);
         string version = target.FrameworkName.Split("Version=v")[^1];
         Assert.Equal(
-            string.Create(
-                System.Globalization.CultureInfo.InvariantCulture,
-                $"net{version}"
-            ),
+            string.Create(System.Globalization.CultureInfo.InvariantCulture, $"net{version}"),
             BuildOutput.TargetFramework
         );
     }
