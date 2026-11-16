@@ -114,11 +114,11 @@ Layering is enforced, not just documented: an architecture test fails on any upw
 
 ## Tech stack
 
-Stick to .NET 10, Microsoft.Extensions.AI and a few well-known packages. No Native AOT: models and networks dominate latency, and JIT keeps runtime extensions, in-process Roslyn and every SDK available. Startup and memory are held by budgets instead.
+Stick to .NET 11, Microsoft.Extensions.AI and a few well-known packages. No Native AOT: models and networks dominate latency, and JIT keeps runtime extensions, in-process Roslyn and every SDK available. Startup and memory are held by budgets instead.
 
 | Concern | Choice | Project | Why |
 | --- | --- | --- | --- |
-| Runtime | .NET 10, C# 14, SDK pinned in `global.json` (the C# 15 inventory and target-framework recommendation are in [`csharp-15.md`](csharp-15.md)) | all | Current LTS |
+| Runtime | .NET 11, C# 15, SDK pinned in `global.json` (the decision is in [ADR-0041](../../adr/0041-net11-target-frameworks.md) and [`csharp-15.md`](csharp-15.md)) | all | Union and closed types need the `net11.0` BCL; everything targets `net11.0` and nothing multi-targets |
 | Release build | Self-contained single file, ReadyToRun, no single-file compression (ADR-0008); release archives are compressed, three targets | Lunate.Coding | One file, no runtime install, fast start |
 | Model access | `IChatClient`, `ChatMessage`, `ChatResponseUpdate` everywhere; no `FunctionInvokingChatClient` (the loop runs tools) | Lunate.Ai, Lunate.Agent | The .NET standard, maintained by Microsoft |
 | Providers | OpenAI-compatible via the Microsoft.Extensions.AI OpenAI adapter; Anthropic via the official `Anthropic` package and its first-party Microsoft.Extensions.AI adapter (`AsIChatClient`) | Lunate.Ai | One abstraction for every model |
@@ -288,7 +288,7 @@ MCP tools arrive from the SDK as functions and are wrapped as `ITool`s, so they 
 
 Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP and a possible web frontend later are thin mappings. Lunate-specific events are marked as extensions; in AG-UI they would travel as custom events. Check the AG-UI and ACP names against the pinned spec versions when writing the mappers.
 
-**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt, what each needs from `net11.0`, and the target-framework split; step (c) of #192 applies it, internal code first and the public contract last.
+**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The retarget is applied (#902, [ADR-0041](../../adr/0041-net11-target-frameworks.md)); the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt and what each needs, and step (c) of #192 applies the refactor, internal code first and the public contract last.
 
 | Lunate event | AG-UI | ACP | TUI |
 | --- | --- | --- | --- |
@@ -702,7 +702,7 @@ Self-contained single-file builds with ReadyToRun — no single-file compression
 
 - GitHub Releases with one archive per target, plus `install.sh` (`curl … | sh`) and `install.ps1` (`irm … | iex`).
 - Homebrew tap for macOS and Linux; Scoop bucket and winget manifest for Windows.
-- Optionally a `dotnet tool` package; .NET 10 a framework-dependent package for people who already have the .NET SDK.
+- Optionally a `dotnet tool` package; since #902 it is a framework-dependent `net11.0` package and requires the .NET 11 runtime, for people who already have the .NET SDK.
 
 **CI matrix**
 

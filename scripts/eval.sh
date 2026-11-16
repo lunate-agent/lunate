@@ -11,7 +11,7 @@ ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 TASKS_DIR="${ROOT}/eval/tasks"
 RESULTS_FILE="${LUNATE_EVAL_RESULTS:-${ROOT}/eval/results.csv}"
-DEFAULT_LUNATE_BIN="${ROOT}/src/Lunate.Coding/bin/Release/net10.0/lunate.dll"
+DEFAULT_LUNATE_BIN="${ROOT}/src/Lunate.Coding/bin/Release/net11.0/lunate.dll"
 
 MODEL=""
 FILTER=""
@@ -31,7 +31,7 @@ Usage: scripts/eval.sh --model <id> [--tool <lunate|claude|opencode|pi|tau>] [--
   --filter <task>     run one task by directory name
   --phase <n>         the phase column value (default: 3)
   --lunate-bin <path> the lunate build to run; a .dll is invoked via dotnet
-                      (default: src/Lunate.Coding/bin/Release/net10.0/lunate.dll)
+                      (default: src/Lunate.Coding/bin/Release/net11.0/lunate.dll)
   --keep              keep every task working copy, also on pass
 EOF
 }

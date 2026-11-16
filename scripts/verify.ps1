@@ -124,7 +124,7 @@ try {
     # Providers are compile-private to Lunate.Ai, but their runtime assets must reach
     # the app output or provider construction fails at run time.
     foreach ($assembly in @('Anthropic', 'OpenAI', 'Microsoft.Extensions.AI')) {
-        $asset = "src/Lunate.Coding/bin/$configuration/net10.0/${assembly}.dll"
+        $asset = "src/Lunate.Coding/bin/$configuration/net11.0/${assembly}.dll"
         if (-not (Test-Path $asset)) {
             throw "verify: ${assembly}.dll is missing from the Lunate.Coding build output"
         }

@@ -64,7 +64,7 @@ verify_shard_projects() {
 verify_shard_modules() {
   local project expr
   while IFS= read -r project; do
-    expr="${expr:+${expr};}${project%/*}/bin/${CONFIGURATION}/net10.0/$(basename "$project" .csproj).dll"
+    expr="${expr:+${expr};}${project%/*}/bin/${CONFIGURATION}/net11.0/$(basename "$project" .csproj).dll"
   done < <(verify_shard_projects)
   if [ -z "$expr" ]; then
     echo "shard ${SHARD_I}/${SHARD_N} owns zero test projects — reachable shards only" >&2

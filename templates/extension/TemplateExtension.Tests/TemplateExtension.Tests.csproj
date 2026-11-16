@@ -2,9 +2,10 @@
     <!--
         Same self-containedness as the extension project (#464): a copied template does not see
         the repository's Directory.Build.props, so the properties every SDK project needs live here.
+        Both projects target net11.0 (ADR-0041), so the extension and the kit that proves it agree.
     -->
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>

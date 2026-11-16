@@ -20,7 +20,7 @@ public sealed class WriteVerificationBudgetTests(ITestOutputHelper output)
     // direct-DLL Category=Perf run samples were 138.41, 84.32, 149.81, 107.33,
     // 274.33, 201.62, 342.78 ms; median 149.812 ms + 50% = 224.718 ms, rounded
     // up to the next 50 ms => 250 ms (below the 10000 ms cap).
-    // Command: dotnet tests/Lunate.Roslyn.Tests/bin/Release/net10.0/Lunate.Roslyn.Tests.dll -class Lunate.Roslyn.Tests.WriteVerificationBudgetTests -showLiveOutput
+    // Command: dotnet tests/Lunate.Roslyn.Tests/bin/Release/net11.0/Lunate.Roslyn.Tests.dll -class Lunate.Roslyn.Tests.WriteVerificationBudgetTests -showLiveOutput
 
     [Fact]
     [Trait("Category", "Perf")]
@@ -84,7 +84,7 @@ public sealed class WriteVerificationBudgetTests(ITestOutputHelper output)
         );
         Assert.True(sdk.Succeeded, sdk.Describe("could not determine the .NET SDK version"));
         output.WriteLine(
-            "calibration command: dotnet tests/Lunate.Roslyn.Tests/bin/Release/net10.0/Lunate.Roslyn.Tests.dll -class Lunate.Roslyn.Tests.WriteVerificationBudgetTests -showLiveOutput"
+            "calibration command: dotnet tests/Lunate.Roslyn.Tests/bin/Release/net11.0/Lunate.Roslyn.Tests.dll -class Lunate.Roslyn.Tests.WriteVerificationBudgetTests -showLiveOutput"
         );
         output.WriteLine(
             "gate command: dotnet test --project tests/Lunate.Roslyn.Tests/Lunate.Roslyn.Tests.csproj -c Release --no-build --filter-trait Category=Perf -nodeReuse:false"

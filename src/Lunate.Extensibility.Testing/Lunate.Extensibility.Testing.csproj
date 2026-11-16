@@ -2,7 +2,8 @@
     <!--
         Preview packaging (issue #237): the test kit ships so an extension author can test
         without this repository. PREVIEW — no API stability promise before 1.0, versioned
-        0.2.0-preview.<n>. Its project references to Lunate.Ai, Lunate.Extensibility,
+        0.2.0-preview.<n>. It references the tool graph, which is net11.0 like everything
+        else in the repository (ADR-0041). Its project references to Lunate.Ai, Lunate.Extensibility,
         Lunate.Extensibility.Remote and Lunate.Coding would otherwise become nuspec
         dependencies on packages that are not published (NuGet names every project reference
         as one): PrivateAssets="All" stops the flow and the PackOwnAssemblies target below
@@ -73,7 +74,7 @@
                     $(OutDir)Lunate.Roslyn.BuiltIn.dll;
                     $(OutDir)Lunate.Roslyn.dll
                 "
-                PackagePath="lib/net10.0"
+                PackagePath="lib/$(TargetFramework)"
             />
         </ItemGroup>
     </Target>

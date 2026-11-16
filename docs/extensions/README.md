@@ -73,8 +73,10 @@ contract as project references instead — the packages a feed serves may not ex
 release that publishes them, so the template switches on its own: a copy outside this
 repository gets the packages, a copy inside gets the projects, and `LunateUseNuGetContracts=true`
 forces the package shape (the verify gate does, against a feed of freshly packed packages). The
-template inherits its target framework, nullability and implicit usings from the repository's
-`Directory.Build.props`, so a project of your own declares those itself.
+template declares its target framework, nullability and implicit usings itself, so a project of
+your own declares those too. Both its projects target `net11.0`, like the host and the contract
+packages: the repository does not multi-target ([ADR-0041](../../adr/0041-net11-target-frameworks.md)),
+so an extension for this host is `net11.0` as well.
 
 The host owns `Lunate.Contracts` and `Lunate.Extensibility.Abstractions` — and `Lunate.Agent`,
 which ships as a preview package — and loads them once, so every extension binds to those copies.
@@ -148,8 +150,8 @@ resources belong in a registered background service or start on first use — se
 ```bash
 dotnet build -c Release
 mkdir -p ~/.lunate/extensions/hello
-cp bin/Release/net10.0/HelloExtension.dll \
-   bin/Release/net10.0/extension.json \
+cp bin/Release/net11.0/HelloExtension.dll \
+   bin/Release/net11.0/extension.json \
    ~/.lunate/extensions/hello/
 ```
 

@@ -45,7 +45,7 @@ SCRATCH=/tmp/lunate-media
 DEMO=/tmp/lunate-demo
 TRUST=/tmp/lunate-demo-trust
 DEMO_HOME=/tmp/lunate-demo-home
-BIN="${LUNATE_BIN:-$REPO/src/Lunate.Coding/bin/Release/net10.0/lunate}"
+BIN="${LUNATE_BIN:-$REPO/src/Lunate.Coding/bin/Release/net11.0/lunate}"
 export LUNATE_BIN="$BIN"
 PINNED_DATE=2026-10-18
 # The request digest of the thinking tape (see the fixture block below): the digest of that
@@ -68,7 +68,7 @@ write_demo_workspace() {
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -145,7 +145,7 @@ cp "$DEMO/demo.csproj" "$DEMO/TodoList.cs" "$DEMO/Program.cs" "$TRUST/"
 # The repo pins its SDK via global.json; build with the user install explicitly, not the
 # demo-coherent DOTNET_ROOT exported above.
 DOTNET_ROOT="$HOME/.dotnet" "$HOME/.dotnet/dotnet" build "$GATE_EXT/PermissionGateExtension.csproj" -c Release --nologo >/dev/null
-cp "$GATE_EXT"/bin/Release/net10.0/*.dll "$TRUST/.lunate/extensions/permission-gate/"
+cp "$GATE_EXT"/bin/Release/net11.0/*.dll "$TRUST/.lunate/extensions/permission-gate/"
 cp "$GATE_EXT/extension.json" "$TRUST/.lunate/extensions/permission-gate/"
 
 # --- the thinking tape's fixture: the committed 6.1 scripted reasoning fixture with the digest of

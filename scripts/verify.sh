@@ -511,7 +511,7 @@ verify_primary_before_tests() {
   # Providers are compile-private to Lunate.Ai, but their runtime assets must reach
   # the app output or provider construction fails at run time.
   for assembly in Anthropic OpenAI Microsoft.Extensions.AI; do
-    if [ ! -f "src/Lunate.Coding/bin/${CONFIGURATION}/net10.0/${assembly}.dll" ]; then
+    if [ ! -f "src/Lunate.Coding/bin/${CONFIGURATION}/net11.0/${assembly}.dll" ]; then
       echo "verify: ${assembly}.dll is missing from the Lunate.Coding build output" >&2
       exit 1
     fi
@@ -585,7 +585,7 @@ verify_test_phase() {
   else
     test_missing=""
     while IFS= read -r project; do
-      assembly="${project%/*}/bin/${CONFIGURATION}/net10.0/$(basename "$project" .csproj).dll"
+      assembly="${project%/*}/bin/${CONFIGURATION}/net11.0/$(basename "$project" .csproj).dll"
       if [ ! -f "$assembly" ]; then
         test_missing="${test_missing} ${assembly}"
       fi

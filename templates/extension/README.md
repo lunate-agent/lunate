@@ -11,7 +11,8 @@ as the place where your extension's behavior is proven.
 
 The two project files are self-contained: they declare `TargetFramework`, `ImplicitUsings` and
 `Nullable` themselves, so a copy builds outside this repository, where the repository's
-`Directory.Build.props` does not follow.
+`Directory.Build.props` does not follow. Both target `net11.0`, like the host and the contract
+packages: the repository does not multi-target, so an extension for this host is `net11.0` as well.
 
 ## Layout
 
