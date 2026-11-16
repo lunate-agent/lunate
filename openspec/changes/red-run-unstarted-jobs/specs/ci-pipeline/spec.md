@@ -9,13 +9,24 @@ and the run link, or comment on the already-open issue for that job instead of f
 reporter SHALL key the duplicate check on the job's title, so a week of red runs for the same failing
 job is one open card. A green run SHALL file nothing.
 
-A job that never started is not a red job: a job whose conclusion is `cancelled` and whose `steps` list
-is present and empty was never acquired by a runner, so the reporter SHALL file no card and post no
-comment for it, and SHALL say so in the run's own log, naming the job and the run link, so the red run
-is still visible. The rule SHALL NOT cover a job that ran and did not pass: a `cancelled` job that
-reached at least one step, a `failure`, a `timed_out` and every other red conclusion SHALL still file,
-and a job whose `steps` list is missing or unreadable SHALL be treated as red, so the rule fails closed
-instead of passing on a document it cannot read.
+A job that never started is not a red job of the repository's build or tests: a job whose conclusion is
+`cancelled`, whose `runner_id` is `0` and whose `steps` list is present and empty was never acquired by a
+runner, so the reporter SHALL treat it as not red, file no card and post no comment for it on the
+strength of this requirement, and SHALL name it, with the run link, in the run's own log, so the red run
+is still visible even when another job of the same run files. All three conditions SHALL hold, because
+each alone is ambiguous: a job cancelled by a superseding run also has no steps, and a started job can
+still report `runner_id: 0`. The rule SHALL NOT cover a job that ran and did not pass: a `cancelled` job
+that reached at least one step, a `failure`, a `timed_out` and every other red conclusion SHALL still
+file, and a job whose `steps` list or `runner_id` is missing or unreadable SHALL be treated as red, so the
+rule fails closed instead of passing on a document it cannot read.
+
+A run that is red only through such jobs is a capacity red. Its run-level reporting — whether the
+pipeline retries such a run once before any card is filed, and how a card that survives the retry is
+worded — is not decided by this requirement: the abandoned-job rule names the abandoned jobs and the run
+link and files nothing on its own account, and a capacity-retry rule, when one is added, sets the
+run-level behaviour before and after its budget; this requirement neither adds that rule nor forbids it.
+A run with at least one red job that ran and did not pass is an ordinary red, and the abandoned-job rule
+only narrows the set of jobs that file.
 
 The issue SHALL be placed in the lowest-numbered open milestone whose title is a version
 (`MAJOR.MINOR.PATCH`), read from the GitHub API so the rule works on a GitHub runner from repository
@@ -46,13 +57,13 @@ when it does not.
 
 #### Scenario: A job no runner ever acquired files nothing (#922)
 
-- **GIVEN** a `push` run on `main` whose `perf (macos-latest)` job concluded `cancelled` with an empty `steps` list, because the hosted runner was never acquired after multiple attempts
+- **GIVEN** a `push` run on `main` whose `perf (macos-latest)` job concluded `cancelled` with `runner_id: 0` and an empty `steps` list, because the hosted runner was never acquired after multiple attempts
 - **WHEN** the reporter runs
 - **THEN** it files no card and posts no comment for that job, and the run's log names the job and the run link
 
 #### Scenario: A run whose only red jobs never started files nothing
 
-- **GIVEN** a push run in which every red job concluded `cancelled` with an empty `steps` list
+- **GIVEN** a push run in which every red job concluded `cancelled` with `runner_id: 0` and an empty `steps` list
 - **WHEN** the reporter runs
 - **THEN** it creates and comments on no issue, and the run's log says the jobs never got a runner and that a rerun is the remedy
 
@@ -62,11 +73,17 @@ when it does not.
 - **WHEN** the reporter runs on each
 - **THEN** both file a card, because neither is evidence of a job that never started
 
+#### Scenario: A cancellation that held a runner stays red
+
+- **GIVEN** a job concluded `cancelled` with an empty `steps` list and `runner_id: 7`, as a superseding run leaves it, and a job concluded `cancelled` with an empty `steps` list and no `runner_id` at all
+- **WHEN** the reporter runs on each
+- **THEN** both file a card, because an empty step list alone is not evidence that no runner was acquired
+
 #### Scenario: A real failure beside an unstarted job still files
 
-- **GIVEN** a push run in which `verify (macos-latest, 1/2)` concluded `cancelled` with an empty `steps` list and `verify (windows-latest, 2/4)` failed
+- **GIVEN** a push run in which `verify (macos-latest, 1/2)` concluded `cancelled` with `runner_id: 0` and an empty `steps` list and `verify (windows-latest, 2/4)` failed
 - **WHEN** the reporter runs
-- **THEN** it files exactly one card, naming `verify (windows-latest, 2/4)`
+- **THEN** it files exactly one card, naming `verify (windows-latest, 2/4)`, and the run's log names `verify (macos-latest, 1/2)` together with the run link
 
 #### Scenario: The card takes the lowest open version milestone
 
