@@ -32,7 +32,10 @@ public sealed class AgentCancellationTests
         ToolCallResult result = Assert.Single(events.OfType<ToolCallResult>());
         Assert.True(result.IsError);
         Assert.Contains("cancelled by the user", result.Output);
-        Assert.Equal(StopReasons.Cancelled, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.Cancelled,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
 
         client.Enqueue(LoopScripts.Text("Recovered"), LoopScripts.Stop());
         await harness
@@ -68,7 +71,10 @@ public sealed class AgentCancellationTests
         Assert.Empty(EventSequenceValidator.Validate(events));
         Assert.Single(events.OfType<TextMessageStart>());
         Assert.Single(events.OfType<TextMessageEnd>());
-        Assert.Equal(StopReasons.Cancelled, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.Cancelled,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
     }
 
     [Fact]

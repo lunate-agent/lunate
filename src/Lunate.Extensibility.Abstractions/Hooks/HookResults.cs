@@ -92,10 +92,8 @@ public union TurnEndedResult(TurnEndedResult.None, TurnEndedResult.TurnEnded) : 
     public sealed record None : IHookResult;
 
     /// <summary>Session entries to append and an optional continuation request.</summary>
-    public sealed record TurnEnded(
-        IReadOnlyList<TurnEndedEntry> Entries,
-        bool RequestContinuation
-    ) : IHookResult;
+    public sealed record TurnEnded(IReadOnlyList<TurnEndedEntry> Entries, bool RequestContinuation)
+        : IHookResult;
 }
 
 /// <summary>The outcome of the compacting hook.</summary>

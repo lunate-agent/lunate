@@ -31,7 +31,10 @@ public sealed class ContractUnionTests
     public void Every_contract_set_is_a_union(Type union)
     {
         Assert.True(typeof(IUnion).IsAssignableFrom(union), $"{union.Name} is not a union.");
-        Assert.True(union.IsValueType, $"{union.Name} is not the union wrapper the contract declares.");
+        Assert.True(
+            union.IsValueType,
+            $"{union.Name} is not the union wrapper the contract declares."
+        );
         Assert.NotEmpty(Cases(union));
         Assert.All(Cases(union), @case => Assert.Same(union.Assembly, @case.Assembly));
     }
@@ -61,9 +64,8 @@ public sealed class ContractUnionTests
 
         Assert.NotEmpty(extensionCases);
         Assert.All(extensionCases, @case => Assert.Contains(@case, eventCases));
-        Assert.All(
-            extensionCases,
-            @case => Assert.True(typeof(ExtensionEventBase).IsAssignableFrom(@case))
+        Assert.All(extensionCases, @case =>
+            Assert.True(typeof(ExtensionEventBase).IsAssignableFrom(@case))
         );
     }
 
@@ -137,7 +139,8 @@ public sealed class ContractUnionTests
 
     /// <summary>One constructor per case type is how a union declares its case set.</summary>
     private static IEnumerable<Type> Cases(Type union) =>
-        union.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+        union
+            .GetConstructors(BindingFlags.Public | BindingFlags.Instance)
             .Where(constructor =>
                 constructor.GetParameters() is [var parameter]
                 && parameter.ParameterType != typeof(AgentEvent)

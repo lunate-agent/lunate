@@ -171,13 +171,41 @@ public static class RemoteConformance
         JsonElement entry = JsonDocument.Parse("""{"note":"remember"}""").RootElement.Clone();
         return
         [
-            new("ProjectTrustResult", Contract("ProjectTrust"), Box(new ProjectTrustResult.Allow())),
-            new("InputReceivedResult", Contract("InputReceived"), Box(new InputReceivedResult.PassThrough())),
-            new("RunStartingResult", Contract("RunStarting"), Box(new RunStartingResult.None())),
-            new("MessageCompletedResult", Contract("MessageCompleted"), Box(new MessageCompletedResult.Keep())),
-            new("ToolCallingResult", Contract("ToolCalling"), Box(new ToolCallingResult.Proceed(null))),
-            new("TurnEndedResult", Contract("TurnEnded"), Box(new TurnEndedResult.None())),
-            new("CompactingResult", Contract("Compacting"), Box(new CompactingResult.UseDefault())),
+            new(
+                "ProjectTrustResult",
+                Contract("ProjectTrust"),
+                Box<ProjectTrustResult>(new ProjectTrustResult.Allow())
+            ),
+            new(
+                "InputReceivedResult",
+                Contract("InputReceived"),
+                Box<InputReceivedResult>(new InputReceivedResult.PassThrough())
+            ),
+            new(
+                "RunStartingResult",
+                Contract("RunStarting"),
+                Box<RunStartingResult>(new RunStartingResult.None())
+            ),
+            new(
+                "MessageCompletedResult",
+                Contract("MessageCompleted"),
+                Box<MessageCompletedResult>(new MessageCompletedResult.Keep())
+            ),
+            new(
+                "ToolCallingResult",
+                Contract("ToolCalling"),
+                Box<ToolCallingResult>(new ToolCallingResult.Proceed(null))
+            ),
+            new(
+                "TurnEndedResult",
+                Contract("TurnEnded"),
+                Box<TurnEndedResult>(new TurnEndedResult.None())
+            ),
+            new(
+                "CompactingResult",
+                Contract("Compacting"),
+                Box<CompactingResult>(new CompactingResult.UseDefault())
+            ),
             new(
                 "ProjectTrustResult.Allow",
                 Contract("ProjectTrust"),

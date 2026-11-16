@@ -110,7 +110,10 @@ public sealed class AgentLimitsTests
         CostLimitReached limit = Assert.Single(events.OfType<CostLimitReached>());
         Assert.Equal(1m, limit.MaxCostUsd);
         Assert.Equal(1m, limit.SpendUsd);
-        Assert.Equal(StopReasons.CostLimit, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.CostLimit,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
     }
 
     [Fact]
@@ -156,7 +159,10 @@ public sealed class AgentLimitsTests
         TimeLimitReached limit = Assert.Single(events.OfType<TimeLimitReached>());
         Assert.Equal(TimeSpan.FromSeconds(5), limit.MaxTime);
         Assert.Equal(TimeSpan.FromSeconds(5), limit.Elapsed);
-        Assert.Equal(StopReasons.TimeLimit, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.TimeLimit,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
     }
 
     [Fact]
@@ -229,7 +235,10 @@ public sealed class AgentLimitsTests
 
         List<AgentEvent> events = await Run(harness);
 
-        Assert.Equal(StopReasons.TimeLimit, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.TimeLimit,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
         SessionExtensionEntry record = Assert.Single(
             session.Entries.OfType<SessionExtensionEntry>()
         );
@@ -292,7 +301,10 @@ public sealed class AgentLimitsTests
         // the limit counts the same amount the JSON stream reports as costUsd.
         CostLimitReached limit = Assert.Single(events.OfType<CostLimitReached>());
         Assert.Equal(1m, limit.SpendUsd);
-        Assert.Equal(StopReasons.CostLimit, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.CostLimit,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
     }
 
     [Fact]

@@ -12,31 +12,30 @@ declared can reach it at run time.
 
 ## What Changes
 
-- `AgentEvent` and `ExtensionEvent` become `closed` records. The set of event kinds becomes a
-  compile-time fact: a type outside `Lunate.Contracts` cannot add a kind, and a `switch` over an
-  event is checked for exhaustiveness (CS8509 instead of a silent fall-through).
+- `AgentEvent` and `ExtensionEvent` become C# 15 `union`s over the sealed event records. The set of
+  event kinds becomes a compile-time fact: a type outside `Lunate.Contracts` cannot add a kind, and a
+  `switch` over an event is checked for exhaustiveness (CS8509 instead of a silent fall-through).
 - The seven hook-result families — `ProjectTrustResult`, `InputReceivedResult`, `RunStartingResult`,
   `MessageCompletedResult`, `ToolCallingResult`, `TurnEndedResult`, `CompactingResult` — become
-  `closed` records for the same reason. `ContextBuildingResult` and `ToolResultReadyResult` are
-  single-shape results and stay as they are.
-- **No `union` type is introduced on the public contract**, and the decision, its measurements and
-  the shape rule are recorded as [ADR-0042](../../../adr/0042-contract-closed-sets.md). A union
-  wrapper was measured and rejected for these families: its `Value` is `object`, so it erases the
-  base record (the stamped `SessionId`/`ParentRunId`/`Source` on an event, the `IHookResult` marker
-  on a result), loses the record's value equality, cannot be deserialized by `System.Text.Json`
-  without a custom classifier — and the extensions spec requires every payload and result DTO to
-  round-trip through `System.Text.Json` — and buys no exhaustiveness that `closed` does not already
-  give.
-- **BREAKING** for an extension author: an extension can no longer declare a subclass of
-  `AgentEvent`, `ExtensionEvent` or a hook-result family. Nothing in `src/`, `extensions/`,
-  `samples/` or the template does this; the one place in the repository that did is a test whose
-  subject is the guarantee itself.
+  `union`s over their nested case records for the same reason. `ContextBuildingResult` and
+  `ToolResultReadyResult` are single-shape results and stay as they are.
+- The stamped state (`SessionId`, `ParentRunId`, `Source`) stays on the `AgentEventBase` record the
+  cases derive from, because a union declaration may not carry instance state; the union exposes it
+  and `Kind`, keeps the record's value equality and `ToString`, and ships an `OfType<T>` overload so
+  the repository's consumer idiom keeps working.
+- **The wire does not move**: the `--json` serializer and the hook `outcome` codec project the case,
+  so the discriminator and field names are identical, the golden session fixtures pass unchanged, and
+  no JSON type classifier is needed. The hook conformance inventory gains one sample per union
+  family.
+- **BREAKING** for an extension author: the event type is a struct, so compare by value and read
+  `Kind` where `GetType()` was used; nothing outside the contract can add a kind or an outcome.
+  Every type name, case name, constructor and marker is unchanged.
 - **Version note for extension authors** in `docs/extensions/README.md` and in the release notes:
-  the event and hook-result sets are closed, exhaustive matching is the intended way to read them,
-  and adding a case is a contract change that carries its own note and API version.
-- The C# 15 inventory ([`docs/dev/csharp-15.md`](../../../docs/dev/csharp-15.md)) and the
-  architecture guide stop calling `AgentEvent` the union candidate and record what was decided and
-  measured instead.
+  the event and hook-result sets are unions, matching them exhaustively is the intended shape, and
+  adding a case is a contract change that carries its own note and API version.
+- The decision is recorded as [ADR-0043](../../../adr/0043-contract-unions.md), which supersedes
+  [ADR-0042](../../../adr/0042-contract-closed-sets.md) and links both ways; the C# 15 inventory and
+  the architecture guide say what the code now does.
 
 ## Capabilities
 
@@ -46,26 +45,28 @@ _None._
 
 ### Modified Capabilities
 
-- `agent-events`: the closed event set is enforced by the compiler (`closed`), a kind outside the
+- `agent-events`: the closed event set is a union over the event records, a kind outside the
   contract is impossible, and a consumer's switch is exhaustive by construction.
-- `extensions`: the contract's closed sets (events and hook-result families) are closed in the
-  compiler, and a change to the set is a contract change with a version note for extension authors.
+- `extensions`: the contract's closed sets (events and hook-result families) are unions, their wire
+  is unchanged, and a change to the set is a contract change with a version note for extension
+  authors.
 
 ## Impact
 
-- Code: `src/Lunate.Contracts/AgentEvent.cs` (two type declarations),
-  `src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs` (seven type declarations), and the
-  one test that declared an out-of-contract event kind
-  (`tests/Lunate.Agent.Tests/AgentEventIdentityTests.cs`).
-- Public API: no member moves. `closed` is implicitly abstract and the analyzer reports the same
-  entries as for the `abstract` record it replaces (checked by building `Lunate.Contracts` and
-  `Lunate.Extensibility.Abstractions` with the PublicApiAnalyzers gate on). `ExtensionApi.Current`
-  stays `1.16.0`: that version is unpublished and this change rides it.
-- Tests: a new `ContractClosedSetTests` asserts the compiler marker on every family and that every
-  case is sealed; the unknown-kind scenario is re-expressed on a declared kind so the "a consumer
-  ignores an event kind it does not handle" requirement keeps its test.
-- Docs: `adr/0042-contract-closed-sets.md`, `docs/extensions/README.md`, `docs/dev/csharp-15.md`,
-  `docs/dev/guide.md`, the delta specs, and `changes/<pr>.md`.
+- Code: `src/Lunate.Contracts/AgentEvent.cs` (record bases, two unions, `OfType<T>` helper),
+  `src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs` (seven unions), the event channel and
+  the subagent runner (stamping through the record base), `ExtensionOnlyEventSink`, and the
+  `GetType()` call sites that moved to `Kind`.
+- Public API: the contract's event types and hook-result families change shape, so
+  `PublicAPI.Unshipped.txt` moves for `Lunate.Contracts`, `Lunate.Extensibility.Abstractions` and the
+  forwarding projects; the analyzer gate is green. `ExtensionApi.Current` stays `1.16.0`: that
+  version is unpublished and this change rides it.
+- Tests: `ContractUnionTests` asserts every family is a union over the contract's cases; the event
+  tests assert the union's kind set, stamped state, value equality and `OfType<T>`; the hook
+  conformance inventory covers each union family.
+- Docs: `adr/0043-contract-unions.md`, `adr/0042-contract-closed-sets.md` (superseded),
+  `docs/extensions/README.md`, `docs/dev/csharp-15.md`, `docs/dev/guide.md`, the delta specs, and
+  `changes/921.md`.
 - No new NuGet packages. No behaviour change in the loop, the wire or the JSON event stream.
 
 ## Intent decisions
@@ -73,37 +74,28 @@ _None._
 `grill-me` was run in self-answer mode; each question is answered from the card, the specs and the
 code.
 
-1. **Do the unions go public as `union` types?** No — the contract gets `closed` records, and that
-   is the decision this card was created to take. Measured on SDK 11.0.100: a union wrapper's `Value`
-   is `object`, so the family's base record is erased and the base is exactly what carries the
-   family's meaning here (the stamped run/session fields on an event, the `IHookResult` marker on a
-   result); `System.Text.Json` cannot deserialize a union without a custom classifier while the
-   extensions spec requires every result DTO to round-trip; and `closed` gives the same
-   compiler-checked case set with no shape change. ADR-0042 records the measurements.
-2. **Why not a union for `AgentEvent` if #899 calls it "the motivating case"?** Because the inventory
-   was written before the shape was measured. `AgentEvent` carries `SessionId`, `ParentRunId` and
-   `Source` as base-record init properties stamped centrally by the event channel, plus an
-   intermediate `ExtensionEvent` base that the mappers and the tool-only sink filter on. A union
-   wrapper has neither, so it would push three properties into 26 cases and delete the
-   classification. The inventory is corrected rather than followed.
-3. **Does every family become `closed`, or only some?** All nine types that head a closed set: the two
-   event bases and the seven hook-result families. `ContextBuildingResult` and
-   `ToolResultReadyResult` are single-shape records and have nothing to close.
-4. **Is this a breaking contract change?** Yes, for an extension that derives from one of these types;
-   it no longer compiles. Nothing in this repository outside one test does it, and the sets were
-   documented as closed/union-ready anyway, so the change publishes the rule that was already
-   intended. The version note states it for extension authors.
-5. **Does the API version move?** No. `ExtensionApi.Current` is `1.16.0` and unpublished; this change
-   rides that minor (ADR-0040 already announced the hooks minor). A later case addition is what the
-   note reserves for the next version.
-6. **Does the public API file change?** It was checked, not assumed: the projects build with
-   RS0016/RS0017 as errors and no entry moves, because `closed` is implicitly abstract and
-   PublicApiAnalyzers reports the same entries as for `abstract`. The answer is recorded in the
-   design and the release note rather than left implicit.
-7. **Does anything rely on the current open set?** One test declares `UnrecognizedEvent :
-   ExtensionEvent` to prove a consumer ignores an unknown kind. The requirement it tests (consumers
-   ignore kinds they do not handle) stays; the test is re-expressed on a declared kind plus a `_`
-   arm, because an out-of-contract kind is exactly what the change removes.
-8. **Is a union still allowed on the contract later?** Yes, by the same rule: a family whose cases are
-   otherwise unrelated types with no shared base and no shared state is union-shaped. Nothing on the
-   contract surface is today.
+1. **Do the unions go public as `union` types?** Yes — the card's decision. `AgentEvent`,
+   `ExtensionEvent` and the seven hook-result families are unions over their case records, and
+   ADR-0043 records the shape; ADR-0042's `closed` choice is superseded, not rewritten.
+2. **Where does the stamped state go, now that a union has no state?** On `AgentEventBase`, the
+   record the cases already derive from. A union declaration may not carry instance fields or
+   auto-properties (CS9373), so the channel and the subagent runner stamp `with` on the record and
+   convert to the union once; the union exposes the fields as computed properties.
+3. **How do the readers keep working?** `OfType<T>` over a union never matches, so the contract ships
+   an `OfType<T>(IEnumerable<AgentEvent>)` overload; `Kind` replaces `GetType()`; the union declares
+   record-based `Equals`/`GetHashCode`/`==` and delegates `ToString` to the case, so log lines and
+   fixture snapshots do not move.
+4. **Does the wire stay byte-identical?** Yes. No union is serialized as a union on any wire: the
+   `--json` serializer and the hook `outcome` codec build the JSON from the case, the golden session
+   fixtures pass unchanged, and the hook conformance round-trip covers every case and every family.
+5. **Is this a breaking contract change?** Yes for code that derived from a set or used
+   `GetType()`/reference identity on an event; the version note states it. Construction and matching
+   remain source-compatible.
+6. **Does the API version move?** No. `ExtensionApi.Current` is `1.16.0` and unpublished; this change
+   rides that minor. A later case addition is what the note reserves for the next version.
+7. **Does the public API file change?** Yes — a union exposes the wrapper, one constructor per case
+   and `Value` — and both contract projects build with RS0016/RS0017 as errors after the entries are
+   updated.
+8. **Does anything rely on the open set?** The one test that declared an out-of-contract event kind is
+   re-expressed on a declared kind, because an out-of-contract kind is exactly what the change
+   removes.

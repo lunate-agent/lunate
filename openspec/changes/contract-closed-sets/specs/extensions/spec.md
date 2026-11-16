@@ -1,44 +1,37 @@
 ## ADDED Requirements
 
-### Requirement: The contract's closed sets are closed in the compiler
+### Requirement: The contract's closed sets are unions
 
 The hook-result families that head a closed set — `ProjectTrustResult`, `InputReceivedResult`,
 `RunStartingResult`, `MessageCompletedResult`, `ToolCallingResult`, `TurnEndedResult` and
-`CompactingResult` — SHALL be declared `closed` records implementing `IHookResult`. Their case
-records SHALL stay the nested sealed records they are, so an extension author's construction surface
-(`new ToolCallingResult.Block(reason)`) and its matching surface (`is ToolCallingResult.Block`) are
-unchanged, and the host's dispatch switch SHALL be checked for exhaustiveness. `ContextBuildingResult`
-and `ToolResultReadyResult` are single-shape results and stay plain records.
+`CompactingResult` — SHALL be C# 15 `union`s implementing `IHookResult` over their case records. The
+cases SHALL stay the nested sealed records they are, each carrying the `IHookResult` marker, so an
+extension author's construction surface (`new ToolCallingResult.Block(reason)`) and its matching
+surface (`is ToolCallingResult.Block`) are unchanged, and the host's dispatch switch SHALL be checked
+for exhaustiveness. `ContextBuildingResult` and `ToolResultReadyResult` are single-shape results and
+stay plain records.
 
-The contract SHALL NOT use a C# `union` for these families. A union wrapper's `Value` is `object`,
-which erases the `IHookResult` marker and the families' value equality, turns `default` into a
-no-case value, and cannot be deserialized by `System.Text.Json` without a custom type classifier —
-while this specification requires every hook payload and result DTO to round-trip through
-`System.Text.Json`. [`adr/0042-contract-closed-sets.md`](../../../adr/0042-contract-closed-sets.md)
-records the measurements and the shape rule: a family whose cases are otherwise unrelated types with
-no shared base and no shared state is union-shaped; every family on the contract today has a base
-that carries its marker, its state or its case names, so it is `closed`-shaped.
+A union value SHALL NOT be serialized as a union on any wire: the remote protocol's `outcome` codec
+SHALL keep writing the case, so the hook JSON stays byte-identical, and no JSON type classifier SHALL
+be needed. The wire-conformance inventory SHALL cover each union family as well as each case.
+[`adr/0043-contract-unions.md`](../../../adr/0043-contract-unions.md) records the decision and
+supersedes [`adr/0042-contract-closed-sets.md`](../../../adr/0042-contract-closed-sets.md).
 
-Adding a case to a closed family SHALL be a contract change: it moves the API version and carries a
-version note for extension authors in `docs/extensions/`, because an extension's exhaustive switch
-is what the closed set buys.
+#### Scenario: A handler returns a case and the host matches the union
 
-#### Scenario: Every result family is closed in the compiler
+- **GIVEN** an extension whose tool-calling handler refuses a call
+- **WHEN** it answers with `new ToolCallingResult.Block("held")`
+- **THEN** the host's `switch` matches `ToolCallingResult.Block` and reads the reason
+
+#### Scenario: A hook result family is a union over its cases
 
 - **GIVEN** the contract assembly
-- **WHEN** the hook-result families are inspected
-- **THEN** each carries the compiler's closed-type marker, each implements `IHookResult`, and every
-  case is a sealed record nested in its family
+- **WHEN** a hook-result family is inspected
+- **THEN** it is a union whose case set is exactly the nested case records it declares, and every
+  case implements `IHookResult`
 
-#### Scenario: An extension's construction surface is unchanged
+#### Scenario: The hook wire is unchanged
 
-- **GIVEN** an extension handler that returns `new ToolCallingResult.Block("held")`
-- **WHEN** it compiles against the closed family
-- **THEN** it compiles unchanged and the host matches the case as before
-
-#### Scenario: A result DTO still round-trips through JSON
-
-- **GIVEN** a result of any declared family
-- **WHEN** it is written and read through the hook wire
-- **THEN** the hand-written codec round-trips it, because the family is a record and not a union
-  wrapper that `System.Text.Json` cannot classify
+- **GIVEN** a result of any declared case
+- **WHEN** it is encoded and decoded over the remote protocol
+- **THEN** the JSON is the `outcome` object with the case's fields, exactly as before

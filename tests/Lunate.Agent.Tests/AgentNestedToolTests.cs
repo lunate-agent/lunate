@@ -291,7 +291,10 @@ public sealed class AgentNestedToolTests
         List<AgentEvent> events = await run;
 
         Assert.Empty(EventSequenceValidator.Validate(events));
-        Assert.Equal(StopReasons.Cancelled, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.Cancelled,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
         ToolCallResult nested = Assert.Single(events.OfType<ToolCallResult>(), e =>
             e.CallId == "call_1/1"
         );

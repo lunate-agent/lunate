@@ -76,7 +76,10 @@ public sealed class AgentSteeringTests
 
         List<AgentEvent> events = await Run(harness);
 
-        Assert.Equal(StopReasons.StepLimit, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
+        Assert.Equal(
+            StopReasons.StepLimit,
+            Assert.IsType<RunFinished>(events[^1].Value).StopReason
+        );
         Assert.DoesNotContain(events, agentEvent => agentEvent is SteeringInjected);
         Assert.True(steering.TryDequeue(out string? leftover));
         Assert.Equal("too late", leftover);

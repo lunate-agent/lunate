@@ -277,7 +277,8 @@ public union AgentEvent(
 
     public override string ToString() => Value?.ToString() ?? typeof(AgentEvent).Name;
 
-    public override bool Equals(object? obj) => obj is AgentEvent other && Equals(Value, other.Value);
+    public override bool Equals(object? obj) =>
+        obj is AgentEvent other && Equals(Value, other.Value);
 
     public override int GetHashCode() => Value?.GetHashCode() ?? 0;
 
@@ -369,8 +370,7 @@ public union ExtensionEvent(
 
     public override int GetHashCode() => Value?.GetHashCode() ?? 0;
 
-    public static bool operator ==(ExtensionEvent left, ExtensionEvent right) =>
-        left.Equals(right);
+    public static bool operator ==(ExtensionEvent left, ExtensionEvent right) => left.Equals(right);
 
     public static bool operator !=(ExtensionEvent left, ExtensionEvent right) =>
         !left.Equals(right);
@@ -418,5 +418,6 @@ public static class AgentEventExtensions
 
     /// <summary>The first event whose concrete record is <typeparamref name="T"/>, or null.</summary>
     public static T? FirstOrDefaultOfType<T>(this IEnumerable<AgentEvent> events)
-        where T : AgentEventBase => events.Select(agentEvent => agentEvent.Value).OfType<T>().FirstOrDefault();
+        where T : AgentEventBase =>
+        events.Select(agentEvent => agentEvent.Value).OfType<T>().FirstOrDefault();
 }
