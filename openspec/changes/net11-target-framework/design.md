@@ -48,7 +48,11 @@ package). None fixes a target framework.
    cross-targeting path (an outer build per project) for no gain, and the single-target projects are
    the majority. *Why the explicit clearing line:* MSBuild only sets `IsCrossTargetingBuild` when
    `TargetFramework` is empty; without the clear the project builds one framework and `pack` fails
-   later with NU5026 — a failure far from its cause, so each file carries the comment.
+   later with NU5026 — a failure far from its cause, so each file carries the comment. The extension
+   template is the one multi-targeted project that publishes nothing: it declares both frameworks to
+   prove the floor, so it needs the same clearing line, and the solution build (`lunate.slnx` lists
+   it) is what compiles both assets. `ExtensionTemplateTests` pins the clear, because a template that
+   inherits `net11.0` still builds green while proving nothing about `net10.0`.
 
 2. **`LangVersion 15.0` at the repository level.** Targeting `net11.0` selects C# 15 anyway; the
    multi-targeted projects need it because they still build a `net10.0` asset. A fixed version (not
@@ -129,4 +133,4 @@ not a data migration.
 
 None. The two decisions that could have opened one — dropping `net10.0` from the contract packages, and
 a `net10.0` tool asset — are explicitly out of scope per #192's decision and are recorded as such in
-ADR-0040 and above.
+ADR-0041 and above.

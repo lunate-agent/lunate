@@ -7,6 +7,13 @@
     -->
     <PropertyGroup>
         <!--
+            `TargetFrameworks` selects a cross-targeting build only when `TargetFramework` is empty,
+            and Directory.Build.props sets it for every project in this repository: clear the
+            inherited value here, or the template silently builds one framework alone and the
+            solution build stops proving the compatibility floor.
+        -->
+        <TargetFramework></TargetFramework>
+        <!--
             An extension compiles against the contract package's own assets, so the template builds
             for both: net10.0 is the previous LTS and the compatibility floor, net11.0 the current
             one. A copied template therefore proves, by building, that the extension it produces

@@ -28,18 +28,27 @@ projects that build a single target.
 
 ### Requirement: Which projects may target more than one framework
 
-A project SHALL build more than one target framework only when it is an extension-facing published
-package: `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`, `Lunate.Ai` and
-`Lunate.Ai.Decisions` (the two assemblies the `Lunate.Agent` package carries) and `Mermaid.Terminal`.
-Every other project SHALL build the single `net11.0` target. A multi-targeted project SHALL clear
-the inherited `TargetFramework` before declaring its `TargetFrameworks`, because MSBuild only takes
-the cross-targeting path when `TargetFramework` is empty.
+A project SHALL build more than one target framework only when it is extension-facing: one of the
+published packages — `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`,
+`Lunate.Ai` and `Lunate.Ai.Decisions` (the two assemblies the `Lunate.Agent` package carries) and
+`Mermaid.Terminal` — or the extension template, `templates/extension/TemplateExtension`, which
+publishes nothing and builds both frameworks to prove the `net10.0` floor. Every other project
+SHALL build the single `net11.0` target. A multi-targeted project SHALL clear the inherited
+`TargetFramework` before declaring its `TargetFrameworks`, because MSBuild only takes the
+cross-targeting path when `TargetFramework` is empty.
 
 #### Scenario: A multi-targeted project builds every declared asset
 
 - **GIVEN** a project that declares `net10.0;net11.0`
 - **WHEN** it is built or packed
 - **THEN** the output carries one compiled asset per declared framework and `pack` succeeds
+
+#### Scenario: The extension template is the one multi-targeted project that publishes nothing
+
+- **GIVEN** `templates/extension/TemplateExtension`, which the solution lists
+- **WHEN** the solution builds
+- **THEN** the template compiles for `net10.0` and for `net11.0`, and the build publishes no
+  package for it
 
 #### Scenario: A project that forgets to clear the inherited framework fails
 

@@ -115,9 +115,10 @@ public sealed class ExtensionTemplateTests
     }
 
     /// <summary>
-    /// Every reference resolves to a project that exists. The template lives outside the solution,
-    /// so nothing else builds it: a moved or renamed project would otherwise leave a copy-pasted
-    /// template failing to restore, with the page showing the same broken paths.
+    /// Every reference resolves to a project that exists. The solution build would fail on a broken
+    /// reference too, but only after building everything: this test names the include and the path
+    /// it resolves to, so a moved or renamed project reads as what it is — a copy-pasted template
+    /// that cannot restore, with the page showing the same broken paths.
     /// </summary>
     [Fact]
     public void Every_template_reference_resolves_to_a_project()
@@ -176,6 +177,31 @@ public sealed class ExtensionTemplateTests
             "templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj",
             projects,
             StringComparer.Ordinal
+        );
+    }
+
+    /// <summary>
+    /// The template proves the compatibility floor by compiling for both frameworks, and MSBuild
+    /// only takes the cross-targeting path when <c>TargetFramework</c> is empty. Inside this
+    /// repository <c>Directory.Build.props</c> sets that property for every project, so a template
+    /// that declares <c>TargetFrameworks</c> without clearing the inherited value builds
+    /// <c>net11.0</c> alone: the solution build stays green while the <c>net10.0</c> floor is no
+    /// longer compiled anywhere (repo-foundation, "Which projects may target more than one
+    /// framework").
+    /// </summary>
+    [Fact]
+    public void The_template_clears_the_inherited_framework_so_both_assets_build()
+    {
+        XDocument document = XDocument.Load(TemplateProject());
+
+        XElement frameworks = Assert.Single(document.Descendants("TargetFrameworks"));
+        Assert.Equal("net10.0;net11.0", frameworks.Value.Trim());
+
+        XElement inherited = Assert.Single(document.Descendants("TargetFramework"));
+        Assert.True(
+            string.IsNullOrWhiteSpace(inherited.Value),
+            "the template declares TargetFrameworks, so it must clear the TargetFramework that "
+                + "Directory.Build.props sets: MSBuild only cross-targets when it is empty"
         );
     }
 
