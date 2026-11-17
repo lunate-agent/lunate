@@ -131,7 +131,7 @@ public sealed class AgentCompactionReasoningTests
 
         List<AgentEvent> events = await AgentTestSupport.Run(scenario.Harness);
 
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
         Assert.Empty(EventSequenceValidator.Validate(events));
     }
 

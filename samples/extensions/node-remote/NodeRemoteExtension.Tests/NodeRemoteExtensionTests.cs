@@ -72,7 +72,7 @@ public sealed class NodeRemoteExtensionTests
             Ct
         );
 
-        var block = Assert.IsType<ToolCallingResult.Block>(blocked);
+        var block = Assert.IsType<ToolCallingResult.Block>(blocked.Value);
         Assert.Contains(
             host.WorkingDirectory,
             block.Reason,
@@ -91,7 +91,7 @@ public sealed class NodeRemoteExtensionTests
             ),
             Ct
         );
-        Assert.IsType<ToolCallingResult.Proceed>(proceeded);
+        Assert.IsType<ToolCallingResult.Proceed>(proceeded.Value);
 
         // The extension's registered service answers a host call through the registry.
         Assert.True(host.Runner.Services.TryGet("echo", out IBackgroundService? registered));

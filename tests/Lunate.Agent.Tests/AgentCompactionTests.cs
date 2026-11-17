@@ -341,7 +341,7 @@ public sealed class AgentCompactionTests
         Assert.Contains(client.Requests[1].Messages, message =>
             message.Text.StartsWith("one x", StringComparison.Ordinal)
         );
-        Assert.IsType<RunFinished>(events[^1]);
+        Assert.IsType<RunFinished>(events[^1].Value);
     }
 
     [Fact]

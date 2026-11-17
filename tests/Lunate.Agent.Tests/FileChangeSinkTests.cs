@@ -55,7 +55,7 @@ public sealed class FileChangeSinkTests
 
         List<AgentEvent> events = await Run(harness);
 
-        string runId = Assert.IsType<RunStarted>(events[0]).RunId;
+        string runId = Assert.IsType<RunStarted>(events[0].Value).RunId;
         FileChangeEvent change = Assert.Single(sink.Events);
         Assert.Equal("/work/a.cs", change.AbsolutePath);
         Assert.Equal("a.cs", change.RelativePath);

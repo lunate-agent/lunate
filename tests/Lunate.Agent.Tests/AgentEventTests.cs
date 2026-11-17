@@ -59,7 +59,7 @@ public sealed class AgentEventTests
     [Theory]
     [MemberData(nameof(ExtensionEvents))]
     public void Extension_events_are_identifiable_as_extensions(AgentEvent extensionEvent) =>
-        Assert.IsAssignableFrom<ExtensionEvent>(extensionEvent);
+        Assert.IsAssignableFrom<ExtensionEventBase>(extensionEvent.Value);
 
     [Fact]
     public void Core_events_are_not_extensions()
@@ -67,8 +67,8 @@ public sealed class AgentEventTests
         AgentEvent started = new RunStarted(RunId);
         AgentEvent result = new ToolCallResult(RunId, "call_1", "out", IsError: false);
 
-        Assert.False(started is ExtensionEvent);
-        Assert.False(result is ExtensionEvent);
+        Assert.False(started.Value is ExtensionEventBase);
+        Assert.False(result.Value is ExtensionEventBase);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class AgentEventTests
         [
             .. typeof(AgentEvent)
                 .Assembly.GetTypes()
-                .Where(type => typeof(AgentEvent).IsAssignableFrom(type) && !type.IsAbstract),
+                .Where(type => typeof(AgentEventBase).IsAssignableFrom(type) && !type.IsAbstract),
         ];
 
         Assert.Equal(27, concreteTypes.Length);
@@ -90,9 +90,20 @@ public sealed class AgentEventTests
     [Fact]
     public void The_event_set_is_closed_by_concrete_types_only()
     {
-        Assert.True(typeof(AgentEvent).IsAbstract);
-        Assert.DoesNotContain(typeof(AgentEvent).Assembly.GetTypes(), type =>
-            typeof(AgentEvent).IsAssignableFrom(type) && type.IsInterface
+        // The union over the sealed records is what closes the set: an assembly outside the
+        // contract cannot add a kind, and a consumer's switch is exhaustive (ADR-0043).
+        Assert.True(
+            typeof(System.Runtime.CompilerServices.IUnion).IsAssignableFrom(typeof(AgentEvent))
+        );
+        Assert.All(
+            typeof(AgentEvent)
+                .GetConstructors()
+                .Select(constructor => constructor.GetParameters()[0].ParameterType),
+            caseType =>
+            {
+                Assert.True(caseType.IsSealed, $"{caseType.Name} must be sealed");
+                Assert.Same(typeof(AgentEvent).Assembly, caseType.Assembly);
+            }
         );
     }
 

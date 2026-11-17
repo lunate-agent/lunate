@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.AgentEvent))]
+[assembly: TypeForwardedTo(typeof(Lunate.Agent.AgentEventBase))]
+[assembly: TypeForwardedTo(typeof(Lunate.Agent.AgentEventExtensions))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.ApprovalRequested))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.CompactionApplied))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.CostLimitReached))]
@@ -8,6 +10,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.DecisionFailed))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.DecisionUnavailable))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.ExtensionEvent))]
+[assembly: TypeForwardedTo(typeof(Lunate.Agent.ExtensionEventBase))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.FileChangeEvent))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.FileChangeKind))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.FileMutationQueue))]

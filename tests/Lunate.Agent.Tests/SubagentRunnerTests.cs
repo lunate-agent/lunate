@@ -65,7 +65,7 @@ public sealed class SubagentRunnerTests
         string childRunId = Assert.Single(childEvents.OfType<RunStarted>()).RunId;
         Assert.All(childEvents, childEvent => Assert.Equal(childRunId, childEvent.RunId));
         Assert.Equal("child answer", events.OfType<ToolCallResult>().Single().Output);
-        RunFinished parentFinish = Assert.IsType<RunFinished>(events[^1]);
+        RunFinished parentFinish = Assert.IsType<RunFinished>(events[^1].Value);
         Assert.Equal(StopReasons.Stop, parentFinish.StopReason);
 
         SessionChildSessionEntry link = Assert.Single(

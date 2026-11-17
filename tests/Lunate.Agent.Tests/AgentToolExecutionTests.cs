@@ -28,7 +28,7 @@ public sealed class AgentToolExecutionTests
             new ToolCallEnd(events[0].RunId, "call_1"),
             new ToolCallResult(events[0].RunId, "call_1", "file contents", IsError: false)
         );
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
 
         Assert.Equal("""{"path":"a.txt"}""", tool.ReceivedArgsRaw);
         Assert.NotNull(tool.ReceivedContext);
@@ -92,7 +92,7 @@ public sealed class AgentToolExecutionTests
         Assert.Empty(EventSequenceValidator.Validate(events));
         Assert.Equal(3, client.Requests.Count);
         Assert.Equal(2, events.OfType<ToolCallResult>().Count());
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
     }
 
     [Fact]
