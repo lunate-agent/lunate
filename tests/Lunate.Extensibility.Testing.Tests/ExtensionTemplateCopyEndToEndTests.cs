@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using Lunate.Agent;
 using Lunate.Ai;
 using Lunate.Extensibility.Testing;
@@ -101,6 +102,34 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         Assert.Contains(result.Events.OfType<RunFinished>(), finished =>
             finished.StopReason == StopReasons.Stop
         );
+    }
+
+    /// <summary>
+    /// The configuration this test restores through is XML, and a feed path is not: a temp directory
+    /// may hold <c>&amp;</c> (Windows allows it in a profile path) or <c>&lt;</c> (valid on Unix),
+    /// and written raw the file is malformed XML, which makes the restore fail before it proves
+    /// anything (#936). Written as an XML attribute, the document parses and reads the path back
+    /// unchanged.
+    /// </summary>
+    [Fact]
+    public void The_configuration_escapes_a_feed_path_xml_cannot_carry_raw()
+    {
+        using var temp = new TempDirectory();
+        string feed = Path.Combine(temp.Root, "a&b<c>d\"e'f");
+
+        string config = WriteNuGetConfig(temp.Root, feed);
+
+        XDocument document = XDocument.Load(config);
+        string? mapped = document
+            .Element("configuration")
+            ?.Element("packageSources")
+            ?.Elements("add")
+            .FirstOrDefault(element => (string?)element.Attribute("key") == "packed")
+            ?.Attribute("value")
+            ?.Value;
+
+        Assert.Equal(feed, mapped);
+        Assert.Contains("&amp;", File.ReadAllText(config), StringComparison.Ordinal);
     }
 
     private const string Configuration = "Release";
@@ -234,7 +263,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             <configuration>
               <packageSources>
                 <clear />
-                <add key="packed" value="{feed.Replace("&", "&amp;", StringComparison.Ordinal)}" />
+                <add key="packed" value="{XmlAttribute(feed)}" />
                 <add key="nuget.org" value="{NuGetOrg}" />
               </packageSources>
               <packageSourceMapping>
@@ -251,6 +280,19 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         );
         return path;
     }
+
+    /// <summary>
+    /// XML attribute encoding of the five characters an attribute cannot carry raw, <c>&amp;</c>
+    /// first so the entities the others write survive. Parity with <c>xml_attribute</c> in
+    /// <c>scripts/verify.sh</c> and <c>ConvertTo-XmlAttribute</c> in <c>scripts/verify.ps1</c>.
+    /// </summary>
+    private static string XmlAttribute(string value) =>
+        value
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("'", "&apos;", StringComparison.Ordinal);
 
     private static string CopyTemplate(string repository, string destination)
     {

@@ -78,6 +78,17 @@ try {
         throw 'verify: bash is required to run scripts/check-package-metadata.sh; install Git Bash (Windows) or run the bash gate'
     }
 
+    # A feed path is written into an XML attribute of the nuget.config files the roundtrips hand
+    # `dotnet restore`, and a temp path may carry `&` (Windows allows it in a profile path) or `<`
+    # (valid on Unix): raw, the file is malformed XML and the restore fails before it can prove
+    # anything (#936). This is XML attribute encoding of the five characters an attribute may not
+    # carry raw, `&` first so the entities the others write survive. Parity with xml_attribute in
+    # scripts/verify.sh.
+    function ConvertTo-XmlAttribute {
+        param([string]$Value)
+        return $Value.Replace('&', '&amp;').Replace('<', '&lt;').Replace('>', '&gt;').Replace('"', '&quot;').Replace("'", '&apos;')
+    }
+
     # Fails when the packed .nupkg cannot render a complete feed page (licence, readme,
     # repository). The rule lives in one script so bash and PowerShell cannot disagree about what
     # "complete metadata" means: 0.1.0 shipped with "License missing" and "Readme missing", and an
@@ -325,6 +336,9 @@ try {
     # against nuget.org, so a layout change fails on every commit instead of at a tag.
     $packageTmp = Join-Path ([System.IO.Path]::GetTempPath()) ('lunate-verify-package-' + [guid]::NewGuid().ToString('N'))
     $packageFeed = Join-Path $packageTmp 'feed'
+    # Both land in XML attributes of the configuration below, so both are attribute-escaped first.
+    $packageFeedXml = ConvertTo-XmlAttribute ($packageFeed -replace '\\', '/')
+    $packagePackagesXml = ConvertTo-XmlAttribute ((Join-Path $packageTmp 'packages') -replace '\\', '/')
     $packageTree = Join-Path $packageTmp 'worktree'
     $packageHome = Join-Path $packageTmp 'home'
     New-Item -ItemType Directory -Force -Path $packageFeed, $packageTree, $packageHome | Out-Null
@@ -339,10 +353,10 @@ try {
 <configuration>
   <packageSources>
     <clear />
-    <add key="local" value="$($packageFeed -replace '\\', '/')" />
+    <add key="local" value="$($packageFeedXml)" />
   </packageSources>
   <config>
-    <add key="globalPackagesFolder" value="$((Join-Path $packageTmp 'packages') -replace '\\', '/')" />
+    <add key="globalPackagesFolder" value="$($packagePackagesXml)" />
   </config>
 </configuration>
 "@
@@ -440,12 +454,16 @@ try {
         # scripts/verify.sh.
         $templatePackages = Join-Path $contractTmp 'packages'
         $contractConfig = Join-Path $contractTmp 'nuget.config'
+        # The feed path becomes an XML attribute below: a temp directory may hold `&` or `<`, and the
+        # raw path makes the configuration malformed XML, which fails the restore before it proves
+        # anything. The raw path stays for pack and the metadata checks.
+        $contractFeedXml = ConvertTo-XmlAttribute ($contractFeed -replace '\\', '/')
         $configXml = @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
     <clear />
-    <add key="packed" value="$($contractFeed -replace '\\', '/')" />
+    <add key="packed" value="$($contractFeedXml)" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
   <packageSourceMapping>

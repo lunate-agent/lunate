@@ -32,14 +32,25 @@ a stand-in package pair and local folder feeds, no network, no build -- the rest
 wiring depends on. The stand-in pair is what makes the last part cheap: a feed serves marker
 `packed`, a second feed serves `published` under the same id and version, and which marker lands in
 the packages folder is the whole question.
+
+The feed path itself is the fifth: it is written into an XML *attribute*, and a temp path may hold
+`&` (Windows allows it in a profile path) or `<` (valid on Unix), so a raw interpolation makes the
+configuration malformed XML and the restore fails before it proves anything. Each of the three
+writers attribute-encodes the value it writes -- `xml_attribute` in the bash gate,
+`ConvertTo-XmlAttribute` in the PowerShell twin, `XmlAttribute` in the copy test -- and the value is
+parsed back here, so the property under test is "the document is XML and names the path", not a
+spelling.
 """
 
+import os
+import re
 import shutil
 import subprocess
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 VERIFY = REPOSITORY_ROOT / "scripts" / "verify.sh"
@@ -69,6 +80,69 @@ def roundtrip() -> str:
     text = VERIFY.read_text(encoding="utf-8")
     start = text.index(ROUNDTRIP_STEP)
     return without_comments(text[start : text.index(ROUNDTRIP_END, start)])
+
+
+# `<add key="..." value="..." />` is how every generated nuget.config names a source or a packages
+# folder, and the value is an XML attribute. A value written from a variable has to be encoded first.
+XML_ADD = re.compile(r'<add key="[^"]+" value="([^"]*)"')
+BASH_ESCAPED = re.compile(r"\$\{\w+_xml\}")
+POWERSHELL_ESCAPED = re.compile(r"\$\(\$\w+Xml\)")
+
+
+def attribute_values(text: str) -> list[str]:
+    """Every value a script writes into an XML attribute, comments excluded."""
+    return XML_ADD.findall(without_comments(text))
+
+
+def bash_escape_function() -> str:
+    """The `xml_attribute` helper of verify.sh, on its own, so this test can run it."""
+    text = VERIFY.read_text(encoding="utf-8")
+    start = text.index("xml_attribute() {")
+    return text[start : text.index("\n}\n", start) + 3]
+
+
+def powershell_escape_function() -> str:
+    """The `ConvertTo-XmlAttribute` helper of verify.ps1, on its own, so this test can run it."""
+    text = VERIFY_POWERSHELL.read_text(encoding="utf-8")
+    start = text.index("function ConvertTo-XmlAttribute {")
+    return text[start : text.index("\n    }\n", start) + 6]
+
+
+def escape_with_bash(value: str) -> str:
+    result = subprocess.run(
+        ["bash", "-c", f'{bash_escape_function()}\nxml_attribute "$1"', "_", value],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout
+
+
+def escape_with_powershell(value: str) -> str:
+    result = subprocess.run(
+        [
+            "pwsh",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            f'{powershell_escape_function()}\nConvertTo-XmlAttribute -Value $env:LUNATE_TEST_VALUE',
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "LUNATE_TEST_VALUE": value},
+    )
+    return result.stdout.rstrip("\r\n")
+
+
+def configuration(escaped: str):
+    """A document carrying `escaped` as an attribute value, parsed -- which is the property."""
+    return ElementTree.fromstring(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        "<configuration><packageSources>"
+        f'<add key="packed" value="{escaped}" />'
+        "</packageSources></configuration>"
+    ).find("./packageSources/add")
 
 
 def powershell_roundtrip() -> str:
@@ -244,9 +318,9 @@ class RoundtripWiringTest(unittest.TestCase):
 
         self.assertIn("<clear />", block, "the machine's sources must not be inherited")
         self.assertIn(
-            '<add key="packed" value="${contract_feed}" />',
+            '<add key="packed" value="${contract_feed_xml}" />',
             block,
-            "the packed feed is the first source the configuration names",
+            "the packed feed is the first source the configuration names, escaped into the attribute",
         )
         self.assertIn(
             f'<add key="nuget.org" value="{NUGET_ORG}" />',
@@ -340,6 +414,61 @@ class RoundtripWiringTest(unittest.TestCase):
         self.assertNotIn("RestoreAdditionalProjectSources", block)
         self.assertIn("<clear />", block)
         self.assertIn('<package pattern="Lunate.*" />', block)
+
+
+class AttributeEscapingTest(unittest.TestCase):
+    """The paths the configurations name are XML attributes, so they have to be encoded as one."""
+
+    # A valid temp path: `&` is legal in a Windows profile path, `<` and `>` are legal on Unix, and
+    # the quotes are the attribute's own delimiters. Every one of them breaks the document raw.
+    PATH = "/tmp/lunate&co/a<b>c\"d'e"
+
+    def test_the_bash_gate_writes_a_path_xml_can_carry(self):
+        element = configuration(escape_with_bash(self.PATH))
+
+        self.assertEqual(
+            self.PATH,
+            element.get("value"),
+            "the escaped value must be the path, read back from a parsed document",
+        )
+
+    def test_the_powershell_gate_writes_the_same_encoding(self):
+        if shutil.which("pwsh") is None:
+            self.skipTest("pwsh is not installed: this proves the twin where the twin runs")
+
+        self.assertEqual(
+            escape_with_bash(self.PATH),
+            escape_with_powershell(self.PATH),
+            "parity: the Windows gate must encode the attribute exactly as the bash gate does",
+        )
+
+    def test_every_value_the_bash_gate_writes_is_an_escaped_one(self):
+        raw = [
+            value
+            for value in attribute_values(VERIFY.read_text(encoding="utf-8"))
+            if value.startswith("$") and not BASH_ESCAPED.fullmatch(value)
+        ]
+
+        self.assertEqual(
+            [],
+            raw,
+            "every path verify.sh writes into an XML attribute must come from xml_attribute: a raw "
+            "`${...}` in a `value=` makes the configuration malformed XML for a temp path with `&`",
+        )
+
+    def test_every_value_the_powershell_gate_writes_is_an_escaped_one(self):
+        raw = [
+            value
+            for value in attribute_values(VERIFY_POWERSHELL.read_text(encoding="utf-8"))
+            if value.startswith("$(") and not POWERSHELL_ESCAPED.fullmatch(value)
+        ]
+
+        self.assertEqual(
+            [],
+            raw,
+            "every path verify.ps1 writes into an XML attribute must come from "
+            "ConvertTo-XmlAttribute",
+        )
 
 
 class RestoreBindingTest(unittest.TestCase):
