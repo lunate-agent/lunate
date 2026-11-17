@@ -77,7 +77,7 @@ event_phrase() {
 }
 
 issue_body() {
-    local job="$1" run_url="$2" commit="$3" event="$4"
+    local job="$1" run_url="$2" commit="$3" event="$4" step="$5" tests="$6"
     local body
     body="The $(event_phrase "$event") \`ci.yml\` run failed in **${job}**.
 
@@ -86,12 +86,55 @@ Run: ${run_url}"
         body="${body}
 Commit: \`${commit}\`"
     fi
+    # What to triage comes before the standing paragraph: the step that failed, read from the run's jobs
+    # document, and the tests the job's log names. A card that named neither (#945's card for run
+    # 44052312654) began its session with an API round trip instead of the failure.
+    if [ -n "$step" ]; then
+        body="${body}
+
+The failing step is **\`${step}\`**."
+    fi
+    if [ -n "$tests" ]; then
+        body="${body}
+
+${tests}"
+    fi
     body="${body}
 
 This job carries the full matrix, the PowerShell twin or the perf measurement that runs on \`main\` and
 the nightly rather than on every pull request (#831). Triage the failing step. If it is a runner flake,
 rerun the run and comment what you saw instead of opening a second card."
     printf '%s' "$body"
+}
+
+# The failing tests as one sentence, capped at five names: a card that pastes every name of a wide red
+# leg is a card nobody reads, and the count keeps the rest countable.
+MAX_NAMED_TESTS=5
+failing_tests_line() {
+    local log="$1" names total listed="" name
+    [ -n "$log" ] && [ -s "$log" ] || return 0
+    names="$(python3 "$TRIAGE" --failed-tests-file "$log")"
+    [ -n "$names" ] || return 0
+    total="$(printf '%s\n' "$names" | wc -l | tr -d '[:space:]')"
+    while IFS= read -r name; do
+        [ -n "$name" ] || continue
+        listed="${listed:+${listed}, }\`${name}\`"
+    done <<<"$(printf '%s\n' "$names" | head -n "$MAX_NAMED_TESTS")"
+    if [ "$total" -gt "$MAX_NAMED_TESTS" ]; then
+        printf 'The log names these failing tests: %s (%s in all).' "$listed" "$total"
+    elif [ "$total" -eq 1 ]; then
+        printf 'The log names this failing test: %s.' "$listed"
+    else
+        printf 'The log names these failing tests: %s.' "$listed"
+    fi
+}
+
+# The step of the job that did not succeed, from the run's jobs document; nothing for a job whose document
+# carries no such step, so the card writes what it read and never a guess.
+failed_step() {
+    local jobs_json="$1" job_id="$2"
+    [ -n "$job_id" ] || return 0
+    python3 "$TRIAGE" --failed-step-json "$jobs_json" --job-id "$job_id"
 }
 
 # The number of an open issue whose title is exactly this job's card, or empty.
@@ -167,9 +210,10 @@ report() {
     while IFS=$'\t' read -r job_id job; do
         [ -n "$job" ] || continue
         title="$(issue_title "$job")"
-        body="$(issue_body "$job" "$run_url" "$commit" "$event")"
         log="${tmp}/job-${job_id:-unknown}.log"
         job_log "$repo" "$job_id" "$log"
+        body="$(issue_body "$job" "$run_url" "$commit" "$event" \
+            "$(failed_step "$jobs_json" "$job_id")" "$(failing_tests_line "$log")")"
         area="$(python3 "$TRIAGE" --log-file "$log" --source-root "$REPO_ROOT")"
         if [ -n "$area" ] && ! has_label "$labels" "$area"; then
             echo "nightly-issue: ${job}: the repository has no '${area}' label; filing without it" >&2
