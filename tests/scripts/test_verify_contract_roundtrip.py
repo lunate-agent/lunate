@@ -1,4 +1,4 @@
-"""Pins the template roundtrip's packages folder (#932).
+"""Pins the template roundtrip's packages folder and its package source mapping (#932, #937).
 
 The verify gate packs the four SDK packages at the version the release carries and builds the
 packaged-extension template against that feed, so the NuGet shape the gate proves is the one
@@ -12,14 +12,24 @@ just become unions, and failed on the switch the union closes (CS8509 in
 `TemplateToolCallingHandler`); `verify (macos-latest, 2/2)` ran the copy end-to-end test, which packs
 the same packages and builds a copy of the template outside `Directory.Build.props`, so the same
 published contract compiled with only a warning and failed later at load with a TypeLoadException on
-`HandleAsync`. Both restores now use a packages folder of their own and name the feed they just
-packed as a source, so what the gate and the test prove is this checkout's shape and never a cache's.
+`HandleAsync`. Both restores use a packages folder of their own and name the feed they just packed,
+so what the gate and the test prove is this checkout's shape and never a cache's.
 
-Three things are pinned here: the wiring in `scripts/verify.sh`, the copy end-to-end test's restore in
-`ExtensionTemplateCopyEndToEndTests.cs`, and -- with a stand-in package pair and two local folder
-feeds, no network, no build -- the restore behaviour the wiring depends on. The stand-in pair is what
-makes the last part cheap: the feed serves marker `packed`, a second feed serves `published` under the
-same id and version, and which marker lands in the packages folder is the whole question.
+Run 44033633019 showed that a packages folder alone is not enough on every runner: the three
+Windows legs that restore the template (`verify (windows-latest, 1/4)` and `(2/4)`, and
+`verify-powershell (windows)`) failed while every other leg passed, because "the packed feed is a
+source and it is listed first" leaves *which* source provides an id and version to source order, the
+HTTP cache and the machine's NuGet configuration -- and a released contract sits on nuget.org under
+the same id and version. `scripts/verify.sh` now carries a `nuget.config` of its own with
+`packageSourceMapping`, so a `Lunate.*` package may come from the packed feed and from nowhere else
+(#937).
+
+What is pinned here: the wiring in `scripts/verify.sh`, the copy end-to-end test's restore in
+`ExtensionTemplateCopyEndToEndTests.cs`, the PowerShell twin's restore in `scripts/verify.ps1`, and --
+with a stand-in package pair and two local folder feeds, no network, no build -- the restore behaviour
+the wiring depends on. The stand-in pair is what makes the last part cheap: the feed serves marker
+`packed`, a second feed serves `published` under the same id and version, and which marker lands in
+the packages folder is the whole question.
 """
 
 import shutil
@@ -94,6 +104,31 @@ def project(root: Path) -> Path:
     return path
 
 
+def mapping_config(root: Path, packed: Path, other: Path) -> Path:
+    """A configuration file shaped like the roundtrip's: Lunate.* from one feed, the rest elsewhere."""
+    path = root / "nuget.config"
+    path.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<configuration>\n"
+        "  <packageSources>\n"
+        "    <clear />\n"
+        f'    <add key="packed" value="{packed}" />\n'
+        f'    <add key="other" value="{other}" />\n'
+        "  </packageSources>\n"
+        "  <packageSourceMapping>\n"
+        '    <packageSource key="packed">\n'
+        '      <package pattern="Lunate.*" />\n'
+        "    </packageSource>\n"
+        '    <packageSource key="other">\n'
+        '      <package pattern="*" />\n'
+        "    </packageSource>\n"
+        "  </packageSourceMapping>\n"
+        "</configuration>\n",
+        encoding="utf-8",
+    )
+    return path
+
+
 def restore(consumer: Path, feed: Path, packages: Path) -> str:
     # A second restore of the same project would no-op against the assets file the first wrote, so
     # every restore here starts from scratch: the packages folder is the only state that carries over.
@@ -114,6 +149,32 @@ def restore(consumer: Path, feed: Path, packages: Path) -> str:
         capture_output=True,
         text=True,
     )
+    return marker(packages)
+
+
+def restore_with_config(consumer: Path, config: Path, packages: Path) -> str:
+    """The same restore, with the roundtrip's own configuration file instead of source arguments."""
+    shutil.rmtree(consumer.parent / "obj", ignore_errors=True)
+    subprocess.run(
+        [
+            "dotnet",
+            "restore",
+            str(consumer),
+            "--configfile",
+            str(config),
+            "--packages",
+            str(packages),
+            "--nologo",
+            "-nodeReuse:false",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return marker(packages)
+
+
+def marker(packages: Path) -> str:
     return (packages / PACKAGE_ID.lower() / PACKAGE_VERSION / "marker.txt").read_text(
         encoding="utf-8"
     )
@@ -122,7 +183,7 @@ def restore(consumer: Path, feed: Path, packages: Path) -> str:
 class RoundtripWiringTest(unittest.TestCase):
     """What verify.sh hands the template's restores and builds."""
 
-    def test_each_restore_owns_a_packages_folder_and_the_packed_feed(self):
+    def test_each_restore_owns_a_packages_folder_and_the_roundtrip_config(self):
         block = roundtrip()
 
         self.assertIn(
@@ -130,23 +191,59 @@ class RoundtripWiringTest(unittest.TestCase):
             block,
             "the roundtrip must restore into a packages folder of its own, named once",
         )
+        self.assertIn(
+            'contract_config="$(native_path "${contract_tmp}/nuget.config")"',
+            block,
+            "the roundtrip must restore with a configuration file of its own, named once",
+        )
         self.assertEqual(
             2,
             block.count('--packages "$template_packages"'),
             "both template restores must use that packages folder",
         )
+        self.assertEqual(
+            2,
+            block.count('--configfile "$contract_config"'),
+            "both template restores must read that configuration file: machine sources and "
+            "source order must not decide which feed provides the contract",
+        )
         self.assertEqual(2, block.count("dotnet restore"), "one restore per template project")
-        for source in ('--source "$contract_feed"', f'--source "{NUGET_ORG}"'):
-            self.assertEqual(
-                2,
-                block.count(source),
-                f"both restores must name {source}: the packed feed leads, nuget.org "
-                "serves the test SDK the template's test project needs",
-            )
+        self.assertNotIn(
+            "--source",
+            block,
+            "a source flag leaves the choice between the packed feed and nuget.org to ordering; "
+            "packageSourceMapping is what makes the packed feed the only source for Lunate.*",
+        )
         self.assertNotIn(
             "RestoreAdditionalProjectSources",
             block,
             "the packed feed is the roundtrip's source, not an addition to the machine's sources",
+        )
+
+    def test_the_roundtrip_config_maps_the_lunate_packages_to_the_packed_feed(self):
+        block = roundtrip()
+
+        self.assertIn("<clear />", block, "the machine's own sources must not be read")
+        self.assertIn(
+            '<add key="packed" value="${contract_feed}" />',
+            block,
+            "the feed the step just packed is a source of the roundtrip's configuration",
+        )
+        self.assertIn(
+            f'<add key="nuget.org" value="{NUGET_ORG}" />',
+            block,
+            "nuget.org still serves the test SDK the template's test project needs",
+        )
+        self.assertIn(
+            '<package pattern="Lunate.*" />',
+            block,
+            "a Lunate package may come from the packed feed and from nowhere else",
+        )
+        self.assertIn('<package pattern="*" />', block, "every other package comes from nuget.org")
+        self.assertEqual(
+            2,
+            block.count('<packageSource key="'),
+            "both source-to-package mappings belong to the roundtrip's configuration",
         )
 
     def test_each_build_uses_the_assets_file_the_restore_wrote(self):
@@ -218,7 +315,7 @@ class RoundtripWiringTest(unittest.TestCase):
 
 
 class RestoreBindingTest(unittest.TestCase):
-    """The restore behaviour the roundtrip's packages folder exists for."""
+    """The restore behaviour the roundtrip's packages folder and mapping exist for."""
 
     def setUp(self):
         if shutil.which("dotnet") is None:
@@ -235,6 +332,28 @@ class RestoreBindingTest(unittest.TestCase):
                 "packed",
                 restore(project(root_path), feed, root_path / "packages"),
                 "a restore must bind the package the feed serves",
+            )
+
+    def test_package_source_mapping_binds_the_packed_feed_not_the_published_copy(self):
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            published = root_path / "published"
+            published.mkdir()
+            package(published, "published")
+            packed = root_path / "packed"
+            packed.mkdir()
+            package(packed, "packed")
+
+            self.assertEqual(
+                "packed",
+                restore_with_config(
+                    project(root_path),
+                    mapping_config(root_path, packed, published),
+                    root_path / "packages",
+                ),
+                "packageSourceMapping must make the packed feed the only source for Lunate.*, so "
+                "source order, the HTTP cache and the machine's NuGet configuration cannot decide "
+                "which shape the gate proved (the three Windows legs of run 44033633019)",
             )
 
     def test_an_installed_package_of_the_same_version_wins_over_the_feed(self):
