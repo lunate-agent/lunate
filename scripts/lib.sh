@@ -66,3 +66,24 @@ check_shipped_api_unchanged() {
     return 1
   fi
 }
+
+# Names the step a failed gate run stopped in, for a reader who has only the run's check run.
+#
+# A red run on `main` is triaged from the API, not from a log: GitHub answers "Sign in to view logs"
+# on the job page of a public run, while a step's `::error::` line is always in the check run's
+# annotations. The gate printed its steps but named no failing one, so a card could only say
+# "Process completed with exit code 1" (`verify (windows-latest, 1/4)` of runs 44033633019 and
+# 44051817008). `status` 0 and an empty `step` -- a failure outside any step, in argument parsing --
+# report nothing. `scripts/verify.sh` calls this from its EXIT trap, where `set -e` leaves the last
+# step still known.
+report_failed_step() {
+  local step="${1:-}" status="${2:-}" elapsed="${3:-}"
+
+  if [ -z "$step" ] || [ "$status" = "0" ]; then
+    return 0
+  fi
+  printf '::error::verify: the %s step failed (exit %s, %ss)\n' "$step" "$status" "$elapsed"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    printf -- '- failed step: %s (exit %s, %ss)\n' "$step" "$status" "$elapsed" >> "$GITHUB_STEP_SUMMARY"
+  fi
+}
