@@ -260,6 +260,9 @@ record_wall_time() {
 
 verify_exit() {
   local status=$?
+  # First, because the rest of this handler is bookkeeping: a red leg must name the step it stopped
+  # in before anything that could fail or be slow runs (see report_failed_step in lib.sh).
+  report_failed_step "$STEP_NAME" "$status" "$(( $(date +%s) - STEP_START ))"
   record_wall_time "$status"
   verify_cleanup
   return "$status"
@@ -478,6 +481,12 @@ platform_checks() {
   # restores a real package: the platform job is the one that has the SDK.
   step "the template roundtrip's packages folder"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_contract_roundtrip.py"
+
+  # A red leg names the step it failed in (#942): the job's log needs an account, the check run's
+  # annotations do not, and a card that says only "Process completed with exit code 1" cannot be
+  # triaged. The gate's own output is the only place that knows which step was running.
+  step "a red leg names its failing step"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_step_report.py"
 
   step "public API"
   if ! check_shipped_api_unchanged; then
