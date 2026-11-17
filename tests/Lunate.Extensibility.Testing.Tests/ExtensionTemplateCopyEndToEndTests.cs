@@ -32,17 +32,26 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         Pack(repository, feed);
         AssertContractPackageTargetsNet11(feed);
 
+        // The copy restores into a packages folder of its own: a runner's folder can hold the
+        // published contract at this version, and NuGet binds an installed copy before the feed
+        // this test just packed. `verify (macos-latest, 2/2)` did exactly that, built the copy
+        // against 1.16.0 outside Directory.Build.props (where CS8509 is only a warning) and failed
+        // at load with a TypeLoadException on HandleAsync instead of proving this checkout's shape.
+        string packages = temp.Subdirectory("packages");
+
         string copy = CopyTemplate(repository, temp.Subdirectory("my-extension"));
         // Both projects a copy carries: the extension a host loads and the test project the
         // README keeps as the place where behavior is proven.
-        Build(
+        RestoreAndBuild(
             Path.Combine(copy, "TemplateExtension", "TemplateExtension.csproj"),
             feed,
+            packages,
             ReleaseVersions.Contract
         );
-        Build(
+        RestoreAndBuild(
             Path.Combine(copy, "TemplateExtension.Tests", "TemplateExtension.Tests.csproj"),
             feed,
+            packages,
             ReleaseVersions.Contract,
             ReleaseVersions.Preview
         );
@@ -94,6 +103,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
     private const string Configuration = "Release";
     private const string TargetFramework = "net11.0";
+    private const string NuGetOrg = "https://api.nuget.org/v3/index.json";
 
     /// <summary>
     /// The contract package carries one <c>net11.0</c> asset and nothing else (ADR-0041): the
@@ -133,9 +143,10 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         }
     }
 
-    private static void Build(
+    private static void RestoreAndBuild(
         string project,
         string feed,
+        string packages,
         string contractVersion,
         string? previewVersion = null
     )
@@ -143,10 +154,16 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         string testing = previewVersion is null
             ? string.Empty
             : $" -p:LunateTestingVersion={previewVersion}";
+        string properties =
+            $"""-p:LunateUseNuGetContracts=true -p:LunateContractsVersion={contractVersion}{testing}""";
         Dotnet(
-            $"""build "{project}" -c {Configuration} -p:LunateUseNuGetContracts=true """
-                + $"""-p:LunateContractsVersion={contractVersion}{testing} """
-                + $"""-p:RestoreAdditionalProjectSources="{feed}" --nologo -nodeReuse:false"""
+            $"""restore "{project}" -p:Configuration={Configuration} {properties} """
+                + $"""--packages "{packages}" --source "{feed}" --source "{NuGetOrg}" """
+                + $"""--nologo -nodeReuse:false"""
+        );
+        Dotnet(
+            $"""build "{project}" -c {Configuration} {properties} --no-restore """
+                + $"""--nologo -nodeReuse:false"""
         );
     }
 

@@ -6,17 +6,20 @@ nuget.org serves after the next tag. While a release is out, that version is *al
 which means a machine's global packages folder can already hold a copy of the same id and version
 whose content is an earlier commit's -- and NuGet binds an installed copy before it asks any source.
 
-Run 44012040507's `verify (macos-latest, 1/2)` did exactly that: the template built against the
-published 1.16.0 contract instead of this checkout's, where the hook-result families had just become
-unions, and failed on the switch the union closes (CS8509 in `TemplateToolCallingHandler`). The
-roundtrip therefore restores into a packages folder of its own for the run and names the feed it just
-packed as a source, so what the gate proves is this checkout's shape and never a cache's.
+Run 44012040507's two macOS legs did exactly that: `verify (macos-latest, 1/2)` built the template
+against the published 1.16.0 contract instead of this checkout's, where the hook-result families had
+just become unions, and failed on the switch the union closes (CS8509 in
+`TemplateToolCallingHandler`); `verify (macos-latest, 2/2)` ran the copy end-to-end test, which packs
+the same packages and builds a copy of the template outside `Directory.Build.props`, so the same
+published contract compiled with only a warning and failed later at load with a TypeLoadException on
+`HandleAsync`. Both restores now use a packages folder of their own and name the feed they just
+packed as a source, so what the gate and the test prove is this checkout's shape and never a cache's.
 
-Two things are pinned here: the wiring in `scripts/verify.sh`, and -- with a stand-in package pair and
-two local folder feeds, no network, no build -- the restore behaviour the wiring depends on. The
-stand-in pair is what makes the second half cheap: the feed serves marker `packed`, a second feed
-serves `published` under the same id and version, and which marker lands in the packages folder is the
-whole question.
+Three things are pinned here: the wiring in `scripts/verify.sh`, the copy end-to-end test's restore in
+`ExtensionTemplateCopyEndToEndTests.cs`, and -- with a stand-in package pair and two local folder
+feeds, no network, no build -- the restore behaviour the wiring depends on. The stand-in pair is what
+makes the last part cheap: the feed serves marker `packed`, a second feed serves `published` under the
+same id and version, and which marker lands in the packages folder is the whole question.
 """
 
 import shutil
@@ -29,6 +32,12 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 VERIFY = REPOSITORY_ROOT / "scripts" / "verify.sh"
 VERIFY_POWERSHELL = REPOSITORY_ROOT / "scripts" / "verify.ps1"
+TEMPLATE_COPY_TEST = (
+    REPOSITORY_ROOT
+    / "tests"
+    / "Lunate.Extensibility.Testing.Tests"
+    / "ExtensionTemplateCopyEndToEndTests.cs"
+)
 NUGET_ORG = "https://api.nuget.org/v3/index.json"
 
 ROUNDTRIP_STEP = 'step "contract package roundtrip"'
@@ -156,6 +165,43 @@ class RoundtripWiringTest(unittest.TestCase):
             "a build must not re-restore with the machine's sources and flip the assets file back",
         )
 
+
+    def test_the_copy_end_to_end_test_restores_into_a_packages_folder_of_its_own(self):
+        # The other half of the same failure: the copy end-to-end test in Lunate.Extensibility.Testing.Tests
+        # also packs the contract packages and builds a copy of the template with NuGet references. On
+        # `verify (macos-latest, 2/2)` it bound the published 1.16.0 contract from the runner's packages
+        # folder -- where CS8509 is only a warning outside Directory.Build.props -- and failed later at
+        # load with a TypeLoadException on HandleAsync. One helper serves both projects, so it must
+        # restore and build each with a private packages folder and the packed feed.
+        text = TEMPLATE_COPY_TEST.read_text(encoding="utf-8")
+        start = text.index("private static void RestoreAndBuild(")
+        block = text[start : text.index("private static void Dotnet(", start)]
+
+        self.assertIn('restore "{project}"', block, "every copy build starts from a restore")
+        self.assertIn(
+            '--packages "{packages}"',
+            block,
+            "the restore must not read the machine's packages folder",
+        )
+        self.assertIn('--source "{feed}"', block, "the packed feed is the contract source")
+        self.assertIn(
+            '--source "{NuGetOrg}"',
+            block,
+            "nuget.org still serves the test SDK the copy's test project needs",
+        )
+        self.assertIn(
+            f'private const string NuGetOrg = "{NUGET_ORG}";',
+            text,
+            "the fallback source is nuget.org itself",
+        )
+        self.assertIn(
+            "--no-restore", block, "the build must use the assets file that restore wrote"
+        )
+        self.assertNotIn(
+            "RestoreAdditionalProjectSources",
+            block,
+            "the packed feed is the source, not an addition to whatever the machine has",
+        )
 
     def test_the_powershell_twin_keeps_the_same_two_properties(self):
         # The Windows gate is the bash gate's twin (parity is what verify.ps1 is for), so the
