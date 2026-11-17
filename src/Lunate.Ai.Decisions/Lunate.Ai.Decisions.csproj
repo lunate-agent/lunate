@@ -11,7 +11,7 @@
     <!--
         The one model, one home: the decision request/result types live here, and the assembly reads
         the event contract's DecisionProbability, so the edge runs down from the decision loop to the
-        contract and never back (ADR-0042). The reference is private because this assembly is not
+        contract and never back (ADR-0044). The reference is private because this assembly is not
         packed; the packages that ship it carry its file (see Lunate.Agent and
         Lunate.Extensibility.Abstractions).
     -->
