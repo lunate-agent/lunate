@@ -100,6 +100,26 @@ public sealed class LayoutRuleTests
         Assert.Empty(LayoutRule.FoldersWithoutSource(repository.Root));
     }
 
+    [Fact]
+    public void The_mirror_scan_rejects_a_test_folder_without_a_source_folder()
+    {
+        using var repository = new TempDirectory();
+        string project = Path.Combine(repository.Root, "src", "Lunate.Example");
+        string tests = Path.Combine(repository.Root, "tests", "Lunate.Example.Tests");
+        WriteProject(project);
+        WriteProject(tests);
+        Write(Path.Combine(project, "Host", "Host.cs"), "namespace Lunate.Example;");
+        Write(Path.Combine(tests, "Host", "HostTests.cs"), "namespace Lunate.Example.Tests;");
+        Write(Path.Combine(tests, "Remote", "RemoteTests.cs"), "namespace Lunate.Example.Tests;");
+
+        IReadOnlyList<string> violations = LayoutRule.FoldersWithoutSource(repository.Root);
+
+        string violation = Assert.Single(violations);
+        Assert.Contains("tests/Lunate.Example.Tests/Remote", violation, StringComparison.Ordinal);
+        Assert.DoesNotContain("Host", violation, StringComparison.Ordinal);
+        Assert.Empty(LayoutRule.MissingTestFolders(repository.Root));
+    }
+
     private static void WriteProject(string directory)
     {
         Directory.CreateDirectory(directory);
