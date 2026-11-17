@@ -65,7 +65,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.MissingRunStarted, violation.Kind);
-        Assert.Same(sequence[0], violation.Event);
+        Assert.Equal(sequence[0], violation.Event);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.UnbracketedTextMessage, violation.Kind);
-        Assert.Same(sequence[1], violation.Event);
+        Assert.Equal(sequence[1], violation.Event);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.UnbracketedTextMessage, violation.Kind);
-        Assert.Same(sequence[3], violation.Event);
+        Assert.Equal(sequence[3], violation.Event);
     }
 
     [Fact]
@@ -121,12 +121,12 @@ public sealed class EventSequenceValidatorTests
             violation =>
             {
                 Assert.Equal(EventSequenceViolationKind.ToolCallOutOfOrder, violation.Kind);
-                Assert.Same(sequence[3], violation.Event);
+                Assert.Equal(sequence[3], violation.Event);
             },
             violation =>
             {
                 Assert.Equal(EventSequenceViolationKind.IncompleteToolCall, violation.Kind);
-                Assert.Same(sequence[^1], violation.Event);
+                Assert.Equal(sequence[^1], violation.Event);
             }
         );
     }
@@ -147,7 +147,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.ToolCallOutOfOrder, violation.Kind);
-        Assert.Same(sequence[4], violation.Event);
+        Assert.Equal(sequence[4], violation.Event);
     }
 
     [Fact]
@@ -169,12 +169,12 @@ public sealed class EventSequenceValidatorTests
             violation =>
             {
                 Assert.Equal(EventSequenceViolationKind.ToolCallOutOfOrder, violation.Kind);
-                Assert.Same(sequence[2], violation.Event);
+                Assert.Equal(sequence[2], violation.Event);
             },
             violation =>
             {
                 Assert.Equal(EventSequenceViolationKind.IncompleteToolCall, violation.Kind);
-                Assert.Same(sequence[^1], violation.Event);
+                Assert.Equal(sequence[^1], violation.Event);
             }
         );
     }
@@ -191,7 +191,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.DuplicateRunStarted, violation.Kind);
-        Assert.Same(sequence[1], violation.Event);
+        Assert.Equal(sequence[1], violation.Event);
     }
 
     [Fact]
@@ -206,7 +206,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.UnbracketedTextMessage, violation.Kind);
-        Assert.Same(sequence[1], violation.Event);
+        Assert.Equal(sequence[1], violation.Event);
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.UnbracketedTextMessage, violation.Kind);
-        Assert.Same(sequence[2], violation.Event);
+        Assert.Equal(sequence[2], violation.Event);
     }
 
     [Fact]
@@ -245,12 +245,12 @@ public sealed class EventSequenceValidatorTests
             violation =>
             {
                 Assert.Equal(EventSequenceViolationKind.EventAfterTerminal, violation.Kind);
-                Assert.Same(sequence[2], violation.Event);
+                Assert.Equal(sequence[2], violation.Event);
             },
             violation =>
             {
                 Assert.Equal(EventSequenceViolationKind.EventAfterTerminal, violation.Kind);
-                Assert.Same(sequence[3], violation.Event);
+                Assert.Equal(sequence[3], violation.Event);
             }
         );
     }
@@ -267,7 +267,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.EventAfterTerminal, violation.Kind);
-        Assert.Same(sequence[2], violation.Event);
+        Assert.Equal(sequence[2], violation.Event);
     }
 
     [Fact]
@@ -282,7 +282,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.MissingTerminalEvent, violation.Kind);
-        Assert.Same(sequence[2], violation.Event);
+        Assert.Equal(sequence[2], violation.Event);
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.UnclosedTextMessage, violation.Kind);
-        Assert.Same(sequence[^1], violation.Event);
+        Assert.Equal(sequence[^1], violation.Event);
     }
 
     [Fact]
@@ -315,7 +315,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.IncompleteToolCall, violation.Kind);
-        Assert.Same(sequence[^1], violation.Event);
+        Assert.Equal(sequence[^1], violation.Event);
     }
 
     [Fact]
@@ -330,7 +330,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.ForeignRunId, violation.Kind);
-        Assert.Same(sequence[1], violation.Event);
+        Assert.Equal(sequence[1], violation.Event);
     }
 
     [Fact]
@@ -363,7 +363,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.UnbracketedReasoningMessage, violation.Kind);
-        Assert.Same(sequence[1], violation.Event);
+        Assert.Equal(sequence[1], violation.Event);
     }
 
     [Fact]
@@ -379,7 +379,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.UnclosedReasoningMessage, violation.Kind);
-        Assert.Same(sequence[^1], violation.Event);
+        Assert.Equal(sequence[^1], violation.Event);
     }
 
     [Fact]
@@ -398,7 +398,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.InterleavedMessage, violation.Kind);
-        Assert.Same(sequence[2], violation.Event);
+        Assert.Equal(sequence[2], violation.Event);
     }
 
     [Fact]
@@ -417,7 +417,7 @@ public sealed class EventSequenceValidatorTests
         EventSequenceViolation violation = Assert.Single(EventSequenceValidator.Validate(sequence));
 
         Assert.Equal(EventSequenceViolationKind.InterleavedMessage, violation.Kind);
-        Assert.Same(sequence[2], violation.Event);
+        Assert.Equal(sequence[2], violation.Event);
     }
 
     private static IReadOnlyList<AgentEvent> Sequence(params AgentEvent[] events)

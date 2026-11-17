@@ -126,7 +126,7 @@ validator, keeps the single validation at the boundary, and renames the internal
 `YesNo`.
 
 The two DTO sets are merged, which is the boundary work the card's "unify the decision type model"
-asked for and the maintainer signed off (ADR-0042). The decision model — `DecisionRequest`,
+asked for and the maintainer signed off (ADR-0044). The decision model — `DecisionRequest`,
 `DecisionQuestion`, `DecisionQuestionKind`, `DecisionAnswer`, `DecisionBox`, `DecisionResult`, its
 usage records and the two seams `INativeDecisionClient` and `IAgentDecisionService` — lives in
 `Lunate.Ai.Decisions`, public, and is the type the engine, the chat adapter, the System One transport,
@@ -199,4 +199,4 @@ settings, wire format or session fixture is affected, so no migration is needed.
 ## Open Questions
 
 None. The one project edge the earlier draft left open (`Lunate.Ai.Decisions` → `Lunate.Contracts`) is
-taken with the maintainer's sign-off and recorded in ADR-0042.
+taken with the maintainer's sign-off and recorded in ADR-0044.

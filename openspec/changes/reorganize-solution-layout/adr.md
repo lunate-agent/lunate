@@ -16,13 +16,13 @@ The one architectural question the card raises — merging the two decision DTO 
 edge, and the maintainer signed it off after the first round: the one decision model lives in
 `Lunate.Ai.Decisions`, the edge runs down to `Lunate.Contracts`, and the contract keeps only the
 distribution record its event publishes. That is a boundary decision with a durable rationale, so it
-is recorded as ADR-0042 rather than in the design.
+is recorded as ADR-0044 rather than in the design.
 
 ## In-Force ADRs Reviewed
 
 - `adr/0002-layering-and-meai-model-types.md` — amended: its decision note keeps `IDecisionService`
   in Abstractions and typed with the decision model, which still holds; the model it is typed with
-  now lives one layer down rather than in `Lunate.Contracts` (ADR-0042), and Abstractions references
+  now lives one layer down rather than in `Lunate.Contracts` (ADR-0044), and Abstractions references
   the decision project instead of only the contract. The rule it states — never upward, the contract
   stays below the implementation — is unchanged and checked by `LayeringTests`.
 - `adr/0011-repo-quality-tooling.md` — extended in spirit: this change adds a repository-quality
@@ -33,7 +33,7 @@ is recorded as ADR-0042 rather than in the design.
 - `adr/0028-decision-layer-primitive.md` and `adr/0030-native-decisions.md` — behaviour unchanged:
   the validator that is deleted re-checked what the boundary already validated, and the
   `Noul` → `YesNo` rename is inside the model. Their placement of the decision types is amended by
-  ADR-0042: the model is the decision layer's, not the contract's. ADR-0030's anticipated "the
+  ADR-0044: the model is the decision layer's, not the contract's. ADR-0030's anticipated "the
   abstraction becomes an adapter onto the native layer" is still a follow-up, not this change.
 - `adr/0017-extensibility-architecture.md` — affected in one place and consistent with it: the
   extension contract package now carries the decision assembly in `lib/` so an extension compiling
@@ -44,5 +44,5 @@ is recorded as ADR-0042 rather than in the design.
 
 ## New Durable ADRs Created
 
-- `adr/0042-decision-model-ownership.md` — one decision model, its home (`Lunate.Ai.Decisions`), the
+- `adr/0044-decision-model-ownership.md` — one decision model, its home (`Lunate.Ai.Decisions`), the
   dependency direction to the contract, and why `IDecisionService` stays in the extension contract.

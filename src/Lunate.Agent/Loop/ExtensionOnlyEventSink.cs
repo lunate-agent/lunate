@@ -8,10 +8,10 @@ internal sealed class ExtensionOnlyEventSink(IAgentEvents inner) : IAgentEvents
 {
     public void Emit(AgentEvent agentEvent)
     {
-        if (agentEvent is not ExtensionEvent)
+        if (agentEvent.Value is not ExtensionEventBase)
         {
             throw new InvalidOperationException(
-                $"Tools may only emit extension events; {agentEvent.GetType().Name} is not allowed."
+                $"Tools may only emit extension events; {agentEvent.Kind.Name} is not allowed."
             );
         }
 

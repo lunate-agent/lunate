@@ -56,7 +56,6 @@ internal static partial class DiagnosticBundle
     /// </summary>
     internal static string Describe(AgentEvent agentEvent, DiagnosticScrubber scrubber)
     {
-        ArgumentNullException.ThrowIfNull(agentEvent);
         string detail = agentEvent switch
         {
             RunStarted => string.Empty,
@@ -119,12 +118,7 @@ internal static partial class DiagnosticBundle
         string source = string.Equals(agentEvent.Source, "core", StringComparison.Ordinal)
             ? string.Empty
             : " source=" + agentEvent.Source;
-        return agentEvent.GetType().Name
-            + detail
-            + " run="
-            + Short(agentEvent.RunId)
-            + parent
-            + source;
+        return agentEvent.Kind.Name + detail + " run=" + Short(agentEvent.RunId) + parent + source;
     }
 
     private static string Result(ToolCallResult result) =>

@@ -42,7 +42,9 @@ The manifest the host reads before loading anything. Every field matters:
 `TemplateExtensionFactory.Create` is the single entry point. From its `IExtensionContext` you can:
 
 - `context.Register(handler)` — register any `IHookHandler`. The template registers one
-  `IToolCallingHandler` that logs and proceeds; register the other hooks you need the same way.
+  `IToolCallingHandler` that logs and proceeds; register the other hooks you need the same way. The
+  handler matches the result with a `switch` over the union — cover every case you handle and keep a
+  `_` arm for the rest.
 - `context.RegisterService(name, service)` — register a named `IBackgroundService`. The host starts
   it once the session is live and stops it idempotently when the session ends.
 - `context.SubscribeFileChanged(handler, pattern)` — observe successful file mutations.

@@ -414,7 +414,7 @@ public sealed class PrintEventJsonTests
         [
             .. typeof(AgentEvent)
                 .Assembly.GetTypes()
-                .Where(type => type.IsSubclassOf(typeof(AgentEvent)) && !type.IsAbstract)
+                .Where(type => type.IsSubclassOf(typeof(AgentEventBase)) && !type.IsAbstract)
                 .Select(type => type.Name)
                 .OrderBy(name => name, StringComparer.Ordinal),
         ];

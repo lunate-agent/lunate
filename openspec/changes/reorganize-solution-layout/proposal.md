@@ -93,7 +93,7 @@ _None._
   contract package references `Lunate.Ai.Decisions` (private to the package) and carries the
   assembly in `lib/`; the host-owned assembly list, the embedded compile contract and the extension
   host-assembly rule gain the same assembly.
-- A new ADR records the boundary (ADR-0042): one model, one home, and which way the edge runs.
+- A new ADR records the boundary (ADR-0044): one model, one home, and which way the edge runs.
 - Public API: `Lunate.Protocols.Acp.*` becomes `Lunate.Protocols.*` (entries are in
   `PublicAPI.Unshipped.txt`, so no shipped member changes); `Lunate.Tui.Platform` types are internal.
   The decision request/result entries leave `Lunate.Contracts`' `PublicAPI.Unshipped.txt` (they were

@@ -80,7 +80,7 @@
       still rejects an empty question text and a duplicated id.
 - [x] 11.2 Rename the internal `DecisionQuestionKind.Noul` to `YesNo`, the name the contract model
       uses, so the two models name the four kinds the same way.
-- [x] 11.3 Take the merge with the maintainer's sign-off (ADR-0042): delete
+- [x] 11.3 Take the merge with the maintainer's sign-off (ADR-0044): delete
       `Lunate.Contracts/Decisions/DecisionRequest.cs`, make `Lunate.Ai.Decisions`' model the one model
       (public request, question, kinds, answer, box and result), add the `Lunate.Ai.Decisions` →
       `Lunate.Contracts` edge, and keep only `DecisionProbability` in the contract because

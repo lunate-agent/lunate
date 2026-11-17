@@ -19,7 +19,7 @@ public sealed class DecisionServiceContractTests
             .Order(StringComparer.Ordinal)
             .ToArray();
         // The decision model lives in Lunate.Ai.Decisions and the edge runs down from it to the
-        // contract (ADR-0042); the extension contract never reaches up into the loop.
+        // contract (ADR-0044); the extension contract never reaches up into the loop.
         Assert.Equal(["Lunate.Ai.Decisions", "Lunate.Contracts"], lunate);
         Assert.All(
             typeof(IDecisionService)

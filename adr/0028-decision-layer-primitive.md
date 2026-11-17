@@ -60,4 +60,4 @@ Point 2 placed the decision contract in `Lunate.Extensibility.Abstractions`. It 
 there, but the request, question, answer and result types move down into `Lunate.Ai.Decisions`, one
 model with one home, with the edge running to `Lunate.Contracts` rather than from it. The service is
 still how an extension requests a decision, and the host still bridges it. Recorded in
-[ADR-0042](0042-decision-model-ownership.md).
+[ADR-0044](0044-decision-model-ownership.md).

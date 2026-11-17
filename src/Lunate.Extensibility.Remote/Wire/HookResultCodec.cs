@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Lunate.Extensibility.Abstractions;
@@ -83,7 +84,9 @@ public static class HookResultCodec
             );
         }
 
-        return encode(result);
+        // A union value reaches the codec boxed from the generic contract; the case is what the
+        // wire carries, so unwrap it here rather than in every family encoder.
+        return encode(result is IUnion union ? union.Value ?? throw Unknown(result) : result);
     }
 
     /// <summary>Decodes one hook result by the contract's codec.</summary>
@@ -110,7 +113,7 @@ public static class HookResultCodec
         }
     }
 
-    public static JsonElement EncodeProjectTrust(ProjectTrustResult result) =>
+    public static JsonElement EncodeProjectTrust(object result) =>
         result switch
         {
             ProjectTrustResult.Allow => Outcome("allow"),
@@ -126,7 +129,7 @@ public static class HookResultCodec
             var outcome => throw UnknownOutcome("ProjectTrust", outcome),
         };
 
-    public static JsonElement EncodeInputReceived(InputReceivedResult result) =>
+    public static JsonElement EncodeInputReceived(object result) =>
         result switch
         {
             InputReceivedResult.PassThrough => Outcome("passThrough"),
@@ -147,7 +150,7 @@ public static class HookResultCodec
             var outcome => throw UnknownOutcome("InputReceived", outcome),
         };
 
-    public static JsonElement EncodeRunStarting(RunStartingResult result) =>
+    public static JsonElement EncodeRunStarting(object result) =>
         result switch
         {
             RunStartingResult.None => Outcome("none"),
@@ -175,14 +178,14 @@ public static class HookResultCodec
             var outcome => throw UnknownOutcome("RunStarting", outcome),
         };
 
-    public static JsonElement EncodeContextBuilding(ContextBuildingResult result) =>
-        JsonSerializer.SerializeToElement(result, Options);
+    public static JsonElement EncodeContextBuilding(object result) =>
+        JsonSerializer.SerializeToElement((ContextBuildingResult)result, Options);
 
     public static ContextBuildingResult DecodeContextBuilding(JsonElement result) =>
         JsonSerializer.Deserialize<ContextBuildingResult>(result, Options)
         ?? throw MalformedText("ContextBuilding", "the result was null");
 
-    public static JsonElement EncodeMessageCompleted(MessageCompletedResult result) =>
+    public static JsonElement EncodeMessageCompleted(object result) =>
         result switch
         {
             MessageCompletedResult.Keep => Outcome("keep"),
@@ -198,7 +201,7 @@ public static class HookResultCodec
             var outcome => throw UnknownOutcome("MessageCompleted", outcome),
         };
 
-    public static JsonElement EncodeToolCalling(ToolCallingResult result) =>
+    public static JsonElement EncodeToolCalling(object result) =>
         result switch
         {
             ToolCallingResult.Proceed proceed => Outcome(
@@ -222,14 +225,14 @@ public static class HookResultCodec
             var outcome => throw UnknownOutcome("ToolCalling", outcome),
         };
 
-    public static JsonElement EncodeToolResultReady(ToolResultReadyResult result) =>
-        JsonSerializer.SerializeToElement(result, Options);
+    public static JsonElement EncodeToolResultReady(object result) =>
+        JsonSerializer.SerializeToElement((ToolResultReadyResult)result, Options);
 
     public static ToolResultReadyResult DecodeToolResultReady(JsonElement result) =>
         JsonSerializer.Deserialize<ToolResultReadyResult>(result, Options)
         ?? throw MalformedText("ToolResultReady", "the result was null");
 
-    public static JsonElement EncodeTurnEnded(TurnEndedResult result) =>
+    public static JsonElement EncodeTurnEnded(object result) =>
         result switch
         {
             TurnEndedResult.None => Outcome("none"),
@@ -252,7 +255,7 @@ public static class HookResultCodec
             var outcome => throw UnknownOutcome("TurnEnded", outcome),
         };
 
-    public static JsonElement EncodeCompacting(CompactingResult result) =>
+    public static JsonElement EncodeCompacting(object result) =>
         result switch
         {
             CompactingResult.UseDefault => Outcome("useDefault"),

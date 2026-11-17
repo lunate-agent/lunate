@@ -26,10 +26,7 @@ public sealed class AgentHookPointsTests
             new AgentHarnessOptions { SystemPrompt = "base", Hooks = new EmptyHookPoints() }
         );
 
-        Assert.Equal(
-            without.Select(agentEvent => agentEvent.GetType()),
-            with.Select(e => e.GetType())
-        );
+        Assert.Equal(without.Select(agentEvent => agentEvent.Kind), with.Select(e => e.Kind));
         Assert.Equal(Messages(withoutClient), Messages(withClient));
     }
 

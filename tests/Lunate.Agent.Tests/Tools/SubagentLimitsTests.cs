@@ -79,7 +79,7 @@ public sealed class SubagentLimitsTests
         Assert.Contains(events.OfType<RunFinished>(), finished =>
             finished.ParentRunId is not null && finished.StopReason == StopReasons.TokenLimit
         );
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public sealed class SubagentLimitsTests
             "partial answer",
             string.Concat(events.OfType<TextMessageContent>().Select(content => content.Text))
         );
-        RunFinished finished = Assert.IsType<RunFinished>(events[^1]);
+        RunFinished finished = Assert.IsType<RunFinished>(events[^1].Value);
         Assert.Equal(StopReasons.TokenLimit, finished.StopReason);
     }
 

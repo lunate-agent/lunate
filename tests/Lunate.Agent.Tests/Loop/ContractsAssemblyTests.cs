@@ -105,7 +105,7 @@ public sealed class ContractsAssemblyTests
     [Fact]
     public void The_decision_model_lives_in_the_decision_assembly()
     {
-        // One model, one home (ADR-0042): the request/result records belong to the decision loop, and
+        // One model, one home (ADR-0044): the request/result records belong to the decision loop, and
         // the contract keeps only the event distribution it publishes.
         System.Reflection.Assembly decisions = typeof(DecisionRequest).Assembly;
 

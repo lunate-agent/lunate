@@ -60,7 +60,7 @@ The decision model sits in `Lunate.Ai.Decisions` rather than in the contract: `L
 only the `DecisionProbability` record the `DecisionEvaluated` event publishes, and the edge runs
 `Lunate.Ai.Decisions` → `Lunate.Contracts`, never back. `Lunate.Extensibility.Abstractions` types
 `IDecisionService` with that model, so the contract package carries the decision assembly in `lib/` and
-the host owns it at load. See [ADR-0042](../../adr/0042-decision-model-ownership.md).
+the host owns it at load. See [ADR-0044](../../adr/0044-decision-model-ownership.md).
 
 ## The model pipeline
 

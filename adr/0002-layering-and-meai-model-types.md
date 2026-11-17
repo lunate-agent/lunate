@@ -59,4 +59,4 @@ stays in `Lunate.Extensibility.Abstractions` and is typed with the decision mode
 references the decision assembly. The rule this ADR states — never upward, and nothing that only an
 implementation needs in the contract — is unchanged; the decision types needed it twice and were
 wrong about which side of the line they belonged on. Recorded in
-[ADR-0042](0042-decision-model-ownership.md).
+[ADR-0044](0044-decision-model-ownership.md).

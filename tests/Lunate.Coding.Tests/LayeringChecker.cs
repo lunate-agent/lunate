@@ -9,7 +9,7 @@ internal static class LayeringChecker
             ("Lunate.Agent", "Lunate.Ai.Decisions"),
             // The decision model lives in Lunate.Ai.Decisions: IDecisionService is typed with it, and
             // the decision layer reads the event contract's DecisionProbability, so the edge runs
-            // down from the decision loop to the contract and never back (ADR-0042).
+            // down from the decision loop to the contract and never back (ADR-0044).
             ("Lunate.Ai.Decisions", "Lunate.Contracts"),
             ("Lunate.Extensibility.Abstractions", "Lunate.Ai.Decisions"),
             ("Lunate.Extensibility", "Lunate.Ai.Decisions"),

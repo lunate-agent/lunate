@@ -32,7 +32,7 @@ public sealed class AgentMidTurnFailureTests
         Assert.Empty(EventSequenceValidator.Validate(events));
         ToolCallResult result = Assert.Single(events.OfType<ToolCallResult>());
         Assert.False(result.IsError);
-        RunError error = Assert.IsType<RunError>(events[^1]);
+        RunError error = Assert.IsType<RunError>(events[^1].Value);
         Assert.Contains("fixture request mismatch", error.Message, StringComparison.Ordinal);
         Assert.Equal(2, client.Requests.Count);
     }
@@ -64,7 +64,7 @@ public sealed class AgentMidTurnFailureTests
         client.Enqueue(LoopScripts.Text("done"), LoopScripts.Stop());
         List<AgentEvent> next = await AgentTestSupport.Run(harness);
         Assert.Empty(EventSequenceValidator.Validate(next));
-        Assert.IsType<RunFinished>(next[^1]);
+        Assert.IsType<RunFinished>(next[^1].Value);
         IReadOnlyList<ChatMessage> followUpRequest = client.Requests[^1].Messages;
         Assert.Equal(2, followUpRequest.Count(message => message.Role == ChatRole.User));
         Assert.Contains(followUpRequest, message =>
@@ -123,8 +123,8 @@ public sealed class AgentMidTurnFailureTests
         Assert.Empty(EventSequenceValidator.Validate(events));
         // The terminal event is the run's answer to the failure — however the exit repair fared,
         // the consumer saw a completed stream ending in RunError instead of a bare exception.
-        Assert.IsType<RunError>(events[^1]);
-        Assert.NotEmpty(Assert.IsType<RunError>(events[^1]).Message);
+        Assert.IsType<RunError>(events[^1].Value);
+        Assert.NotEmpty(Assert.IsType<RunError>(events[^1].Value).Message);
     }
 
     private static readonly DateTimeOffset Start = new(2026, 10, 30, 9, 0, 0, TimeSpan.Zero);

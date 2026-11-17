@@ -26,9 +26,9 @@ public sealed class AgentEventChannelTests
 
         Assert.Collection(
             received,
-            agentEvent => Assert.Same(started, agentEvent),
-            agentEvent => Assert.Same(text, agentEvent),
-            agentEvent => Assert.Same(finished, agentEvent)
+            agentEvent => Assert.Equal(started, agentEvent),
+            agentEvent => Assert.Equal(text, agentEvent),
+            agentEvent => Assert.Equal(finished, agentEvent)
         );
     }
 

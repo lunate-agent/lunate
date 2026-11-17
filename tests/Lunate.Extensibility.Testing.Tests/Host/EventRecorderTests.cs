@@ -15,7 +15,7 @@ public sealed class EventRecorderTests
 
         Assert.Equal(
             ["RunStarted", "TextMessageContent", "RunFinished"],
-            recorder.Events.Select(agentEvent => agentEvent.GetType().Name)
+            recorder.Events.Select(agentEvent => agentEvent.Kind.Name)
         );
         Assert.Single(recorder.Of<RunStarted>());
         Assert.Equal("hello", recorder.Single<TextMessageContent>().Text);

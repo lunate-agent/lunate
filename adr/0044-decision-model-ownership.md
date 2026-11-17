@@ -1,4 +1,4 @@
-# ADR-0042: The decision model belongs to the decision layer
+# ADR-0044: The decision model belongs to the decision layer
 
 Status: accepted — 2026-11-16 (maintainer sign-off on #695, recorded in the card's Decisions)
 Completes: ADR-0028 (decision layer) and ADR-0030 (native decisions); amends ADR-0002's decision note

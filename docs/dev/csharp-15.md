@@ -44,11 +44,18 @@ property and conversions.
   internal abstract record with `SequenceMessage` and `SequenceNote`; `SequenceDraw` pattern-matches
   it. A union makes the two variants closed and deletes the base record.
 
-The motivating case is [`AgentEvent.cs`](../../src/Lunate.Contracts/Events/AgentEvent.cs)
-(`AgentEvent`/`ExtensionEvent`, explicitly documented as union-ready). It is deliberately not in the
-two examples: it lives in the contract package, so it follows the public-contract slice and the
-target-framework decision, not the internal refactor. The same holds for the hook result families in
-[`HookResults.cs`](../../src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs).
+The contract's closed sets were the case this inventory deferred, and #919 decided them as
+[ADR-0043](../../adr/0043-contract-unions.md) (superseding
+[ADR-0042](../../adr/0042-contract-closed-sets.md)): `AgentEvent`/`ExtensionEvent`
+([`AgentEvent.cs`](../../src/Lunate.Contracts/Events/AgentEvent.cs)) and the seven hook-result families
+([`HookResults.cs`](../../src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs)) are unions over
+their case records. Two union facts shape that code, both measured: a union declaration may not carry
+instance fields or auto-properties (CS9373), so the stamped `SessionId`/`ParentRunId`/`Source` stay on
+the `AgentEventBase` record and the channel stamps through it before converting once; and a union's
+`Value` is `object`, so `Enumerable.OfType<T>` over it never matches — the contract ships an
+`OfType<T>` overload and a `Kind` property so the existing consumer idiom keeps working. The wire is
+projected from the case by both protocols, never serialized as a union, so no JSON classifier exists
+and no fixture moved.
 
 **Runtime / BCL.** Needs `net11.0`. The compiler requires the `net11.0` BCL types
 `System.Runtime.CompilerServices.IUnion` and `UnionAttribute`; a `net10.0` target fails with CS0518
@@ -165,11 +172,11 @@ note states the runtime requirement. The self-contained installers are unaffecte
 
 **The public contract has no `net10.0` floor.** There are no external extension authors and one user,
 so the `net10.0` asset the first decision kept bought nothing and cost the rule that no union or
-closed type may appear on the contract surface. The `AgentEvent`/hook-result unions are still the
-last slice, after a deliberate `ExtensionApi` decision; the internal `Lunate.Tui`/`Mermaid.Terminal`
-types go first. Reintroducing multi-targeting before the first external release or the first
-published library version is a deliberate, breaking decision with its own ADR, never a silent
-addition inside a feature card.
+closed type may appear on the contract surface. The contract's closed sets are now unions
+(#919, [ADR-0043](../../adr/0043-contract-unions.md)); the `Lunate.Tui`/`Mermaid.Terminal`
+refactor slices stay their own work. Reintroducing multi-targeting before the first external release
+or the first published library version is a deliberate, breaking decision with its own ADR, never a
+silent addition inside a feature card.
 
 The startup and memory budgets are re-measured on .NET 11 after the merge (ADR-0005, ADR-0009), as a
 maintainer step: the pull request only moves the runtime, and the per-runner CI values come from the

@@ -172,6 +172,41 @@ public static class RemoteConformance
         return
         [
             new(
+                "ProjectTrustResult",
+                Contract("ProjectTrust"),
+                Box<ProjectTrustResult>(new ProjectTrustResult.Allow())
+            ),
+            new(
+                "InputReceivedResult",
+                Contract("InputReceived"),
+                Box<InputReceivedResult>(new InputReceivedResult.PassThrough())
+            ),
+            new(
+                "RunStartingResult",
+                Contract("RunStarting"),
+                Box<RunStartingResult>(new RunStartingResult.None())
+            ),
+            new(
+                "MessageCompletedResult",
+                Contract("MessageCompleted"),
+                Box<MessageCompletedResult>(new MessageCompletedResult.Keep())
+            ),
+            new(
+                "ToolCallingResult",
+                Contract("ToolCalling"),
+                Box<ToolCallingResult>(new ToolCallingResult.Proceed(null))
+            ),
+            new(
+                "TurnEndedResult",
+                Contract("TurnEnded"),
+                Box<TurnEndedResult>(new TurnEndedResult.None())
+            ),
+            new(
+                "CompactingResult",
+                Contract("Compacting"),
+                Box<CompactingResult>(new CompactingResult.UseDefault())
+            ),
+            new(
                 "ProjectTrustResult.Allow",
                 Contract("ProjectTrust"),
                 new ProjectTrustResult.Allow()
@@ -270,6 +305,10 @@ public static class RemoteConformance
             ),
         ];
     }
+
+    /// <summary>Boxes a union value so its sample type is the family the contract declares.</summary>
+    private static object Box<T>(T result)
+        where T : IHookResult => result;
 
     private static string JsonNodeNormalize(JsonElement element) =>
         System.Text.Json.Nodes.JsonNode.Parse(element.GetRawText())!.ToJsonString();

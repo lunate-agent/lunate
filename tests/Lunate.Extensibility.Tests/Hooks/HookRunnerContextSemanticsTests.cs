@@ -106,7 +106,7 @@ public sealed class HookRunnerContextSemanticsTests
 
         InputReceivedResult result = await runner.RunInputReceivedAsync(TestHookPayloads.Input, Ct);
 
-        Assert.Equal("one", Assert.IsType<InputReceivedResult.Transform>(result).Text);
+        Assert.Equal("one", Assert.IsType<InputReceivedResult.Transform>(result.Value).Text);
 
         runner.Register(
             "c",
@@ -130,7 +130,7 @@ public sealed class HookRunnerContextSemanticsTests
 
         result = await runner.RunInputReceivedAsync(TestHookPayloads.Input, Ct);
 
-        Assert.IsType<InputReceivedResult.Consume>(result);
+        Assert.IsType<InputReceivedResult.Consume>(result.Value);
         Assert.False(afterConsume);
     }
 
@@ -259,7 +259,7 @@ public sealed class HookRunnerContextSemanticsTests
         var runner = new HookRunner();
 
         CompactingResult result = await runner.RunCompactingAsync(TestHookPayloads.Compacting, Ct);
-        Assert.IsType<CompactingResult.UseDefault>(result);
+        Assert.IsType<CompactingResult.UseDefault>(result.Value);
 
         runner.Register("a", Provide("one"));
         runner.Register(
@@ -271,7 +271,7 @@ public sealed class HookRunnerContextSemanticsTests
         runner.Register("c", Provide("two"));
 
         result = await runner.RunCompactingAsync(TestHookPayloads.Compacting, Ct);
-        Assert.Equal("two", Assert.IsType<CompactingResult.Provide>(result).Summary);
+        Assert.Equal("two", Assert.IsType<CompactingResult.Provide>(result.Value).Summary);
 
         static TestCompactingHandler Provide(string summary) =>
             new(

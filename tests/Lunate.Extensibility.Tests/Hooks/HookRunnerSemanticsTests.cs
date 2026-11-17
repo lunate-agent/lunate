@@ -58,7 +58,7 @@ public sealed class HookRunnerSemanticsTests
 
         Assert.True(dispatch.HasHandlers);
         Assert.Equal(2, dispatch.HandlerCount);
-        Assert.IsType<ProjectTrustResult.Allow>(dispatch.Result);
+        Assert.IsType<ProjectTrustResult.Allow>(dispatch.Result!.Value.Value);
 
         static TestProjectTrustHandler Allow() =>
             new((_, _) => ValueTask.FromResult<ProjectTrustResult>(new ProjectTrustResult.Allow()));
@@ -93,7 +93,7 @@ public sealed class HookRunnerSemanticsTests
             cancellationToken: Ct
         );
 
-        var deny = Assert.IsType<ProjectTrustResult.Deny>(dispatch.Result);
+        var deny = Assert.IsType<ProjectTrustResult.Deny>(dispatch.Result!.Value.Value);
         Assert.Equal("blocked", deny.Reason);
         Assert.False(reached);
 
@@ -138,7 +138,7 @@ public sealed class HookRunnerSemanticsTests
             cancellationToken: Ct
         );
 
-        var block = Assert.IsType<ToolCallingResult.Block>(result);
+        var block = Assert.IsType<ToolCallingResult.Block>(result.Value);
         Assert.Equal("not allowed", block.Reason);
         Assert.False(afterBlock);
 
@@ -166,7 +166,7 @@ public sealed class HookRunnerSemanticsTests
             cancellationToken: Ct
         );
 
-        var proceed = Assert.IsType<ToolCallingResult.Proceed>(result);
+        var proceed = Assert.IsType<ToolCallingResult.Proceed>(result.Value);
         Assert.Equal("two", proceed.Arguments!.Value.GetProperty("path").GetString());
 
         TestToolCallingHandler Proceed(string path) =>
@@ -219,6 +219,6 @@ public sealed class HookRunnerSemanticsTests
             Ct
         );
 
-        Assert.Equal("two", Assert.IsType<MessageCompletedResult.Replace>(result).Text);
+        Assert.Equal("two", Assert.IsType<MessageCompletedResult.Replace>(result.Value).Text);
     }
 }

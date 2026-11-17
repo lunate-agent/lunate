@@ -127,13 +127,25 @@ public sealed class RemoteConformanceTests
                 foreach (Type resultType in contract.ResultTypes)
                 {
                     Assert.True(
-                        family.IsAssignableFrom(resultType),
+                        IsFamilyCase(family, resultType),
                         $"{contract.Name}: {resultType.Name} is not a variant of {family.Name}"
                     );
                 }
             }
         }
     }
+
+    /// <summary>
+    /// A family is a union, so a case is a variant by declaration: the family itself, a derived
+    /// record (a single-shape result), or one of the union's case types.
+    /// </summary>
+    private static bool IsFamilyCase(Type family, Type resultType) =>
+        resultType == family
+        || family.IsAssignableFrom(resultType)
+        || family
+            .GetConstructors()
+            .Select(constructor => constructor.GetParameters()[0].ParameterType)
+            .Contains(resultType);
 
     [Fact]
     public async Task Every_payload_round_trips_over_the_wire()
