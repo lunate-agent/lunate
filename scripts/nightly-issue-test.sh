@@ -137,6 +137,15 @@ cat >"$tmp/logs/32.log" <<'LOG'
   failed Lunate.Coding.Tests.CanonicalJsonTests.A_canonical_form_is_stable (3ms)
   failed Lunate.Agent.Tests.FakeFailure.Case (1ms)
 LOG
+cat >"$tmp/logs/33.log" <<'LOG'
+  failed Lunate.Agent.Tests.Truncation.Test1 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test2 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test3 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test4 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test5 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test6 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test7 (1ms)
+LOG
 
 CASE_EVENT="schedule"
 CASE_MILESTONES="$tmp/milestones.json"
@@ -256,6 +265,35 @@ _expect_gh "the push card carries the run link" "https://example.test/runs/1"
 _expect_gh "the push card names the event" "The push to main \`ci.yml\` run failed"
 _expect_gh "the push card takes the milestone" "--milestone 0.5.0"
 _expect_gh "the theme-file failure is area/tui" "--label area/tui"
+
+# A card has to say what to triage. Run 44052312654's `verify (macos-latest, 2/2)` card named neither the
+# step that failed nor a test, so a session began with an API round trip through the run's jobs before it
+# could look at anything. Both facts are in documents the reporter already holds: the step is in the jobs
+# document, and the failing tests are in the log it downloads for the area label.
+_defaults
+CASE_EVENT="push"
+_run "a card names the failing step and the failing tests" 0 \
+    '{"jobs":[{"id":27,"name":"verify (macos-latest, 2/2)","conclusion":"failure","runner_id":1000009875,"steps":[{"name":"Checkout","conclusion":"success"},{"name":"Verify (bash)","conclusion":"failure"},{"name":"Upload shard timing","conclusion":"success"}]}]}'
+_expect_gh "the card names the step that failed" 'The failing step is **`Verify (bash)`**.'
+_expect_gh "the card names the test the log names" '`Lunate.Coding.Tests.InteractiveSessionThemeFileTests.An_unknown_token_warns_and_the_built_in_theme_stands`'
+_expect_no_gh "a step that succeeded is not named" 'The failing step is **`Checkout`**'
+
+# The reporter writes what it read and never a guess: a document without a failed step and a log without a
+# failing test (a build or a format leg) file the card with the paragraph it has always carried.
+_defaults
+_run "a card without a failed step or a failing test writes neither line" 0 \
+    '{"jobs":[{"id":29,"name":"verify (ubuntu-latest, 4/4)","conclusion":"failure"}]}'
+_expect_gh "the card is still filed" "CI failed: verify (ubuntu-latest, 4/4)"
+_expect_no_gh "no step was read, so no step is named" "The failing step is"
+_expect_no_gh "no failing test was read, so none is named" "The log names"
+
+# A red leg that fails many tests still files a readable card: five names, and how many the log names.
+_defaults
+_run "the card caps the test list and says how many the log names" 0 \
+    '{"jobs":[{"id":33,"name":"verify (ubuntu-latest, 1/4)","conclusion":"failure","steps":[{"name":"Verify (bash)","conclusion":"failure"}]}]}'
+_expect_gh "the card names the fifth test" '`Lunate.Agent.Tests.Truncation.Test5`'
+_expect_no_gh "the sixth test is not named" 'Test6'
+_expect_gh "the card says how many the log names" 'The log names these failing tests: `Lunate.Agent.Tests.Truncation.Test1`, `Lunate.Agent.Tests.Truncation.Test2`, `Lunate.Agent.Tests.Truncation.Test3`, `Lunate.Agent.Tests.Truncation.Test4`, `Lunate.Agent.Tests.Truncation.Test5` (7 in all).'
 
 _defaults
 CASE_EVENT="push"

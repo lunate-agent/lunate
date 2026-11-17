@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using System.Xml.Linq;
 using Lunate.Agent;
 using Lunate.Ai;
 using Lunate.Extensibility.Testing;
@@ -35,35 +36,34 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         // write another assembly's cache.
         string packages = temp.Subdirectory("packages");
         string child = temp.Subdirectory("child-dotnet");
-        string config = WriteRoundtripConfig(child, feed);
         Pack(repository, feed, packages, child);
         AssertContractPackageTargetsNet11(feed);
 
-        // The copy restores into a packages folder of its own: a runner's folder can hold the
-        // published contract at this version, and NuGet binds an installed copy before the feed
-        // this test just packed. `verify (macos-latest, 2/2)` did exactly that, built the copy
-        // against 1.16.0 outside Directory.Build.props (where CS8509 is only a warning) and failed
-        // at load with a TypeLoadException on HandleAsync instead of proving this checkout's shape.
-        // The sources are the copy's own configuration file (see WriteRoundtripConfig) for the next
-        // reason: run 44033633019, the red `verify (windows-latest, 2/4)` this test owns, failed on
-        // the three legs that restore the template against the feed they had just packed -- and on
-        // no leg that does not -- twice in a row, on 49e4b54e and on f2950bbc. `packageSourceMapping`
-        // is what `scripts/verify.sh` gives its own roundtrip (#937); here it makes the feed this
-        // test packed the only source a `Lunate.*` package may come from.
+        // The copy restores into a packages folder and through a NuGet configuration of the run's
+        // own. A runner's folder can hold the published contract at this version, and NuGet binds an
+        // installed copy before the feed this test just packed. `verify (macos-latest, 2/2)` did
+        // exactly that, built the copy against 1.16.0 outside Directory.Build.props (where CS8509 is
+        // only a warning) and failed at load with a TypeLoadException on HandleAsync instead of
+        // proving this checkout's shape.
+        // The sources are the copy's own configuration file (see WriteNuGetConfig): run 44033633019,
+        // the red `verify (windows-latest, 2/4)` this test owns, failed on the three legs that
+        // restore the template against the feed they had just packed -- and on no leg that does not.
+        string config = WriteNuGetConfig(child, feed);
+
         string copy = CopyTemplate(repository, temp.Subdirectory("my-extension"));
         // Both projects a copy carries: the extension a host loads and the test project the
         // README keeps as the place where behavior is proven.
         RestoreAndBuild(
             Path.Combine(copy, "TemplateExtension", "TemplateExtension.csproj"),
-            packages,
             config,
+            packages,
             child,
             ReleaseVersions.Contract
         );
         RestoreAndBuild(
             Path.Combine(copy, "TemplateExtension.Tests", "TemplateExtension.Tests.csproj"),
-            packages,
             config,
+            packages,
             child,
             ReleaseVersions.Contract,
             ReleaseVersions.Preview
@@ -114,6 +114,34 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         );
     }
 
+    /// <summary>
+    /// The configuration this test restores through is XML, and a feed path is not: a temp directory
+    /// may hold <c>&amp;</c> (Windows allows it in a profile path) or <c>&lt;</c> (valid on Unix),
+    /// and written raw the file is malformed XML, which makes the restore fail before it proves
+    /// anything (#936). Written as an XML attribute, the document parses and reads the path back
+    /// unchanged.
+    /// </summary>
+    [Fact]
+    public void The_configuration_escapes_a_feed_path_xml_cannot_carry_raw()
+    {
+        using var temp = new TempDirectory();
+        string feed = Path.Combine(temp.Root, "a&b<c>d\"e'f");
+
+        string config = WriteNuGetConfig(temp.Root, feed);
+
+        XDocument document = XDocument.Load(config);
+        string? mapped = document
+            .Element("configuration")
+            ?.Element("packageSources")
+            ?.Elements("add")
+            .FirstOrDefault(element => (string?)element.Attribute("key") == "packed")
+            ?.Attribute("value")
+            ?.Value;
+
+        Assert.Equal(feed, mapped);
+        Assert.Contains("&amp;", File.ReadAllText(config), StringComparison.Ordinal);
+    }
+
     private const string Configuration = "Release";
     private const string TargetFramework = "net11.0";
     private const string NuGetOrg = "https://api.nuget.org/v3/index.json";
@@ -137,42 +165,6 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         Assert.All(libraries, name =>
             Assert.StartsWith("lib/net11.0/", name, StringComparison.Ordinal)
         );
-    }
-
-    /// <summary>
-    /// The copy's own NuGet configuration: the feed this test just packed and nuget.org, with
-    /// <c>packageSourceMapping</c> so a <c>Lunate.*</c> package can only come from the packed feed.
-    /// A release serves the same contract on nuget.org under the same id and version, so listing
-    /// the packed feed first would still leave which source answers to source order, the HTTP cache
-    /// and the runner's own configuration; <c>--configfile</c> keeps that configuration out of the
-    /// restore altogether. nuget.org stays for the test SDK the copy's test project needs.
-    /// </summary>
-    private static string WriteRoundtripConfig(string folder, string feed)
-    {
-        string path = Path.Combine(folder, "nuget.config");
-        File.WriteAllText(
-            path,
-            $"""
-            <?xml version="1.0" encoding="utf-8"?>
-            <configuration>
-              <packageSources>
-                <clear />
-                <add key="packed" value="{feed}" />
-                <add key="nuget.org" value="{NuGetOrg}" />
-              </packageSources>
-              <packageSourceMapping>
-                <packageSource key="packed">
-                  <package pattern="Lunate.*" />
-                </packageSource>
-                <packageSource key="nuget.org">
-                  <package pattern="*" />
-                </packageSource>
-              </packageSourceMapping>
-            </configuration>
-
-            """
-        );
-        return path;
     }
 
     private static void Pack(string repository, string feed, string packages, string child)
@@ -204,8 +196,8 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
     private static void RestoreAndBuild(
         string project,
-        string packages,
         string config,
+        string packages,
         string child,
         string contractVersion,
         string? previewVersion = null
@@ -218,7 +210,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             $"""-p:LunateUseNuGetContracts=true -p:LunateContractsVersion={contractVersion}{testing}""";
         Dotnet(
             $"""restore "{project}" -p:Configuration={Configuration} {properties} """
-                + $"""--packages "{packages}" --configfile "{config}" """
+                + $"""--configfile "{config}" --packages "{packages}" """
                 + $"""-maxcpucount:1 --nologo -nodeReuse:false""",
             packages,
             child
@@ -303,6 +295,59 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         Directory.CreateDirectory(path);
         return path;
     }
+
+    /// <summary>
+    /// The NuGet configuration the copy restores through: the packed feed as the only source of a
+    /// <c>Lunate</c> package, nuget.org for the test SDK the copy's test project needs.
+    /// </summary>
+    /// <remarks>
+    /// The copy pins the same contract version the release publishes, so nuget.org also serves a
+    /// <c>Lunate.Contracts</c> of that version — with an earlier commit's content. Naming the packed
+    /// feed first is an ordering rule, not a guarantee, and a runner whose cache is warm can answer
+    /// with the released copy instead; <c>packageSourceMapping</c> makes the packed feed the only
+    /// source a <c>Lunate</c> package may come from, so neither ordering nor a cache can decide which
+    /// shape this test proved. Parity with the verify gate's roundtrip.
+    /// </remarks>
+    private static string WriteNuGetConfig(string root, string feed)
+    {
+        string path = Path.Combine(root, "nuget.config");
+        File.WriteAllText(
+            path,
+            $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="packed" value="{XmlAttribute(feed)}" />
+                <add key="nuget.org" value="{NuGetOrg}" />
+              </packageSources>
+              <packageSourceMapping>
+                <packageSource key="packed">
+                  <package pattern="Lunate.*" />
+                </packageSource>
+                <packageSource key="nuget.org">
+                  <package pattern="*" />
+                </packageSource>
+              </packageSourceMapping>
+            </configuration>
+            """,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
+        );
+        return path;
+    }
+
+    /// <summary>
+    /// XML attribute encoding of the five characters an attribute cannot carry raw, <c>&amp;</c>
+    /// first so the entities the others write survive. Parity with <c>xml_attribute</c> in
+    /// <c>scripts/verify.sh</c> and <c>ConvertTo-XmlAttribute</c> in <c>scripts/verify.ps1</c>.
+    /// </summary>
+    private static string XmlAttribute(string value) =>
+        value
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("'", "&apos;", StringComparison.Ordinal);
 
     private static string CopyTemplate(string repository, string destination)
     {

@@ -221,7 +221,20 @@ card takes the lowest open version milestone (`0.5.0` rather than `backlog`; a r
 milestone, so the next version becomes the target), read from the GitHub API, and an `area/tui` or
 `area/core` label only when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a
 `Lunate.Coding` test is `area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a
-job that fails without a failing test in those projects carries no area label.
+job that fails without a failing test in those projects carries no area label. A card that names the job
+still needs the step inside it, and a job's log on a public run needs an account while its check run's
+annotations do not: `scripts/verify.sh` reports the step it stopped in, with its exit status and
+duration, as an `::error::` annotation and in the job summary, so a red leg can be triaged from the run
+instead of from a log nobody without a session can open (#942).
+
+A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
+legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore
+the extension template against the feed the step has just packed, so a single fix lands for all three
+while each leg keeps a card of its own. The card for a leg whose fix landed while its run was still
+in flight is a duplicate from the start. Triage therefore begins at the head of `main`: when the most
+recent push run of the same job is green and a sibling card from the same run was closed by the merge
+that fixed it, no change is left to make here — close the card as a duplicate and name the sibling,
+rather than open a pull request against a green tree (#944).
 
 A run whose legs never acquired a hosted runner is a runner-capacity red, and it is retried instead of
 reported: GitHub cancels a job when no macOS arm64 runner is free, before its first step starts, so nothing

@@ -233,6 +233,32 @@ native_path() {
   fi
 }
 
+# A feed path is written into an XML attribute of the nuget.config files the roundtrips hand
+# `dotnet restore`, and a temp path may carry `&` (Windows allows it in a profile path) or `<`
+# (valid on Unix): raw, the file is malformed XML and the restore fails before it can prove
+# anything (#936). This is XML attribute encoding of the five characters an attribute may not
+# carry raw, `&` first so the entities the others write survive. Character by character rather
+# than a pattern substitution, because bash 5.2 expands an unquoted `&` in a replacement and bash
+# 3.2 (macOS) does not. Parity with ConvertTo-XmlAttribute in scripts/verify.ps1.
+xml_attribute() {
+  local value="$1"
+  local escaped=""
+  local character
+  local index
+  for ((index = 0; index < ${#value}; index++)); do
+    character="${value:index:1}"
+    case "$character" in
+      '&') escaped+='&amp;' ;;
+      '<') escaped+='&lt;' ;;
+      '>') escaped+='&gt;' ;;
+      '"') escaped+='&quot;' ;;
+      "'") escaped+='&apos;' ;;
+      *) escaped+="$character" ;;
+    esac
+  done
+  printf '%s' "$escaped"
+}
+
 verify_cleanup() {
   if [ -n "$VERIFY_TMP_ROOT" ] && [ -d "$VERIFY_TMP_ROOT" ]; then
     rm -rf "$VERIFY_TMP_ROOT"
@@ -260,6 +286,9 @@ record_wall_time() {
 
 verify_exit() {
   local status=$?
+  # First, because the rest of this handler is bookkeeping: a red leg must name the step it stopped
+  # in before anything that could fail or be slow runs (see report_failed_step in lib.sh).
+  report_failed_step "$STEP_NAME" "$status" "$(( $(date +%s) - STEP_START ))"
   record_wall_time "$status"
   verify_cleanup
   return "$status"
@@ -478,6 +507,12 @@ platform_checks() {
   # restores a real package: the platform job is the one that has the SDK.
   step "the template roundtrip's packages folder"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_contract_roundtrip.py"
+
+  # A red leg names the step it failed in (#942): the job's log needs an account, the check run's
+  # annotations do not, and a card that says only "Process completed with exit code 1" cannot be
+  # triaged. The gate's own output is the only place that knows which step was running.
+  step "a red leg names its failing step"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_step_report.py"
 
   step "public API"
   if ! check_shipped_api_unchanged; then
@@ -835,6 +870,9 @@ SHIM
   # Pack also gets the native feed, so bash and the CLI agree on one directory.
   feed="$(native_path "${package_tmp}/feed")"
   store="$(native_path "${package_tmp}/home")"
+  # Both land in XML attributes of the configuration below, so both are attribute-escaped first.
+  feed_xml="$(xml_attribute "${feed}")"
+  packages_xml="$(xml_attribute "$(native_path "${package_tmp}/packages")")"
   dotnet pack extensions/subagents/SubagentsExtension/SubagentsExtension.csproj \
     -c "$CONFIGURATION" -o "$feed" --nologo
   # The extension's feed page is part of the release too, and its metadata must survive changes to
@@ -847,10 +885,10 @@ SHIM
 <configuration>
   <packageSources>
     <clear />
-    <add key="local" value="${feed}" />
+    <add key="local" value="${feed_xml}" />
   </packageSources>
   <config>
-    <add key="globalPackagesFolder" value="$(native_path "${package_tmp}/packages")" />
+    <add key="globalPackagesFolder" value="${packages_xml}" />
   </config>
 </configuration>
 XML
@@ -919,20 +957,24 @@ XML
   # a release also serves the contract on nuget.org under the same id and version, and "the packed
   # feed is asked first" is an ordering rule, not a guarantee: the source that answers is the source
   # that provides the package, and on a runner whose own NuGet cache is warm that can be the released
-  # copy. `verify (windows-latest, 1/4)` of run 44033633019 did exactly that (#937).
-  # `packageSourceMapping` makes the packed feed the only source `Lunate.*` may come from, so
-  # ordering, the HTTP cache and the machine's own NuGet configuration cannot decide which shape the
-  # gate proved. nuget.org stays, for the test SDK the template's test project needs. `--configfile`
-  # also keeps the machine's configuration out of the run, and `--no-restore` on the builds keeps the
-  # assets file the restores wrote.
+  # copy. `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` of run
+  # 44033633019 did exactly that (#937, #936). `packageSourceMapping` makes the packed feed the only
+  # source `Lunate.*` may come from, so ordering, the HTTP cache and the machine's own NuGet
+  # configuration cannot decide which shape the gate proved. nuget.org stays, for the test SDK the
+  # template's test project needs. `--configfile` also keeps the machine's configuration out of the
+  # run, and `--no-restore` on the builds keeps the assets file the restores wrote.
   template_packages="$(native_path "${contract_tmp}/packages")"
   contract_config="$(native_path "${contract_tmp}/nuget.config")"
+  # The feed path becomes an XML attribute below: a temp directory may hold `&` or `<`, and the raw
+  # path makes the configuration malformed XML, which fails the restore before it proves anything.
+  # The raw path stays for pack and the metadata checks (#936).
+  contract_feed_xml="$(xml_attribute "${contract_feed}")"
   cat >"$contract_config" <<XML
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <packageSources>
     <clear />
-    <add key="packed" value="${contract_feed}" />
+    <add key="packed" value="${contract_feed_xml}" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
   <packageSourceMapping>
