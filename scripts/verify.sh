@@ -913,23 +913,48 @@ XML
   # before it asks any source. The macOS leg of run 44012040507 did exactly that (#932): the template
   # built against the published 1.16.0 contract instead of this checkout's union and failed on the
   # switch the union closes (CS8509). So the roundtrip restores into a packages folder of its own
-  # for this run, and the feed it just packed leads the sources: what is proven here is this
-  # checkout's shape, never a cache's. nuget.org stays for the test SDK the template's test project
-  # needs. `--no-restore` on the builds keeps the assets file the restore above wrote.
+  # for this run; what is proven here is this checkout's shape, never a cache's.
+  #
+  # The sources are a configuration file of the roundtrip's own rather than `--source`/`--packages`
+  # flags, for the same reason: a release also serves the contract on nuget.org under the same id and
+  # version, and "the local feed is asked first" is an ordering rule, not a guarantee — the source
+  # that answers is the source that provides the package, and on a runner whose own NuGet cache is
+  # warm that can be the released copy (#936). `packageSourceMapping` makes the packed feed the only
+  # source `Lunate.*` may come from, so ordering, the HTTP cache and the runner's machine-wide
+  # NuGet configuration cannot decide which shape the gate proved. nuget.org stays, for the test SDK
+  # the template's test project needs. `--configfile` also means the machine's own configuration is
+  # not read at all, and `--no-restore` on the builds keeps the assets file the restores wrote.
   template_packages="$(native_path "${contract_tmp}/packages")"
+  contract_config="${contract_tmp}/nuget.config"
+  cat >"$contract_config" <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="packed" value="${contract_feed}" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="packed">
+      <package pattern="Lunate.*" />
+    </packageSource>
+    <packageSource key="nuget.org">
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
+</configuration>
+XML
   dotnet restore templates/extension/TemplateExtension/TemplateExtension.csproj \
     -p:LunateUseNuGetContracts=true \
-    --packages "$template_packages" \
-    --source "$contract_feed" \
-    --source "https://api.nuget.org/v3/index.json" --nologo -nodeReuse:false
+    --configfile "$contract_config" \
+    --packages "$template_packages" --nologo -nodeReuse:false
   dotnet build templates/extension/TemplateExtension/TemplateExtension.csproj \
     -c "$CONFIGURATION" -p:LunateUseNuGetContracts=true \
     --no-restore --nologo -nodeReuse:false
   dotnet restore templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj \
     -p:LunateUseNuGetContracts=true \
-    --packages "$template_packages" \
-    --source "$contract_feed" \
-    --source "https://api.nuget.org/v3/index.json" --nologo -nodeReuse:false
+    --configfile "$contract_config" \
+    --packages "$template_packages" --nologo -nodeReuse:false
   dotnet build templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj \
     -c "$CONFIGURATION" \
     -p:LunateUseNuGetContracts=true --no-restore --nologo -nodeReuse:false
