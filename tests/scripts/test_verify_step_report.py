@@ -96,7 +96,8 @@ class FailedStepReportTests(unittest.TestCase):
         result = report("build", "1", "3")
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn("Build", result.stderr)
+        self.assertIn("::error::verify: the build step failed (exit 1, 3s)", result.stdout)
+        self.assertEqual(result.stderr, "")
 
 
 class FailedStepWiringTests(unittest.TestCase):
