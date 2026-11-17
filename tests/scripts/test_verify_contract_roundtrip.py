@@ -420,6 +420,58 @@ class RoundtripWiringTest(unittest.TestCase):
             "nuget.org still serves the test SDK the copy's test project needs",
         )
 
+    def test_the_copy_end_to_end_test_pins_each_child_to_folders_of_its_own(self):
+        # A shard runs its test assemblies beside each other, and the copy test starts a pack, two
+        # restores and two builds of its own -- the pack children restore the repository, so without
+        # a packages folder of their own they fill the runner's global one, and without an artifacts
+        # path of their own they write restore state into the worktree that names a folder the test
+        # then deletes (#938). The set is the one FixtureRestore.ChildEnvironment pins for the gate's
+        # fixture restores.
+        text = TEMPLATE_COPY_TEST.read_text(encoding="utf-8")
+        helper = text[
+            text.index("private static void Dotnet(") : text.index(
+                "private static string Subdirectory("
+            )
+        ]
+        for variable in (
+            "DOTNET_CLI_HOME",
+            "NUGET_PACKAGES",
+            "NUGET_HTTP_CACHE_PATH",
+            "TMPDIR",
+            "TMP",
+            "TEMP",
+            "MSBUILDUSESERVER",
+            "DOTNET_CLI_USE_MSBUILD_SERVER",
+        ):
+            self.assertIn(
+                f'start.EnvironmentVariables["{variable}"]',
+                helper,
+                f"every child dotnet must pin {variable} to the test's own folder",
+            )
+
+        children = text[
+            text.index("private static void Pack(") : text.index(
+                "private static void Dotnet("
+            )
+        ]
+        self.assertEqual(
+            3,
+            len(re.findall(r"\n\s+packages,\n\s+child\n", children)),
+            "the pack, the restore and the build each get the test's own packages folder and folders",
+        )
+        self.assertEqual(
+            3,
+            children.count("-maxcpucount:1"),
+            "the pack, the restore and the build each bound their own node",
+        )
+        self.assertIn(
+            '--artifacts-path "{artifacts}"',
+            children,
+            "the packs build the repository's own projects: their obj, bin and pack output must "
+            "land under this test's folder, not in the worktree whose next build would then read "
+            "the packages folder the test deleted",
+        )
+
     def test_the_powershell_twin_keeps_the_same_properties(self):
         # The Windows gate is the bash gate's twin (parity is what verify.ps1 is for), so the
         # packages folder and the mapped feed have to be there too, or the same red returns on the
