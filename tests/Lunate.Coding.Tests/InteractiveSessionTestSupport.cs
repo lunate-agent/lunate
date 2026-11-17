@@ -835,6 +835,15 @@ internal sealed class InteractiveSessionHost : IDisposable
         );
 
     /// <summary>
+    /// Waits until an accepted verification published its task. The session posts the result notice
+    /// from inside <c>VerifyAsync</c> and assigns <see cref="InteractiveSession.VerifyTask"/> only
+    /// when that call returns, so a test that waits only for the notice's frame can read the field
+    /// before it is set: a loaded runner serves the paint in exactly that window (#920 merge
+    /// queue, reproduced on <c>main</c> without the live area's union).
+    /// </summary>
+    public Task WaitForVerificationAsync() => WaitUntilAsync(() => Session.VerifyTask is not null);
+
+    /// <summary>
     /// Waits until a first-run offer dismissed with Esc has finished leaving, so the next keys a
     /// test types are read as prompt input.
     /// </summary>
