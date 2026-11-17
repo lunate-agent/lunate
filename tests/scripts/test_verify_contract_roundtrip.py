@@ -36,6 +36,7 @@ TEMPLATE_COPY_TEST = (
     REPOSITORY_ROOT
     / "tests"
     / "Lunate.Extensibility.Testing.Tests"
+    / "Host"
     / "ExtensionTemplateCopyEndToEndTests.cs"
 )
 NUGET_ORG = "https://api.nuget.org/v3/index.json"
