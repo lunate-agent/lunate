@@ -30,9 +30,9 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
         string feed = temp.Subdirectory("contract-feed");
         // Every child this test starts gets the machine folders it would otherwise share with the
-        // rest of the shard pinned to this test (see <see cref="Dotnet"/>): a shard runs its
-        // assemblies beside each other, and two restores colliding in the temp directory, the CLI
-        // home or the HTTP cache is how a restore child fails on a loaded Windows runner.
+        // rest of the shard pinned to this test (see Dotnet): a shard runs its assemblies beside
+        // each other, and two restores colliding in the temp directory, the CLI home or the HTTP
+        // cache is how a restore child fails on a loaded Windows runner.
         string child = temp.Subdirectory("child-dotnet");
         Pack(repository, feed, child);
         AssertContractPackageTargetsNet11(feed);
