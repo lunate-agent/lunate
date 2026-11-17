@@ -38,6 +38,7 @@ public sealed class InteractiveSessionAuthWireTests
         await WaitForFrameAsync(host, "> Yes, send one request");
         host.Console.SendEnter();
         await WaitForFrameAsync(host, "verified opencode-go with one request");
+        await host.WaitForVerificationAsync();
 
         await host.Session.VerifyTask!.WaitAsync(
             InteractiveSessionHost.DefaultWait,

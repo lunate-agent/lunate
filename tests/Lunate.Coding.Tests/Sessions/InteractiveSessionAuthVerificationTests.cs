@@ -57,6 +57,7 @@ public sealed class InteractiveSessionAuthVerificationTests
         await WaitForFrameAsync(host, "> Yes, send one request");
         host.Console.SendEnter();
         await WaitForFrameAsync(host, "verified groq with one request");
+        await host.WaitForVerificationAsync();
 
         await host.Session.VerifyTask!.WaitAsync(
             InteractiveSessionHost.DefaultWait,
@@ -95,6 +96,7 @@ public sealed class InteractiveSessionAuthVerificationTests
         await WaitForFrameAsync(host, "> Yes, send one request");
         host.Console.SendEnter();
         await WaitForFrameAsync(host, "verification failed for groq");
+        await host.WaitForVerificationAsync();
 
         await host.Session.VerifyTask!.WaitAsync(
             InteractiveSessionHost.DefaultWait,

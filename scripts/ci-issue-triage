@@ -27,6 +27,11 @@ documents, so the decision is pure and its self-test needs no network. It mirror
   that closes its milestone removes it from the open list, so no constant names a version here. The list
   endpoint answers both a bare list and `gh api --paginate --slurp`'s list of pages, where each page of a
   list endpoint is itself a list.
+- `--failed-step-json FILE --job-id ID` prints the name of the job's first step that did not succeed, or
+  nothing when the document holds no such step. It is what the card names so a session starts at the step
+  that failed instead of spending its first call on the run's jobs document (#945).
+- `--failed-tests-file FILE` prints the fully-qualified names of the tests the job logged as failed, one
+  per line, in log order: the same list the area label is derived from, which the card names.
 - `--log-file FILE --source-root DIR` prints one area label from the failing tests the job logged, or
   nothing when the project does not decide it.
 
@@ -161,6 +166,19 @@ def lowest_version_milestone(path):
         print(min(versions)[1])
 
 
+def failed_step(path, job_id):
+    """The name of the job's first step that did not succeed, or nothing."""
+    for job in _records(_load(path), "jobs"):
+        if str(job.get("id") or "") != str(job_id):
+            continue
+        for step in job.get("steps") or []:
+            name = str(step.get("name") or "").strip()
+            if name and str(step.get("conclusion") or "") in RED:
+                return name
+        return None
+    return None
+
+
 def failing_tests(path):
     """The fully-qualified names of the tests the job logged as failed, in log order."""
     tests = []
@@ -252,6 +270,9 @@ def main(argv):
     parser.add_argument("--abandoned-json")
     parser.add_argument("--capacity-json")
     parser.add_argument("--milestones-json")
+    parser.add_argument("--failed-step-json")
+    parser.add_argument("--job-id")
+    parser.add_argument("--failed-tests-file")
     parser.add_argument("--log-file")
     parser.add_argument("--source-root")
     args = parser.parse_args(argv)
@@ -270,13 +291,25 @@ def main(argv):
     if args.milestones_json:
         lowest_version_milestone(args.milestones_json)
         return 0
+    if args.failed_step_json:
+        if not args.job_id:
+            parser.error("--failed-step-json needs --job-id")
+        step = failed_step(args.failed_step_json, args.job_id)
+        if step:
+            print(step)
+        return 0
+    if args.failed_tests_file:
+        for name in failing_tests(args.failed_tests_file):
+            print(name)
+        return 0
     if args.log_file:
         if not args.source_root:
             parser.error("--log-file needs --source-root")
         area_label(args.log_file, Path(args.source_root))
         return 0
     parser.error(
-        "one of --jobs-json, --abandoned-json, --capacity-json, --milestones-json or --log-file is required"
+        "one of --jobs-json, --abandoned-json, --capacity-json, --milestones-json, "
+        "--failed-step-json, --failed-tests-file or --log-file is required"
     )
 
 
