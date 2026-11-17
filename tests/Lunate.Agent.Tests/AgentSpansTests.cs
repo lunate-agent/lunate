@@ -87,6 +87,6 @@ public sealed class AgentSpansTests
 
         Assert.Empty(listener.Activities);
         Assert.Empty(EventSequenceValidator.Validate(events));
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
     }
 }

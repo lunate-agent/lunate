@@ -143,7 +143,7 @@ public sealed class HookRunnerTimingTests
         );
 
         var result = Assert.IsType<ToolCallingResult.Block>(
-            await runner.RunToolCallingAsync(Payload("path"), Ct)
+            (await runner.RunToolCallingAsync(Payload("path"), Ct)).Value
         );
         Assert.Contains("ext-hang", result.Reason, StringComparison.Ordinal);
 
@@ -188,7 +188,7 @@ public sealed class HookRunnerTimingTests
         );
 
         var result = Assert.IsType<ToolCallingResult.Block>(
-            await runner.RunToolCallingAsync(Payload("path"), Ct)
+            (await runner.RunToolCallingAsync(Payload("path"), Ct)).Value
         );
         Assert.Contains("ext-boom", result.Reason, StringComparison.Ordinal);
 

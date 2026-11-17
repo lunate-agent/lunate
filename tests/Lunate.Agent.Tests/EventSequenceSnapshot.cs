@@ -35,7 +35,7 @@ internal static class EventSequenceSnapshot
                 $"ToolCallResult({Run(e.RunId)}, {e.CallId}, {Quote(e.Output)}, {Bool(e.IsError)})",
             CompactionApplied e =>
                 $"CompactionApplied({Run(e.RunId)}, [{string.Join(", ", e.ReplacedEntryIds)}], {e.EstimatedTokensAfter.ToString(CultureInfo.InvariantCulture)})",
-            _ => agentEvent.ToString() ?? agentEvent.GetType().Name,
+            _ => agentEvent.ToString() ?? agentEvent.Kind.Name,
         };
 
     private static string Run(string runId) =>

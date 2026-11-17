@@ -272,7 +272,7 @@ internal sealed class LibAcpServer(Action<string>? log = null) : IAcpServer
         {
             if (AcpEventMapper.Map(agentEvent) is not { } update)
             {
-                Log($"session/prompt: not sent ({agentEvent.GetType().Name})");
+                Log($"session/prompt: not sent ({agentEvent.Kind.Name})");
                 return;
             }
 

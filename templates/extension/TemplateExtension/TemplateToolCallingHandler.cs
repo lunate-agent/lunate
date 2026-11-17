@@ -21,6 +21,20 @@ public sealed class TemplateToolCallingHandler(string extensionId, IExtensionLog
         log.Info(
             $"template[{extensionId}]: tool-calling hook saw '{payload.ToolName}' (call {payload.CallId})"
         );
-        return ValueTask.FromResult<ToolCallingResult>(new ToolCallingResult.Proceed(null));
+        ToolCallingResult result = new ToolCallingResult.Proceed(null);
+        log.Info($"template[{extensionId}]: tool-calling decision {Describe(result)}");
+        return ValueTask.FromResult(result);
     }
+
+    /// <summary>
+    /// Names every case this handler knows. The <c>_</c> arm is the one the template's README asks
+    /// for: a copy pins the published contract, which is older than the host's case set (#933).
+    /// </summary>
+    private static string Describe(ToolCallingResult result) =>
+        result switch
+        {
+            ToolCallingResult.Proceed => "proceed",
+            ToolCallingResult.Block blocked => $"block ({blocked.Reason})",
+            _ => "unrecognised",
+        };
 }

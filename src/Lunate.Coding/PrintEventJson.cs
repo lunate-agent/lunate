@@ -67,7 +67,6 @@ internal static class PrintEventJson
         string? fallbackModelId = null
     )
     {
-        ArgumentNullException.ThrowIfNull(agentEvent);
         (string type, JsonObject body) = Describe(agentEvent, catalog, fallbackModelId);
         var line = new JsonObject { ["type"] = type, ["runId"] = agentEvent.RunId };
         if (agentEvent.SessionId is not null)
@@ -180,7 +179,7 @@ internal static class PrintEventJson
                 new JsonObject { ["message"] = e.Message }
             ),
             _ => throw new ArgumentException(
-                $"Event type '{agentEvent.GetType().Name}' has no JSON mapping.",
+                $"Event type '{agentEvent.Kind.Name}' has no JSON mapping.",
                 nameof(agentEvent)
             ),
         };

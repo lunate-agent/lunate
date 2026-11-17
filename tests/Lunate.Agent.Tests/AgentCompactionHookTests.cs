@@ -107,8 +107,8 @@ public sealed class AgentCompactionHookTests
         );
 
         Assert.Equal(
-            withoutEvents.Select(agentEvent => agentEvent.GetType()),
-            withEvents.Select(agentEvent => agentEvent.GetType())
+            withoutEvents.Select(agentEvent => agentEvent.Kind),
+            withEvents.Select(agentEvent => agentEvent.Kind)
         );
         Assert.Equal(
             without.Requests.Select(request => request.Messages.Count),

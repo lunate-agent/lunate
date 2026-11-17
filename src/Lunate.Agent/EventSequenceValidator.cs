@@ -73,7 +73,7 @@ internal static class EventSequenceValidator
                     new(
                         EventSequenceViolationKind.ForeignRunId,
                         agentEvent,
-                        $"Event '{agentEvent.GetType().Name}' carries run id '{agentEvent.RunId}' but the run's id is '{runId}'."
+                        $"Event '{agentEvent.Kind.Name}' carries run id '{agentEvent.RunId}' but the run's id is '{runId}'."
                     )
                 );
             }

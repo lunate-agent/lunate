@@ -46,7 +46,10 @@ public sealed partial class HookRunner
             }
         }
 
-        return new ProjectTrustDispatch(count, count == 0 ? null : new ProjectTrustResult.Allow());
+        return new ProjectTrustDispatch(
+            count,
+            count == 0 ? null : (ProjectTrustResult?)new ProjectTrustResult.Allow()
+        );
     }
 
     /// <summary>

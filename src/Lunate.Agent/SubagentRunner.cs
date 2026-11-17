@@ -364,7 +364,14 @@ internal sealed class SubagentRunner : ISubagentRunner
                         break;
                 }
 
-                _channel.Emit(agentEvent with { ParentRunId = _parentRunId });
+                _channel.Emit(
+                    agentEvent.Value is AgentEventBase record
+                        ? record with
+                        {
+                            ParentRunId = _parentRunId,
+                        }
+                        : agentEvent
+                );
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

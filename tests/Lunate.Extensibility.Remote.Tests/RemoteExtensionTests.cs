@@ -521,7 +521,7 @@ public sealed class RemoteExtensionTests
             Ct
         );
 
-        Assert.IsType<ToolCallingResult.Proceed>(result);
+        Assert.IsType<ToolCallingResult.Proceed>(result.Value);
         Assert.Equal(1, hostService.Calls);
     }
 
@@ -572,7 +572,7 @@ public sealed class RemoteExtensionTests
             Ct
         );
 
-        Assert.IsType<ToolCallingResult.Block>(blocked);
+        Assert.IsType<ToolCallingResult.Block>(blocked.Value);
         Assert.Contains(harness.Context.Log.Errors, entry =>
             entry.Contains("ToolCalling", StringComparison.Ordinal)
         );
@@ -601,7 +601,7 @@ public sealed class RemoteExtensionTests
             cancellationToken: Ct
         );
 
-        Assert.IsType<ProjectTrustResult.Deny>(dispatch.Result);
+        Assert.IsType<ProjectTrustResult.Deny>(dispatch.Result!.Value.Value);
     }
 
     [Fact]

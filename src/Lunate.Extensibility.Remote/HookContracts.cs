@@ -153,7 +153,7 @@ public static class HookContracts
     private static HookContract Interceptor<TPayload, TResult>(
         string name,
         IReadOnlyList<Type> resultTypes,
-        Func<TResult, JsonElement> encode,
+        Func<object, JsonElement> encode,
         Func<JsonElement, TResult> decode
     )
         where TPayload : IHookPayload
@@ -164,7 +164,7 @@ public static class HookContracts
             typeof(TPayload),
             typeof(TResult),
             resultTypes,
-            result => encode((TResult)result),
+            result => encode(result),
             element => decode(element)
         );
 }

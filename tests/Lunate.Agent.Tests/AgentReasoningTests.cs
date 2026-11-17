@@ -18,11 +18,11 @@ public sealed class AgentReasoningTests
             .RunAsync("Hi", TestContext.Current.CancellationToken)
             .ToListAsync(TestContext.Current.CancellationToken);
 
-        ReasoningStart start = Assert.IsType<ReasoningStart>(events[1]);
-        Assert.Equal("Let me ", Assert.IsType<ReasoningMessageContent>(events[2]).Text);
-        Assert.Equal("think.", Assert.IsType<ReasoningMessageContent>(events[3]).Text);
-        Assert.Equal(start.MessageId, Assert.IsType<ReasoningEnd>(events[4]).MessageId);
-        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1]).StopReason);
+        ReasoningStart start = Assert.IsType<ReasoningStart>(events[1].Value);
+        Assert.Equal("Let me ", Assert.IsType<ReasoningMessageContent>(events[2].Value).Text);
+        Assert.Equal("think.", Assert.IsType<ReasoningMessageContent>(events[3].Value).Text);
+        Assert.Equal(start.MessageId, Assert.IsType<ReasoningEnd>(events[4].Value).MessageId);
+        Assert.Equal(StopReasons.Stop, Assert.IsType<RunFinished>(events[^1].Value).StopReason);
         Assert.Empty(EventSequenceValidator.Validate(events));
     }
 
@@ -51,7 +51,7 @@ public sealed class AgentReasoningTests
                 typeof(TextMessageEnd),
                 typeof(RunFinished),
             ],
-            events.Select(agentEvent => agentEvent.GetType())
+            events.Select(agentEvent => agentEvent.Kind)
         );
         Assert.Empty(EventSequenceValidator.Validate(events));
     }
@@ -103,7 +103,7 @@ public sealed class AgentReasoningTests
         ReasoningStart start = Assert.Single(events.OfType<ReasoningStart>());
         ReasoningEnd end = Assert.Single(events.OfType<ReasoningEnd>());
         Assert.Equal(start.MessageId, end.MessageId);
-        Assert.Contains("provider exploded", Assert.IsType<RunError>(events[^1]).Message);
+        Assert.Contains("provider exploded", Assert.IsType<RunError>(events[^1].Value).Message);
         Assert.Empty(EventSequenceValidator.Validate(events));
     }
 
@@ -180,7 +180,7 @@ public sealed class AgentReasoningTests
                 typeof(TextMessageEnd),
                 typeof(RunFinished),
             ],
-            events.Select(agentEvent => agentEvent.GetType())
+            events.Select(agentEvent => agentEvent.Kind)
         );
         Assert.Equal(
             ["before", "after"],
