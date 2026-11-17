@@ -28,6 +28,7 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 VERIFY = REPOSITORY_ROOT / "scripts" / "verify.sh"
+VERIFY_POWERSHELL = REPOSITORY_ROOT / "scripts" / "verify.ps1"
 NUGET_ORG = "https://api.nuget.org/v3/index.json"
 
 ROUNDTRIP_STEP = 'step "contract package roundtrip"'
@@ -154,6 +155,20 @@ class RoundtripWiringTest(unittest.TestCase):
             block.count("--no-restore"),
             "a build must not re-restore with the machine's sources and flip the assets file back",
         )
+
+
+    def test_the_powershell_twin_keeps_the_same_two_properties(self):
+        # The Windows gate is the bash gate's twin (parity is what verify.ps1 is for), so the
+        # packages folder and the pinned feed have to be there too, or the same red returns on the
+        # PowerShell leg whose runner cache holds a released contract.
+        text = without_comments(VERIFY_POWERSHELL.read_text(encoding="utf-8"))
+        start = text.index("contract package roundtrip")
+        block = text[start : text.index('Write-Host "`n==> format"', start)]
+
+        self.assertEqual(2, block.count('--packages "$templatePackages"'))
+        self.assertEqual(2, block.count('--source "$contractFeed"'))
+        self.assertEqual(2, block.count("--no-restore"), "a build must not re-restore in verify.ps1")
+        self.assertNotIn("RestoreAdditionalProjectSources", block)
 
 
 class RestoreBindingTest(unittest.TestCase):
