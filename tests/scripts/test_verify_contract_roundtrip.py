@@ -1,4 +1,6 @@
-"""Pins the template roundtrip's packages folder and its source mapping (#932, #936).
+"""Pins the template roundtrip's packages folder, its source mapping and its XML attributes.
+
+(#932, #937, #936)
 
 The verify gate packs the four SDK packages at the version the release carries and builds the
 packaged-extension template against that feed, so the NuGet shape the gate proves is the one
@@ -12,34 +14,32 @@ just become unions, and failed on the switch the union closes (CS8509 in
 `TemplateToolCallingHandler`); `verify (macos-latest, 2/2)` ran the copy end-to-end test, which packs
 the same packages and builds a copy of the template outside `Directory.Build.props`, so the same
 published contract compiled with only a warning and failed later at load with a TypeLoadException on
-`HandleAsync`. Both restores now use a packages folder of their own, so what the gate and the test
-prove is this checkout's shape and never a cache's.
+`HandleAsync`. Both restores use a packages folder of their own and name the feed they just packed,
+so what the gate and the test prove is this checkout's shape and never a cache's.
 
-The second half is the sources (#936). Restoring into a fresh folder removes the *installed* copy, but
-it still leaves "which of two sources provides this id and version" to NuGet -- and a release
-publishes the same contract on nuget.org under the same id and version. Naming the packed feed first
-is an ordering rule, not a guarantee: the source that answers is the source that provides the package,
-and on a runner whose NuGet cache is warm that can be the released copy. Run 44033633019's three
-Windows legs -- `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)`, the three
-legs whose gate restores the template -- went red while every other leg of that run passed, so the
-roundtrip no longer leaves the question to ordering at all: a NuGet configuration of the run's own
-maps every `Lunate.*` package to the packed feed, and reads the machine's configuration not at all
-(`--configfile`). nuget.org stays, for the test SDK the copy's test project needs.
+Run 44033633019 showed that a packages folder alone is not enough on every runner: the three
+Windows legs that restore the template (`verify (windows-latest, 1/4)` and `(2/4)`, and
+`verify-powershell (windows)`) failed while every other leg passed, because "the packed feed is a
+source and it is listed first" leaves *which* source provides an id and version to source order, the
+HTTP cache and the machine's NuGet configuration -- and a released contract sits on nuget.org under
+the same id and version. `scripts/verify.sh` now carries a `nuget.config` of its own with
+`packageSourceMapping`, so a `Lunate.*` package may come from the packed feed and from nowhere else
+(#937); its `verify.ps1` twin and the copy end-to-end test carry the same configuration (#936).
 
-Four things are pinned here: the wiring in `scripts/verify.sh`, the copy end-to-end test's restore in
-`ExtensionTemplateCopyEndToEndTests.cs`, the same two properties in the `verify.ps1` twin, and -- with
-a stand-in package pair and local folder feeds, no network, no build -- the restore behaviour the
-wiring depends on. The stand-in pair is what makes the last part cheap: a feed serves marker
-`packed`, a second feed serves `published` under the same id and version, and which marker lands in
-the packages folder is the whole question.
-
-The feed path itself is the fifth: it is written into an XML *attribute*, and a temp path may hold
-`&` (Windows allows it in a profile path) or `<` (valid on Unix), so a raw interpolation makes the
-configuration malformed XML and the restore fails before it proves anything. Each of the three
-writers attribute-encodes the value it writes -- `xml_attribute` in the bash gate,
+The feed path itself is what those configurations write, and it lands in an XML *attribute*: a temp
+path may hold `&` (Windows allows it in a profile path) or `<` (valid on Unix), so a raw
+interpolation makes the document malformed XML and the restore fails before it proves anything. Each
+of the three writers attribute-encodes the value it writes -- `xml_attribute` in the bash gate,
 `ConvertTo-XmlAttribute` in the PowerShell twin, `XmlAttribute` in the copy test -- and the value is
 parsed back here, so the property under test is "the document is XML and names the path", not a
-spelling.
+spelling (#936).
+
+What is pinned here: the wiring in `scripts/verify.sh`, the copy end-to-end test's restore in
+`ExtensionTemplateCopyEndToEndTests.cs`, the PowerShell twin's restore in `scripts/verify.ps1`, the
+attribute encoding all three share, and -- with a stand-in package pair and two local folder feeds,
+no network, no build -- the restore behaviour the wiring depends on. The stand-in pair is what makes
+the last part cheap: the feed serves marker `packed`, a second feed serves `published` under the same
+id and version, and which marker lands in the packages folder is the whole question.
 """
 
 import os
@@ -89,69 +89,6 @@ BASH_ESCAPED = re.compile(r"\$\{\w+_xml\}")
 POWERSHELL_ESCAPED = re.compile(r"\$\(\$\w+Xml\)")
 
 
-def attribute_values(text: str) -> list[str]:
-    """Every value a script writes into an XML attribute, comments excluded."""
-    return XML_ADD.findall(without_comments(text))
-
-
-def bash_escape_function() -> str:
-    """The `xml_attribute` helper of verify.sh, on its own, so this test can run it."""
-    text = VERIFY.read_text(encoding="utf-8")
-    start = text.index("xml_attribute() {")
-    return text[start : text.index("\n}\n", start) + 3]
-
-
-def powershell_escape_function() -> str:
-    """The `ConvertTo-XmlAttribute` helper of verify.ps1, on its own, so this test can run it."""
-    text = VERIFY_POWERSHELL.read_text(encoding="utf-8")
-    start = text.index("function ConvertTo-XmlAttribute {")
-    return text[start : text.index("\n    }\n", start) + 6]
-
-
-def escape_with_bash(value: str) -> str:
-    result = subprocess.run(
-        ["bash", "-c", f'{bash_escape_function()}\nxml_attribute "$1"', "_", value],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return result.stdout
-
-
-def escape_with_powershell(value: str) -> str:
-    result = subprocess.run(
-        [
-            "pwsh",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            f'{powershell_escape_function()}\nConvertTo-XmlAttribute -Value $env:LUNATE_TEST_VALUE',
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-        env={**os.environ, "LUNATE_TEST_VALUE": value},
-    )
-    return result.stdout.rstrip("\r\n")
-
-
-def configuration(escaped: str):
-    """A document carrying `escaped` as an attribute value, parsed -- which is the property."""
-    return ElementTree.fromstring(
-        '<?xml version="1.0" encoding="utf-8"?>'
-        "<configuration><packageSources>"
-        f'<add key="packed" value="{escaped}" />'
-        "</packageSources></configuration>"
-    ).find("./packageSources/add")
-
-
-def powershell_roundtrip() -> str:
-    """The contract roundtrip step of verify.ps1, without its comments."""
-    text = without_comments(VERIFY_POWERSHELL.read_text(encoding="utf-8"))
-    start = text.index("contract package roundtrip")
-    return text[start : text.index('Write-Host "`n==> format"', start)]
-
-
 def package(feed: Path, marker: str, package_id: str = PACKAGE_ID) -> Path:
     """A nupkg whose content is the marker, so a restore can be asked which copy it bound."""
     nuspec = (
@@ -193,19 +130,20 @@ def project(root: Path, packages: list[str] | None = None) -> Path:
     return path
 
 
-def config(root: Path, sources: list[tuple[str, Path]], mapped: list[str]) -> Path:
-    """A nuget.config whose mapping sends `mapped` patterns to the first source, and the rest to
-    every source in the order given (a `<clear />`ed list, like the roundtrip's own file)."""
-    entries = "".join(
-        f'    <add key="{key}" value="{value}" />\n' for key, value in sources
-    )
-    mapping = "".join(
-        f'    <packageSource key="{key}">\n'
-        + "".join(f'      <package pattern="{pattern}" />\n' for pattern in patterns)
-        + "    </packageSource>\n"
-        for key, patterns in (("packed", mapped), ("nuget.org", ["*"]))
-    )
+def mapping_config(
+    root: Path, packed: Path, other: Path, released_first: bool = False
+) -> Path:
+    """A configuration file shaped like the roundtrip's: Lunate.* from one feed, the rest elsewhere.
+
+    `released_first` names the other feed before the packed one: that is the ordering under which
+    the three Windows legs of run 44033633019 bound the released contract, so the mapping, not the
+    order, has to decide which feed a Lunate package comes from.
+    """
     path = root / "nuget.config"
+    sources = [("packed", packed), ("other", other)]
+    if released_first:
+        sources.reverse()
+    entries = "".join(f'    <add key="{key}" value="{value}" />\n' for key, value in sources)
     path.write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
         "<configuration>\n"
@@ -214,12 +152,80 @@ def config(root: Path, sources: list[tuple[str, Path]], mapped: list[str]) -> Pa
         f"{entries}"
         "  </packageSources>\n"
         "  <packageSourceMapping>\n"
-        f"{mapping}"
+        '    <packageSource key="packed">\n'
+        '      <package pattern="Lunate.*" />\n'
+        "    </packageSource>\n"
+        '    <packageSource key="other">\n'
+        '      <package pattern="*" />\n'
+        "    </packageSource>\n"
         "  </packageSourceMapping>\n"
         "</configuration>\n",
         encoding="utf-8",
     )
     return path
+
+
+def attribute_values(text: str) -> list[str]:
+    """Every value a script writes into an XML attribute, comments excluded."""
+    return XML_ADD.findall(without_comments(text))
+
+
+def bash_escape_function() -> str:
+    """The `xml_attribute` helper of verify.sh, on its own, so this test can run it."""
+    text = VERIFY.read_text(encoding="utf-8")
+    start = text.index("xml_attribute() {")
+    return text[start : text.index("\n}\n", start) + 3]
+
+
+def powershell_escape_function() -> str:
+    """The `ConvertTo-XmlAttribute` helper of verify.ps1, on its own, so this test can run it."""
+    text = VERIFY_POWERSHELL.read_text(encoding="utf-8")
+    start = text.index("function ConvertTo-XmlAttribute {")
+    return text[start : text.index("\n    }\n", start) + 6]
+
+
+def escape_with_bash(value: str) -> str:
+    result = subprocess.run(
+        ["bash", "-c", f'{bash_escape_function()}\nxml_attribute "$1"', "_", value],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout
+
+
+def escape_with_powershell(value: str) -> str:
+    result = subprocess.run(
+        [
+            "pwsh",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            f"{powershell_escape_function()}\nConvertTo-XmlAttribute -Value $env:LUNATE_TEST_VALUE",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "LUNATE_TEST_VALUE": value},
+    )
+    return result.stdout.rstrip("\r\n")
+
+
+def configuration(escaped: str):
+    """A document carrying `escaped` as an attribute value, parsed -- which is the property."""
+    return ElementTree.fromstring(
+        '<?xml version="1.0" encoding="utf-8"?>'
+        "<configuration><packageSources>"
+        f'<add key="packed" value="{escaped}" />'
+        "</packageSources></configuration>"
+    ).find("./packageSources/add")
+
+
+def powershell_roundtrip() -> str:
+    """The contract roundtrip step of verify.ps1, without its comments."""
+    text = without_comments(VERIFY_POWERSHELL.read_text(encoding="utf-8"))
+    start = text.index("contract package roundtrip")
+    return text[start : text.index('Write-Host "`n==> format"', start)]
 
 
 def restore(consumer: Path, feed: Path, packages: Path) -> str:
@@ -242,13 +248,11 @@ def restore(consumer: Path, feed: Path, packages: Path) -> str:
         capture_output=True,
         text=True,
     )
-    return (packages / PACKAGE_ID.lower() / PACKAGE_VERSION / "marker.txt").read_text(
-        encoding="utf-8"
-    )
+    return marker(packages)
 
 
-def restore_with_config(consumer: Path, nuget_config: Path, packages: Path) -> None:
-    """One restore through a configuration file of its own, the way the roundtrip runs it."""
+def restore_with_config(consumer: Path, config: Path, packages: Path) -> str:
+    """The same restore, with the roundtrip's own configuration file instead of source arguments."""
     shutil.rmtree(consumer.parent / "obj", ignore_errors=True)
     subprocess.run(
         [
@@ -256,7 +260,7 @@ def restore_with_config(consumer: Path, nuget_config: Path, packages: Path) -> N
             "restore",
             str(consumer),
             "--configfile",
-            str(nuget_config),
+            str(config),
             "--packages",
             str(packages),
             "--nologo",
@@ -266,6 +270,7 @@ def restore_with_config(consumer: Path, nuget_config: Path, packages: Path) -> N
         capture_output=True,
         text=True,
     )
+    return marker(packages)
 
 
 def marker(packages: Path) -> str:
@@ -277,7 +282,7 @@ def marker(packages: Path) -> str:
 class RoundtripWiringTest(unittest.TestCase):
     """What verify.sh hands the template's restores and builds."""
 
-    def test_each_restore_owns_a_packages_folder_and_a_configuration_file(self):
+    def test_each_restore_owns_a_packages_folder_and_the_roundtrip_config(self):
         block = roundtrip()
 
         self.assertIn(
@@ -286,9 +291,9 @@ class RoundtripWiringTest(unittest.TestCase):
             "the roundtrip must restore into a packages folder of its own, named once",
         )
         self.assertIn(
-            'contract_config="${contract_tmp}/nuget.config"',
+            'contract_config="$(native_path "${contract_tmp}/nuget.config")"',
             block,
-            "the roundtrip must name the NuGet configuration it restores through, once",
+            "the roundtrip must restore with a configuration file of its own, named once",
         )
         self.assertEqual(
             2,
@@ -298,14 +303,15 @@ class RoundtripWiringTest(unittest.TestCase):
         self.assertEqual(
             2,
             block.count('--configfile "$contract_config"'),
-            "both template restores must read the roundtrip's own configuration",
+            "both template restores must read that configuration file: machine sources and "
+            "source order must not decide which feed provides the contract",
         )
         self.assertEqual(2, block.count("dotnet restore"), "one restore per template project")
         self.assertNotIn(
             "--source",
             block,
-            "the source list is the configuration file's, not a flag: a source that answers is not "
-            "a source that was named first",
+            "a source flag leaves the choice between the packed feed and nuget.org to ordering; "
+            "packageSourceMapping is what makes the packed feed the only source for Lunate.*",
         )
         self.assertNotIn(
             "RestoreAdditionalProjectSources",
@@ -313,26 +319,32 @@ class RoundtripWiringTest(unittest.TestCase):
             "the packed feed is the roundtrip's source, not an addition to the machine's sources",
         )
 
-    def test_the_configuration_maps_every_lunate_package_to_the_packed_feed(self):
+    def test_the_roundtrip_config_maps_the_lunate_packages_to_the_packed_feed(self):
         block = roundtrip()
 
-        self.assertIn("<clear />", block, "the machine's sources must not be inherited")
+        self.assertIn("<clear />", block, "the machine's own sources must not be read")
         self.assertIn(
             '<add key="packed" value="${contract_feed_xml}" />',
             block,
-            "the packed feed is the first source the configuration names, escaped into the attribute",
+            "the feed the step just packed is a source of the roundtrip's configuration, escaped "
+            "into the attribute",
         )
         self.assertIn(
             f'<add key="nuget.org" value="{NUGET_ORG}" />',
             block,
-            "nuget.org stays for the test SDK the template's test project needs",
+            "nuget.org still serves the test SDK the template's test project needs",
         )
         self.assertIn(
             '<package pattern="Lunate.*" />',
             block,
-            "a Lunate package may come from the packed feed, whatever the source order is",
+            "a Lunate package may come from the packed feed and from nowhere else",
         )
-        self.assertIn('<package pattern="*" />', block, "every other package stays reachable")
+        self.assertIn('<package pattern="*" />', block, "every other package comes from nuget.org")
+        self.assertEqual(
+            2,
+            block.count('<packageSource key="'),
+            "both source-to-package mappings belong to the roundtrip's configuration",
+        )
 
     def test_each_build_uses_the_assets_file_the_restore_wrote(self):
         block = roundtrip()
@@ -349,6 +361,7 @@ class RoundtripWiringTest(unittest.TestCase):
             block.count("--no-restore"),
             "a build must not re-restore with the machine's sources and flip the assets file back",
         )
+
 
     def test_the_copy_end_to_end_test_restores_through_the_same_configuration(self):
         # The other half of the same failure: the copy end-to-end test in Lunate.Extensibility.Testing.Tests
@@ -396,12 +409,17 @@ class RoundtripWiringTest(unittest.TestCase):
             "a Lunate package may come from the packed feed, whatever the source order is",
         )
         self.assertIn(
+            '<add key="packed" value="{XmlAttribute(feed)}" />',
+            text,
+            "the feed path is an XML attribute, so it is encoded before it is written",
+        )
+        self.assertIn(
             '<add key="nuget.org" value="{NuGetOrg}" />',
             text,
             "nuget.org still serves the test SDK the copy's test project needs",
         )
 
-    def test_the_powershell_twin_keeps_the_same_two_properties(self):
+    def test_the_powershell_twin_keeps_the_same_properties(self):
         # The Windows gate is the bash gate's twin (parity is what verify.ps1 is for), so the
         # packages folder and the mapped feed have to be there too, or the same red returns on the
         # PowerShell leg whose runner cache holds a released contract.
@@ -413,6 +431,7 @@ class RoundtripWiringTest(unittest.TestCase):
         self.assertNotIn("--source", block)
         self.assertNotIn("RestoreAdditionalProjectSources", block)
         self.assertIn("<clear />", block)
+        self.assertIn('<add key="packed" value="$($contractFeedXml)" />', block)
         self.assertIn('<package pattern="Lunate.*" />', block)
 
 
@@ -472,7 +491,7 @@ class AttributeEscapingTest(unittest.TestCase):
 
 
 class RestoreBindingTest(unittest.TestCase):
-    """The restore behaviour the roundtrip's packages folder exists for."""
+    """The restore behaviour the roundtrip's packages folder and mapping exist for."""
 
     def setUp(self):
         if shutil.which("dotnet") is None:
@@ -489,6 +508,28 @@ class RestoreBindingTest(unittest.TestCase):
                 "packed",
                 restore(project(root_path), feed, root_path / "packages"),
                 "a restore must bind the package the feed serves",
+            )
+
+    def test_package_source_mapping_binds_the_packed_feed_not_the_published_copy(self):
+        with tempfile.TemporaryDirectory() as root:
+            root_path = Path(root)
+            published = root_path / "published"
+            published.mkdir()
+            package(published, "published")
+            packed = root_path / "packed"
+            packed.mkdir()
+            package(packed, "packed")
+
+            self.assertEqual(
+                "packed",
+                restore_with_config(
+                    project(root_path),
+                    mapping_config(root_path, packed, published),
+                    root_path / "packages",
+                ),
+                "packageSourceMapping must make the packed feed the only source for Lunate.*, so "
+                "source order, the HTTP cache and the machine's NuGet configuration cannot decide "
+                "which shape the gate proved (the three Windows legs of run 44033633019)",
             )
 
     def test_an_installed_package_of_the_same_version_wins_over_the_feed(self):
@@ -534,18 +575,11 @@ class SourceMappingTest(unittest.TestCase):
 
             # The released feed is named *first* on purpose: an ordering rule would bind the
             # published copy, which is the red #936 triages. The mapping must decide instead.
-            nuget_config = config(
-                root_path,
-                [("nuget.org", published), ("packed", packed)],
-                mapped=["Lunate.*"],
-            )
-            packages = root_path / "packages"
-            consumer = project(root_path)
-            restore_with_config(consumer, nuget_config, packages)
+            nuget_config = mapping_config(root_path, packed, published, released_first=True)
 
             self.assertEqual(
                 "packed",
-                marker(packages),
+                restore_with_config(project(root_path), nuget_config, root_path / "packages"),
                 "a mapped Lunate package must come from the packed feed, whatever the source order "
                 "or a warm runner cache would answer",
             )
@@ -561,16 +595,15 @@ class SourceMappingTest(unittest.TestCase):
             packed.mkdir()
             package(packed, "packed")
 
-            nuget_config = config(
-                root_path,
-                [("packed", packed), ("nuget.org", published)],
-                mapped=["Lunate.*"],
-            )
+            nuget_config = mapping_config(root_path, packed, published)
             packages = root_path / "packages"
             consumer = project(root_path, packages=[PACKAGE_ID, SDK_ID])
-            restore_with_config(consumer, nuget_config, packages)
 
-            self.assertEqual("packed", marker(packages), "the contract stays the packed one")
+            self.assertEqual(
+                "packed",
+                restore_with_config(consumer, nuget_config, packages),
+                "the contract stays the packed one",
+            )
             self.assertTrue(
                 (packages / SDK_ID.lower() / PACKAGE_VERSION).is_dir(),
                 "the pattern `*` must keep a package the packed feed cannot serve reachable",

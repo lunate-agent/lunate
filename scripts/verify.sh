@@ -944,20 +944,21 @@ XML
   # switch the union closes (CS8509). So the roundtrip restores into a packages folder of its own
   # for this run; what is proven here is this checkout's shape, never a cache's.
   #
-  # The sources are a configuration file of the roundtrip's own rather than `--source`/`--packages`
-  # flags, for the same reason: a release also serves the contract on nuget.org under the same id and
-  # version, and "the local feed is asked first" is an ordering rule, not a guarantee — the source
-  # that answers is the source that provides the package, and on a runner whose own NuGet cache is
-  # warm that can be the released copy (#936). `packageSourceMapping` makes the packed feed the only
-  # source `Lunate.*` may come from, so ordering, the HTTP cache and the runner's machine-wide
-  # NuGet configuration cannot decide which shape the gate proved. nuget.org stays, for the test SDK
-  # the template's test project needs. `--configfile` also means the machine's own configuration is
-  # not read at all, and `--no-restore` on the builds keeps the assets file the restores wrote.
+  # The sources are a configuration file of the roundtrip's own rather than `--source` flags, because
+  # a release also serves the contract on nuget.org under the same id and version, and "the packed
+  # feed is asked first" is an ordering rule, not a guarantee: the source that answers is the source
+  # that provides the package, and on a runner whose own NuGet cache is warm that can be the released
+  # copy. `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` of run
+  # 44033633019 did exactly that (#937, #936). `packageSourceMapping` makes the packed feed the only
+  # source `Lunate.*` may come from, so ordering, the HTTP cache and the machine's own NuGet
+  # configuration cannot decide which shape the gate proved. nuget.org stays, for the test SDK the
+  # template's test project needs. `--configfile` also keeps the machine's configuration out of the
+  # run, and `--no-restore` on the builds keeps the assets file the restores wrote.
   template_packages="$(native_path "${contract_tmp}/packages")"
-  contract_config="${contract_tmp}/nuget.config"
-  # The feed path becomes an XML attribute below: a temp directory may hold `&` or `<`, and the
-  # raw path makes the configuration malformed XML, which fails the restore before it proves
-  # anything. The raw path stays for pack and the metadata checks.
+  contract_config="$(native_path "${contract_tmp}/nuget.config")"
+  # The feed path becomes an XML attribute below: a temp directory may hold `&` or `<`, and the raw
+  # path makes the configuration malformed XML, which fails the restore before it proves anything.
+  # The raw path stays for pack and the metadata checks (#936).
   contract_feed_xml="$(xml_attribute "${contract_feed}")"
   cat >"$contract_config" <<XML
 <?xml version="1.0" encoding="utf-8"?>
