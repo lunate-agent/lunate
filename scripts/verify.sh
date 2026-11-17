@@ -473,6 +473,12 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
 
+  # The template roundtrip restores into a packages folder of its own, and this pins that plus the
+  # restore behaviour it exists for (#932). It runs here rather than in the docs profile because it
+  # restores a real package: the platform job is the one that has the SDK.
+  step "the template roundtrip's packages folder"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_contract_roundtrip.py"
+
   step "public API"
   if ! check_shipped_api_unchanged; then
     exit 1
@@ -900,17 +906,33 @@ XML
   # extension the consumer way (it carries the switch to its child itself). Restore the child as well
   # as the test project: the test's after-build target invokes a second project, whose assets file
   # would otherwise still describe the earlier in-repository ProjectReference shape.
+  #
+  # The packages carry the version the release publishes, and a feed serves that version from the
+  # moment the release is out — so a machine's global packages folder can already hold a copy of the
+  # same id and version whose content is an earlier commit's, and NuGet binds an installed copy
+  # before it asks any source. The macOS leg of run 44012040507 did exactly that (#932): the template
+  # built against the published 1.16.0 contract instead of this checkout's union and failed on the
+  # switch the union closes (CS8509). So the roundtrip restores into a packages folder of its own
+  # for this run, and the feed it just packed leads the sources: what is proven here is this
+  # checkout's shape, never a cache's. nuget.org stays for the test SDK the template's test project
+  # needs. `--no-restore` on the builds keeps the assets file the restore above wrote.
+  template_packages="$(native_path "${contract_tmp}/packages")"
   dotnet restore templates/extension/TemplateExtension/TemplateExtension.csproj \
     -p:LunateUseNuGetContracts=true \
-    -p:RestoreAdditionalProjectSources="$contract_feed" --nologo -nodeReuse:false
+    --packages "$template_packages" \
+    --source "$contract_feed" \
+    --source "https://api.nuget.org/v3/index.json" --nologo -nodeReuse:false
   dotnet build templates/extension/TemplateExtension/TemplateExtension.csproj \
-    -c "$CONFIGURATION" -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
+    -c "$CONFIGURATION" -p:LunateUseNuGetContracts=true \
+    --no-restore --nologo -nodeReuse:false
   dotnet restore templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj \
     -p:LunateUseNuGetContracts=true \
-    -p:RestoreAdditionalProjectSources="$contract_feed" --nologo -nodeReuse:false
+    --packages "$template_packages" \
+    --source "$contract_feed" \
+    --source "https://api.nuget.org/v3/index.json" --nologo -nodeReuse:false
   dotnet build templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj \
     -c "$CONFIGURATION" \
-    -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
+    -p:LunateUseNuGetContracts=true --no-restore --nologo -nodeReuse:false
 
   # The platform-independent half of the gate is owned by the `platform` job in CI. A local run
   # (no environment flag) still executes it here, once, so `verify.sh` alone remains the gate.
