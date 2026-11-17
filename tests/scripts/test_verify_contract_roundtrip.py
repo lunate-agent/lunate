@@ -22,7 +22,9 @@ source and it is listed first" leaves *which* source provides an id and version 
 HTTP cache and the machine's NuGet configuration -- and a released contract sits on nuget.org under
 the same id and version. `scripts/verify.sh` now carries a `nuget.config` of its own with
 `packageSourceMapping`, so a `Lunate.*` package may come from the packed feed and from nowhere else
-(#937).
+(#937). The copy end-to-end test -- the child `verify (windows-latest, 2/4)` runs -- carries the same
+configuration for its own restore, and pins the packages folder its pack children restore into
+(#938).
 
 What is pinned here: the wiring in `scripts/verify.sh`, the copy end-to-end test's restore in
 `ExtensionTemplateCopyEndToEndTests.cs`, the PowerShell twin's restore in `scripts/verify.ps1`, and --
@@ -32,6 +34,7 @@ the wiring depends on. The stand-in pair is what makes the last part cheap: the 
 the packages folder is the whole question.
 """
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -269,7 +272,7 @@ class RoundtripWiringTest(unittest.TestCase):
         # `verify (macos-latest, 2/2)` it bound the published 1.16.0 contract from the runner's packages
         # folder -- where CS8509 is only a warning outside Directory.Build.props -- and failed later at
         # load with a TypeLoadException on HandleAsync. One helper serves both projects, so it must
-        # restore and build each with a private packages folder and the packed feed.
+        # restore and build each with a private packages folder.
         text = TEMPLATE_COPY_TEST.read_text(encoding="utf-8")
         start = text.index("private static void RestoreAndBuild(")
         block = text[start : text.index("private static void Dotnet(", start)]
@@ -280,17 +283,6 @@ class RoundtripWiringTest(unittest.TestCase):
             block,
             "the restore must not read the machine's packages folder",
         )
-        self.assertIn('--source "{feed}"', block, "the packed feed is the contract source")
-        self.assertIn(
-            '--source "{NuGetOrg}"',
-            block,
-            "nuget.org still serves the test SDK the copy's test project needs",
-        )
-        self.assertIn(
-            f'private const string NuGetOrg = "{NUGET_ORG}";',
-            text,
-            "the fallback source is nuget.org itself",
-        )
         self.assertIn(
             "--no-restore", block, "the build must use the assets file that restore wrote"
         )
@@ -300,12 +292,60 @@ class RoundtripWiringTest(unittest.TestCase):
             "the packed feed is the source, not an addition to whatever the machine has",
         )
 
+    def test_the_copy_end_to_end_test_maps_the_packed_feed_the_way_the_roundtrip_does(self):
+        # The leg this card is about: `verify (windows-latest, 2/4)` is the shard that runs the copy
+        # end-to-end test (position 17 of the test projects, 17 % 4 == 1), and it went red on
+        # 49e4b54e and again on f2950bbc together with the two other legs that restore the template
+        # against the feed they had just packed. Naming the packed feed first is an ordering rule;
+        # packageSourceMapping is what makes it the only source for Lunate.* (scripts/verify.sh, #937).
+        text = TEMPLATE_COPY_TEST.read_text(encoding="utf-8")
+        start = text.index("private static string WriteRoundtripConfig(")
+        block = text[start : text.index("private static void Pack(", start)]
+        restore = text[
+            text.index("private static void RestoreAndBuild(") : text.index(
+                "private static void Dotnet(", text.index("private static void RestoreAndBuild(")
+            )
+        ]
+
+        self.assertIn(
+            '--configfile "{config}"',
+            restore,
+            "the copy's restores must read the test's own configuration file: the machine's sources "
+            "and source order must not decide which feed provides the contract",
+        )
+        self.assertNotIn(
+            "--source",
+            restore,
+            "a source flag leaves the choice between the packed feed and nuget.org to ordering",
+        )
+        self.assertIn("<clear />", block, "the machine's own sources must not be read")
+        self.assertIn(
+            '<add key="packed" value="{feed}" />',
+            block,
+            "the feed the test just packed is a source of the copy's configuration",
+        )
+        self.assertIn(
+            f'<add key="nuget.org" value="{{NuGetOrg}}" />',
+            block,
+            "nuget.org still serves the test SDK the copy's test project needs",
+        )
+        self.assertIn(
+            '<package pattern="Lunate.*" />',
+            block,
+            "a Lunate package may come from the packed feed and from nowhere else",
+        )
+        self.assertIn('<package pattern="*" />', block, "every other package comes from nuget.org")
+        self.assertIn(
+            f'private const string NuGetOrg = "{NUGET_ORG}";',
+            text,
+            "the fallback source is nuget.org itself",
+        )
+
     def test_the_copy_end_to_end_test_pins_each_child_to_folders_of_its_own(self):
-        # A shard runs its test assemblies beside each other, and the copy test now starts a pack,
-        # two restores and two builds of its own. Restore children that share the temp directory, the
-        # CLI home, the NuGet HTTP cache or the MSBuild server are what turned a loaded Windows
-        # runner red before (scripts/Lunate.TestSupport/FixtureRestore.cs records the same finding),
-        # so each child gets those folders pinned to this test and a single node.
+        # A shard runs its test assemblies beside each other, and the copy test starts a pack, two
+        # restores and two builds of its own -- the pack children restore the repository, so without
+        # a packages folder of their own they fill the runner's global one. The set is the one
+        # FixtureRestore.ChildEnvironment pins for the gate's fixture restores.
         text = TEMPLATE_COPY_TEST.read_text(encoding="utf-8")
         helper = text[
             text.index("private static void Dotnet(") : text.index(
@@ -314,6 +354,7 @@ class RoundtripWiringTest(unittest.TestCase):
         ]
         for variable in (
             "DOTNET_CLI_HOME",
+            "NUGET_PACKAGES",
             "NUGET_HTTP_CACHE_PATH",
             "TMPDIR",
             "TMP",
@@ -327,7 +368,16 @@ class RoundtripWiringTest(unittest.TestCase):
                 f"every child dotnet must pin {variable} to the test's own folder",
             )
 
-        children = text[text.index("private static void Pack(") : text.index("private static void Dotnet(")]
+        children = text[
+            text.index("private static void Pack(") : text.index(
+                "private static void Dotnet("
+            )
+        ]
+        self.assertEqual(
+            3,
+            len(re.findall(r"\n\s+packages,\n\s+child\n", children)),
+            "the pack, the restore and the build each get the test's own packages folder and folders",
+        )
         self.assertEqual(
             3,
             children.count("-maxcpucount:1"),

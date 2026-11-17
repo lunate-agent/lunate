@@ -29,12 +29,14 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         using var temp = new TempDirectory();
 
         string feed = temp.Subdirectory("contract-feed");
-        // Every child this test starts gets the machine folders it would otherwise share with the
-        // rest of the shard pinned to this test (see Dotnet): a shard runs its assemblies beside
-        // each other, and two restores colliding in the temp directory, the CLI home or the HTTP
-        // cache is how a restore child fails on a loaded Windows runner.
+        // Every child this test starts gets the folders and the packages folder it would otherwise
+        // share with the rest of the shard pinned to this test (see Dotnet): a shard runs its
+        // assemblies beside each other, and this test's pack, restore and build must not read or
+        // write another assembly's cache.
+        string packages = temp.Subdirectory("packages");
         string child = temp.Subdirectory("child-dotnet");
-        Pack(repository, feed, child);
+        string config = WriteRoundtripConfig(child, feed);
+        Pack(repository, feed, packages, child);
         AssertContractPackageTargetsNet11(feed);
 
         // The copy restores into a packages folder of its own: a runner's folder can hold the
@@ -42,22 +44,26 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         // this test just packed. `verify (macos-latest, 2/2)` did exactly that, built the copy
         // against 1.16.0 outside Directory.Build.props (where CS8509 is only a warning) and failed
         // at load with a TypeLoadException on HandleAsync instead of proving this checkout's shape.
-        string packages = temp.Subdirectory("packages");
-
+        // The sources are the copy's own configuration file (see WriteRoundtripConfig) for the next
+        // reason: run 44033633019, the red `verify (windows-latest, 2/4)` this test owns, failed on
+        // the three legs that restore the template against the feed they had just packed -- and on
+        // no leg that does not -- twice in a row, on 49e4b54e and on f2950bbc. `packageSourceMapping`
+        // is what `scripts/verify.sh` gives its own roundtrip (#937); here it makes the feed this
+        // test packed the only source a `Lunate.*` package may come from.
         string copy = CopyTemplate(repository, temp.Subdirectory("my-extension"));
         // Both projects a copy carries: the extension a host loads and the test project the
         // README keeps as the place where behavior is proven.
         RestoreAndBuild(
             Path.Combine(copy, "TemplateExtension", "TemplateExtension.csproj"),
-            feed,
             packages,
+            config,
             child,
             ReleaseVersions.Contract
         );
         RestoreAndBuild(
             Path.Combine(copy, "TemplateExtension.Tests", "TemplateExtension.Tests.csproj"),
-            feed,
             packages,
+            config,
             child,
             ReleaseVersions.Contract,
             ReleaseVersions.Preview
@@ -133,7 +139,43 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         );
     }
 
-    private static void Pack(string repository, string feed, string child)
+    /// <summary>
+    /// The copy's own NuGet configuration: the feed this test just packed and nuget.org, with
+    /// <c>packageSourceMapping</c> so a <c>Lunate.*</c> package can only come from the packed feed.
+    /// A release serves the same contract on nuget.org under the same id and version, so listing
+    /// the packed feed first would still leave which source answers to source order, the HTTP cache
+    /// and the runner's own configuration; <c>--configfile</c> keeps that configuration out of the
+    /// restore altogether. nuget.org stays for the test SDK the copy's test project needs.
+    /// </summary>
+    private static string WriteRoundtripConfig(string folder, string feed)
+    {
+        string path = Path.Combine(folder, "nuget.config");
+        File.WriteAllText(
+            path,
+            $"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <configuration>
+              <packageSources>
+                <clear />
+                <add key="packed" value="{feed}" />
+                <add key="nuget.org" value="{NuGetOrg}" />
+              </packageSources>
+              <packageSourceMapping>
+                <packageSource key="packed">
+                  <package pattern="Lunate.*" />
+                </packageSource>
+                <packageSource key="nuget.org">
+                  <package pattern="*" />
+                </packageSource>
+              </packageSourceMapping>
+            </configuration>
+
+            """
+        );
+        return path;
+    }
+
+    private static void Pack(string repository, string feed, string packages, string child)
     {
         string[] packables =
         [
@@ -147,6 +189,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             Dotnet(
                 $"""pack "{Path.Combine(repository, project)}" -c {Configuration} -o "{feed}" """
                     + $"""-maxcpucount:1 --nologo -nodeReuse:false""",
+                packages,
                 child
             );
         }
@@ -154,8 +197,8 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
     private static void RestoreAndBuild(
         string project,
-        string feed,
         string packages,
+        string config,
         string child,
         string contractVersion,
         string? previewVersion = null
@@ -168,27 +211,30 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             $"""-p:LunateUseNuGetContracts=true -p:LunateContractsVersion={contractVersion}{testing}""";
         Dotnet(
             $"""restore "{project}" -p:Configuration={Configuration} {properties} """
-                + $"""--packages "{packages}" --source "{feed}" --source "{NuGetOrg}" """
+                + $"""--packages "{packages}" --configfile "{config}" """
                 + $"""-maxcpucount:1 --nologo -nodeReuse:false""",
+            packages,
             child
         );
         Dotnet(
             $"""build "{project}" -c {Configuration} {properties} --no-restore """
                 + $"""-maxcpucount:1 --nologo -nodeReuse:false""",
+            packages,
             child
         );
     }
 
     /// <summary>
     /// Runs one child <c>dotnet</c> with every machine-wide folder and process it could share with
-    /// another assembly of the same shard pinned to <paramref name="child"/>: the CLI home, the
-    /// NuGet HTTP cache, the temp directory (NuGet's scratch files and MSBuild's response files live
-    /// there) and the long-lived MSBuild server. Restores that run beside each other through a
-    /// shared temp directory and HTTP cache are the shape <c>FixtureRestore</c> already isolates for
-    /// the gate's fixture restores; a Windows runner, where a file another process holds cannot be
-    /// replaced, is where that collision turns into a failed restore or build.
+    /// another assembly of the same shard pinned to this test: the CLI home, the packages folder,
+    /// the NuGet HTTP cache, the temp directory (NuGet's scratch files and MSBuild's response files
+    /// live there) and the long-lived MSBuild server. <c>FixtureRestore</c> pins the same set for
+    /// the gate's fixture restores, and for the same reason: a child here restores the repository
+    /// itself, so without <paramref name="packages"/> it would fill the runner's global packages
+    /// folder and read whatever an earlier job left there. That folder is the one the copy's
+    /// restore names as <c>--packages</c>.
     /// </summary>
-    private static void Dotnet(string arguments, string child)
+    private static void Dotnet(string arguments, string packages, string child)
     {
         var start = new ProcessStartInfo
         {
@@ -199,6 +245,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             RedirectStandardError = true,
         };
         start.EnvironmentVariables["DOTNET_CLI_HOME"] = Subdirectory(child, "home");
+        start.EnvironmentVariables["NUGET_PACKAGES"] = packages;
         start.EnvironmentVariables["NUGET_HTTP_CACHE_PATH"] = Subdirectory(child, "nuget-http");
         string tmp = Subdirectory(child, "tmp");
         start.EnvironmentVariables["TMPDIR"] = tmp;
