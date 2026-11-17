@@ -203,6 +203,40 @@ class RoundtripWiringTest(unittest.TestCase):
             "the packed feed is the source, not an addition to whatever the machine has",
         )
 
+    def test_the_copy_end_to_end_test_pins_each_child_to_folders_of_its_own(self):
+        # A shard runs its test assemblies beside each other, and the copy test now starts a pack,
+        # two restores and two builds of its own. Restore children that share the temp directory, the
+        # CLI home, the NuGet HTTP cache or the MSBuild server are what turned a loaded Windows
+        # runner red before (scripts/Lunate.TestSupport/FixtureRestore.cs records the same finding),
+        # so each child gets those folders pinned to this test and a single node.
+        text = TEMPLATE_COPY_TEST.read_text(encoding="utf-8")
+        helper = text[
+            text.index("private static void Dotnet(") : text.index(
+                "private static string Subdirectory("
+            )
+        ]
+        for variable in (
+            "DOTNET_CLI_HOME",
+            "NUGET_HTTP_CACHE_PATH",
+            "TMPDIR",
+            "TMP",
+            "TEMP",
+            "MSBUILDUSESERVER",
+            "DOTNET_CLI_USE_MSBUILD_SERVER",
+        ):
+            self.assertIn(
+                f'start.EnvironmentVariables["{variable}"]',
+                helper,
+                f"every child dotnet must pin {variable} to the test's own folder",
+            )
+
+        children = text[text.index("private static void Pack(") : text.index("private static void Dotnet(")]
+        self.assertEqual(
+            3,
+            children.count("-maxcpucount:1"),
+            "the pack, the restore and the build each bound their own node",
+        )
+
     def test_the_powershell_twin_keeps_the_same_two_properties(self):
         # The Windows gate is the bash gate's twin (parity is what verify.ps1 is for), so the
         # packages folder and the pinned feed have to be there too, or the same red returns on the
