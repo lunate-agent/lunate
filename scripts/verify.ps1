@@ -417,13 +417,26 @@ try {
         # Restore and build the child extension directly too: the test project's after-build target
         # invokes it as a second project, whose assets file would otherwise still describe the
         # earlier in-repository ProjectReference shape.
-        dotnet restore templates/extension/TemplateExtension/TemplateExtension.csproj -p:LunateUseNuGetContracts=true -p:RestoreAdditionalProjectSources="$contractFeed" --nologo -nodeReuse:false
+        #
+        # The packages carry the version the release publishes, and a feed serves that version from
+        # the moment the release is out — so a machine's global packages folder can already hold a
+        # copy of the same id and version whose content is an earlier commit's, and NuGet binds an
+        # installed copy before it asks any source. The macOS leg of run 44012040507 did exactly
+        # that (#932): the template built against the published 1.16.0 contract instead of this
+        # checkout's union and failed on the switch the union closes (CS8509). So the roundtrip
+        # restores into a packages folder of its own for this run, and the feed it just packed leads
+        # the sources: what is proven here is this checkout's shape, never a cache's. nuget.org stays
+        # for the test SDK the template's test project needs. `--no-restore` on the builds keeps the
+        # assets file the restores above wrote. Parity with scripts/verify.sh.
+        $templatePackages = Join-Path $contractTmp 'packages'
+        $nugetOrg = 'https://api.nuget.org/v3/index.json'
+        dotnet restore templates/extension/TemplateExtension/TemplateExtension.csproj -p:LunateUseNuGetContracts=true --packages "$templatePackages" --source "$contractFeed" --source $nugetOrg --nologo -nodeReuse:false
         if ($LASTEXITCODE -ne 0) { throw 'verify: contract feed restore of the template extension failed' }
-        dotnet build templates/extension/TemplateExtension/TemplateExtension.csproj -c $configuration -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
+        dotnet build templates/extension/TemplateExtension/TemplateExtension.csproj -c $configuration -p:LunateUseNuGetContracts=true --no-restore --nologo -nodeReuse:false
         if ($LASTEXITCODE -ne 0) { throw 'verify: the template NuGet build failed' }
-        dotnet restore templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj -p:LunateUseNuGetContracts=true -p:RestoreAdditionalProjectSources="$contractFeed" --nologo -nodeReuse:false
+        dotnet restore templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj -p:LunateUseNuGetContracts=true --packages "$templatePackages" --source "$contractFeed" --source $nugetOrg --nologo -nodeReuse:false
         if ($LASTEXITCODE -ne 0) { throw 'verify: contract feed restore of the template failed' }
-        dotnet build templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj -c $configuration -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
+        dotnet build templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj -c $configuration -p:LunateUseNuGetContracts=true --no-restore --nologo -nodeReuse:false
         if ($LASTEXITCODE -ne 0) { throw 'verify: the template NuGet build failed' }
     }
     finally {
