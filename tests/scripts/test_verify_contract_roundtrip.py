@@ -344,8 +344,10 @@ class RoundtripWiringTest(unittest.TestCase):
     def test_the_copy_end_to_end_test_pins_each_child_to_folders_of_its_own(self):
         # A shard runs its test assemblies beside each other, and the copy test starts a pack, two
         # restores and two builds of its own -- the pack children restore the repository, so without
-        # a packages folder of their own they fill the runner's global one. The set is the one
-        # FixtureRestore.ChildEnvironment pins for the gate's fixture restores.
+        # a packages folder of their own they fill the runner's global one, and without an artifacts
+        # path of their own they write restore state into the worktree that names a folder the test
+        # then deletes. The set is the one FixtureRestore.ChildEnvironment pins for the gate's
+        # fixture restores.
         text = TEMPLATE_COPY_TEST.read_text(encoding="utf-8")
         helper = text[
             text.index("private static void Dotnet(") : text.index(
@@ -382,6 +384,13 @@ class RoundtripWiringTest(unittest.TestCase):
             3,
             children.count("-maxcpucount:1"),
             "the pack, the restore and the build each bound their own node",
+        )
+        self.assertIn(
+            '--artifacts-path "{artifacts}"',
+            children,
+            "the packs build the repository's own projects: their obj, bin and pack output must "
+            "land under this test's folder, not in the worktree whose next build would then read "
+            "the packages folder the test deleted",
         )
 
     def test_the_powershell_twin_keeps_the_same_two_properties(self):

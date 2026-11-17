@@ -177,6 +177,13 @@ public sealed class ExtensionTemplateCopyEndToEndTests
 
     private static void Pack(string repository, string feed, string packages, string child)
     {
+        // Packing the repository's own projects restores and builds them, and that writes restore
+        // state (obj/project.assets.json) beside every project of the graph. This test pins its
+        // children to a packages folder inside its own temp directory, so letting that state land
+        // in the worktree would leave the next build there reading a folder the test deleted:
+        // `--artifacts-path` keeps the whole packed graph's obj, bin and pack output under this
+        // test's folder instead, and the worktree is left exactly as the gate built it.
+        string artifacts = Path.Combine(child, "artifacts");
         string[] packables =
         [
             "src/Lunate.Contracts/Lunate.Contracts.csproj",
@@ -188,7 +195,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         {
             Dotnet(
                 $"""pack "{Path.Combine(repository, project)}" -c {Configuration} -o "{feed}" """
-                    + $"""-maxcpucount:1 --nologo -nodeReuse:false""",
+                    + $"""--artifacts-path "{artifacts}" -maxcpucount:1 --nologo -nodeReuse:false""",
                 packages,
                 child
             );
