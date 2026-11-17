@@ -102,8 +102,8 @@ internal static partial class LayoutRule
 
     private static IEnumerable<string> FolderNamespaceViolations(string root, string file)
     {
-        string? ns = DeclaredNamespace(file);
-        if (ns is null)
+        IReadOnlyList<string> namespaces = DeclaredNamespaces(file);
+        if (namespaces.Count == 0)
         {
             yield break;
         }
@@ -115,34 +115,37 @@ internal static partial class LayoutRule
             yield break;
         }
 
-        string[] segments = ns.Split('.');
-        foreach (
-            string segment in folder.Split(
-                Path.DirectorySeparatorChar,
-                StringSplitOptions.RemoveEmptyEntries
-            )
-        )
+        string[] folderSegments = folder.Split(
+            Path.DirectorySeparatorChar,
+            StringSplitOptions.RemoveEmptyEntries
+        );
+        foreach (string ns in namespaces)
         {
-            if (segments.Contains(segment, StringComparer.Ordinal))
+            string[] segments = ns.Split('.');
+            foreach (string segment in folderSegments)
             {
-                yield return $"{Relative(root, file)} declares {ns}; the folder '{segment}' must not be a namespace segment";
+                if (segments.Contains(segment, StringComparer.Ordinal))
+                {
+                    yield return $"{Relative(root, file)} declares {ns}; the folder '{segment}' must not be a namespace segment";
+                }
             }
         }
     }
 
-    private static string? DeclaredNamespace(string file)
+    private static IReadOnlyList<string> DeclaredNamespaces(string file)
     {
+        List<string> namespaces = [];
         using StreamReader reader = File.OpenText(file);
         while (reader.ReadLine() is { } line)
         {
             Match match = NamespacePattern().Match(line);
             if (match.Success)
             {
-                return match.Groups[1].Value;
+                namespaces.Add(match.Groups[1].Value);
             }
         }
 
-        return null;
+        return namespaces;
     }
 
     private static IEnumerable<string> Projects(string root, string directory)

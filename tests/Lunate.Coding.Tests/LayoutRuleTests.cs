@@ -52,6 +52,35 @@ public sealed class LayoutRuleTests
     }
 
     [Fact]
+    public void The_namespace_scan_checks_every_declaration_in_a_file()
+    {
+        using var repository = new TempDirectory();
+        string project = Path.Combine(repository.Root, "src", "Lunate.Example");
+        WriteProject(project);
+        Write(
+            Path.Combine(project, "Mcp", "Client.cs"),
+            """
+            namespace Lunate.Example
+            {
+                internal static class Outer { }
+            }
+
+            namespace Lunate.Example.Mcp
+            {
+                internal static class Client { }
+            }
+            """
+        );
+
+        IReadOnlyList<string> violations = LayoutRule.NamespaceViolations(repository.Root);
+
+        string violation = Assert.Single(violations);
+        Assert.Contains("Mcp/Client.cs", violation, StringComparison.Ordinal);
+        Assert.Contains("declares Lunate.Example.Mcp", violation, StringComparison.Ordinal);
+        Assert.Contains("the folder 'Mcp'", violation, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_mirror_scan_rejects_a_source_folder_without_a_test_folder()
     {
         using var repository = new TempDirectory();
