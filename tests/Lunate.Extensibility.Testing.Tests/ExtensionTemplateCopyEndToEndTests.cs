@@ -30,7 +30,13 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         using var temp = new TempDirectory();
 
         string feed = temp.Subdirectory("contract-feed");
-        Pack(repository, feed);
+        // Every child this test starts gets the folders and the packages folder it would otherwise
+        // share with the rest of the shard pinned to this test (see Dotnet): a shard runs its
+        // assemblies beside each other, and this test's pack, restore and build must not read or
+        // write another assembly's cache.
+        string packages = temp.Subdirectory("packages");
+        string child = temp.Subdirectory("child-dotnet");
+        Pack(repository, feed, packages, child);
         AssertContractPackageTargetsNet11(feed);
 
         // The copy restores into a packages folder and through a NuGet configuration of the run's
@@ -39,8 +45,10 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         // exactly that, built the copy against 1.16.0 outside Directory.Build.props (where CS8509 is
         // only a warning) and failed at load with a TypeLoadException on HandleAsync instead of
         // proving this checkout's shape.
-        string packages = temp.Subdirectory("packages");
-        string config = WriteNuGetConfig(temp.Root, feed);
+        // The sources are the copy's own configuration file (see WriteNuGetConfig): run 44033633019,
+        // the red `verify (windows-latest, 2/4)` this test owns, failed on the three legs that
+        // restore the template against the feed they had just packed -- and on no leg that does not.
+        string config = WriteNuGetConfig(child, feed);
 
         string copy = CopyTemplate(repository, temp.Subdirectory("my-extension"));
         // Both projects a copy carries: the extension a host loads and the test project the
@@ -49,12 +57,14 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             Path.Combine(copy, "TemplateExtension", "TemplateExtension.csproj"),
             config,
             packages,
+            child,
             ReleaseVersions.Contract
         );
         RestoreAndBuild(
             Path.Combine(copy, "TemplateExtension.Tests", "TemplateExtension.Tests.csproj"),
             config,
             packages,
+            child,
             ReleaseVersions.Contract,
             ReleaseVersions.Preview
         );
@@ -157,8 +167,15 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         );
     }
 
-    private static void Pack(string repository, string feed)
+    private static void Pack(string repository, string feed, string packages, string child)
     {
+        // Packing the repository's own projects restores and builds them, and that writes restore
+        // state (obj/project.assets.json) beside every project of the graph. This test pins its
+        // children to a packages folder inside its own temp directory, so letting that state land
+        // in the worktree would leave the next build there reading a folder the test deleted:
+        // `--artifacts-path` keeps the whole packed graph's obj, bin and pack output under this
+        // test's folder instead, and the worktree is left exactly as the gate built it.
+        string artifacts = Path.Combine(child, "artifacts");
         string[] packables =
         [
             "src/Lunate.Contracts/Lunate.Contracts.csproj",
@@ -169,7 +186,10 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         foreach (string project in packables)
         {
             Dotnet(
-                $"""pack "{Path.Combine(repository, project)}" -c {Configuration} -o "{feed}" --nologo -nodeReuse:false"""
+                $"""pack "{Path.Combine(repository, project)}" -c {Configuration} -o "{feed}" """
+                    + $"""--artifacts-path "{artifacts}" -maxcpucount:1 --nologo -nodeReuse:false""",
+                packages,
+                child
             );
         }
     }
@@ -178,6 +198,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         string project,
         string config,
         string packages,
+        string child,
         string contractVersion,
         string? previewVersion = null
     )
@@ -190,15 +211,29 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         Dotnet(
             $"""restore "{project}" -p:Configuration={Configuration} {properties} """
                 + $"""--configfile "{config}" --packages "{packages}" """
-                + $"""--nologo -nodeReuse:false"""
+                + $"""-maxcpucount:1 --nologo -nodeReuse:false""",
+            packages,
+            child
         );
         Dotnet(
             $"""build "{project}" -c {Configuration} {properties} --no-restore """
-                + $"""--nologo -nodeReuse:false"""
+                + $"""-maxcpucount:1 --nologo -nodeReuse:false""",
+            packages,
+            child
         );
     }
 
-    private static void Dotnet(string arguments)
+    /// <summary>
+    /// Runs one child <c>dotnet</c> with every machine-wide folder and process it could share with
+    /// another assembly of the same shard pinned to this test: the CLI home, the packages folder,
+    /// the NuGet HTTP cache, the temp directory (NuGet's scratch files and MSBuild's response files
+    /// live there) and the long-lived MSBuild server. <c>FixtureRestore</c> pins the same set for
+    /// the gate's fixture restores, and for the same reason: a child here restores the repository
+    /// itself, so without <paramref name="packages"/> it would fill the runner's global packages
+    /// folder and read whatever an earlier job left there. That folder is the one the copy's
+    /// restore names as <c>--packages</c>.
+    /// </summary>
+    private static void Dotnet(string arguments, string packages, string child)
     {
         var start = new ProcessStartInfo
         {
@@ -208,7 +243,20 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
+        start.EnvironmentVariables["DOTNET_CLI_HOME"] = Subdirectory(child, "home");
+        start.EnvironmentVariables["NUGET_PACKAGES"] = packages;
+        start.EnvironmentVariables["NUGET_HTTP_CACHE_PATH"] = Subdirectory(child, "nuget-http");
+        string tmp = Subdirectory(child, "tmp");
+        start.EnvironmentVariables["TMPDIR"] = tmp;
+        start.EnvironmentVariables["TMP"] = tmp;
+        start.EnvironmentVariables["TEMP"] = tmp;
+
         start.EnvironmentVariables["MSBUILDDISABLENODEREUSE"] = "1";
+        start.EnvironmentVariables["MSBUILDUSESERVER"] = "0";
+        start.EnvironmentVariables["DOTNET_CLI_USE_MSBUILD_SERVER"] = "false";
+        start.EnvironmentVariables["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+        start.EnvironmentVariables["DOTNET_NOLOGO"] = "1";
+        start.EnvironmentVariables["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
         var buffer = new StringBuilder();
         using var process = new Process { StartInfo = start };
         process.OutputDataReceived += (_, args) =>
@@ -239,6 +287,13 @@ public sealed class ExtensionTemplateCopyEndToEndTests
             $"dotnet did not finish within five minutes: {arguments}"
         );
         Assert.True(process.ExitCode == 0, $"dotnet failed ({process.ExitCode}):\n{buffer}");
+    }
+
+    private static string Subdirectory(string parent, string name)
+    {
+        string path = Path.Combine(parent, name);
+        Directory.CreateDirectory(path);
+        return path;
     }
 
     /// <summary>
