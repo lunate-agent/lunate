@@ -87,3 +87,47 @@ report_failed_step() {
     printf -- '- failed step: %s (exit %s, %ss)\n' "$step" "$status" "$elapsed" >> "$GITHUB_STEP_SUMMARY"
   fi
 }
+
+# The tests a failing test step named, one per line, in the order the runner printed them: the
+# `failed Namespace.Type.Method (7ms)` line the Microsoft.Testing.Platform runner writes, with its
+# duration stripped, plus the `[FAIL]` and `xunit.v3 ... failed` shapes that have appeared in the gate's
+# output before. Anything else -- a build or restore failure, a module that never started -- names no
+# test, and prints nothing rather than a guess.
+#
+# The same three shapes are what record_flake reads and what scripts/verify-test-runner.ps1 reads, so the
+# ledger, the flake line and the annotation agree about which test failed.
+failed_test_names() {
+  local output="${1:-}"
+
+  if [ -z "$output" ] || [ ! -f "$output" ]; then
+    return 0
+  fi
+  grep -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+' "$output" |
+    sed -E -e 's/^[[:space:]]*//' \
+      -e 's/^(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+//' \
+      -e 's/[[:space:]]+\(.*\)$//' \
+      -e 's/[[:space:]]*$//' || true
+}
+
+# Names the failing tests of a red test step in the run's check run, for the same reader and the same
+# reason as report_failed_step: a job's log on a public run needs an account, a step's `::error::` line
+# does not. Naming the step alone still left `verify (macos-latest, 2/2)` of run 44189133429 untriageable
+# -- its test step failed twice, the annotation said so, and which test failed could only be read from the
+# log (#948) -- while the gate had already read the failing lines for the flake ledger. At most five
+# names: a step that failed sixteen tests must not bury the annotation that names the step itself.
+report_failed_tests() {
+  local label="${1:-}" output="${2:-}" name count=0
+
+  if [ -z "$label" ]; then
+    return 0
+  fi
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    printf '::error::verify: %s: %s failed\n' "$label" "$name"
+    if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+      printf -- '- failing test: %s (%s)\n' "$name" "$label" >> "$GITHUB_STEP_SUMMARY"
+    fi
+    count=$((count + 1))
+    [ "$count" -lt 5 ] || break
+  done < <(failed_test_names "$output")
+}

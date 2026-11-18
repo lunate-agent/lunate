@@ -10,6 +10,12 @@ carried was "Process completed with exit code 1" and the card could not say whic
 `report_failed_step` in `scripts/lib.sh` is that report; `scripts/verify.sh` hands it the step it was in
 from an `EXIT` trap, because `set -e` leaves no other place that still knows it. The tests below exercise
 the report through bash, as the gate calls it, and read `verify.sh` as text for the wiring.
+
+`verify (macos-latest, 2/2)` of run 44189133429 shows what that report still lacks: its test step failed
+twice and the annotation named the step, so the leg could be located but not attributed -- which test
+failed was only in the job's log, and the log needs an account (#948). `report_failed_tests` names the
+tests the pass printed, from the same output `run_tests` already read for the flake ledger, so the check
+run carries the test as well as the step.
 """
 
 import os
@@ -24,6 +30,9 @@ VERIFY = REPOSITORY_ROOT / "scripts" / "verify.sh"
 
 # Calls the report the way the gate does: one step name, the exit status and the seconds it took.
 CALL = 'set -euo pipefail; . "$0"; report_failed_step "$@"'
+
+# Calls the failing-test report the way run_tests does: the pass's label and the output file it read.
+CALL_TESTS = 'set -euo pipefail; . "$0"; report_failed_tests "$@"'
 
 
 def without_comments(text: str) -> str:
@@ -49,6 +58,29 @@ def report(step: str, status: str, elapsed: str, summary: str | None = None) -> 
         env=environment,
         check=False,
     )
+
+
+def report_tests(
+    label: str, output: str, summary: str | None = None
+) -> subprocess.CompletedProcess:
+    environment = {key: value for key, value in os.environ.items() if key != "GITHUB_STEP_SUMMARY"}
+    if summary is not None:
+        environment["GITHUB_STEP_SUMMARY"] = summary
+    return subprocess.run(
+        ["bash", "-c", CALL_TESTS, str(LIB), label, output],
+        capture_output=True,
+        text=True,
+        env=environment,
+        check=False,
+    )
+
+
+def test_output(lines: list[str]) -> Path:
+    """A file holding what one test pass printed, as `run_tests` hands it to the report."""
+    handle = tempfile.NamedTemporaryFile("w", suffix=".log", delete=False, encoding="utf-8")
+    handle.write("\n".join(lines) + "\n")
+    handle.close()
+    return Path(handle.name)
 
 
 class FailedStepReportTests(unittest.TestCase):
@@ -100,6 +132,99 @@ class FailedStepReportTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
 
 
+class FailedTestReportTests(unittest.TestCase):
+    def test_the_failing_test_is_named_in_an_error_annotation(self) -> None:
+        """The check run's annotations are what a session without an account can read."""
+        output = test_output(
+            [
+                "Running tests from Lunate.Tui.Tests.dll (net11.0|arm64)",
+                "failed Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave (7ms)",
+                "  posix_openpt failed",
+                "  total: 2062, failed: 1",
+            ]
+        )
+        try:
+            result = report_tests("test", str(output))
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "::error::verify: test: Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave failed\n",
+        )
+
+    def test_the_other_failure_shapes_name_a_test_too(self) -> None:
+        """The gate has read `[FAIL]` and `xunit.v3 ... failed` before; the report reads them as well."""
+        output = test_output(
+            [
+                "  [FAIL] Lunate.Agent.Tests.FakeFailure.Case",
+                "  xunit.v3.runner failed Lunate.Protocols.Tests.AcpWireTests.Times_out (1s 20ms)",
+                "error: the build failed before any test ran",
+            ]
+        )
+        try:
+            result = report_tests("test", str(output))
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("::error::verify: test: Lunate.Agent.Tests.FakeFailure.Case failed", result.stdout)
+        self.assertIn(
+            "::error::verify: test: Lunate.Protocols.Tests.AcpWireTests.Times_out failed", result.stdout
+        )
+
+    def test_at_most_five_tests_are_named(self) -> None:
+        """A red leg that failed sixteen tests still names the step without burying it."""
+        output = test_output([f"failed Lunate.Agent.Tests.Truncation.Test{n} (1ms)" for n in range(1, 8)])
+        try:
+            result = report_tests("test", str(output))
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.count("::error::"), 5)
+        self.assertIn("Truncation.Test5 failed", result.stdout)
+        self.assertNotIn("Truncation.Test6", result.stdout)
+
+    def test_an_output_without_a_failing_test_reports_nothing(self) -> None:
+        """A build that failed before any test ran names no test, so none is reported."""
+        output = test_output(["error: the build failed before any test ran", "  total: 0, failed: 0"])
+        try:
+            result = report_tests("test", str(output))
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_a_missing_output_reports_nothing(self) -> None:
+        """A pass whose output was never written has nothing to name, and that is not an error."""
+        result = report_tests("test", "/nonexistent/lunate-gate-output.log")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
+    def test_the_run_summary_lists_the_failing_tests(self) -> None:
+        """The job summary renders on the public run page, so it carries the names too."""
+        output = test_output(["failed Lunate.Coding.Tests.ProcessSessionTests.Killing_the_session (30s)"])
+        handle = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
+        handle.close()
+        summary = Path(handle.name)
+        try:
+            result = report_tests("test (de-AT culture)", str(output), str(summary))
+            written = summary.read_text(encoding="utf-8")
+        finally:
+            output.unlink()
+            summary.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "- failing test: Lunate.Coding.Tests.ProcessSessionTests.Killing_the_session (test (de-AT culture))",
+            written,
+        )
+
+
 class FailedStepWiringTests(unittest.TestCase):
     def test_the_gate_reports_the_step_it_exited_in(self) -> None:
         """`set -e` exits on the failing command, so only the EXIT trap still knows the step.
@@ -123,6 +248,26 @@ class FailedStepWiringTests(unittest.TestCase):
         text = without_comments(VERIFY.read_text(encoding="utf-8"))
 
         self.assertIn("tests/scripts/test_verify_step_report.py", text)
+
+    def test_a_red_test_step_names_its_failing_tests(self) -> None:
+        """`run_tests` has the pass's output, so it is where the failing test names still exist."""
+        body = function_body(without_comments(VERIFY.read_text(encoding="utf-8")), "run_tests")
+
+        self.assertIn('report_failed_tests "$label" "$output"', body)
+
+    def test_the_names_are_reported_before_the_gate_gives_up(self) -> None:
+        """A pass that failed twice exits right after; the names have to be out by then."""
+        body = function_body(without_comments(VERIFY.read_text(encoding="utf-8")), "run_tests")
+
+        self.assertLess(
+            body.index("report_failed_tests"), body.index("failed twice in a row")
+        )
+
+    def test_a_flake_that_passed_on_retry_names_no_test(self) -> None:
+        """A green leg carries no error annotation: the report runs only where the gate gives up."""
+        text = without_comments(VERIFY.read_text(encoding="utf-8"))
+
+        self.assertNotIn("report_failed_tests", function_body(text, "record_flake"))
 
 
 if __name__ == "__main__":
