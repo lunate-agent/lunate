@@ -225,7 +225,10 @@ job that fails without a failing test in those projects carries no area label. A
 still needs the step inside it, and a job's log on a public run needs an account while its check run's
 annotations do not: `scripts/verify.sh` reports the step it stopped in, with its exit status and
 duration, as an `::error::` annotation and in the job summary, so a red leg can be triaged from the run
-instead of from a log nobody without a session can open (#942).
+instead of from a log nobody without a session can open (#942). A test step that failed also names the
+tests it failed on, up to five of them, in the same annotations and summary, because naming only the
+step still leaves the red to the log: `verify (macos-latest, 2/2)` of run 44189133429 could be located
+and not attributed (#948).
 
 A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
 legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore
