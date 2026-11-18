@@ -4,7 +4,7 @@ using Acp;
 using Acp.Schema;
 using Lunate.Agent;
 
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// The client-backed approver: one <c>session/request_permission</c> per call that reaches it,

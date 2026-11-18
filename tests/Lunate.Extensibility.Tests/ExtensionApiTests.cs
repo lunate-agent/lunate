@@ -25,7 +25,7 @@ public sealed class ExtensionApiTests
     public void The_bottom_contract_assembly_version_is_the_api_version() =>
         Assert.Equal(
             ExtensionApi.Current,
-            typeof(DecisionRequest).Assembly.GetName().Version!.ToString(3)
+            typeof(Lunate.Agent.ToolResult).Assembly.GetName().Version!.ToString(3)
         );
 
     [Theory]

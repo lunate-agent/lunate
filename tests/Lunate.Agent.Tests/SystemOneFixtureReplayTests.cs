@@ -19,7 +19,7 @@ public sealed class SystemOneFixtureReplayTests
             new DecisionQuestion(
                 "is_bug",
                 "Is this a bug?",
-                DecisionQuestionKind.Noul,
+                DecisionQuestionKind.YesNo,
                 ["yes", "no"]
             ),
             new DecisionQuestion(
@@ -85,7 +85,12 @@ public sealed class SystemOneFixtureReplayTests
 
         DecisionResult result = await client.GetDecisionAsync(
             CreateRequest(
-                new DecisionQuestion("q", "Is this true?", DecisionQuestionKind.Noul, ["yes", "no"])
+                new DecisionQuestion(
+                    "q",
+                    "Is this true?",
+                    DecisionQuestionKind.YesNo,
+                    ["yes", "no"]
+                )
             ),
             cancellationToken: TestContext.Current.CancellationToken
         );
@@ -135,10 +140,10 @@ public sealed class SystemOneFixtureReplayTests
         CreateRequest(questions, JsonDocument.Parse("{}").RootElement.Clone());
 
     private static DecisionRequest CreateRequest(DecisionQuestion question, JsonElement state) =>
-        new("typesafe/jev-1.14", state, [question]);
+        new(state, [question], "typesafe/jev-1.14");
 
     private static DecisionRequest CreateRequest(DecisionQuestion[] questions, JsonElement state) =>
-        new("typesafe/jev-1.14", state, questions);
+        new(state, questions, "typesafe/jev-1.14");
 
     private static string ReadFixture(string fileName) =>
         File.ReadAllText(

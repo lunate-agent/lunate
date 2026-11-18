@@ -1,0 +1,205 @@
+using Acp.Schema;
+using Lunate.Agent;
+using Lunate.Ai;
+using Lunate.Coding;
+using FunctionResultContent = Microsoft.Extensions.AI.FunctionResultContent;
+using IChatClient = Microsoft.Extensions.AI.IChatClient;
+
+namespace Lunate.Protocols.Tests;
+
+public sealed class AcpQuestionTests
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Ask_user_without_a_non_approval_input_mechanism_is_unanswered_without_permission()
+    {
+        using var temp = new TempDirectory();
+        // C# tools now arrive through the composed extension host; this test only exercises the
+        // core ask_user tool, so the harness is built without a host (and without a store).
+        var model = new AcpScriptedChatClient()
+            .Enqueue(
+                AcpScripts.Call(
+                    "question-1",
+                    "ask_user",
+                    new Dictionary<string, object?>
+                    {
+                        ["questions"] = new[]
+                        {
+                            new
+                            {
+                                header = "Plan",
+                                question = "Which plan should I use?",
+                                options = new[]
+                                {
+                                    new { label = "Simple", description = "Fewer moving parts." },
+                                    new { label = "Flexible", description = "More room to grow." },
+                                },
+                                multiSelect = false,
+                            },
+                        },
+                    }
+                ),
+                AcpScripts.ToolCalls()
+            )
+            .Enqueue(
+                AcpScripts.Text("I'll assume the simple plan and continue."),
+                AcpScripts.Stop()
+            );
+        await using AcpRuntime runtime = AcpTestSupport.Start(context =>
+        {
+            Assert.NotNull(context.ClientApprover);
+            return AcpMode.CreateHarness(
+                context,
+                host: null,
+                mcpTools: [],
+                inheritedTools: [],
+                new LaunchOptions { Model = "gpt-4o-mini" },
+                new AcpChatClientFactory(model),
+                temp.File("sessions")
+            );
+        });
+
+        await runtime.Client.InitializeAsync(AcpTestSupport.InitializeRequest, Ct);
+        runtime.State.PermissionHandler = (_, _) =>
+            Task.FromResult(
+                new RequestPermissionResponse { Outcome = new CancelledPermissionOutcome() }
+            );
+        NewSessionResponse session = await runtime.Client.NewSessionAsync(
+            new NewSessionRequest { Cwd = temp.Root, McpServers = [] },
+            Ct
+        );
+
+        PromptResponse response = await runtime
+            .Client.PromptAsync(
+                new PromptRequest
+                {
+                    SessionId = session.SessionId,
+                    Prompt = [new TextContent { Text = "Choose a plan." }],
+                },
+                Ct
+            )
+            .WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(StopReason.EndTurn, response.StopReason);
+        Assert.Empty(runtime.State.PermissionRequests);
+        FunctionResultContent result = Assert.Single(
+            model
+                .Requests[1]
+                .SelectMany(message => message.Contents.OfType<FunctionResultContent>())
+        );
+        Assert.Equal(
+            "unanswered: no user present. State an assumption and continue.",
+            result.Result?.ToString()
+        );
+    }
+
+    [Fact]
+    public async Task Suggestions_in_acp_show_no_question_and_propose_no_decision()
+    {
+        using var temp = new TempDirectory();
+        string modelsPath = temp.File("models.json");
+        string settingsPath = temp.File("settings.json");
+        File.WriteAllText(
+            modelsPath,
+            """
+            {"schemaVersion":2,"models":[
+              {"id":"gpt-4o-mini","provider":"openai","contextWindow":64000,"supportsTools":true},
+              {"id":"decision-model","provider":"openai","contextWindow":64000,"supportsTools":false}
+            ]}
+            """
+        );
+        File.WriteAllText(
+            settingsPath,
+            """
+            {"schemaVersion":2,"model":"gpt-4o-mini",
+             "profiles":{"decision":{"provider":"openai","model":"decision-model"}},
+             "decisions":{"profile":"decision","questions":"suggest"}}
+            """
+        );
+        var model = new AcpScriptedChatClient()
+            .Enqueue(
+                AcpScripts.Call(
+                    "question-1",
+                    "ask_user",
+                    new Dictionary<string, object?>
+                    {
+                        ["questions"] = new[]
+                        {
+                            new
+                            {
+                                header = "Plan",
+                                question = "Which plan should I use?",
+                                options = new[]
+                                {
+                                    new { label = "Simple", description = "Fewer moving parts." },
+                                    new { label = "Flexible", description = "More room to grow." },
+                                },
+                                multiSelect = false,
+                            },
+                        },
+                    }
+                ),
+                AcpScripts.ToolCalls()
+            )
+            .Enqueue(
+                AcpScripts.Text("I'll assume the simple plan and continue."),
+                AcpScripts.Stop()
+            );
+        await using AcpRuntime runtime = AcpTestSupport.Start(context =>
+            AcpMode.CreateHarness(
+                context,
+                host: null,
+                mcpTools: [],
+                inheritedTools: [],
+                new LaunchOptions { Model = "gpt-4o-mini" },
+                new AcpChatClientFactory(model),
+                temp.File("sessions"),
+                SettingsStore.Resolve(settingsPath, environment: null),
+                ModelCatalog.Load(modelsPath)
+            )
+        );
+
+        await runtime.Client.InitializeAsync(AcpTestSupport.InitializeRequest, Ct);
+        runtime.State.PermissionHandler = (_, _) =>
+            Task.FromResult(
+                new RequestPermissionResponse { Outcome = new CancelledPermissionOutcome() }
+            );
+        NewSessionResponse session = await runtime.Client.NewSessionAsync(
+            new NewSessionRequest { Cwd = temp.Root, McpServers = [] },
+            Ct
+        );
+
+        PromptResponse response = await runtime
+            .Client.PromptAsync(
+                new PromptRequest
+                {
+                    SessionId = session.SessionId,
+                    Prompt = [new TextContent { Text = "Choose a plan." }],
+                },
+                Ct
+            )
+            .WaitAsync(TimeSpan.FromSeconds(5), Ct);
+
+        Assert.Equal(StopReason.EndTurn, response.StopReason);
+        Assert.Empty(runtime.State.PermissionRequests);
+        // The decision profile resolves, but ask_user never proposes a question decision.
+        Assert.Equal(2, model.Requests.Count);
+        FunctionResultContent result = Assert.Single(
+            model
+                .Requests[1]
+                .SelectMany(message => message.Contents.OfType<FunctionResultContent>())
+        );
+        Assert.Equal(
+            "unanswered: no user present. State an assumption and continue.",
+            result.Result?.ToString()
+        );
+    }
+
+    private sealed class AcpChatClientFactory(IChatClient client) : IChatClientFactory
+    {
+        public IChatClient Create(ModelInfo model) => client;
+
+        public IChatClient Create(ModelInfo model, string? apiKey) => client;
+    }
+}

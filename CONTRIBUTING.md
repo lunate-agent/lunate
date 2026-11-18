@@ -86,7 +86,7 @@ condition that was polled, how many times it was observed and the longest gap be
 the thread pool's state, the test process's process tree (with `/proc` descriptors on Linux) and the
 session state the condition reads. Many polls with no long gap is a hang; few polls with long gaps is
 a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis` and lives in
-`tests/Lunate.Coding.Tests/WaitDiagnosis.cs` and `ProcessTable.cs`.
+`tests/Lunate.Coding.Tests/Process/WaitDiagnosis.cs` and `ProcessTable.cs`.
 
 ## Repository map
 
@@ -113,8 +113,20 @@ a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis
 A source file is named after a type it declares: the text before the first dot of its base name is a
 type the file declares (a partial-class file such as `AgentHarness.Retries.cs`), or it names no type
 at all (an aggregate file such as `HookPayloads.cs`). A file named after a type another file owns
-resolves to the wrong file — `tests/Lunate.Agent.Tests/SourceFileNameTests.cs` enforces the rule and
+resolves to the wrong file — `tests/Lunate.Agent.Tests/Loop/SourceFileNameTests.cs` enforces the rule and
 names both files when it fails. The requirement lives in the `repo-quality` spec.
+
+A folder groups files by the feature they serve — `Sessions/`, `Tools/`, `Mcp/Client/` — and a
+folder never changes a file's namespace: every file in a project keeps the namespace its assembly
+established, so `src/Lunate.Coding/Tools/ReadTool.cs` still declares `namespace Lunate.Coding;`.
+A namespace records compatibility, not location: `src/Lunate.Contracts` deliberately declares
+`Lunate.Agent` and `Lunate.Ai` types beside its own, so its `TypeForwardedTo` entries keep a
+compiled consumer binding after the assemblies were split. Tests mirror `src` in both directions: a
+feature folder has a folder of the same relative path under its test project, no test folder exists
+without one, and a test file sits in the folder of the feature it exercises. Support files (a
+`TempDirectory`, a scripted client, a collection definition) stay at the test project root.
+`tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces all of it, and a folder that tries to become a
+namespace fails it by name.
 
 ## Documentation
 

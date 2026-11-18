@@ -49,3 +49,14 @@ Lunate needs a dependency structure that keeps the agent core reusable and testa
 - **`IDecisionService` in Agent** — #237 would publish a contract extensions cannot use without referencing the agent, against the sign-off.
 - **Duplicated types in both assemblies** — two homes, two copies.
 - **Splitting `AgentEvent`** — the hierarchy is a closed union that `EventSequenceValidator` and the front ends pattern-match; a split turns one exhaustive match into two partial ones.
+
+## Addendum — 2026-11-16: the decision model leaves the contract
+
+`Lunate.Contracts` no longer owns the decision request/result contract: the one decision model lives in
+`Lunate.Ai.Decisions`, which references `Lunate.Contracts` and never the other way, and the contract
+keeps only the `DecisionProbability` record the `DecisionEvaluated` event publishes. `IDecisionService`
+stays in `Lunate.Extensibility.Abstractions` and is typed with the decision model, so Abstractions
+references the decision assembly. The rule this ADR states — never upward, and nothing that only an
+implementation needs in the contract — is unchanged; the decision types needed it twice and were
+wrong about which side of the line they belonged on. Recorded in
+[ADR-0044](0044-decision-model-ownership.md).

@@ -36,18 +36,18 @@ property and conversions.
 
 **Two real examples.**
 
-- [`LiveArea.cs`](../../src/Lunate.Tui/LiveArea.cs) — `LiveArea.LiveAreaInput` is a private abstract
+- [`LiveArea.cs`](../../src/Lunate.Tui/Rendering/LiveArea.cs) — `LiveArea.LiveAreaInput` is a private abstract
   record with more than a dozen sealed cases (`KeyInput`, `ResizeInput`, `SpinnerTick`,
   `ApprovalInput`, …). A union removes the abstract base and the private-constructor ceremony, and the
   one dispatch method becomes an exhaustive match over the cases.
-- [`SequenceParser.cs`](../../src/Mermaid.Terminal/SequenceParser.cs) — `SequenceStatement` is an
+- [`SequenceParser.cs`](../../src/Mermaid.Terminal/Sequence/SequenceParser.cs) — `SequenceStatement` is an
   internal abstract record with `SequenceMessage` and `SequenceNote`; `SequenceDraw` pattern-matches
   it. A union makes the two variants closed and deletes the base record.
 
 The contract's closed sets were the case this inventory deferred, and #919 decided them as
 [ADR-0043](../../adr/0043-contract-unions.md) (superseding
 [ADR-0042](../../adr/0042-contract-closed-sets.md)): `AgentEvent`/`ExtensionEvent`
-([`AgentEvent.cs`](../../src/Lunate.Contracts/AgentEvent.cs)) and the seven hook-result families
+([`AgentEvent.cs`](../../src/Lunate.Contracts/Events/AgentEvent.cs)) and the seven hook-result families
 ([`HookResults.cs`](../../src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs)) are unions over
 their case records. Two union facts shape that code, both measured: a union declaration may not carry
 instance fields or auto-properties (CS9373), so the stamped `SessionId`/`ParentRunId`/`Source` stay on
@@ -80,7 +80,7 @@ would change an API or where the base class carries behaviour.
   the base of the committed transcript entries. The renderer switches over it in
   `TranscriptViewerRenderer.EntryLines`, and the picker switches over it in `TranscriptViewer.Matches`;
   `closed` makes both switches exhaustive.
-- [`RenderResult.cs`](../../src/Mermaid.Terminal/RenderResult.cs) — `MermaidRenderResult` is the
+- [`RenderResult.cs`](../../src/Mermaid.Terminal/Rendering/RenderResult.cs) — `MermaidRenderResult` is the
   public result base with `MermaidDiagramResult` and `MermaidFallbackResult`. It has a
   `private protected` constructor and real properties, so a union wrapper is the wrong shape; `closed`
   gives the hosts exhaustive matching while keeping the class contract.
@@ -106,7 +106,7 @@ constructor, while keeping the element list in one expression.
 - [`OutputExcerpt.cs`](../../src/Lunate.Tui/ToolBlocks/OutputExcerpt.cs) — `OutputExcerpt.Whole`
   creates `new List<OutputExcerptLine>(lines.Length)` and adds one mapped element per source line.
   It becomes `[with(capacity: lines.Length), .. lines.Select(static line => new OutputExcerptLine(line, false))]`.
-- [`McpServerHost.cs`](../../src/Lunate.Protocols/McpServerHost.cs) — `McpServerHost.ListToolsAsync`
+- [`McpServerHost.cs`](../../src/Lunate.Protocols/Mcp/Client/McpServerHost.cs) — `McpServerHost.ListToolsAsync`
   builds `new HashSet<string>(overrides.Keys, StringComparer.Ordinal)`. It becomes
   `[with(StringComparer.Ordinal), .. overrides.Keys]`.
 
@@ -126,11 +126,11 @@ flag-and-`goto` workarounds the language used to require.
 
 **Two real examples.**
 
-- [`EditMatcher.cs`](../../src/Lunate.Coding/EditMatcher.cs) — `EditMatcher.FindMatches` sets
+- [`EditMatcher.cs`](../../src/Lunate.Coding/Tools/EditMatcher.cs) — `EditMatcher.FindMatches` sets
   `matched = false; break;` inside the pattern loop and then tests `matched` after it. The inner
   mismatch becomes `continue outer;` on the outer window loop, deleting the flag and the inner
   `break`.
-- [`SkillScanner.cs`](../../src/Lunate.Coding/SkillScanner.cs) — `SkillScanner.ScanState.Roots`
+- [`SkillScanner.cs`](../../src/Lunate.Coding/Skills/SkillScanner.cs) — `SkillScanner.ScanState.Roots`
   sets `truncated = true; break;` in the directory loop and then repeats `if (truncated) break;`
   after it. The second test becomes `break roots;`; the flag stays only because the method still uses
   it after the loop to add the warning.
@@ -148,9 +148,9 @@ These features are real C# 15 work, but they have no two real call sites in this
 
 | Feature | Why not | What would reopen it |
 | --- | --- | --- |
-| Extension indexers | Every indexed access in `src/` already goes through an array, list or dictionary indexer. The repository declares only two extension methods, both `StringBuilder.Line` helpers ([`DiagnosticBundle.cs`](../../src/Lunate.Coding/DiagnosticBundle.cs), [`SessionHtmlWriter.cs`](../../src/Lunate.Coding/SessionHtmlWriter.cs)), and neither is index-like. | An extension surface or package adapter grows a real index-like extension method. |
+| Extension indexers | Every indexed access in `src/` already goes through an array, list or dictionary indexer. The repository declares only two extension methods, both `StringBuilder.Line` helpers ([`DiagnosticBundle.cs`](../../src/Lunate.Coding/Diagnostics/DiagnosticBundle.cs), [`SessionHtmlWriter.cs`](../../src/Lunate.Coding/Export/SessionHtmlWriter.cs)), and neither is index-like. | An extension surface or package adapter grows a real index-like extension method. |
 | Non-virtual static interface members on older runtimes | No interface in `src/` declares a static member, and every first-party target already runs on `net11.0`, whose runtime supports the existing default-interface implementation rules. The feature only relaxes an older-runtime check. | A contract package starts targeting `netstandard2.0` or another runtime without default interface implementations. |
-| Memory-safety preview | It is preview, needs `LangVersion=preview`, `AllowUnsafeBlocks` and the `updated-memory-safety-rules` feature flag. The native code here is P/Invoke and marshalling ([`UnixChildProcess.cs`](../../src/Lunate.Coding/UnixChildProcess.cs), [`SystemConsoleIO.cs`](../../src/Lunate.Tui/SystemConsoleIO.cs)), not pointer-access code with an `unsafe` block to audit. | The feature stabilises, or the native layer starts doing pointer access that needs the new `unsafe`/`safe` contracts. |
+| Memory-safety preview | It is preview, needs `LangVersion=preview`, `AllowUnsafeBlocks` and the `updated-memory-safety-rules` feature flag. The native code here is P/Invoke and marshalling ([`UnixChildProcess.cs`](../../src/Lunate.Coding/Process/UnixChildProcess.cs), [`SystemConsoleIO.cs`](../../src/Lunate.Tui/Console/SystemConsoleIO.cs)), not pointer-access code with an `unsafe` block to audit. | The feature stabilises, or the native layer starts doing pointer access that needs the new `unsafe`/`safe` contracts. |
 
 ## Target frameworks
 

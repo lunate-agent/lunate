@@ -47,4 +47,51 @@ public static class RepositoryRoot
             )
         );
     }
+
+    /// <summary>
+    /// The one file named <paramref name="fileName" /> under a repository-relative directory such as
+    /// <c>src/Lunate.Coding</c> or <c>tests/Lunate.Coding.Tests</c>. Feature folders group files and
+    /// move them (#695), so a source scan asks for the file's name instead of pinning the folder it
+    /// happened to sit in when the scan was written.
+    /// </summary>
+    /// <param name="directory">The repository-relative directory to search, with forward slashes.</param>
+    /// <param name="fileName">The exact file name to look for.</param>
+    /// <returns>The full path of the one match.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// The directory holds no such file, or more than one, so a scan naming it would be ambiguous.
+    /// </exception>
+    public static string FindFile(string directory, string fileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        string root = Find();
+        string start = Path.Combine(root, directory.Replace('/', Path.DirectorySeparatorChar));
+        string[] matches =
+        [
+            .. Directory
+                .EnumerateFiles(start, fileName, SearchOption.AllDirectories)
+                .Where(file => !IsBuildOutput(file))
+                .Order(StringComparer.Ordinal),
+        ];
+
+        if (matches.Length != 1)
+        {
+            throw new InvalidOperationException(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"Expected one '{fileName}' under '{directory}', found {matches.Length}: {string.Join(", ", matches)}"
+                )
+            );
+        }
+
+        return matches[0];
+    }
+
+    private static bool IsBuildOutput(string file)
+    {
+        string[] segments = file.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return segments.Contains("obj", StringComparer.Ordinal)
+            || segments.Contains("bin", StringComparer.Ordinal);
+    }
 }

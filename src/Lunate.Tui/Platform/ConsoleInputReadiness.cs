@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Lunate.Tui.Platform;
+namespace Lunate.Tui;
 
 /// <summary>
 /// Whether stdin has bytes waiting, without consuming them: <c>poll</c> on Unix, a wait on the

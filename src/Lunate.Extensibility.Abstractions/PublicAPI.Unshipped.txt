@@ -1,6 +1,6 @@
 #nullable enable
 Lunate.Extensibility.Abstractions.IDecisionService
-Lunate.Extensibility.Abstractions.IDecisionService.DecideAsync(Lunate.Contracts.DecisionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Lunate.Contracts.DecisionResponse!>!
+Lunate.Extensibility.Abstractions.IDecisionService.DecideAsync(Lunate.Ai.Decisions.DecisionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Lunate.Ai.Decisions.DecisionResult!>!
 Lunate.Extensibility.Abstractions.CommandDescriptor
 Lunate.Extensibility.Abstractions.CommandDescriptor.<Clone>$() -> Lunate.Extensibility.Abstractions.CommandDescriptor!
 Lunate.Extensibility.Abstractions.CommandDescriptor.ArgumentHint.get -> string?

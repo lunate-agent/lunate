@@ -6,7 +6,7 @@ using Acp.Schema;
 using Acp.Streaming;
 using Lunate.Agent;
 
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// The <see cref="IAcpServer"/> adapter on LibAcp: initialize (protocol v1, honest text-only

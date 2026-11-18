@@ -8,10 +8,28 @@
         <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
     </ItemGroup>
 
+    <!--
+        The one model, one home: the decision request/result types live here, and the assembly reads
+        the event contract's DecisionProbability, so the edge runs down from the decision loop to the
+        contract and never back (ADR-0044). The reference is private because this assembly is not
+        packed; the packages that ship it carry its file (see Lunate.Agent and
+        Lunate.Extensibility.Abstractions).
+    -->
+    <ItemGroup>
+        <ProjectReference
+            Include="../Lunate.Contracts/Lunate.Contracts.csproj"
+            PrivateAssets="All"
+        />
+    </ItemGroup>
+
     <ItemGroup>
         <InternalsVisibleTo Include="Lunate.Agent" />
         <InternalsVisibleTo Include="Lunate.Agent.Tests" />
         <InternalsVisibleTo Include="Lunate.Ai.SystemOne" />
+        <InternalsVisibleTo Include="Lunate.Coding.Tests" />
+        <InternalsVisibleTo Include="Lunate.Extensibility" />
+        <InternalsVisibleTo Include="Lunate.Extensibility.Tests" />
+        <InternalsVisibleTo Include="Lunate.Extensibility.Testing.Tests" />
         <InternalsVisibleTo Include="lunate" />
     </ItemGroup>
 </Project>
