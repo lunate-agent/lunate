@@ -240,7 +240,10 @@ duration, as an `::error::` annotation and in the job summary, so a red leg can 
 instead of from a log nobody without a session can open (#942). A test step that failed also names the
 tests it failed on, up to five of them, in the same annotations and summary, because naming only the
 step still leaves the red to the log: `verify (macos-latest, 2/2)` of run 44189133429 could be located
-and not attributed (#948).
+and not attributed (#948). A pass that failed without naming a test at all — an aborted session, a
+crashed host, a module that never started — names the modules that failed, with their passed, failed and
+aborted counters, and the verdict the run ended with, for the same reason: the de-AT pass of that leg in
+run 44466042157 failed twice and its annotation said only that the step had failed (#951).
 
 A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
 legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore
