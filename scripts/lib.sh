@@ -92,35 +92,41 @@ report_failed_step() {
 # `failed Namespace.Type.Method (7ms)` line the Microsoft.Testing.Platform runner writes, with its
 # duration stripped, plus the `[FAIL]` and `xunit.v3 ... failed` shapes that have appeared in the gate's
 # output before. Anything else -- a build or restore failure, a module that never started -- names no
-# test, and prints nothing rather than a guess.
+# test, and prints nothing rather than a guess. Every output handed in is read, in argument order, and a
+# name two attempts both printed appears once.
 #
 # The same three shapes are what record_flake reads and what scripts/verify-test-runner.ps1 reads, so the
 # ledger, the flake line and the annotation agree about which test failed.
 failed_test_names() {
-  local output="${1:-}"
+  local path
 
-  if [ -z "$output" ] || [ ! -f "$output" ]; then
-    return 0
-  fi
-  grep -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+' "$output" |
-    sed -E -e 's/^[[:space:]]*//' \
-      -e 's/^(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+//' \
-      -e 's/[[:space:]]+\(.*\)$//' \
-      -e 's/[[:space:]]*$//' || true
+  for path in "$@"; do
+    if [ -z "$path" ] || [ ! -f "$path" ]; then
+      continue
+    fi
+    grep -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+' "$path" |
+      sed -E -e 's/^[[:space:]]*//' \
+        -e 's/^(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+//' \
+        -e 's/[[:space:]]+\(.*\)$//' \
+        -e 's/[[:space:]]*$//' || true
+  done
 }
 
 # The failing modules of a red pass, one per line: the
 # `.../Lunate.Coding.Tests.dll (net11.0|arm64) failed with 1 error(s) [+2949/x0/?1] (6m 28s 855ms)` line
 # `dotnet test` writes per module, cut back to the file name so a check run carries no runner path. A
 # module whose session aborted or crashed has no failing test to name, and this line is then the whole
-# attribution its output holds: the counters say how many passed, failed and aborted.
+# attribution its output holds: the counters say how many passed, failed and aborted. A module both
+# attempts reported is named once, from the output handed in first.
 failed_modules() {
-  local output="${1:-}"
+  local path
 
-  if [ -z "$output" ] || [ ! -f "$output" ]; then
-    return 0
-  fi
-  grep -E '\.dll \([^)]*\) failed with ' "$output" | sed -E 's:^.*/([^/]+\.dll \(.*)$:\1:' || true
+  for path in "$@"; do
+    if [ -z "$path" ] || [ ! -f "$path" ]; then
+      continue
+    fi
+    grep -E '\.dll \([^)]*\) failed with ' "$path" | sed -E 's:^.*/([^/]+\.dll \(.*)$:\1:' || true
+  done | awk '!seen[$1]++'
 }
 
 # The verdict a red pass printed when it named no test: every Microsoft.Testing.Platform run ends with
@@ -146,13 +152,15 @@ failed_pass_verdict() {
 # log (#948) -- while the gate had already read the failing lines for the flake ledger. At most five
 # names: a step that failed sixteen tests must not bury the annotation that names the step itself.
 #
-# A red pass that printed no failing-test line at all -- an aborted session, a crashed host, a module that
-# never started -- named nothing, and `verify (macos-latest, 2/2)` was red again in run 44466042157 with
-# only `the test (de-AT culture) step failed (exit 1, 782s)` in its check run (#951). So a pass without a
-# test name names its failing modules and the verdict it ended with instead; the exit status is the
-# pass's own, not the gate's.
+# The gate retries a red pass once, so a report that read only the final attempt's output dropped what the
+# first one said. `verify (macos-latest, 2/2)` was red again in run 44466042157 and the check run carried
+# only `the test (de-AT culture) step failed (exit 1, 782s)`: a first attempt that failed on a test and a
+# retry whose session aborted leave no failing-test line in the output the report read (#951). Both
+# outputs are therefore read, the pass's own exit status goes with them, and a pass without any test name
+# names its failing modules and the verdict it ended with instead.
 report_failed_tests() {
-  local label="${1:-}" output="${2:-}" status="${3:-}" name module verdict count=0
+  local label="${1:-}" status="${2:-}" output="${3:-}" first="${4:-}"
+  local name module verdict count=0
 
   if [ -z "$label" ]; then
     return 0
@@ -165,11 +173,8 @@ report_failed_tests() {
     fi
     count=$((count + 1))
     [ "$count" -lt 5 ] || break
-  done < <(failed_test_names "$output")
+  done < <(failed_test_names "$output" "$first" | awk '!seen[$0]++')
   if [ "$count" -gt 0 ]; then
-    return 0
-  fi
-  if [ -z "$output" ] || [ ! -f "$output" ]; then
     return 0
   fi
   while IFS= read -r module; do
@@ -180,8 +185,11 @@ report_failed_tests() {
     fi
     count=$((count + 1))
     [ "$count" -lt 3 ] || break
-  done < <(failed_modules "$output")
+  done < <(failed_modules "$output" "$first")
   verdict="$(failed_pass_verdict "$output")"
+  if [ -z "$verdict" ]; then
+    verdict="$(failed_pass_verdict "$first")"
+  fi
   if [ -n "$verdict" ]; then
     printf '::error::verify: %s: the pass named no failing test (exit %s); it ended with: %s\n' \
       "$label" "$status" "$verdict"
