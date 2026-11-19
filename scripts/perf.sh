@@ -83,8 +83,8 @@ measure_startup() {
 # rights" on a job's log for anyone without a session, while every `::error::` line of a step is in
 # the check run's annotations. `perf (macos-latest)` of run 44466042157 failed with nothing but
 # "Process completed with exit code 1", so its card could not say whether the floor was 305 ms (the
-# shared macOS runner's known noise) or a doubled startup (#950). The numbers below are the only
-# place that knows, and they were printed into that log alone.
+# shared macOS runner's known noise) or a doubled startup (#950). The measurement is the only thing that
+# knows, and `perf.sh` printed it into that log alone.
 report_failure() {
   local detail="$1"
 
@@ -95,7 +95,7 @@ report_failure() {
 }
 
 # One measurement, its floor into FLOOR_MS and its median into MEDIAN_MS. `label` names the attempt in
-# the printed line. A measurement that cannot be read fails the step -- never a silent pass -- and is
+# the printed line. A measurement that cannot be read fails the step — never a silent pass — and is
 # named in the annotation too, because a broken measurement is as unattributable as a breach.
 measure_once() {
   local label="${1:-}" floor median
