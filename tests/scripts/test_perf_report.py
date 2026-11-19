@@ -10,9 +10,10 @@ could not tell the shared macOS runner's known 300-330 ms noise from a doubled s
 
 The gate's own numbers are what the annotation now carries, beside the job summary that renders on the
 run page: the failing floor, the median, the budget and, when the noise policy retried, the first
-attempt's floor, which is the value a re-calibration reads (ADR-0005). A breach on a leg that prints
+attempt's floor, which is the value a re-calibration reads (ADR-0005). A failure on a leg that prints
 the measurement without failing on it (`STARTUP_BUDGET_ENFORCE=0` in ci.yml's verify matrix) annotates
-nothing, because that leg is green and the annotation would accuse it.
+nothing — a breach and an unreadable measurement alike — because that leg is green and the annotation
+would accuse it.
 
 `hyperfine` and the binary are stubs, so the tests need neither a published build nor a measurement.
 """
@@ -177,6 +178,20 @@ class PerfReportTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn("startup budget exceeded", result.stderr)
+        self.assertNotIn("::error::", result.stdout)
+
+    def test_an_unreadable_measurement_annotates_nothing_on_a_non_enforcing_leg(self) -> None:
+        """The broken measurement fails `perf.sh`, but `verify.sh` keeps that leg green: no annotation."""
+        self.hyperfine(
+            MEASURE_ONCE.format(
+                payload=self.stage("unreadable.json", '{"results": [{"command": "x"}]}')
+            )
+        )
+
+        result = self.run_perf("5", enforce="0")
+
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("could not read the startup measurement", result.stderr)
         self.assertNotIn("::error::", result.stdout)
 
     def test_an_unreadable_measurement_is_annotated(self) -> None:

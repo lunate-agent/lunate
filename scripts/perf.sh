@@ -94,9 +94,20 @@ report_failure() {
   fi
 }
 
+# Every failure the gate knows about — a breached budget and an unreadable measurement alike — is named
+# through here. `STARTUP_BUDGET_ENFORCE=0` is a leg that prints the measurement without failing on it
+# (ci.yml's verify matrix, where the shared macOS runner's floor is bimodal); its exit status is not the
+# leg's verdict, so it must leave no error annotation on a green job.
+annotate_failure() {
+  if [ "${STARTUP_BUDGET_ENFORCE:-1}" != "0" ]; then
+    report_failure "$1"
+  fi
+}
+
 # One measurement, its floor into FLOOR_MS and its median into MEDIAN_MS. `label` names the attempt in
-# the printed line. A measurement that cannot be read fails the step — never a silent pass — and is
-# named in the annotation too, because a broken measurement is as unattributable as a breach.
+# the printed line. A measurement that cannot be read fails the step — never a silent pass — and on a leg
+# that enforces the budget is named in the annotation too, because an unread measurement is as
+# unattributable as a breach.
 measure_once() {
   local label="${1:-}" floor median
 
@@ -108,7 +119,7 @@ measure_once() {
     fi
     detail="${detail})"
     echo "perf: ${detail}" >&2
-    report_failure "$detail"
+    annotate_failure "$detail"
     exit 1
   fi
   printf 'startup: floor %s ms (median %s ms, budget %s ms%s)\n' \
@@ -137,11 +148,6 @@ if [ "$FLOOR_MS" -gt "$BUDGET_MS" ]; then
   fi
   breach="${breach})"
   echo "${breach}" >&2
-  # `STARTUP_BUDGET_ENFORCE=0` is a leg that prints the measurement without failing on it
-  # (ci.yml's verify matrix, where the shared macOS runner's floor is bimodal); its breach is not
-  # the step's verdict, so it must not leave an error annotation on a green job.
-  if [ "${STARTUP_BUDGET_ENFORCE:-1}" != "0" ]; then
-    report_failure "${breach}"
-  fi
+  annotate_failure "${breach}"
   exit 1
 fi
