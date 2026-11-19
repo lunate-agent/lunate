@@ -243,7 +243,10 @@ step still leaves the red to the log: `verify (macos-latest, 2/2)` of run 441891
 and not attributed (#948). A pass that failed without naming a test at all — an aborted session, a
 crashed host, a module that never started — names the modules that failed, with their passed, failed and
 aborted counters, and the verdict the run ended with, for the same reason: the de-AT pass of that leg in
-run 44466042157 failed twice and its annotation said only that the step had failed (#951).
+run 44466042157 failed twice and its annotation said only that the step had failed (#951). The `perf`
+job's startup step reports the measurement it failed on the same way: its floor, median and budget,
+plus the first attempt's floor when the noise policy retried, because the shared macOS runner's
+300-330 ms floor and a doubled startup look alike from the run alone (#950).
 
 A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
 legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore
