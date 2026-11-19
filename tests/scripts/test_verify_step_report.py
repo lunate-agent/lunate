@@ -16,6 +16,14 @@ twice and the annotation named the step, so the leg could be located but not att
 failed was only in the job's log, and the log needs an account (#948). `report_failed_tests` names the
 tests the pass printed, from the same output `run_tests` already read for the flake ledger, so the check
 run carries the test as well as the step.
+
+The same leg was red again in run 44466042157, and this time the pass named no test at all: the annotation
+said `the test (de-AT culture) step failed (exit 1, 782s)` and nothing else, because the report read the
+final attempt's output alone -- a first attempt that failed on a test and a retry whose session aborted
+left no failing-test line in the file it read -- and because a pass whose session aborted or whose host
+crashed prints a module line and a verdict instead of a failing test (`#951`). The report therefore reads
+both attempts, and a pass without a test name reports its failing modules and the verdict it ended with;
+`FailedPassReportTests` pins both.
 """
 
 import os
@@ -31,7 +39,8 @@ VERIFY = REPOSITORY_ROOT / "scripts" / "verify.sh"
 # Calls the report the way the gate does: one step name, the exit status and the seconds it took.
 CALL = 'set -euo pipefail; . "$0"; report_failed_step "$@"'
 
-# Calls the failing-test report the way run_tests does: the pass's label and the output file it read.
+# Calls the failing-test report the way run_tests does: the pass's label, its exit status, the output of
+# the final attempt and the output of the first one.
 CALL_TESTS = 'set -euo pipefail; . "$0"; report_failed_tests "$@"'
 
 
@@ -61,13 +70,20 @@ def report(step: str, status: str, elapsed: str, summary: str | None = None) -> 
 
 
 def report_tests(
-    label: str, output: str, summary: str | None = None
+    label: str,
+    output: str,
+    summary: str | None = None,
+    status: str = "1",
+    first: str | None = None,
 ) -> subprocess.CompletedProcess:
     environment = {key: value for key, value in os.environ.items() if key != "GITHUB_STEP_SUMMARY"}
     if summary is not None:
         environment["GITHUB_STEP_SUMMARY"] = summary
+    arguments = [str(LIB), label, status, output]
+    if first is not None:
+        arguments.append(first)
     return subprocess.run(
-        ["bash", "-c", CALL_TESTS, str(LIB), label, output],
+        ["bash", "-c", CALL_TESTS, *arguments],
         capture_output=True,
         text=True,
         env=environment,
@@ -187,8 +203,8 @@ class FailedTestReportTests(unittest.TestCase):
         self.assertIn("Truncation.Test5 failed", result.stdout)
         self.assertNotIn("Truncation.Test6", result.stdout)
 
-    def test_an_output_without_a_failing_test_reports_nothing(self) -> None:
-        """A build that failed before any test ran names no test, so none is reported."""
+    def test_an_output_without_a_failing_test_names_the_error_it_ended_with(self) -> None:
+        """A build that failed before any test ran names no test, so the pass's own error line is named."""
         output = test_output(["error: the build failed before any test ran", "  total: 0, failed: 0"])
         try:
             result = report_tests("test", str(output))
@@ -196,14 +212,21 @@ class FailedTestReportTests(unittest.TestCase):
             output.unlink()
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stdout,
+            "::error::verify: test: the pass named no failing test (exit 1); it ended with: "
+            "error: the build failed before any test ran\n",
+        )
 
-    def test_a_missing_output_reports_nothing(self) -> None:
-        """A pass whose output was never written has nothing to name, and that is not an error."""
-        result = report_tests("test", "/nonexistent/lunate-gate-output.log")
+    def test_a_missing_output_still_names_the_pass_and_its_exit(self) -> None:
+        """A pass whose output was never written leaves the exit status as the one fact to report."""
+        result = report_tests("test", "/nonexistent/lunate-gate-output.log", status="137")
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stdout,
+            "::error::verify: test: the pass named no failing test and printed no verdict (exit 137)\n",
+        )
 
     def test_the_run_summary_lists_the_failing_tests(self) -> None:
         """The job summary renders on the public run page, so it carries the names too."""
@@ -223,6 +246,222 @@ class FailedTestReportTests(unittest.TestCase):
             "- failing test: Lunate.Coding.Tests.ProcessSessionTests.Killing_the_session (test (de-AT culture))",
             written,
         )
+
+
+class FailedPassReportTests(unittest.TestCase):
+    """A red pass that named no test names its failing modules and the verdict it ended with (#951)."""
+
+    MODULE = (
+        "  /home/runner/work/lunate/lunate/tests/Lunate.Coding.Tests/bin/Release/net11.0/"
+        "Lunate.Coding.Tests.dll (net11.0|arm64) failed with 1 error(s) [+2949/x0/?1] (6m 28s 855ms)"
+    )
+    VERDICT = (
+        "Test run completed with non-success exit code: 4. The test session was aborted. "
+        "See: https://aka.ms/testingplatform/exitcodes"
+    )
+
+    def test_the_failing_module_is_named_without_the_runner_path(self) -> None:
+        """The module line carries the counters -- `?1` is the test that aborted -- and no path."""
+        output = test_output([self.MODULE, "", "Test run summary: Failed!", "  total: 2950"])
+        try:
+            result = report_tests("test (de-AT culture)", str(output))
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "::error::verify: test (de-AT culture): Lunate.Coding.Tests.dll (net11.0|arm64) "
+            "failed with 1 error(s) [+2949/x0/?1] (6m 28s 855ms)\n",
+        )
+
+    def test_the_verdict_is_named_without_the_exit_code_link(self) -> None:
+        """The run's own sentence says why it ended; the link is the same URL on every red."""
+        output = test_output([self.MODULE, self.VERDICT])
+        try:
+            result = report_tests("test (de-AT culture)", str(output), status="4")
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "::error::verify: test (de-AT culture): the pass named no failing test (exit 4); "
+            "it ended with: Test run completed with non-success exit code: 4. "
+            "The test session was aborted.\n",
+            result.stdout,
+        )
+        self.assertNotIn("aka.ms", result.stdout)
+
+    def test_an_error_line_is_the_verdict_when_the_run_never_completed(self) -> None:
+        """A host that crashed before the summary prints an `error:` line instead of a verdict."""
+        output = test_output(["error: A fatal error occurred. The test host exited early."])
+        try:
+            result = report_tests("test", str(output), status="137")
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "the pass named no failing test (exit 137); it ended with: "
+            "error: A fatal error occurred. The test host exited early.",
+            result.stdout,
+        )
+
+    def test_at_most_three_modules_are_named(self) -> None:
+        """A pass that lost several modules still names the verdict that explains them."""
+        output = test_output(
+            [
+                f"  /w/tests/Lunate.Shard{n}.Tests/bin/Release/net11.0/Lunate.Shard{n}.Tests.dll "
+                "(net11.0|arm64) failed with 1 error(s) [+1/x0/?1] (1s)"
+                for n in range(1, 6)
+            ]
+        )
+        try:
+            result = report_tests("test", str(output))
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.count("failed with 1 error(s)"), 3)
+        self.assertIn("Lunate.Shard3.Tests.dll", result.stdout)
+        self.assertNotIn("Lunate.Shard4.Tests.dll", result.stdout)
+
+    def test_a_pass_with_no_name_and_no_verdict_still_names_itself(self) -> None:
+        """Output that holds neither leaves the exit status as the only fact, and that is reported."""
+        output = test_output(["  ?", ""])
+        try:
+            result = report_tests("test", str(output), status="137")
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "::error::verify: test: the pass named no failing test and printed no verdict (exit 137)\n",
+        )
+
+    def test_a_pass_that_named_a_test_names_no_module_or_verdict(self) -> None:
+        """The fallback never repeats what a test name already tells the reader."""
+        output = test_output(
+            [
+                "failed Lunate.Coding.Tests.ProcessSessionTests.Killing_the_session (30s)",
+                self.MODULE,
+                self.VERDICT,
+            ]
+        )
+        try:
+            result = report_tests("test", str(output), status="2")
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("failed with 1 error(s)", result.stdout)
+        self.assertNotIn("the pass named no failing test", result.stdout)
+
+    def test_the_run_summary_carries_the_module_and_the_verdict(self) -> None:
+        """The job summary renders on the public run page, so it carries the same attribution."""
+        output = test_output([self.MODULE, self.VERDICT])
+        handle = tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
+        handle.close()
+        summary = Path(handle.name)
+        try:
+            result = report_tests("test (de-AT culture)", str(output), str(summary), status="4")
+            written = summary.read_text(encoding="utf-8")
+        finally:
+            output.unlink()
+            summary.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "- failing module: Lunate.Coding.Tests.dll (net11.0|arm64) failed with 1 error(s) "
+            "[+2949/x0/?1] (6m 28s 855ms) (test (de-AT culture))",
+            written,
+        )
+        self.assertIn(
+            "- failed pass: test (de-AT culture) named no failing test (exit 4): "
+            "Test run completed with non-success exit code: 4. The test session was aborted",
+            written,
+        )
+
+
+    def test_a_test_the_first_attempt_failed_is_named_when_the_retry_named_none(self) -> None:
+        """The retry is a second chance, not a second report: what the first attempt failed on is kept.
+
+        This is the shape run 44466042157's de-AT pass left behind -- one attempt that failed on a test,
+        a retry whose session aborted -- and it named nothing while `run_tests` held both outputs.
+        """
+        final = test_output([self.MODULE, self.VERDICT])
+        first = test_output(
+            [
+                "failed Lunate.Coding.Tests.ProcessSessionTests.Killing_the_session (30s)",
+                "Test run completed with non-success exit code: 2. At least one test failed.",
+            ]
+        )
+        try:
+            result = report_tests("test (de-AT culture)", str(final), status="4", first=str(first))
+        finally:
+            final.unlink()
+            first.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "::error::verify: test (de-AT culture): "
+            "Lunate.Coding.Tests.ProcessSessionTests.Killing_the_session failed\n",
+        )
+
+    def test_a_name_both_attempts_printed_appears_once(self) -> None:
+        """Two attempts that failed the same test must not double the annotation."""
+        output = test_output(["failed Lunate.Agent.Tests.FakeFailure.Case (1ms)"])
+        first = test_output(["failed Lunate.Agent.Tests.FakeFailure.Case (2ms)"])
+        try:
+            result = report_tests("test", str(output), status="2", first=str(first))
+        finally:
+            output.unlink()
+            first.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "::error::verify: test: Lunate.Agent.Tests.FakeFailure.Case failed\n"
+        )
+
+    def test_the_first_attempts_module_is_named_when_the_retry_named_none(self) -> None:
+        """A retry that printed nothing at all leaves the first attempt's module as the attribution."""
+        final = test_output([""])
+        first = test_output([self.MODULE, "  total: 0, failed: 0"])
+        try:
+            result = report_tests("test", str(final), status="1", first=str(first))
+        finally:
+            final.unlink()
+            first.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Lunate.Coding.Tests.dll (net11.0|arm64) failed with 1 error(s)", result.stdout)
+
+    def test_the_first_attempts_verdict_is_used_when_the_retry_printed_none(self) -> None:
+        """A verdict is the one thing an aborted retry may not print, so the first attempt's stands in."""
+        final = test_output([""])
+        first = test_output([self.VERDICT])
+        try:
+            result = report_tests("test", str(final), status="4", first=str(first))
+        finally:
+            final.unlink()
+            first.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "the pass named no failing test (exit 4); it ended with: "
+            "Test run completed with non-success exit code: 4. The test session was aborted.",
+            result.stdout,
+        )
+
+
+class FailedPassWiringTests(unittest.TestCase):
+    def test_the_pass_exit_status_reaches_the_report(self) -> None:
+        """The gate's own exit is 1 whatever the pass returned; the verdict names the pass's status."""
+        body = function_body(without_comments(VERIFY.read_text(encoding="utf-8")), "run_tests")
+
+        self.assertIn('report_failed_tests "$label" "$status" "$output" "$first_output"', body)
 
 
 class FailedStepWiringTests(unittest.TestCase):
@@ -253,7 +492,7 @@ class FailedStepWiringTests(unittest.TestCase):
         """`run_tests` has the pass's output, so it is where the failing test names still exist."""
         body = function_body(without_comments(VERIFY.read_text(encoding="utf-8")), "run_tests")
 
-        self.assertIn('report_failed_tests "$label" "$output"', body)
+        self.assertIn('report_failed_tests "$label"', body)
 
     def test_the_names_are_reported_before_the_gate_gives_up(self) -> None:
         """A pass that failed twice exits right after; the names have to be out by then."""
