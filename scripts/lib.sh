@@ -109,14 +109,50 @@ failed_test_names() {
       -e 's/[[:space:]]*$//' || true
 }
 
+# The failing modules of a red pass, one per line: the
+# `.../Lunate.Coding.Tests.dll (net11.0|arm64) failed with 1 error(s) [+2949/x0/?1] (6m 28s 855ms)` line
+# `dotnet test` writes per module, cut back to the file name so a check run carries no runner path. A
+# module whose session aborted or crashed has no failing test to name, and this line is then the whole
+# attribution its output holds: the counters say how many passed, failed and aborted.
+failed_modules() {
+  local output="${1:-}"
+
+  if [ -z "$output" ] || [ ! -f "$output" ]; then
+    return 0
+  fi
+  grep -E '\.dll \([^)]*\) failed with ' "$output" | sed -E 's:^.*/([^/]+\.dll \(.*)$:\1:' || true
+}
+
+# The verdict a red pass printed when it named no test: every Microsoft.Testing.Platform run ends with
+# `Test run completed with non-success exit code: N. <reason>`, and a pass that never got that far -- a
+# host that crashed, a module that never started -- points at its cause with an `error:` line. The
+# exit-code link the line ends with is dropped: it is the same URL on every red and says nothing about
+# this one. An output that holds neither is left alone rather than guessed at.
+failed_pass_verdict() {
+  local output="${1:-}"
+
+  if [ -z "$output" ] || [ ! -f "$output" ]; then
+    return 0
+  fi
+  grep -E '^[[:space:]]*(error:|Test run completed with non-success exit code:)' "$output" |
+    head -n 1 |
+    sed -E -e 's/^[[:space:]]*//' -e 's/[[:space:]]+See: https?:\/\/[^[:space:]]+$//' || true
+}
+
 # Names the failing tests of a red test step in the run's check run, for the same reader and the same
 # reason as report_failed_step: a job's log on a public run needs an account, a step's `::error::` line
 # does not. Naming the step alone still left `verify (macos-latest, 2/2)` of run 44189133429 untriageable
 # -- its test step failed twice, the annotation said so, and which test failed could only be read from the
 # log (#948) -- while the gate had already read the failing lines for the flake ledger. At most five
 # names: a step that failed sixteen tests must not bury the annotation that names the step itself.
+#
+# A red pass that printed no failing-test line at all -- an aborted session, a crashed host, a module that
+# never started -- named nothing, and `verify (macos-latest, 2/2)` was red again in run 44466042157 with
+# only `the test (de-AT culture) step failed (exit 1, 782s)` in its check run (#951). So a pass without a
+# test name names its failing modules and the verdict it ended with instead; the exit status is the
+# pass's own, not the gate's.
 report_failed_tests() {
-  local label="${1:-}" output="${2:-}" name count=0
+  local label="${1:-}" output="${2:-}" status="${3:-}" name module verdict count=0
 
   if [ -z "$label" ]; then
     return 0
@@ -130,4 +166,35 @@ report_failed_tests() {
     count=$((count + 1))
     [ "$count" -lt 5 ] || break
   done < <(failed_test_names "$output")
+  if [ "$count" -gt 0 ]; then
+    return 0
+  fi
+  if [ -z "$output" ] || [ ! -f "$output" ]; then
+    return 0
+  fi
+  while IFS= read -r module; do
+    [ -n "$module" ] || continue
+    printf '::error::verify: %s: %s\n' "$label" "$module"
+    if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+      printf -- '- failing module: %s (%s)\n' "$module" "$label" >> "$GITHUB_STEP_SUMMARY"
+    fi
+    count=$((count + 1))
+    [ "$count" -lt 3 ] || break
+  done < <(failed_modules "$output")
+  verdict="$(failed_pass_verdict "$output")"
+  if [ -n "$verdict" ]; then
+    printf '::error::verify: %s: the pass named no failing test (exit %s); it ended with: %s\n' \
+      "$label" "$status" "$verdict"
+    if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+      printf -- '- failed pass: %s named no failing test (exit %s): %s\n' \
+        "$label" "$status" "$verdict" >> "$GITHUB_STEP_SUMMARY"
+    fi
+  elif [ "$count" -eq 0 ]; then
+    printf '::error::verify: %s: the pass named no failing test and printed no verdict (exit %s)\n' \
+      "$label" "$status"
+    if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+      printf -- '- failed pass: %s named no failing test and printed no verdict (exit %s)\n' \
+        "$label" "$status" >> "$GITHUB_STEP_SUMMARY"
+    fi
+  fi
 }

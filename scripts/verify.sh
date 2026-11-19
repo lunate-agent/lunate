@@ -187,8 +187,10 @@ run_tests() {
     if [ "$status" -ne 0 ]; then
       # The names go out before the exit, so the run's check run carries the test the leg failed on and
       # not only the step (see report_failed_tests in lib.sh). #942's step report is already in the EXIT
-      # trap by then; this is the other half of the same triage.
-      report_failed_tests "$label" "$output"
+      # trap by then; this is the other half of the same triage. The pass's own exit status goes with them:
+      # a pass that named no test at all is attributed by its modules and its verdict, not by the gate's
+      # exit 1 (#951).
+      report_failed_tests "$label" "$output" "$status"
       rm -f "$output"
       echo "verify: ${label} failed twice in a row (exit ${status}) — not a flake" >&2
       exit 1
