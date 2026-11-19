@@ -78,13 +78,47 @@ measure_startup() {
   ' "$RESULTS_ABS"
 }
 
-read -r FLOOR_MS MEDIAN_MS <<<"$(measure_startup || true)"
-if ! [[ "${FLOOR_MS:-}" =~ ^[0-9]+$ && "${MEDIAN_MS:-}" =~ ^[0-9]+$ ]]; then
-  echo "perf: could not read the startup measurement (floor='${FLOOR_MS:-}', median='${MEDIAN_MS:-}')" >&2
-  exit 1
-fi
-printf 'startup: floor %s ms (median %s ms, budget %s ms)\n' \
-  "$FLOOR_MS" "$MEDIAN_MS" "$BUDGET_MS"
+# Names a failing measurement in the run's check run and its job summary, for the reader a red
+# `perf (macos-latest)` sends to the run rather than to the log: GitHub answers "Must have admin
+# rights" on a job's log for anyone without a session, while every `::error::` line of a step is in
+# the check run's annotations. `perf (macos-latest)` of run 44466042157 failed with nothing but
+# "Process completed with exit code 1", so its card could not say whether the floor was 305 ms (the
+# shared macOS runner's known noise) or a doubled startup (#950). The numbers below are the only
+# place that knows, and they were printed into that log alone.
+report_failure() {
+  local detail="$1"
+
+  printf '::error::perf: %s\n' "$detail"
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    printf -- '- perf: %s\n' "$detail" >> "$GITHUB_STEP_SUMMARY"
+  fi
+}
+
+# One measurement, its floor into FLOOR_MS and its median into MEDIAN_MS. `label` names the attempt in
+# the printed line. A measurement that cannot be read fails the step -- never a silent pass -- and is
+# named in the annotation too, because a broken measurement is as unattributable as a breach.
+measure_once() {
+  local label="${1:-}" floor median
+
+  read -r floor median <<<"$(measure_startup || true)"
+  if ! [[ "${floor:-}" =~ ^[0-9]+$ && "${median:-}" =~ ^[0-9]+$ ]]; then
+    local detail="could not read the startup measurement (floor='${floor:-}', median='${median:-}'"
+    if [ -n "$label" ]; then
+      detail="${detail}; ${label}"
+    fi
+    detail="${detail})"
+    echo "perf: ${detail}" >&2
+    report_failure "$detail"
+    exit 1
+  fi
+  printf 'startup: floor %s ms (median %s ms, budget %s ms%s)\n' \
+    "$floor" "$median" "$BUDGET_MS" "${label:+; $label}"
+  FLOOR_MS="$floor"
+  MEDIAN_MS="$median"
+}
+
+FIRST_FLOOR_MS=""
+measure_once
 
 # Noise policy (ADR-0005): a single budget miss re-runs the measurement once
 # before failing, so a shared-runner noise burst does not redden the gate while
@@ -92,12 +126,22 @@ printf 'startup: floor %s ms (median %s ms, budget %s ms)\n' \
 # re-calibration (or regression) signal.
 if [ "$FLOOR_MS" -gt "$BUDGET_MS" ]; then
   echo "startup floor ${FLOOR_MS} ms exceeds budget ${BUDGET_MS} ms; re-running once (noise policy)"
-  read -r FLOOR_MS MEDIAN_MS <<<"$(measure_startup)"
-  printf 'startup: floor %s ms (median %s ms, budget %s ms; retry)\n' \
-    "$FLOOR_MS" "$MEDIAN_MS" "$BUDGET_MS"
+  FIRST_FLOOR_MS="$FLOOR_MS"
+  measure_once retry
 fi
 
 if [ "$FLOOR_MS" -gt "$BUDGET_MS" ]; then
-  echo "startup budget exceeded: fastest of ${RUNS} runs ${FLOOR_MS} ms > ${BUDGET_MS} ms (median ${MEDIAN_MS} ms)" >&2
+  breach="startup budget exceeded: fastest of ${RUNS} runs ${FLOOR_MS} ms > ${BUDGET_MS} ms (median ${MEDIAN_MS} ms"
+  if [ -n "$FIRST_FLOOR_MS" ]; then
+    breach="${breach}; first attempt ${FIRST_FLOOR_MS} ms"
+  fi
+  breach="${breach})"
+  echo "${breach}" >&2
+  # `STARTUP_BUDGET_ENFORCE=0` is a leg that prints the measurement without failing on it
+  # (ci.yml's verify matrix, where the shared macOS runner's floor is bimodal); its breach is not
+  # the step's verdict, so it must not leave an error annotation on a green job.
+  if [ "${STARTUP_BUDGET_ENFORCE:-1}" != "0" ]; then
+    report_failure "${breach}"
+  fi
   exit 1
 fi

@@ -240,7 +240,9 @@ duration, as an `::error::` annotation and in the job summary, so a red leg can 
 instead of from a log nobody without a session can open (#942). A test step that failed also names the
 tests it failed on, up to five of them, in the same annotations and summary, because naming only the
 step still leaves the red to the log: `verify (macos-latest, 2/2)` of run 44189133429 could be located
-and not attributed (#948).
+and not attributed (#948). The `perf` job's startup step reports the measurement it failed on the same
+way: its floor, median and budget, plus the first attempt's floor when the noise policy retried, because
+the shared macOS runner's 300-330 ms floor and a doubled startup look alike from the run alone (#950).
 
 A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
 legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore

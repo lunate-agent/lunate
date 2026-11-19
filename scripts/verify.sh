@@ -519,6 +519,11 @@ platform_checks() {
   step "a red leg names its failing step"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_step_report.py"
 
+  # The same reader for the startup budget: a red `perf (macos-latest)` named only the step, while the
+  # floor, median and budget it failed on were in the log (#950).
+  step "a red startup budget names its measurement"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_perf_report.py"
+
   step "public API"
   if ! check_shipped_api_unchanged; then
     exit 1
@@ -597,7 +602,9 @@ verify_primary_before_tests() {
     --nologo
 
   step "startup budget"
-  if ! BUDGET_MS="$BUDGET_MS" "${SCRIPT_DIR}/perf.sh" "$BINARY"; then
+  # The budget is passed through with whether this leg enforces it: perf.sh annotates a breach only
+  # when the breach fails the step, and a measuring-but-not-enforcing leg must stay annotation-free.
+  if ! BUDGET_MS="$BUDGET_MS" STARTUP_BUDGET_ENFORCE="$STARTUP_BUDGET_ENFORCE" "${SCRIPT_DIR}/perf.sh" "$BINARY"; then
     if [ "$STARTUP_BUDGET_ENFORCE" = "1" ]; then
       exit 1
     fi
