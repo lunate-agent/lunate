@@ -88,6 +88,20 @@ report_failed_step() {
   fi
 }
 
+# Strips the ANSI SGR sequences Microsoft.Testing.Platform writes when GitHub Actions asks for color.
+# `GITHUB_ACTIONS=true` makes the runner color its output even into a redirected file, so every line the
+# readers below look for arrives as `\x1b[31mfailed\x1b[m <test>` and `... \x1b[31mfailed with 1 error(s)\x1b[m`.
+# That is why `verify (macos-latest, 2/2)`'s de-AT pass in run 44722124911 carried only the CLI's verdict
+# in its check run: the gate read a red pass whose every failing line it could not match (#954). The
+# readers strip the escapes instead of the gate turning color off, because the same reader
+# (scripts/ci-issue-triage) reads a job log that the gate does not write.
+strip_ansi() {
+  local escape
+
+  escape="$(printf '\033')"
+  sed -E "s/${escape}\[[0-9;?]*[A-Za-z]//g"
+}
+
 # The tests a failing test step named, one per line, in the order the runner printed them: the
 # `failed Namespace.Type.Method (7ms)` line the Microsoft.Testing.Platform runner writes, with its
 # duration stripped, plus the `[FAIL]` and `xunit.v3 ... failed` shapes that have appeared in the gate's
@@ -104,7 +118,8 @@ failed_test_names() {
     if [ -z "$path" ] || [ ! -f "$path" ]; then
       continue
     fi
-    grep -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+' "$path" |
+    strip_ansi < "$path" |
+      grep -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+' |
       sed -E -e 's/^[[:space:]]*//' \
         -e 's/^(failed|xunit\.v3[^ ]* failed|\[FAIL\])[[:space:]]+//' \
         -e 's/[[:space:]]+\(.*\)$//' \
@@ -125,7 +140,8 @@ failed_modules() {
     if [ -z "$path" ] || [ ! -f "$path" ]; then
       continue
     fi
-    grep -E '\.dll \([^)]*\) failed with ' "$path" | sed -E 's:^.*/([^/]+\.dll \(.*)$:\1:' || true
+    strip_ansi < "$path" |
+      grep -E '\.dll \([^)]*\) failed with ' | sed -E 's:^.*/([^/]+\.dll \(.*)$:\1:' || true
   done | awk '!seen[$1]++'
 }
 
@@ -140,7 +156,8 @@ failed_pass_verdict() {
   if [ -z "$output" ] || [ ! -f "$output" ]; then
     return 0
   fi
-  grep -E '^[[:space:]]*(error:|Test run completed with non-success exit code:)' "$output" |
+  strip_ansi < "$output" |
+    grep -E '^[[:space:]]*(error:|Test run completed with non-success exit code:)' |
     head -n 1 |
     sed -E -e 's/^[[:space:]]*//' -e 's/[[:space:]]+See: https?:\/\/[^[:space:]]+$//' || true
 }

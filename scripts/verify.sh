@@ -137,11 +137,15 @@ step() {
 # One retry, recorded — the flake budget. A test that fails once and passes on the immediate retry
 # does not block the merge; it is written to the ledger (the weekly flake batch fixes them, worst
 # first). A failure that repeats is a real failure and fails the gate as before.
+#
+# The ledger reads the pass's own output through strip_ansi, for the same reason the check run does: on
+# GitHub Actions the runner colors the failing line, and a ledger that named "unknown" for every CI flake
+# is a batch nobody can fix (#954).
 record_flake() {
   local label="$1" output="$2"
   local ledger="${LUNATE_FLAKE_LEDGER:-${GITHUB_WORKSPACE:-$PWD}/.artifacts/flake-ledger.jsonl}"
   local first
-  first="$(grep -m1 -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])' "$output" | sed -e 's/^[[:space:]]*//' -e 's/^failed[[:space:]]*//' || true)"
+  first="$(strip_ansi < "$output" | grep -m1 -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])' | sed -e 's/^[[:space:]]*//' -e 's/^failed[[:space:]]*//' || true)"
   mkdir -p "$(dirname "$ledger")"
   python3 - "$ledger" "$label" "$first" <<'PY'
 import datetime, json, platform, sys
