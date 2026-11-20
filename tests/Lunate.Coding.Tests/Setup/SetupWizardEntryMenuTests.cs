@@ -85,12 +85,29 @@ public sealed class SetupWizardEntryMenuTests
         await run;
     }
 
+    /// <summary>
+    /// A first run's <c>/setup</c> keeps the full walk instead of the entry menu.
+    /// <para>
+    /// A first run also offers the <c>/auth</c> picker once, after composition, and that offer is
+    /// titled "Select provider" like the walk's first step. A key read while the offer is up belongs
+    /// to the picker, not to the composer: <c>/setup</c> typed into it is inert and its Enter
+    /// confirms the first preset, which starts a credential prompt and leaves the walk unopened —
+    /// the offer and the typed command race, and a loaded runner loses that race often enough to
+    /// fail the same leg twice (`verify (macos-latest, 2/2)`, #956). The offer is therefore
+    /// dismissed first, and the frame it leaves is gone before the command is typed, so the wait
+    /// below can only be satisfied by the walk's own picker.
+    /// </para>
+    /// </summary>
     [PosixFact]
     public async Task A_first_run_keeps_the_full_walk()
     {
         using var host = new InteractiveSessionHost(interactiveConsole: true);
         Task run = host.RunAsync();
         await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await host.WaitForFrameAsync("Select provider");
+        host.Console.SendEscape();
+        await InteractiveSessionCommandTests.WaitForFrameGoneAsync(host, "Select provider");
 
         host.Console.SendText("/setup");
         host.Console.SendEnter();
