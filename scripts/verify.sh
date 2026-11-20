@@ -145,7 +145,9 @@ record_flake() {
   local label="$1" output="$2"
   local ledger="${LUNATE_FLAKE_LEDGER:-${GITHUB_WORKSPACE:-$PWD}/.artifacts/flake-ledger.jsonl}"
   local first
-  first="$(strip_ansi < "$output" | grep -m1 -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])' | sed -e 's/^[[:space:]]*//' -e 's/^failed[[:space:]]*//' || true)"
+  first="$(strip_ansi < "$output" |
+    grep -m1 -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])' |
+    sed -e 's/^[[:space:]]*//' -e 's/^failed[[:space:]]*//' || true)"
   mkdir -p "$(dirname "$ledger")"
   python3 - "$ledger" "$label" "$first" <<'PY'
 import datetime, json, platform, sys

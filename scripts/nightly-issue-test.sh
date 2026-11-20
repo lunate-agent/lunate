@@ -150,7 +150,9 @@ LOG
 # stream too -- so `failed` arrives wrapped in SGR sequences. The card for `verify (macos-latest, 2/2)` of
 # run 44722124911 carried neither a test nor an area label because this reader matched only the plain
 # line; the reader strips the escapes the way the gate's own readers do (#954).
-printf '\033[31mfailed\033[m Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave \033[90m(8ms)\033[m\n\033[31m  posix_openpt failed\n' >"$tmp/logs/34.log"
+printf '\033[31mfailed\033[m Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave \033[90m(8ms)\033[m\n' \
+    >"$tmp/logs/34.log"
+printf '\033[31m  posix_openpt failed\n' >>"$tmp/logs/34.log"
 
 CASE_EVENT="schedule"
 CASE_MILESTONES="$tmp/milestones.json"
