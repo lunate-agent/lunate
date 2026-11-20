@@ -1,3 +1,13 @@
+# GitHub Actions makes the test runner color its output even into a redirected file -- `\x1b[31mfailed\x1b[m
+# <test>` -- and a ledger read without stripping them records "unknown" for every flake on CI. The bash
+# twin strips the same sequences (`strip_ansi` in scripts/lib.sh) before it reads them (#954).
+function Remove-Ansi {
+    param([string]$Line)
+
+    $escape = [char]27
+    return ($Line -replace "$escape\[[0-9;?]*[A-Za-z]", '')
+}
+
 # One retry mirrors scripts/verify.sh: record a transient pass, but fail a repeated test or
 # discovery failure. The runner-path seam lets the Windows self-test exercise both outcomes.
 function Add-VerifyFlake {
@@ -6,7 +16,7 @@ function Add-VerifyFlake {
         [string[]]$Lines
     )
 
-    $first = $Lines | Where-Object {
+    $first = $Lines | ForEach-Object { Remove-Ansi ([string]$_) } | Where-Object {
         [string]$_ -match '^\s*(failed|xunit\.v3[^ ]* failed|\[FAIL\])'
     } | Select-Object -First 1
     $test = if ($first) {

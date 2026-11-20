@@ -146,6 +146,13 @@ cat >"$tmp/logs/33.log" <<'LOG'
   failed Lunate.Agent.Tests.Truncation.Test6 (1ms)
   failed Lunate.Agent.Tests.Truncation.Test7 (1ms)
 LOG
+# A job on GitHub Actions logs the runner's colored output -- `GITHUB_ACTIONS=true` colors a redirected
+# stream too -- so `failed` arrives wrapped in SGR sequences. The card for `verify (macos-latest, 2/2)` of
+# run 44722124911 carried neither a test nor an area label because this reader matched only the plain
+# line; the reader strips the escapes the way the gate's own readers do (#954).
+printf '\033[31mfailed\033[m Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave \033[90m(8ms)\033[m\n' \
+    >"$tmp/logs/34.log"
+printf '\033[31m  posix_openpt failed\n' >>"$tmp/logs/34.log"
 
 CASE_EVENT="schedule"
 CASE_MILESTONES="$tmp/milestones.json"
@@ -294,6 +301,15 @@ _run "the card caps the test list and says how many the log names" 0 \
 _expect_gh "the card names the fifth test" '`Lunate.Agent.Tests.Truncation.Test5`'
 _expect_no_gh "the sixth test is not named" 'Test6'
 _expect_gh "the card says how many the log names" 'The log names these failing tests: `Lunate.Agent.Tests.Truncation.Test1`, `Lunate.Agent.Tests.Truncation.Test2`, `Lunate.Agent.Tests.Truncation.Test3`, `Lunate.Agent.Tests.Truncation.Test4`, `Lunate.Agent.Tests.Truncation.Test5` (7 in all).'
+
+# The runner colors its output on GitHub Actions, and a card that did not strip the escapes named neither
+# the test nor its area (#954).
+_defaults
+CASE_EVENT="push"
+_run "the card names a failing test the log colors" 0 \
+    '{"jobs":[{"id":34,"name":"verify (macos-latest, 2/2)","conclusion":"failure"}]}'
+_expect_gh "the colored failing test is named" '`Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave`'
+_expect_gh "the colored test still decides the area" "--label area/tui"
 
 _defaults
 CASE_EVENT="push"

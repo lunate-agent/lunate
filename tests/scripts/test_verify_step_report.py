@@ -203,6 +203,45 @@ class FailedTestReportTests(unittest.TestCase):
         self.assertIn("Truncation.Test5 failed", result.stdout)
         self.assertNotIn("Truncation.Test6", result.stdout)
 
+    def test_a_colored_failing_test_is_named_too(self) -> None:
+        """GitHub Actions colors a redirected stream, and the escaped line still names the test (#954).
+
+        This is the shape `verify (macos-latest, 2/2)`'s de-AT pass left in run 44722124911: the runner set
+        `GITHUB_ACTIONS=true`, so the failing line and its module arrived wrapped in SGR sequences and the
+        report matched neither -- the check run carried only the CLI's verdict. Transcript captured from
+        the same `dotnet test --test-modules` invocation with `GITHUB_ACTIONS=true`.
+        """
+        escape = "\x1b"
+        output = test_output(
+            [
+                f"{escape}[31mfailed{escape}[m Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave "
+                f"{escape}[90m(8ms){escape}[m",
+                f"  {escape}[31m  posix_openpt failed",
+                f"{escape}[m{escape}[m/Users/runner/work/lunate/lunate/tests/Lunate.Tui.Tests/bin/Release/"
+                f"net11.0/Lunate.Tui.Tests.dll (net11.0|arm64) {escape}[31mfailed with 1 error(s){escape}[m "
+                f"[{escape}[32m+2061{escape}[m/{escape}[31mx1{escape}[m/{escape}[33m?0{escape}[m] "
+                f"{escape}[90m(1s 512ms){escape}[m",
+                "Exit code: 2",
+                f"{escape}[31mTest run summary: Failed!",
+                "  total: 2062",
+                f"{escape}[31m  failed: 1",
+                "Test run completed with non-success exit code: 2. At least one test failed. "
+                "See: https://aka.ms/testingplatform/exitcodes",
+            ]
+        )
+        try:
+            result = report_tests("test (de-AT culture)", str(output), status="2")
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "::error::verify: test (de-AT culture): "
+            "Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave failed\n",
+        )
+        self.assertNotIn(escape, result.stdout)
+
     def test_an_output_without_a_failing_test_names_the_error_it_ended_with(self) -> None:
         """A build that failed before any test ran names no test, so the pass's own error line is named."""
         output = test_output(["error: the build failed before any test ran", "  total: 0, failed: 0"])
@@ -358,6 +397,29 @@ class FailedPassReportTests(unittest.TestCase):
         self.assertNotIn("failed with 1 error(s)", result.stdout)
         self.assertNotIn("the pass named no failing test", result.stdout)
 
+    def test_a_colored_module_line_is_named_without_its_escapes(self) -> None:
+        """A red module on GitHub Actions is named too, and the annotation carries no escape codes (#954)."""
+        escape = "\x1b"
+        colored = (
+            f"{escape}[m{escape}[m/home/runner/work/lunate/lunate/tests/Lunate.Coding.Tests/bin/Release/"
+            f"net11.0/Lunate.Coding.Tests.dll (net11.0|arm64) {escape}[31mfailed with 1 error(s){escape}[m "
+            f"[{escape}[32m+2949{escape}[m/{escape}[31mx1{escape}[m/{escape}[33m?0{escape}[m] "
+            f"{escape}[90m(6m 28s 855ms){escape}[m"
+        )
+        output = test_output([colored, self.VERDICT])
+        try:
+            result = report_tests("test (de-AT culture)", str(output), status="2")
+        finally:
+            output.unlink()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(
+            "::error::verify: test (de-AT culture): Lunate.Coding.Tests.dll (net11.0|arm64) "
+            "failed with 1 error(s) [+2949/x1/?0] (6m 28s 855ms)\n",
+            result.stdout,
+        )
+        self.assertNotIn(escape, result.stdout)
+
     def test_the_run_summary_carries_the_module_and_the_verdict(self) -> None:
         """The job summary renders on the public run page, so it carries the same attribution."""
         output = test_output([self.MODULE, self.VERDICT])
@@ -462,6 +524,12 @@ class FailedPassWiringTests(unittest.TestCase):
         body = function_body(without_comments(VERIFY.read_text(encoding="utf-8")), "run_tests")
 
         self.assertIn('report_failed_tests "$label" "$status" "$output" "$first_output"', body)
+
+    def test_the_flake_ledger_reads_the_pass_through_the_escape_strip(self) -> None:
+        """The ledger names the same test the annotation does, so it strips the escape codes too (#954)."""
+        body = function_body(without_comments(VERIFY.read_text(encoding="utf-8")), "record_flake")
+
+        self.assertIn('strip_ansi < "$output"', body)
 
 
 class FailedStepWiringTests(unittest.TestCase):
