@@ -291,7 +291,9 @@ test means the session format changed: stop and report instead of editing the go
 Every pull request that has a release-note line writes it in `changes/<pr-number>.md` and never edits
 `CHANGELOG.md`: put the line under `### Added`, `### Changed` or `### Fixed`, as a bullet ending with
 one or more references, `(#<pr-number>)` or `(#681, #682)`. A fragment is prose, so such a pull request
-gets the docs profile. The release
+gets the docs profile. A link in a fragment is written from `changes/`,
+`[ADR-0043](../adr/0043-contract-unions.md)`; the assembler rewrites it relative to the repository
+root when it folds the entry into `CHANGELOG.md` and refuses one that leaves the repository. The release
 pull request — branch `release/<version>` or a title starting `chore(release)` — is the only one
 that edits the changelog: it runs `scripts/changelog-assemble --release <version>`, commits the result
 (`CHANGELOG.md`, `Directory.Build.props` and the deleted fragments) and never promotes twice. `ci-ok`

@@ -13,13 +13,20 @@ Usage:
     changelog-assemble --write      # rewrite the unreleased section from the fragments
     changelog-assemble --release <version> [--date YYYY-MM-DD]
                                     # do the whole release pull request edit in one run
+    changelog-assemble --self-test   # prove the fragment link rewrite, reading no tree
     changelog-assemble --root DIR   # run against another tree (the tests use this)
+
+A fragment is written from `changes/` and the entry it produces is read from the repository root, so
+an entry's relative link is resolved against the fragment's directory and written relative to the
+root. A link that leaves the repository from `changes/` is refused, naming the fragment, the link and
+the path it resolves to, so the fragment's author learns it in their own pull request.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -48,6 +55,15 @@ SEMVER = re.compile(
 # A bullet ends with one or more pull-request references, the changelog's own shape:
 # `(#1234).` for one pull request, `(#681, #682).` for a change that landed under several.
 REFERENCE = re.compile(r"\(#[0-9]+(?:, #[0-9]+)*\)\.?$")
+# What an entry may carry as a link, in the grammar `scripts/docs_check` reads too, so the assembler
+# and the documentation check agree about what a link is.
+MARKDOWN_LINK = re.compile(
+    r"!?\[[^\]]*\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'|\([^)]*\)))?\s*\)"
+)
+REFERENCE_DEFINITION = re.compile(r"^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)", re.MULTILINE)
+INLINE_CODE = re.compile(r"`[^`\n]*`")
+# A destination that names its own scheme already resolves from any directory.
+SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
 
 
 def write_text(path: Path, text: str) -> None:
@@ -61,6 +77,49 @@ def display(path: Path, root: Path) -> str:
         return path.relative_to(root).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def rewrite_destination(target: str, directory: str, where: str) -> tuple[str | None, str | None]:
+    """Return (the destination rewritten for the root | None to keep it, an error | None).
+
+    `directory` is the directory the link was written in, relative to the root. A destination that
+    leaves the repository cannot be repaired at the root, so it is refused here, where the fragment's
+    own pull request sees it, instead of becoming a broken link in `CHANGELOG.md`.
+    """
+    path_part, hash_sign, anchor = target.partition("#")
+    if not path_part or path_part.startswith("/") or SCHEME.match(path_part):
+        return None, None
+    resolved = posixpath.normpath(posixpath.join(directory, path_part))
+    if posixpath.isabs(resolved) or resolved == ".." or resolved.startswith("../"):
+        return None, (
+            f"{where}: the link '{target}' resolves to '{resolved}' relative to the repository "
+            "root, outside it; a fragment may only link to a path inside the repository"
+        )
+    return f"{resolved}{hash_sign}{anchor}", None
+
+
+def rewrite_links(entry: str, where: str, directory: str) -> tuple[str, list[str]]:
+    """Return (the entry with its relative links rewritten for the root, errors)."""
+    errors: list[str] = []
+    code_spans = [match.span() for match in INLINE_CODE.finditer(entry)]
+    edits: list[tuple[int, int, str]] = []
+    for pattern in (MARKDOWN_LINK, REFERENCE_DEFINITION):
+        for match in pattern.finditer(entry):
+            start, end = match.span(1)
+            if any(code_start <= start < code_end for code_start, code_end in code_spans):
+                continue
+            written = match.group(1)
+            rewritten, error = rewrite_destination(written.strip("<>"), directory, where)
+            if error is not None:
+                errors.append(error)
+            if rewritten is None:
+                continue
+            if written.startswith("<"):
+                rewritten = f"<{rewritten}>"
+            edits.append((start, end, rewritten))
+    for start, end, rewritten in sorted(edits, reverse=True):
+        entry = f"{entry[:start]}{rewritten}{entry[end:]}"
+    return entry, errors
 
 
 def parse_fragment(path: Path, number: int, root: Path) -> tuple[str | None, list[str], list[str]]:
@@ -95,6 +154,14 @@ def parse_fragment(path: Path, number: int, root: Path) -> tuple[str | None, lis
             entries[-1] = "\n".join(current)
             continue
         errors.append(f"{where}: text outside the heading and its bullets: '{line.strip()}'")
+
+    directory = path.parent.relative_to(root).as_posix()
+    rewritten_entries: list[str] = []
+    for entry in entries:
+        rewritten, link_errors = rewrite_links(entry, where, directory)
+        rewritten_entries.append(rewritten)
+        errors.extend(link_errors)
+    entries = rewritten_entries
 
     if not entries:
         errors.append(f"{where}: no bullet; expected '- description (#{number}).'")
@@ -583,6 +650,96 @@ def consume(root: Path, numbers: list[int]) -> int:
     return removed
 
 
+def check_cases(cases: list[tuple[str, str, str | None, str | None]]) -> int:
+    """Run the self-test's cases, printing each failure by name; return how many failed.
+
+    A case is (name, entry, text the rewritten entry must carry, text the refusal must carry). A case
+    with no expected text proves the entry is carried unchanged; a case with no expected refusal
+    proves nothing was refused. Every case is one entry of `changes/1234.md`.
+    """
+    where = "changes/1234.md"
+    failures = 0
+    for name, entry, expected_text, expected_refusal in cases:
+        rewritten, errors = rewrite_links(entry, where, "changes")
+        refusal = " ".join(errors)
+        if expected_text is None and rewritten != entry:
+            print(f"self-test: FAIL: {name}: the entry changed to '{rewritten}'", file=sys.stderr)
+        elif expected_text is not None and expected_text not in rewritten:
+            print(
+                f"self-test: FAIL: {name}: '{expected_text}' is not in '{rewritten}'",
+                file=sys.stderr,
+            )
+        elif expected_refusal is None and errors:
+            print(f"self-test: FAIL: {name}: refused with '{refusal}'", file=sys.stderr)
+        elif expected_refusal is not None and expected_refusal not in refusal:
+            print(
+                f"self-test: FAIL: {name}: expected a refusal naming '{expected_refusal}', "
+                f"got '{refusal}'",
+                file=sys.stderr,
+            )
+        else:
+            continue
+        failures += 1
+    return failures
+
+
+def self_test() -> int:
+    """Prove the fragment link rewrite and its refusal on cases that need no tree."""
+    cases = [
+        (
+            "a link out of changes/ is rewritten for the root",
+            "- The closed sets ([ADR-0043](../adr/0043-contract-unions.md), superseding "
+            "[ADR-0042](../adr/0042-contract-closed-sets.md)) hold (#919).",
+            "[ADR-0043](adr/0043-contract-unions.md), superseding "
+            "[ADR-0042](adr/0042-contract-closed-sets.md)",
+            None,
+        ),
+        (
+            "a link inside changes/ is rewritten into changes/",
+            "- The rule ([the fragment rules](README.md)) (#1234).",
+            "[the fragment rules](changes/README.md)",
+            None,
+        ),
+        (
+            "an anchor survives the rewrite",
+            "- The map ([the map](../docs/dev/README.md#documentation-map)) (#1234).",
+            "[the map](docs/dev/README.md#documentation-map)",
+            None,
+        ),
+        (
+            "an image is rewritten like a link",
+            "- The tape (![the tape](../media/tape.png)) (#1234).",
+            "![the tape](media/tape.png)",
+            None,
+        ),
+        (
+            "a reference-style definition is rewritten",
+            "- The rules [as a reference][rules] (#1234).\n  [rules]: ../changes/README.md",
+            "[rules]: changes/README.md",
+            None,
+        ),
+        (
+            "a root path, a URL and an inline code span are carried as written",
+            "- [root](/adr/x.md), [site](https://example.com/x.md), `[x](../adr/y.md)` (#1234).",
+            None,
+            None,
+        ),
+        (
+            "a link that leaves the repository is refused by name",
+            "- The guide ([the guide](../../docs/dev/guide.md)) (#1234).",
+            None,
+            "changes/1234.md: the link '../../docs/dev/guide.md' resolves to "
+            "'../docs/dev/guide.md' relative to the repository root, outside it",
+        ),
+    ]
+    failures = check_cases(cases)
+    if failures:
+        print(f"self-test: FAIL: {failures} of {len(cases)} cases failed", file=sys.stderr)
+        return 1
+    print(f"changelog-assemble: self-test OK ({len(cases)} cases)")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Assemble CHANGELOG.md's unreleased section from changes/<number>.md fragments."
@@ -594,6 +751,11 @@ def main() -> int:
         "--release",
         metavar="VERSION",
         help="do the whole release pull request edit for VERSION in one run",
+    )
+    mode.add_argument(
+        "--self-test",
+        action="store_true",
+        help="prove the fragment link rewrite and its refusal, reading no tree",
     )
     parser.add_argument(
         "--tag",
@@ -610,6 +772,9 @@ def main() -> int:
         help="repository root (default: the script's parent directory)",
     )
     arguments = parser.parse_args()
+
+    if arguments.self_test:
+        return self_test()
 
     date = arguments.date
     if arguments.release is None:
