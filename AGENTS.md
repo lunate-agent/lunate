@@ -35,6 +35,7 @@ This repo is developed with OpenCode and OpenSpec (schema: `intent-driven`).
 - `Lunate.Agent` references `Microsoft.Extensions.AI.Abstractions`, `Lunate.Ai`, `Lunate.Ai.Decisions`, `Lunate.Contracts` and the BCL.
 - The decision model (request, question, answer, result) lives in `Lunate.Ai.Decisions`, and that assembly references `Lunate.Contracts` — never the other way. `Lunate.Contracts` keeps only `DecisionProbability`, which the `DecisionEvaluated` event publishes. See ADR-0044.
 - Model types are Microsoft.Extensions.AI types (`IChatClient`, `ChatMessage`, `AIContent`). Do not add parallel message types. Tools (`ITool`) and events (`AgentEvent`) are ours.
+- The contract's closed sets — `AgentEvent`, `ExtensionEvent` and the seven hook-result families — are C# 15 unions over their case records, so a kind or outcome outside the contract cannot exist. See ADR-0043, which supersedes ADR-0042.
 - Never use `FunctionInvokingChatClient` or `AIFunctionFactory`. The loop in `Lunate.Agent` runs tools, because approvals, events, steering, cancel, error messages and compaction all happen between tool calls. See ADR-0003.
 - `Lunate.Roslyn`, MCP servers and extensions load on first use, never at startup.
 
