@@ -19,6 +19,7 @@ WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "release.yml"
 RUNBOOK = REPOSITORY_ROOT / "docs" / "dev" / "distribution.md"
 STEP = "- name: The release pull request is merged into main"
 PULL_STEP = "- name: The tag is a merged release pull request"
+CHANGELOG_STEP = "- name: The changelog carries the tag's version heading"
 RELEASE_STEP = "- name: The release exists with its assets"
 
 
@@ -52,7 +53,7 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("--pulls-file associated-pulls.json", block)
         self.assertIn("repos/${GH_REPO}/commits/${sha}/pulls", block)
         self.assertIn("if: startsWith(github.ref, 'refs/tags/')", block)
-        self.assertLess(text.index(PULL_STEP), text.index("- name: Changelog is assembled from the fragments"))
+        self.assertLess(text.index(PULL_STEP), text.index(CHANGELOG_STEP))
 
     def test_the_published_release_is_read_back(self) -> None:
         block = step_block(without_comments(WORKFLOW.read_text(encoding="utf-8")), RELEASE_STEP)
@@ -66,7 +67,19 @@ class ReleaseWorkflowTests(unittest.TestCase):
         block = step_block(text)
 
         self.assertIn("if: startsWith(github.ref, 'refs/tags/')", block)
-        self.assertLess(text.index(STEP), text.index("- name: Changelog is assembled from the fragments"))
+        self.assertLess(text.index(STEP), text.index(CHANGELOG_STEP))
+
+    def test_the_changelog_step_proves_the_tag_and_its_version_heading(self) -> None:
+        text = without_comments(WORKFLOW.read_text(encoding="utf-8"))
+        block = step_block(text, CHANGELOG_STEP)
+
+        self.assertIn('--check --tag "${GITHUB_REF_NAME}"', block)
+        self.assertIn("if: startsWith(github.ref, 'refs/tags/')", block)
+        self.assertNotIn("continue-on-error", block)
+        self.assertNotIn("|| true", block)
+        # The standalone version step is gone: the same equality now lives in the tag check, which
+        # also names the changelog heading, so there is one message and one place to keep in step.
+        self.assertNotIn("- name: Check tag against version", text)
 
     def test_the_failure_names_the_release_pull_request_and_cannot_be_swallowed(self) -> None:
         block = step_block(without_comments(WORKFLOW.read_text(encoding="utf-8")))
