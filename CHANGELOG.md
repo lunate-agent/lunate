@@ -8,6 +8,487 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-21
+
+### Added
+
+- **Themes.** Every colour is now a semantic token — `accent`, `muted`, `error`, `success`,
+  `warning`, `code`, `diff.add`, `diff.remove`, `prompt`, `notice` — behind three built-in themes
+  (`default`, `ansi16` and `mono`) and a `theme.json` in the Lunate home that maps a token to an ANSI
+  name, a 256-colour index or a hex value. `--theme <name|path>` selects the built-in or reads a
+  token file for the run, `tui.theme` remains the persisted choice, the renderer downgrades a hex
+  value by capability, and `NO_COLOR` still wins over every theme (#850).
+
+- **`bash` can run in a Docker or Podman container.** `--env docker:<image>` or
+  `--env podman:<image>`, or the user-scope `environment` setting, selects one long-lived container
+  per session for every process-backed tool command; the workspace is bind-mounted at its host
+  absolute path so the direct file tools, verified edits and the post-call change scan keep working
+  untouched, while the state root, install prefix, `auth.json` and the engine socket are never
+  mounted. The container is started with a keep-alive command so it outlives the gap between calls,
+  cancel and timeout end the command's process group inside the container, the session
+  marker is forwarded with `-e`, the header and `/context` name the environment and its readiness,
+  and a Linux-only end-to-end test proves the path against a real engine (#627).
+
+- **A container selection is refused where tool commands cannot run in it.** `lunate --acp` keeps
+  tool commands on the host, so a user-scope `environment` value refuses the ACP start with exit
+  code 2 and a message naming the setting and the modes that can run it, rather than serving an
+  editor session whose commands would run host-side against the selection (#627).
+
+- **Full screen for the interactive session.** `--fullscreen`, or `tui.fullscreen: true` in the
+  settings file, moves the session onto the terminal's alternate screen after the first frame and
+  restores the scrollback on every exit path — a normal quit, `Ctrl+C` and an unhandled exception.
+  Inline rendering stays the default, and a terminal that cannot switch buffers keeps the session
+  usable inline (#878).
+
+- **Mermaid diagrams in answers.** A fenced code block labelled `mermaid` is drawn as a box diagram
+  when it is a `flowchart`/`graph` (TD, TB or LR) or a `sequenceDiagram`; an unsupported diagram
+  type, a parse failure and a drawing wider than the terminal each show the source with one line
+  saying why, and a terminal without Unicode gets the `+ - |` and `< > ^ v` stand-ins with the same
+  layout. A new Mermaid diagrams page documents the grammar in scope and the three fallbacks (#879).
+
+- **The step limit is configurable, so print mode can run past 50 model calls.** `--max-steps <n>`
+  sets a run's model-call ceiling for that invocation, and `maxSteps` in `settings.json` sets it for
+  every run; both work interactively and in print mode, and a value that is not a positive integer is
+  a usage error (exit 2). The default stays 50, and a run that reaches its configured ceiling still
+  ends with `step_limit_reached` and `step_limit` (#875, #883).
+
+- **The Mermaid renderer is its own Lunate-free library.** `Mermaid.Terminal` packages a C# port of
+  mermaid-ascii's flowchart and sequence layout and drawing — Unicode and ASCII glyph sets, the
+  frame/label runs a host paints separately, and the source-plus-reason fallback for unsupported
+  input — with its own README, MIT licence credit and release package. `Lunate.Tui` consumes it as a
+  project reference and keeps only the fence adapter, so diagrams are laid out by the port: box
+  borders line up, arrows attach to their edges and the TUI and Provider APIs boxes no longer
+  overlap. The Unicode drawing uses mermaid-ascii's `┌ ┐ └ ┘ ─ │` frame, `┄`/`┆` dotted strokes and
+  `► ▼ ◄ ▲` heads, while ASCII keeps `+ - |` and `< > ^ v`; the documented parse, unsupported-type
+  and width fallbacks and the 40-column floor are unchanged (#884).
+
+- **Print mode accepts `--session-id <id>`.** A run can be named before it starts: the flag creates
+  `<id>.jsonl` in the working directory's session directory when it does not exist and continues it
+  when it does, so a supervisor can find the process by `--session-id <id>` on its command line and
+  resume the same name later. The chosen id is the run's `sessionId` on `run_started` and
+  `run_finished`; an id outside the session id grammar (1–128 characters from `A-Z`, `a-z`, `0-9`,
+  `.`, `_` and `-`, starting with a letter or digit and without `..`) and a combination with
+  `--session`, `--continue`, `--resume` or `--no-session` are usage errors (exit 2) (#870, #908).
+
+- **A design proposal and an ADR draft for hook-based extensibility on observables.** The design
+  records what Lunate already has — the typed intercepting hook catalogue and the closed
+  `AgentEvent` stream that `--json` and ACP render — and compares it with Pi's `pi.on()` events and
+  Claude Code's hooks on declaration, ordering, failure, interception and out-of-process reach. It
+  decides one hot, session-scoped BCL `IObservable<AgentEvent>` per extension, delivered off the
+  run's hot path through a bounded per-subscriber queue, error-isolated per subscription and unable
+  to veto or modify a run; System.Reactive stays out of the contract (ADR-0007 confines it to the
+  TUI live area); out-of-process parity keeps the hook catalogue it already has and gains the event
+  stream as a declared projection on a later protocol version; `--json` and ACP remain projections
+  of the same records. `adr/0040-hook-based-extensibility-on-observables.md` is proposed and awaits
+  maintainer sign-off; the implementation lands in a follow-up card, so this pull request changes no
+  behaviour (#897, #912).
+
+- **Light and dark built-in themes.** `--theme light` paints dark ANSI inks for a light-background
+  terminal, where the shipped pastel palette washes out, and `--theme dark` names the shipped
+  palette itself; both join `tui.theme`'s accepted values in the same `--theme` > setting > default
+  order, a `theme.json` still overlays whichever is selected, and neither changes the colour depth
+  `NO_COLOR` and the detection rules decide (#918).
+
+- **The release pull request's changelog edit is one command.** `scripts/changelog-assemble --release <version> [--date YYYY-MM-DD]` assembles the fragments, promotes `## [Unreleased]` to `## [<version>] - <date>` without the generated markers, leaves a fresh empty unreleased section, deletes the consumed fragments and bumps `<Version>`; it refuses, writing nothing, a version that is not newer, an existing release heading, an invalid fragment or a `--date` not spelled `YYYY-MM-DD` (#958).
+
+- **The post-tag channel manifests are one command.** `scripts/fill-release-hashes v<version> --sums <SHA256SUMS>` rewrites the Homebrew URLs and `sha256` values, the Scoop version, URL and hash, and the winget `PackageVersion`, `InstallerUrl` and uppercase `InstallerSha256` from the release's checksum file; it refuses, writing nothing and naming the missing archive or the manifest whose shape moved, and a second run changes nothing (#963).
+
+### Changed
+
+- **The Mermaid diagrams page shows a worked `sequenceDiagram` example**, with the participant boxes,
+  lifelines, message labels and note the terminal draws, and says how a label wider than the room
+  between two lifelines is truncated (#881).
+
+- **`Mermaid.Terminal` cuts an over-long sequence message label with an ellipsis** instead of
+  widening the drawing, so a long message still fits the terminal it was drawn for (#881).
+
+- **The keymap and full-screen pages name their example files under `docs/examples/`.** The keymap
+  page now documents `keymap.json`'s shape, path precedence, overlay-by-id, disable and failure
+  rules instead of only the `/settings tui.keys` remap; the full-screen page points at the same
+  settings block as a file (#881).
+
+- **The ported Mermaid flowchart renderer is pinned to mermaid-ascii's own golden output.** The TD
+  and LR layout and drawing now carry upstream source-and-output pairs for a TD open-link chain, an
+  LR back-link and an LR dotted link, compared character by character in both Unicode and ASCII,
+  and glyph-rule tests assert that every Unicode frame glyph is one column wide, that the ASCII frame
+  is ASCII only and that the two glyph sets draw the same geometry (#886, #893).
+
+- **The C# 15 / .NET 11 feature inventory and target-framework recommendation are documented.** The
+  four wanted features are union types, closed hierarchies, collection-expression arguments and
+  labeled `break`/`continue`; union and closed types need `net11.0`, while the other two need only the
+  SDK 11 compiler. The note also records the CSharpier/analyzer requirements and recommends moving
+  the self-contained app to `net11.0` while multi-targeting the extension-facing packages
+  `net10.0;net11.0` (#899).
+
+- **The Mermaid examples are captured from the real renderer.** Four VHS tapes — a flowchart TD, a
+  flowchart LR, a sequence diagram and an unsupported-type fallback — drive `Mermaid.Terminal`
+  through a small example renderer, and a Linux workflow uploads the PNGs as the
+  `mermaid-examples` artifact linked from the pull request as evidence, without joining `ci-ok`.
+  `docs/mermaid.md` and the `Mermaid.Terminal` README embed the Unicode stills; the ASCII glyph
+  drawing stays a text block (#887, #900).
+
+- **CSharpier is pinned at 1.4.0 and the tree is formatted with it.** The new pin parses and
+  formats the C# 15 constructs the next refactor slices need (union types, closed hierarchies,
+  labeled `break`/`continue`, collection-expression arguments), where 1.3.0 reported a syntax
+  error; `scripts/gate-tests.sh` formats one sample of each and fails by exit code when the
+  pinned formatter cannot (#901).
+
+- **Lunate runs on .NET 11.** The tool, the app, the self-contained release binaries, the TUI,
+  `Mermaid.Terminal`, every internal and test project, the extension template and every published
+  package — `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`, the harness's
+  `Lunate.Ai` assemblies and `Lunate.Extensibility.Testing` — target `net11.0` with C# 15, and nothing
+  multi-targets (#192, #902).
+
+- **BREAKING** for `dotnet tool` users: the framework-dependent `lunate` package now carries a
+  `tools/net11.0` asset and requires the .NET 11 runtime. The self-contained installers are
+  unchanged and still need no runtime. **BREAKING** for an extension built elsewhere: there is no
+  `net10.0` contract asset to bind to any more, so an extension for this host is `net11.0`
+  (#192, #902).
+
+- The extension template's extension project moves to `net11.0` with its test project, and the
+  fixture solutions the gate restores move with the repository so they resolve against the pinned
+  SDK's own targeting packs. The fixture that models a multi-target project writes that shape into
+  its temporary copy at run time, so no project file in the repository declares two frameworks and
+  the target-framework test reads the fixtures like any other project (#902).
+
+- **The theme token file's `NO_COLOR` precedence and every colour form's colourless plan are
+  pinned.** A running session whose `theme.json` colours all ten tokens under `NO_COLOR` emits no
+  colour escape, and the named and 256-index colour forms resolve to no colour at a colourless
+  depth beside the hex form already covered (#424).
+
+- **The archived `tui-customization` change records the proof beside every task.** Each tick now
+  names the pull request and the test class that carry it — the keymap (#671), themes (#856, #911),
+  full screen (#878), Mermaid (#879, #881, #884, #900) and the docs and archive tail (#881) — so the
+  change's record can be checked against the code without re-deriving it. The documentation pages,
+  their example files and the archive itself landed with #881; this pull request adds only the
+  provenance (#913).
+
+- **The tool-output excerpt builds its line lists with collection-expression arguments.** The whole,
+  tail and elided lists are one expression each — `[with(capacity: …), …]` — instead of a
+  `new List<OutputExcerptLine>(capacity)` plus an `Add` loop, which deletes the three loops and keeps
+  the capacity hint. The TUI project opts in to C# 15 for the construct on the pinned SDK 11, ahead
+  of the `net11.0` target move (#905, #914).
+
+- **A red push run on `main` files its own bug card, the way the nightly does.** The reporter job
+  (`red-main-issue`, formerly `nightly-issue`) now runs on a push as well as on the nightly, reads the
+  run's jobs and files one `kind/bug` card per failing job naming the leg and the run, or comments on
+  the open card for that job — so a failure like #888's macOS theme-file timeout on a push is a card,
+  not a failure someone has to notice. The card takes the lowest open version milestone (`0.5.0`
+  rather than `backlog`, read from the GitHub API, so a release that closes its milestone retargets the
+  next card), and an `area/tui` or `area/core` label only when the failing test's project decides it:
+  the theme-file and repaint tests inside `Lunate.Coding.Tests` name `Lunate.Tui` and are `area/tui`, and
+  a red job without a failing test in those projects carries no area label (#889).
+
+- **The edit matcher and the skill scanner name the loop they leave.** A nested mismatch in
+  `EditMatcher.FindMatches` is a labeled `continue` on the window loop instead of a `matched` flag
+  and an inner `break`, and `SkillScanner.ScanState.Roots` leaves the root and directory walk with
+  a labeled `break` instead of repeating `if (truncated) break;`; the cap still warns once and the
+  set of matched windows, skills and warnings is unchanged. Labeled `break`/`continue` is C# 15
+  syntax, so `Lunate.Coding` opts in to language version 15 on the pinned SDK 11, ahead of the
+  `net11.0` target move (#906, #916).
+
+- **The live area's input is a C# 15 union.** `LiveArea.LiveAreaInput` is a `private union` over
+  the same input records instead of a private abstract record with a hand-written sealed subclass
+  per case, and the reducer is one exhaustive match, so a new case without a rule fails the build
+  rather than falling through to an unchanged state. The painted frame, the public contract and the
+  tests are unchanged (#903, #920).
+
+- **The auth verification fixtures wait for the task they later await.** The session posts the
+  result notice from inside `VerifyAsync` and assigns `VerifyTask` when that call returns, so a loaded
+  runner could paint the notice in that window and the fixture then read a null task. The three
+  fixtures now wait for the field instead of only for the frame (#903, #920).
+
+- **The contract's closed sets are C# 15 unions.** `AgentEvent` and `ExtensionEvent`, and the seven
+  hook-result families (`ProjectTrustResult`, `InputReceivedResult`, `RunStartingResult`,
+  `MessageCompletedResult`, `ToolCallingResult`, `TurnEndedResult`, `CompactingResult`), are `union`
+  types over their case records, so the set of event kinds and hook outcomes is fixed at compile time
+  and a consumer's `switch` is checked for exhaustiveness ([ADR-0043](../adr/0043-contract-unions.md),
+  superseding [ADR-0042](../adr/0042-contract-closed-sets.md)). **Version note for extension
+  authors:** every type name, case name, constructor and the `IHookResult`/`IHookPayload` markers are
+  unchanged, so `new ToolCallingResult.Block("held")` and `is ToolCallingResult.Block` compile as
+  before, and the hook wire and the `--json` event stream are byte-identical. What changes is the
+  shape: an event is a struct that carries its case in `Value` (compare by value, read `Kind` where
+  you read `GetType()`, and `events.OfType<T>()` keeps working through the contract's overload), and a
+  type outside the contract can no longer add a kind or an outcome — adding one is a breaking contract
+  change that moves the API version and gets its own note in
+  [`docs/extensions/README.md`](../docs/extensions/README.md) (#919, #921).
+
+- **The transcript entries are a closed hierarchy.** `TranscriptEntry` is `closed` (C# 15), so its
+  four entries are the whole set and the frame renderer's switch and the picker's filter no longer
+  need a fallback arm; the compiler now rejects a new entry until both switches handle it. The
+  rendering, the pick filter and the public API are unchanged (#904, #926).
+
+- **The solution is laid out in feature folders.** Every project under `src/` groups its files by the
+  feature they serve — `Lunate.Agent` into `Loop/`, `Sessions/`, `Decisions/` and `Tools/`;
+  `Lunate.Coding` into 24 feature folders; `Lunate.Protocols` into `Acp/`, `Mcp/Client/` and
+  `Mcp/Server/`; the AI, Contract, Extensibility, Tui, Roslyn and Mermaid projects the same way — and
+  the test projects mirror those folders. The rule is one sentence: a folder groups files by feature
+  and never changes a file's namespace, because a namespace records compatibility, not location
+  (`src/Lunate.Contracts` still declares `Lunate.Agent` and `Lunate.Ai` types for its type
+  forwarders). `tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces it in both directions — every
+  `src/` feature folder has a mirrored test folder and no test folder exists without one — and
+  `CONTRIBUTING.md` and `docs/dev/architecture.md` state it (#695, #927).
+
+- The two folders that had become namespaces fold back into their assembly's namespace:
+  `Lunate.Protocols.Acp` → `Lunate.Protocols` (its types are unshipped) and `Lunate.Tui.Platform` →
+  `Lunate.Tui` (internal types). No shipped public member changes (#695, #927).
+
+- The decision layer loses a duplicated request validator: `Lunate.Agent` already validates every
+  request before it sends one, so `Lunate.Ai.Decisions` no longer re-checks the same object, and the
+  question kind is named `YesNo` (#695, #927).
+
+- **The decision model has one home.** The second request/result set in
+  `Lunate.Contracts/Decisions/` is gone; `Lunate.Ai.Decisions` owns the one model — request, question,
+  kinds, answer, box and result — and the engine, the chat adapter, the System One transport, the
+  `decide` tool, the ask-user suggestions, the wizard check and the extension-facing
+  `IDecisionService` all use it, with no mapping between two shapes. The contract keeps only the
+  `DecisionProbability` record its `DecisionEvaluated` event publishes, and the edge runs
+  `Lunate.Ai.Decisions` → `Lunate.Contracts` (ADR-0044). The decision types were never shipped, so no
+  published consumer changes (#695, #927).
+
+- **A red verify leg names the step it failed in, where a reader of the run can see it.** A red `ci.yml`
+  leg on `main` is triaged from the check run — the job page of a public run answers "Sign in to view
+  logs" — and the gate printed its steps but never named the failing one, so the card for
+  `verify (windows-latest, 1/4)` of run 44051817008 could carry nothing finer than "Process completed
+  with exit code 1". The gate's exit trap now reports the step it stopped in, with its exit status and
+  duration, as an `::error::` annotation and in the job summary; the annotation is the one piece of a
+  red leg the annotations API returns without an account. The report is pinned through bash for the
+  four cases it has — a failed step, a green exit, a failure before the first step and the summary —
+  and the platform profile runs that test (#942).
+
+- **The red-main triage starts at the head of `main`, because a card can arrive stale.** Run
+  `44052312654` reddened `verify-powershell (windows)`, `verify (windows-latest, 2/4)` and
+  `verify (macos-latest, 2/2)` — the three legs whose extension-template roundtrip restores the feed
+  the step has just packed — and the reporter filed a card for each. `#939` fixed all three while that
+  run was still finishing, so the next push run, on `b062f74d`, was green in every leg and none of the
+  three cards had a tree left to change. The contributor guide now says so: a card whose leg is green
+  on the most recent push run of the same job, with a sibling card from the same run closed by the
+  merge that fixed it, is a duplicate to close rather than a change to make (#944).
+
+### Fixed
+
+- **The bash guard names a nested macOS sandbox instead of claiming the command runs unconfined.**
+  Inside an existing `sandbox-exec` session macOS refuses a second profile, so the guard cannot add
+  its own rules; it now says so once, names that its state-root, install-prefix and `auth.json`
+  rules are not applied, and keeps the outer sandbox as the effective boundary (#874).
+
+- **`usage_updated` carries `costUsd` for a model whose provider echoes a bare wire id.** The price
+  lookup now resolves the record's model in the scope of the provider the run selected, so
+  `opencode-go/deepseek-v4.1-flash` reports its cost instead of staying unpriced because another
+  preset serves the same wire id. The cost limit prices through the same lookup, so a `--max-cost`
+  that the launch accepts is counted against the spend the stream reports (#876).
+
+- **The tool child keeps git's environment configuration whole.** `GIT_CONFIG_COUNT`,
+  `GIT_CONFIG_KEY_<n>` and `GIT_CONFIG_VALUE_<n>` now reach a tool child together, so a session whose
+  git is configured through the environment — the lane's `credential.helper` empty, `gc.auto=0` and
+  `maintenance.auto=false` among it — runs `git status`, `git commit` and the post-bash change scan
+  instead of failing with `error: missing config key GIT_CONFIG_KEY_0`. `GIT_CONFIG_KEY_<n>` was the
+  one member the credential-shape rule withheld; `*_API_KEY`, `*_TOKEN` and the other credential
+  names are still withheld (#871, #877).
+
+- **Print mode accepts `--` as the end of options.** `lunate -p -- "<prompt>"` — with or without
+  `--json` — now passes everything after the marker as the prompt, so a prompt that begins with `-`
+  is never read as a flag, and a `--acp` or `--no-extensions` inside the prompt no longer changes
+  the mode. `--` with no prompt is still the missing-prompt usage error (exit 2) (#869, #885).
+
+- **A theme file with an unknown token is reported token first.** The warning read
+  `theme: <path> names the unknown token '…'`, and the live area caps a notice at four lines: with
+  macOS's long `/var/folders/…/T` temp root the path spent them at 80 columns, the token never
+  reached the terminal, and `InteractiveSessionThemeFileTests.An_unknown_token_warns_and_the_built_in_theme_stands`
+  timed out on the macOS push run. It now reads `theme: unknown token '…'; the valid tokens are …;
+  the file is <path>`, so a long path can only lose its own tail, and the test reads the theme file
+  from a short and from a deliberately long directory (#888, #890).
+
+- **The gate's offline fixture restores find the SDK's targeting packs again, so the .NET SDK 11 pin
+  holds.** An SDK bundles targeting packs only for its own framework, so under SDK 11 a `net10.0`
+  fixture asks for `Microsoft.NETCore.App.Ref` 10.0.15 — plus the ASP.NET Core ref and apphost packs —
+  and the restore's cleared source list had nowhere to fetch them from, which failed 21 tests on macOS
+  and Windows (#892). The fixtures' `NuGet.config` now names the machine's NuGet global packages folder
+  — where the repository's own build restores exactly those packs — as a read-only fallback folder: no
+  feed is named, the per-fixture package folder and isolation stay, and a failure names the fallback
+  folder it used (#895).
+
+- **The first-run Escape test runs on macOS again.**
+  `InteractiveSessionFirstRunTests.Escape_dismisses_the_first_run_offer_without_a_write` was skipped
+  at runtime on macOS while the flake in #817 was open; the fix — waiting for the dismissed offer
+  before typing — is in, the quarantine has nothing left to hold off, and the skip is gone
+  (#837, #909).
+
+- **A CI leg GitHub never gave a runner is retried instead of filed as a code failure.** The push run
+  `43904858046` went red on `main` with nothing failing: `verify (macos-latest, 1/2)` and
+  `perf (macos-latest)` were cancelled before their first step — GitHub's own annotation was "The job
+  was not acquired by Runner of type hosted even after multiple attempts", beside its macOS arm64
+  capacity notice — while every job that did get a runner was green. A job that never started is not a
+  red job: it now files no card and gets no comment, and the run's own summary names it — also when
+  another job that ran is filed as its own card, so no run loses sight of a leg it did not file. Such a
+  run is a
+  runner-capacity red, and `.github/workflows/ci-capacity-retry.yml` reruns that run's failed jobs once
+  when it completes; the attempt the retry budget does not cover says in the summary that the rerun is
+  the remedy. The derived `ci-ok` aggregate and the reporter are never named as abandoned legs, and a job
+  that ran is never retried this way, so no executed failure is retried away (#923).
+
+- **A CI job that never got a runner no longer files a bug card.** GitHub concludes a job it never
+  acquired a hosted runner for as `cancelled` with `runner_id: 0` and an empty step list — "not acquired
+  by Runner of type hosted even after multiple attempts" — and the red-run reporter filed a `kind/bug`
+  card for such a leg that no change in this repository could close: one macOS capacity shortage filed
+  two cards for a single push run, one of them for the perf leg that a push does not gate on. The
+  reporter now files only for a job that ran and did not pass; a `cancelled` job that reached a step, a
+  job that held a runner, and a job whose step list or runner id is missing still file, so the rule fails
+  closed. The run's own log names each unstarted job together with the run link and says that a rerun is
+  the remedy, including on a run where another red job still files a card (#922).
+
+- **A docs path a test names without reading it no longer reddens the docs profile.**
+  `scripts/no-docs-references.sh` accepts the docs reference a test only excludes from its scan when
+  it is registered per file and spelled exactly, and prints the allowance on every run, so
+  `TargetFrameworkTests`' exclusion of the spike records under `docs/dev/spikes` is no longer reported
+  as a repository read; any other docs path in that file, and a read call on the allowed line, still
+  fail. The guard is also a step of the platform checks and of the shared tree checks now, so a test
+  that does read `docs/` is red on the pull request that adds it and on the push to `main` instead of
+  only on a prose pull request (#929).
+
+- **The extension template's tool-calling switch keeps the fall-through arm its own README asks for.**
+  `Describe` matched `ToolCallingResult.Proceed` and `ToolCallingResult.Block` with no `_` arm: that
+  is exhaustive only against the union the host compiles today, while a copy of the template pins the
+  published contract, whose family is not a closed set, so the same source does not compile there. The
+  macOS `verify` leg built the template against the published `1.16.0` package instead of the freshly
+  packed one and reported `CS8509` at `TemplateToolCallingHandler.cs:31`, an error under
+  `TreatWarningsAsErrors`. The switch now names the cases it knows and logs `unrecognised` for any
+  other, so the template builds against both contract shapes (#933).
+
+- **The verify gate and the copy end-to-end test prove this checkout's contract, not a published
+  one.** The contract roundtrip and `ExtensionTemplateCopyEndToEndTests` pack the four SDK packages at
+  the version the release carries and build the packaged-extension template against that feed, but a
+  machine's global packages folder already holds a copy of the same id and version from the release,
+  and NuGet binds an installed copy before it asks any source. So `verify (macos-latest, 1/2)` built
+  the template against the published 1.16.0 contract and failed on the switch the hook-result unions
+  close (CS8509), while `verify (macos-latest, 2/2)` ran the copy test, where that same contract
+  compiled with only a warning outside `Directory.Build.props` and failed at load with a
+  `TypeLoadException` on `HandleAsync`. Both restores now use a packages folder of their own, name the
+  feed they just packed as a source, and build from the assets file that restore wrote — in
+  `scripts/verify.sh`, its `verify.ps1` twin and the copy test; tests pin the wiring and the restore
+  behaviour the isolation exists for (#932).
+
+- **The verify gate's PowerShell twin and the copy end-to-end test prove the contract from the feed
+  they just packed.** `verify-powershell (windows)` of run 44033633019 went red with
+  `verify (windows-latest, 1/4)`/`(2/4)`: a release also serves `Lunate.Contracts` on nuget.org under
+  the same id and version, so which source answers is a source order, an HTTP cache and a machine's NuGet
+  configuration rather than the gate's intent. #937 gave `scripts/verify.sh` a `nuget.config` of its own
+  with a `packageSourceMapping` that lets a `Lunate.*` package come from the packed feed and from
+  nowhere else; `scripts/verify.ps1` and `ExtensionTemplateCopyEndToEndTests` — the two remaining places
+  that restore the template against the freshly packed feed — now carry the same configuration, restore
+  through `--configfile`, and no longer name a source at all (#936).
+
+- **The configurations the gate writes escape the path they name.** The feed path is written into an
+  XML attribute, and a temp directory may hold `&` (Windows allows it in a profile path) or `<` (valid
+  on Unix): written raw, `nuget.config` is malformed XML and the restore fails before it can prove
+  anything, which would redden the same Windows legs for a reason that has nothing to do with the
+  contract. `scripts/verify.sh` (`xml_attribute`), its `verify.ps1` twin (`ConvertTo-XmlAttribute`)
+  and `ExtensionTemplateCopyEndToEndTests` (`XmlAttribute`) now encode the five characters an
+  attribute cannot carry raw, for the contract roundtrip's configuration and for the extension
+  package roundtrip's; a test runs the bash helper and parses the result back as XML, and pins that no
+  configuration site interpolates a raw path (#936).
+
+- **The extension-template copy end-to-end test gives every child `dotnet` folders of its own.**
+  `verify (windows-latest, 2/4)` is the shard that runs the copy test (#938). Its four `dotnet pack`
+  children restore and build this repository, so without a packages folder of their own they fill
+  the runner's machine-wide one and read whatever an earlier job left there; without an
+  `--artifacts-path` of their own they also write `obj/project.assets.json` beside every packed
+  project, naming a temp packages folder the test deletes, and the worktree's next build fails on
+  it. Every child the test starts now pins `DOTNET_CLI_HOME`, `NUGET_PACKAGES`,
+  `NUGET_HTTP_CACHE_PATH` and `TMPDIR`/`TMP`/`TEMP` to the test's own folders, disables the MSBuild
+  server and node reuse, uses one node, and the packs build under an `--artifacts-path` inside the
+  test's temp directory. The gate's `FixtureRestore` already pins the same set for its own child
+  restores; a wiring test pins the copy test's set and its artifacts path (#938).
+
+- **The verify gate's contract roundtrip binds the feed it just packed, not a released copy.**
+  `verify (windows-latest, 1/4)` went red on the push of `49e4b54e` together with the other two legs
+  whose gate restores the template against the packages the step had just packed, while every other
+  leg passed: with the packed feed merely listed first among two sources, which source provides
+  `Lunate.Contracts` 1.16.0 — the folder feed or nuget.org, which serves the same id and version from
+  the release — is left to source order, the HTTP cache and the machine's NuGet configuration. The
+  roundtrip now writes a `nuget.config` of its own with `packageSourceMapping`, so a `Lunate.*`
+  package can only come from the packed feed and nuget.org only serves the test SDK; `--configfile`
+  keeps the runner's own configuration out of the run. The wiring test pins the mapping and a
+  stand-in package pair on two local folder feeds pins the restore behaviour it exists for (#937).
+
+- **A red run's card names the step that failed and the tests the log names.** The card filed for
+  `verify (macos-latest, 2/2)` of run 44052312654 said only which leg went red, so the session that took
+  it had to read the run's jobs through the API before it could start — and the leg's shard runs nothing
+  that commit `7e9d0088` had changed, so the answer was in the run, not in the diff. Both facts are in
+  documents the reporter already holds: `scripts/ci-issue-triage` now reads the job's first step that did
+  not succeed from the run's jobs document (`--failed-step-json --job-id`) and the failing test names from
+  the log the reporter downloads for the area label (`--failed-tests-file`), and the card body carries
+  them — the first five names, with the count when the log names more. A job whose document holds no
+  failed step and whose log names no failing test (a build, format or perf leg) writes neither line: the
+  card states what was read, never a guess (#945).
+
+- **A red test step names the tests it failed on, in the run's check run.** `verify (macos-latest, 2/2)` of
+  run 44189133429 failed its test step twice, and the annotation #942 added put the step in the check
+  run — `verify: the test step failed (exit 1, 875s)` — but not the test: the failing line existed only in
+  the job's log, which answers "Must have admin rights" to anyone without a session, so the card named no
+  test and the red could be located but not attributed. The gate already reads those lines for the flake
+  ledger, so the same pass output now names up to five of them as `::error::` annotations and in the job
+  summary, from the three line shapes `record_flake` and `verify-test-runner.ps1` read. A pass that
+  passed on its retry, an output with no failing-test line and a missing output report nothing (#948).
+
+- **A red startup budget names the measurement it failed on, in the run's check run.** `perf (macos-latest)`
+  of run 44466042157 failed its `Startup budget (dedicated measurement)` step with the annotation "Process
+  completed with exit code 1" and nothing else: `scripts/perf.sh` printed the floor, median and budget into
+  the job's log, which answers "Must have admin rights" to anyone without a session, so the card could not
+  tell the shared macOS runner's known 300-330 ms noise from a doubled startup. The gate now prints the
+  sentence it fails on as an `::error::` annotation and into the job summary — the floor, the median, the
+  budget and, when the noise policy retried, the first attempt's floor — and names an unreadable hyperfine
+  JSON the same way. A leg that measures without enforcing (`STARTUP_BUDGET_ENFORCE=0`) annotates nothing
+  on any failure — a breach and an unreadable measurement alike — because it is green and the annotation
+  would accuse it (#950).
+
+- **A red test pass names what it failed on, from both attempts.** `verify (macos-latest, 2/2)` of run
+  44466042157 failed its de-AT pass twice and the check run carried only `the test (de-AT culture) step
+  failed (exit 1, 782s)`: the report read the final attempt's output alone, so a first attempt that failed
+  on a test and a retry whose session aborted left nothing to name — and a pass that prints no
+  failing-test line at all, which is what an aborted session, a crashed host or a module that never
+  started looks like, had nothing else to offer either. The gate already holds both outputs, so the first
+  attempt's failing tests are named with the retry's — each test once, five at most — and a pass without
+  any test name reports up to three of its failed modules, with the passed, failed and aborted counters
+  the module line carries, and the run's own verdict line without the exit-code link it ends with, in the
+  same `::error::` annotations and job summary (#951).
+
+- **A red leg names the test it failed on even when the runner colored its output.** `verify
+  (macos-latest, 2/2)` of run 44722124911 failed its de-AT pass twice with the runner's verdict "at least
+  one test failed", and the check run carried only that verdict: GitHub Actions sets `GITHUB_ACTIONS=true`,
+  which makes Microsoft.Testing.Platform color its output even into the redirected file the gate reads, so
+  every failing line arrived as `\x1b[31mfailed\x1b[m <test>` and `... \x1b[31mfailed with 1 error(s)\x1b[m`.
+  The gate's readers now strip the escape sequences before matching, so the check run's annotations, the
+  flake ledger and the card the nightly files name the same test from a colored log as from a plain one —
+  and the card carries the area label the colored failing test decides (#954).
+
+- **A first run's `/setup` no longer races the first-run `/auth` offer.** A first run offers the `/auth`
+  picker once, after composition, and that offer is titled "Select provider" like the setup walk's first
+  step. `SetupWizardEntryMenuTests.A_first_run_keeps_the_full_walk` typed `/setup` as soon as composition
+  finished, so the offer and the command raced: a key read while the offer is up belongs to the picker,
+  `/setup` is inert in it, and its Enter confirms the first preset and starts a credential prompt — the
+  walk never opened and the test's "Select provider" wait expired after 60 seconds. That is the failure
+  `verify (macos-latest, 2/2)`'s de-AT pass named in run 44739221460, the same leg that was red three
+  times before with no failing test named; under load it reproduced here in both cultures (4 of 20 de-AT
+  and 3 of 14 en-US runs) with the session diagnosis showing the credential prompt
+  `API key for openai:` (trailing space included) as its last write.
+  The test now dismisses the offer and waits for its frame to leave before typing `/setup`, so its wait
+  can only be satisfied by the walk's own picker: 0 of 22 de-AT and 0 of 16 en-US runs after the change
+  (#956, #957).
+
+- **The release gate proves the tag's own changelog heading.** `scripts/changelog-assemble --check --tag <tag>` fails, naming what it expected and what it found, unless the first heading below `## [Unreleased]` in `CHANGELOG.md` is `## [<version>] - <YYYY-MM-DD>` and `Directory.Build.props` carries the tag's `<Version>`, so a release cannot publish notes under another version's heading (#959).
+
+- **The changelog's own shape is checked before it is assembled.** `scripts/changelog-assemble --check`
+  and `--write` now refuse a `CHANGELOG.md` whose unreleased section or version sections the assembler
+  cannot read reliably, with one diagnostic per finding naming the file, the line and what was found
+  there: a `##` or `###` heading repeated within one version section, a non-blank line outside any
+  `###` heading in the unreleased section, and a second `## [Unreleased]`. Before, a second
+  `### Added` silently dropped the earlier block's hand-written bullets while reporting the tree as up
+  to date, a stray bullet was carried outside every heading into the next release, and everything
+  under a second unreleased heading was never assembled or released. The write also counts the entries
+  the generated marker region does not own before and after, and refuses, writing nothing, when the
+  counts differ, so a write can never carry fewer entries than it read (#960).
+
 ## [0.4.0] - 2026-11-14
 
 ### Added
