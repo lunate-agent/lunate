@@ -31,9 +31,10 @@
 
     <ItemGroup>
         <!--
-            The host owns the contract surface, Lunate.Contracts and Abstractions: Lunate loads them once and every
-            extension binds to those copies. Referencing them compile-only keeps them out of this
-            project's output, where a load would ignore them (and warn once) anyway.
+            The host owns the contract surface, Lunate.Contracts, Lunate.Decisions.Model and Abstractions:
+            Lunate loads them once and every extension binds to those copies. Referencing them
+            compile-only keeps them out of this project's output, where a load would ignore them (and
+            warn once) anyway.
         -->
         <ProjectReference
             Include="../../../src/Lunate.Contracts/Lunate.Contracts.csproj"
@@ -42,6 +43,11 @@
         />
         <ProjectReference
             Include="../../../src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj"
+            Private="false"
+            ExcludeAssets="runtime"
+        />
+        <ProjectReference
+            Include="../../../src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj"
             Private="false"
             ExcludeAssets="runtime"
         />

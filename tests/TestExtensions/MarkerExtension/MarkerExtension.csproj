@@ -11,11 +11,17 @@
 
     <ItemGroup>
         <!--
-            Compile-only, like every extension: the host owns the contract assembly, so this project's
-            output is one DLL with nothing beside it — exactly what a test package carries.
+            Compile-only, like every extension: the host owns the contract assembly and the decision
+            model its service is typed with, so this project's output is one DLL with nothing beside
+            it — exactly what a test package carries.
         -->
         <ProjectReference
             Include="../../../src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj"
+            Private="false"
+            ExcludeAssets="runtime"
+        />
+        <ProjectReference
+            Include="../../../src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj"
             Private="false"
             ExcludeAssets="runtime"
         />

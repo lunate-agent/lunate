@@ -49,19 +49,26 @@
     <ItemGroup>
         <!-- snippet:start — included by docs/extensions/README.md through scripts/docs-sync; keep the markers -->
         <!--
-            The host owns Lunate.Contracts and Lunate.Extensibility.Abstractions and loads them once;
-            every extension binds to those copies so their types keep one identity. The decision
-            model the Abstractions service is typed with comes with it as the
-            Lunate.Decisions.Model dependency, so it needs no reference here. They are NuGet
-            packages pinned to the stable contract version (1.15.0, the number the manifest's
-            apiVersion is judged against), and each reference is compile-only: PrivateAssets="all"
-            keeps them from flowing to consumers of a packaged extension, ExcludeAssets="runtime"
-            keeps them out of the deps file and the output directory — a copy there is ignored at
-            load, with one warning saying so.
+            The host owns Lunate.Contracts, Lunate.Decisions.Model and
+            Lunate.Extensibility.Abstractions and loads them once; every extension binds to those
+            copies so their types keep one identity. They are NuGet packages pinned to the stable
+            contract version (1.15.0, the number the manifest's apiVersion is judged against), and
+            each reference is compile-only: PrivateAssets="all" keeps them from flowing to consumers
+            of a packaged extension, ExcludeAssets="runtime" keeps them out of the deps file and the
+            output directory — a copy there is ignored at load, with one warning saying so. The
+            model needs its own reference because the Abstractions dependency would otherwise bring
+            a copy into the extension's output.
         -->
         <PackageReference
             Condition="'$(LunateUseNuGetContracts)' == 'true'"
             Include="Lunate.Contracts"
+            Version="$(LunateContractsVersion)"
+            PrivateAssets="all"
+            ExcludeAssets="runtime"
+        />
+        <PackageReference
+            Condition="'$(LunateUseNuGetContracts)' == 'true'"
+            Include="Lunate.Decisions.Model"
             Version="$(LunateContractsVersion)"
             PrivateAssets="all"
             ExcludeAssets="runtime"
@@ -80,6 +87,13 @@
         <ProjectReference
             Condition="'$(LunateUseNuGetContracts)' != 'true'"
             Include="../../../src/Lunate.Contracts/Lunate.Contracts.csproj"
+            PrivateAssets="all"
+            Private="false"
+            ExcludeAssets="runtime"
+        />
+        <ProjectReference
+            Condition="'$(LunateUseNuGetContracts)' != 'true'"
+            Include="../../../src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj"
             PrivateAssets="all"
             Private="false"
             ExcludeAssets="runtime"
