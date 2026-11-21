@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
-import re
 import shutil
 import subprocess
 import sys
@@ -264,19 +263,13 @@ class FillReleaseHashesTests(unittest.TestCase):
             "docs/settings.md",
         ):
             write(root / relative, (REPOSITORY_ROOT / relative).read_text(encoding="utf-8"))
-        readme = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
-        stale = (
+        write(
+            root / "README.md",
+            "# Lunate\n\n<!-- docs-sync: version -->\n"
             "The current stable release is [**0.3.0**]"
-            "(https://github.com/lunate-agent/lunate/releases/tag/v0.3.0)."
+            "(https://github.com/lunate-agent/lunate/releases/tag/v0.3.0).\n"
+            "<!-- /docs-sync: version -->\n",
         )
-        readme, replacements = re.subn(
-            r"(<!-- docs-sync: version -->\n).*?(\n<!-- /docs-sync: version -->)",
-            lambda match: match.group(1) + stale + match.group(2),
-            readme,
-            flags=re.DOTALL,
-        )
-        self.assertEqual(1, replacements)
-        write(root / "README.md", readme)
         # docs-sync derives the release line from the tree's own tags.
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
         subprocess.run(
