@@ -202,8 +202,8 @@ Notable changes to Lunate, one section per release. The format follows
   hook-result families (`ProjectTrustResult`, `InputReceivedResult`, `RunStartingResult`,
   `MessageCompletedResult`, `ToolCallingResult`, `TurnEndedResult`, `CompactingResult`), are `union`
   types over their case records, so the set of event kinds and hook outcomes is fixed at compile time
-  and a consumer's `switch` is checked for exhaustiveness ([ADR-0043](../adr/0043-contract-unions.md),
-  superseding [ADR-0042](../adr/0042-contract-closed-sets.md)). **Version note for extension
+  and a consumer's `switch` is checked for exhaustiveness ([ADR-0043](adr/0043-contract-unions.md),
+  superseding [ADR-0042](adr/0042-contract-closed-sets.md)). **Version note for extension
   authors:** every type name, case name, constructor and the `IHookResult`/`IHookPayload` markers are
   unchanged, so `new ToolCallingResult.Block("held")` and `is ToolCallingResult.Block` compile as
   before, and the hook wire and the `--json` event stream are byte-identical. What changes is the
@@ -211,7 +211,7 @@ Notable changes to Lunate, one section per release. The format follows
   you read `GetType()`, and `events.OfType<T>()` keeps working through the contract's overload), and a
   type outside the contract can no longer add a kind or an outcome — adding one is a breaking contract
   change that moves the API version and gets its own note in
-  [`docs/extensions/README.md`](../docs/extensions/README.md) (#919, #921).
+  [`docs/extensions/README.md`](docs/extensions/README.md) (#919, #921).
 
 - **The transcript entries are a closed hierarchy.** `TranscriptEntry` is `closed` (C# 15), so its
   four entries are the whole set and the frame renderer's switch and the picker's filter no longer
