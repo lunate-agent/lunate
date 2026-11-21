@@ -12,8 +12,8 @@
 
         <!--
             The contract assemblies carry the API version, not the product version (ADR-0002's
-            addendum: `Lunate.Contracts` and `Lunate.Extensibility.Abstractions` publish together,
-            in lockstep, under `ExtensionApi`). The pre-release suffix follows the product version's
+            addendum: `Lunate.Contracts`, `Lunate.Decisions.Model` and
+            `Lunate.Extensibility.Abstractions` publish together, in lockstep, under `ExtensionApi`). The pre-release suffix follows the product version's
             suffix, because a NuGet version cannot be deleted: releasing `v0.2.0-rc.1` must publish
             `1.16.0-rc.1`, and only the final tag may publish the stable `1.16.0`. `ExtensionApi`
             itself stays `1.16.0` — it compares assembly identity, and a prerelease package version

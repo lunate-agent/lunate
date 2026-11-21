@@ -7,8 +7,9 @@
 #
 # Output, one KEY=VALUE per line:
 #   TOOL=0.2.0-rc.1            the `lunate` tool and the Subagents bundle (the product version)
-#   CONTRACTS=1.16.0-rc.1      Lunate.Contracts and Lunate.Extensibility.Abstractions (the API
-#                              version from Directory.Build.props, plus the tag's suffix)
+#   CONTRACTS=1.16.0-rc.1      Lunate.Contracts, Lunate.Decisions.Model and
+#                              Lunate.Extensibility.Abstractions (the API version from
+#                              Directory.Build.props, plus the tag's suffix)
 #   PREVIEW=0.2.0-rc.1         Lunate.Agent and Lunate.Extensibility.Testing: the product version
 #                              while it is a prerelease, otherwise <version>-preview.1
 #   TEMPLATE=1.16.0-rc.1       the contract version a copied template pins

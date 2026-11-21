@@ -7,7 +7,7 @@ namespace Lunate.Ai.Decisions;
 /// <summary>A batch of independent questions evaluated against one text or JSON state.</summary>
 /// <remarks>
 /// <paramref name="ModelId"/> is the caller's hint; the resolved model travels in
-/// <see cref="DecisionOptions.ModelId"/> and wins, because a routed call may resolve another id.
+/// <c>DecisionOptions.ModelId</c> and wins, because a routed call may resolve another id.
 /// </remarks>
 public sealed record DecisionRequest(
     JsonElement State,
@@ -34,14 +34,6 @@ public enum DecisionQuestionKind
     Score,
     Box,
 }
-
-/// <summary>The per-call options a decision client accepts beside the request.</summary>
-public sealed record DecisionOptions(
-    string? ModelId = null,
-    TimeSpan? Timeout = null,
-    string? SessionId = null,
-    string? RunId = null
-);
 
 /// <summary>A normalized image rectangle and the model's confidence in its placement.</summary>
 public sealed record DecisionBox(double Top, double Bottom, double Left, double Right);
@@ -81,19 +73,3 @@ public sealed record DecisionResult(
     DecisionUsage? Usage = null,
     IReadOnlyList<UsageDetails>? ChatUsageAttempts = null
 );
-
-/// <summary>One paid chat attempt and the model that answered it.</summary>
-internal sealed record DecisionUsageAttempt(UsageDetails Usage, string? ModelId);
-
-/// <summary>
-/// A decision that never matched the contract, carrying every attempt's usage so the caller can
-/// record the tokens the provider already charged before the failure propagates. The engine wraps
-/// it in the <see cref="InvalidDataException"/> the decision consumers already handle.
-/// </summary>
-internal sealed class DecisionUsageAttemptsException(
-    string message,
-    IReadOnlyList<DecisionUsageAttempt> attempts
-) : Exception(message)
-{
-    public IReadOnlyList<DecisionUsageAttempt> Attempts { get; } = attempts;
-}

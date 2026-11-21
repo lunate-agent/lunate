@@ -1,0 +1,60 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <!--
+            The model's home is its own package (ADR-0045). The namespace stays Lunate.Ai.Decisions
+            because a move never renames a compiled identity: IDecisionService's PublicAPI entry,
+            every consumer's using and the type names remain exactly what ADR-0044 made them. Only
+            the assembly that carries them moves, and the package id is that new shipping identity.
+        -->
+        <RootNamespace>Lunate.Ai.Decisions</RootNamespace>
+        <Version>$(ContractVersion)</Version>
+        <PackageId>Lunate.Decisions.Model</PackageId>
+        <IsPackable>true</IsPackable>
+        <Description>
+            The one decision model of Lunate: DecisionRequest, DecisionQuestion and its kinds,
+            DecisionAnswer, DecisionBox, DecisionResult and DecisionUsage, plus the native-client and
+            agent-service seams. Versioned with the extension contract; the engine stays in
+            Lunate.Ai.Decisions. See ADR-0045.
+        </Description>
+        <PackageTags>lunate;decisions;extension-api</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>lunate-logo-dark.png</PackageIcon>
+        <PackageProjectUrl>https://github.com/lunate-agent/lunate</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/lunate-agent/lunate</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath="/" />
+        <None Include="../../assets/brand/lunate-logo-dark.png" Pack="true" PackagePath="/" />
+    </ItemGroup>
+
+    <!--
+        DecisionAnswer carries the event contract's DecisionProbability, so the model package
+        references the contract and the edge runs model -> contract, never back. This is a published
+        dependency (not PrivateAssets) because Lunate.Extensibility.Abstractions and Lunate.Agent
+        name it in their nuspecs.
+    -->
+    <ItemGroup>
+        <ProjectReference Include="../Lunate.Contracts/Lunate.Contracts.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--
+            DecisionResult carries the chat usage attempts beside the native provider usage; both
+            are MEAI types, and the contract already brings the same reference to every consumer.
+        -->
+        <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
+        <PackageReference
+            Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
+            Version="5.6.0"
+            PrivateAssets="all"
+        />
+    </ItemGroup>
+
+    <ItemGroup>
+        <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+        <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+    </ItemGroup>
+</Project>

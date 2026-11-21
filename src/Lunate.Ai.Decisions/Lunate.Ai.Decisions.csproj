@@ -9,13 +9,16 @@
     </ItemGroup>
 
     <!--
-        The one model, one home: the decision request/result types live here, and the assembly reads
-        the event contract's DecisionProbability, so the edge runs down from the decision loop to the
-        contract and never back (ADR-0044). The reference is private because this assembly is not
-        packed; the packages that ship it carry its file (see Lunate.Agent and
-        Lunate.Extensibility.Abstractions).
+        The model has its own package (ADR-0045); this project keeps the engine and is not packed.
+        Lunate.Agent carries its file in lib/, the one package that needs the engine, so this edge
+        stops at the harness instead of becoming extension contract.
     -->
     <ItemGroup>
+        <ProjectReference Include="../Lunate.Decisions.Model/Lunate.Decisions.Model.csproj" />
+        <!--
+            The engine's parser reads the event contract's DecisionProbability directly, and the
+            model package reads it too; the edge runs down to the contract and never back.
+        -->
         <ProjectReference
             Include="../Lunate.Contracts/Lunate.Contracts.csproj"
             PrivateAssets="All"
@@ -27,9 +30,6 @@
         <InternalsVisibleTo Include="Lunate.Agent.Tests" />
         <InternalsVisibleTo Include="Lunate.Ai.SystemOne" />
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
-        <InternalsVisibleTo Include="Lunate.Extensibility" />
-        <InternalsVisibleTo Include="Lunate.Extensibility.Tests" />
-        <InternalsVisibleTo Include="Lunate.Extensibility.Testing.Tests" />
         <InternalsVisibleTo Include="lunate" />
     </ItemGroup>
 </Project>

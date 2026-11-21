@@ -50,6 +50,7 @@ pack src/Lunate.Coding/Lunate.Coding.csproj
 pack src/Mermaid.Terminal/Mermaid.Terminal.csproj
 pack extensions/subagents/SubagentsExtension/SubagentsExtension.csproj
 pack src/Lunate.Contracts/Lunate.Contracts.csproj
+pack src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj
 pack src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj
 pack src/Lunate.Agent/Lunate.Agent.csproj
 pack src/Lunate.Extensibility.Testing/Lunate.Extensibility.Testing.csproj
@@ -68,6 +69,7 @@ for expected in \
     "Mermaid.Terminal.${derived_TOOL}.nupkg" \
     "Lunate.Extensions.Subagents.${derived_TOOL}.nupkg" \
     "Lunate.Contracts.${derived_CONTRACTS}.nupkg" \
+    "Lunate.Decisions.Model.${derived_CONTRACTS}.nupkg" \
     "Lunate.Extensibility.Abstractions.${derived_CONTRACTS}.nupkg" \
     "Lunate.Agent.${derived_PREVIEW}.nupkg" \
     "Lunate.Extensibility.Testing.${derived_PREVIEW}.nupkg"; do
@@ -82,6 +84,7 @@ bash scripts/check-package-metadata.sh "${OUT}/lunate.${product_version}.nupkg" 
 bash scripts/check-package-metadata.sh "${OUT}/Mermaid.Terminal.${product_version}.nupkg" --id Mermaid.Terminal
 bash scripts/check-package-metadata.sh "${OUT}/Lunate.Extensions.Subagents.${product_version}.nupkg" --id Lunate.Extensions.Subagents
 bash scripts/check-package-metadata.sh "${OUT}/Lunate.Contracts.${contract_version}.nupkg" --id Lunate.Contracts
+bash scripts/check-package-metadata.sh "${OUT}/Lunate.Decisions.Model.${contract_version}.nupkg" --id Lunate.Decisions.Model
 bash scripts/check-package-metadata.sh "${OUT}/Lunate.Extensibility.Abstractions.${contract_version}.nupkg" --id Lunate.Extensibility.Abstractions
 bash scripts/check-package-metadata.sh "${OUT}/Lunate.Agent.${preview_version}.nupkg" --id Lunate.Agent --prerelease
 bash scripts/check-package-metadata.sh "${OUT}/Lunate.Extensibility.Testing.${preview_version}.nupkg" --id Lunate.Extensibility.Testing --prerelease

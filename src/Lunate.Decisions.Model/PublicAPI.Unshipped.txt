@@ -1,0 +1,144 @@
+#nullable enable
+Lunate.Ai.Decisions.DecisionAnswer
+Lunate.Ai.Decisions.DecisionAnswer.<Clone>$() -> Lunate.Ai.Decisions.DecisionAnswer!
+Lunate.Ai.Decisions.DecisionAnswer.Answer.get -> string!
+Lunate.Ai.Decisions.DecisionAnswer.Answer.init -> void
+Lunate.Ai.Decisions.DecisionAnswer.Box.get -> Lunate.Ai.Decisions.DecisionBox?
+Lunate.Ai.Decisions.DecisionAnswer.Box.init -> void
+Lunate.Ai.Decisions.DecisionAnswer.Confidence.get -> double
+Lunate.Ai.Decisions.DecisionAnswer.Confidence.init -> void
+Lunate.Ai.Decisions.DecisionAnswer.DecisionAnswer(string! Answer, double Probability, System.Collections.Generic.IReadOnlyList<Lunate.Contracts.DecisionProbability!>! Distribution, string! ModelId, string! Method, double Confidence, Lunate.Ai.Decisions.DecisionBox? Box = null, double? ExpectedScore = null) -> void
+Lunate.Ai.Decisions.DecisionAnswer.Deconstruct(out string! Answer, out double Probability, out System.Collections.Generic.IReadOnlyList<Lunate.Contracts.DecisionProbability!>! Distribution, out string! ModelId, out string! Method, out double Confidence, out Lunate.Ai.Decisions.DecisionBox? Box, out double? ExpectedScore) -> void
+Lunate.Ai.Decisions.DecisionAnswer.Distribution.get -> System.Collections.Generic.IReadOnlyList<Lunate.Contracts.DecisionProbability!>!
+Lunate.Ai.Decisions.DecisionAnswer.Distribution.init -> void
+Lunate.Ai.Decisions.DecisionAnswer.Equals(Lunate.Ai.Decisions.DecisionAnswer? other) -> bool
+Lunate.Ai.Decisions.DecisionAnswer.ExpectedScore.get -> double?
+Lunate.Ai.Decisions.DecisionAnswer.ExpectedScore.init -> void
+Lunate.Ai.Decisions.DecisionAnswer.Method.get -> string!
+Lunate.Ai.Decisions.DecisionAnswer.Method.init -> void
+Lunate.Ai.Decisions.DecisionAnswer.ModelId.get -> string!
+Lunate.Ai.Decisions.DecisionAnswer.ModelId.init -> void
+Lunate.Ai.Decisions.DecisionAnswer.Probability.get -> double
+Lunate.Ai.Decisions.DecisionAnswer.Probability.init -> void
+Lunate.Ai.Decisions.DecisionBox
+Lunate.Ai.Decisions.DecisionBox.<Clone>$() -> Lunate.Ai.Decisions.DecisionBox!
+Lunate.Ai.Decisions.DecisionBox.Bottom.get -> double
+Lunate.Ai.Decisions.DecisionBox.Bottom.init -> void
+Lunate.Ai.Decisions.DecisionBox.DecisionBox(double Top, double Bottom, double Left, double Right) -> void
+Lunate.Ai.Decisions.DecisionBox.Deconstruct(out double Top, out double Bottom, out double Left, out double Right) -> void
+Lunate.Ai.Decisions.DecisionBox.Equals(Lunate.Ai.Decisions.DecisionBox? other) -> bool
+Lunate.Ai.Decisions.DecisionBox.Left.get -> double
+Lunate.Ai.Decisions.DecisionBox.Left.init -> void
+Lunate.Ai.Decisions.DecisionBox.Right.get -> double
+Lunate.Ai.Decisions.DecisionBox.Right.init -> void
+Lunate.Ai.Decisions.DecisionBox.Top.get -> double
+Lunate.Ai.Decisions.DecisionBox.Top.init -> void
+Lunate.Ai.Decisions.DecisionQuestion
+Lunate.Ai.Decisions.DecisionQuestion.<Clone>$() -> Lunate.Ai.Decisions.DecisionQuestion!
+Lunate.Ai.Decisions.DecisionQuestion.Answers.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Lunate.Ai.Decisions.DecisionQuestion.Answers.init -> void
+Lunate.Ai.Decisions.DecisionQuestion.Criteria.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Lunate.Ai.Decisions.DecisionQuestion.Criteria.init -> void
+Lunate.Ai.Decisions.DecisionQuestion.DecisionQuestion(string! Id, string! Instructions, Lunate.Ai.Decisions.DecisionQuestionKind Kind, System.Collections.Generic.IReadOnlyList<string!>? Answers = null, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Criteria = null, string? JsonPath = null, System.Text.Json.JsonElement? State = null) -> void
+Lunate.Ai.Decisions.DecisionQuestion.Deconstruct(out string! Id, out string! Instructions, out Lunate.Ai.Decisions.DecisionQuestionKind Kind, out System.Collections.Generic.IReadOnlyList<string!>? Answers, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Criteria, out string? JsonPath, out System.Text.Json.JsonElement? State) -> void
+Lunate.Ai.Decisions.DecisionQuestion.Equals(Lunate.Ai.Decisions.DecisionQuestion? other) -> bool
+Lunate.Ai.Decisions.DecisionQuestion.Id.get -> string!
+Lunate.Ai.Decisions.DecisionQuestion.Id.init -> void
+Lunate.Ai.Decisions.DecisionQuestion.Instructions.get -> string!
+Lunate.Ai.Decisions.DecisionQuestion.Instructions.init -> void
+Lunate.Ai.Decisions.DecisionQuestion.JsonPath.get -> string?
+Lunate.Ai.Decisions.DecisionQuestion.JsonPath.init -> void
+Lunate.Ai.Decisions.DecisionQuestion.Kind.get -> Lunate.Ai.Decisions.DecisionQuestionKind
+Lunate.Ai.Decisions.DecisionQuestion.Kind.init -> void
+Lunate.Ai.Decisions.DecisionQuestion.State.get -> System.Text.Json.JsonElement?
+Lunate.Ai.Decisions.DecisionQuestion.State.init -> void
+Lunate.Ai.Decisions.DecisionQuestionKind
+Lunate.Ai.Decisions.DecisionQuestionKind.Box = 3 -> Lunate.Ai.Decisions.DecisionQuestionKind
+Lunate.Ai.Decisions.DecisionQuestionKind.Choice = 1 -> Lunate.Ai.Decisions.DecisionQuestionKind
+Lunate.Ai.Decisions.DecisionQuestionKind.Score = 2 -> Lunate.Ai.Decisions.DecisionQuestionKind
+Lunate.Ai.Decisions.DecisionQuestionKind.YesNo = 0 -> Lunate.Ai.Decisions.DecisionQuestionKind
+Lunate.Ai.Decisions.DecisionRequest
+Lunate.Ai.Decisions.DecisionRequest.<Clone>$() -> Lunate.Ai.Decisions.DecisionRequest!
+Lunate.Ai.Decisions.DecisionRequest.DecisionRequest(System.Text.Json.JsonElement State, System.Collections.Generic.IReadOnlyList<Lunate.Ai.Decisions.DecisionQuestion!>! Questions, string? ModelId = null) -> void
+Lunate.Ai.Decisions.DecisionRequest.Deconstruct(out System.Text.Json.JsonElement State, out System.Collections.Generic.IReadOnlyList<Lunate.Ai.Decisions.DecisionQuestion!>! Questions, out string? ModelId) -> void
+Lunate.Ai.Decisions.DecisionRequest.Equals(Lunate.Ai.Decisions.DecisionRequest? other) -> bool
+Lunate.Ai.Decisions.DecisionRequest.ModelId.get -> string?
+Lunate.Ai.Decisions.DecisionRequest.ModelId.init -> void
+Lunate.Ai.Decisions.DecisionRequest.Questions.get -> System.Collections.Generic.IReadOnlyList<Lunate.Ai.Decisions.DecisionQuestion!>!
+Lunate.Ai.Decisions.DecisionRequest.Questions.init -> void
+Lunate.Ai.Decisions.DecisionRequest.State.get -> System.Text.Json.JsonElement
+Lunate.Ai.Decisions.DecisionRequest.State.init -> void
+Lunate.Ai.Decisions.DecisionResult
+Lunate.Ai.Decisions.DecisionResult.<Clone>$() -> Lunate.Ai.Decisions.DecisionResult!
+Lunate.Ai.Decisions.DecisionResult.ChatUsageAttempts.get -> System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.UsageDetails!>?
+Lunate.Ai.Decisions.DecisionResult.ChatUsageAttempts.init -> void
+Lunate.Ai.Decisions.DecisionResult.DecisionResult(System.Collections.Generic.IReadOnlyDictionary<string!, Lunate.Ai.Decisions.DecisionAnswer!>! Results, Lunate.Ai.Decisions.DecisionUsage? Usage = null, System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.UsageDetails!>? ChatUsageAttempts = null) -> void
+Lunate.Ai.Decisions.DecisionResult.Deconstruct(out System.Collections.Generic.IReadOnlyDictionary<string!, Lunate.Ai.Decisions.DecisionAnswer!>! Results, out Lunate.Ai.Decisions.DecisionUsage? Usage, out System.Collections.Generic.IReadOnlyList<Microsoft.Extensions.AI.UsageDetails!>? ChatUsageAttempts) -> void
+Lunate.Ai.Decisions.DecisionResult.Equals(Lunate.Ai.Decisions.DecisionResult? other) -> bool
+Lunate.Ai.Decisions.DecisionResult.Results.get -> System.Collections.Generic.IReadOnlyDictionary<string!, Lunate.Ai.Decisions.DecisionAnswer!>!
+Lunate.Ai.Decisions.DecisionResult.Results.init -> void
+Lunate.Ai.Decisions.DecisionResult.Usage.get -> Lunate.Ai.Decisions.DecisionUsage?
+Lunate.Ai.Decisions.DecisionResult.Usage.init -> void
+Lunate.Ai.Decisions.DecisionUsage
+Lunate.Ai.Decisions.DecisionUsage.<Clone>$() -> Lunate.Ai.Decisions.DecisionUsage!
+Lunate.Ai.Decisions.DecisionUsage.Cost.get -> double?
+Lunate.Ai.Decisions.DecisionUsage.Cost.init -> void
+Lunate.Ai.Decisions.DecisionUsage.DecisionUsage(long? InputTokens = null, long? OutputTokens = null, double? Cost = null, bool IsProviderReported = false) -> void
+Lunate.Ai.Decisions.DecisionUsage.Deconstruct(out long? InputTokens, out long? OutputTokens, out double? Cost, out bool IsProviderReported) -> void
+Lunate.Ai.Decisions.DecisionUsage.Equals(Lunate.Ai.Decisions.DecisionUsage? other) -> bool
+Lunate.Ai.Decisions.DecisionUsage.InputTokens.get -> long?
+Lunate.Ai.Decisions.DecisionUsage.InputTokens.init -> void
+Lunate.Ai.Decisions.DecisionUsage.IsProviderReported.get -> bool
+Lunate.Ai.Decisions.DecisionUsage.IsProviderReported.init -> void
+Lunate.Ai.Decisions.DecisionUsage.Opencode.get -> Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage?
+Lunate.Ai.Decisions.DecisionUsage.Opencode.init -> void
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.<Clone>$() -> Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage!
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.BillingSource.get -> string?
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.BillingSource.init -> void
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.Deconstruct(out string? BillingSource, out double? ListCost) -> void
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.Equals(Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? other) -> bool
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.ListCost.get -> double?
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.ListCost.init -> void
+Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.OpencodeUsage(string? BillingSource, double? ListCost) -> void
+Lunate.Ai.Decisions.DecisionUsage.OutputTokens.get -> long?
+Lunate.Ai.Decisions.DecisionUsage.OutputTokens.init -> void
+Lunate.Ai.Decisions.IAgentDecisionService
+Lunate.Ai.Decisions.IAgentDecisionService.DecideAsync(Lunate.Ai.Decisions.DecisionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Lunate.Ai.Decisions.DecisionResult!>!
+Lunate.Ai.Decisions.INativeDecisionClient
+Lunate.Ai.Decisions.INativeDecisionClient.GetDecisionAsync(Lunate.Ai.Decisions.DecisionRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string!>!
+override Lunate.Ai.Decisions.DecisionAnswer.Equals(object? obj) -> bool
+override Lunate.Ai.Decisions.DecisionAnswer.GetHashCode() -> int
+override Lunate.Ai.Decisions.DecisionAnswer.ToString() -> string!
+override Lunate.Ai.Decisions.DecisionBox.Equals(object? obj) -> bool
+override Lunate.Ai.Decisions.DecisionBox.GetHashCode() -> int
+override Lunate.Ai.Decisions.DecisionBox.ToString() -> string!
+override Lunate.Ai.Decisions.DecisionQuestion.Equals(object? obj) -> bool
+override Lunate.Ai.Decisions.DecisionQuestion.GetHashCode() -> int
+override Lunate.Ai.Decisions.DecisionQuestion.ToString() -> string!
+override Lunate.Ai.Decisions.DecisionRequest.Equals(object? obj) -> bool
+override Lunate.Ai.Decisions.DecisionRequest.GetHashCode() -> int
+override Lunate.Ai.Decisions.DecisionRequest.ToString() -> string!
+override Lunate.Ai.Decisions.DecisionResult.Equals(object? obj) -> bool
+override Lunate.Ai.Decisions.DecisionResult.GetHashCode() -> int
+override Lunate.Ai.Decisions.DecisionResult.ToString() -> string!
+override Lunate.Ai.Decisions.DecisionUsage.Equals(object? obj) -> bool
+override Lunate.Ai.Decisions.DecisionUsage.GetHashCode() -> int
+override Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.Equals(object? obj) -> bool
+override Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.GetHashCode() -> int
+override Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.ToString() -> string!
+override Lunate.Ai.Decisions.DecisionUsage.ToString() -> string!
+static Lunate.Ai.Decisions.DecisionAnswer.operator !=(Lunate.Ai.Decisions.DecisionAnswer? left, Lunate.Ai.Decisions.DecisionAnswer? right) -> bool
+static Lunate.Ai.Decisions.DecisionAnswer.operator ==(Lunate.Ai.Decisions.DecisionAnswer? left, Lunate.Ai.Decisions.DecisionAnswer? right) -> bool
+static Lunate.Ai.Decisions.DecisionBox.operator !=(Lunate.Ai.Decisions.DecisionBox? left, Lunate.Ai.Decisions.DecisionBox? right) -> bool
+static Lunate.Ai.Decisions.DecisionBox.operator ==(Lunate.Ai.Decisions.DecisionBox? left, Lunate.Ai.Decisions.DecisionBox? right) -> bool
+static Lunate.Ai.Decisions.DecisionQuestion.operator !=(Lunate.Ai.Decisions.DecisionQuestion? left, Lunate.Ai.Decisions.DecisionQuestion? right) -> bool
+static Lunate.Ai.Decisions.DecisionQuestion.operator ==(Lunate.Ai.Decisions.DecisionQuestion? left, Lunate.Ai.Decisions.DecisionQuestion? right) -> bool
+static Lunate.Ai.Decisions.DecisionRequest.operator !=(Lunate.Ai.Decisions.DecisionRequest? left, Lunate.Ai.Decisions.DecisionRequest? right) -> bool
+static Lunate.Ai.Decisions.DecisionRequest.operator ==(Lunate.Ai.Decisions.DecisionRequest? left, Lunate.Ai.Decisions.DecisionRequest? right) -> bool
+static Lunate.Ai.Decisions.DecisionResult.operator !=(Lunate.Ai.Decisions.DecisionResult? left, Lunate.Ai.Decisions.DecisionResult? right) -> bool
+static Lunate.Ai.Decisions.DecisionResult.operator ==(Lunate.Ai.Decisions.DecisionResult? left, Lunate.Ai.Decisions.DecisionResult? right) -> bool
+static Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.operator !=(Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? left, Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? right) -> bool
+static Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.operator ==(Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? left, Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? right) -> bool
+static Lunate.Ai.Decisions.DecisionUsage.operator !=(Lunate.Ai.Decisions.DecisionUsage? left, Lunate.Ai.Decisions.DecisionUsage? right) -> bool
+static Lunate.Ai.Decisions.DecisionUsage.operator ==(Lunate.Ai.Decisions.DecisionUsage? left, Lunate.Ai.Decisions.DecisionUsage? right) -> bool

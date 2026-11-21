@@ -7,12 +7,15 @@ internal static class LayeringChecker
         {
             ("Lunate.Agent", "Lunate.Ai"),
             ("Lunate.Agent", "Lunate.Ai.Decisions"),
-            // The decision model lives in Lunate.Ai.Decisions: IDecisionService is typed with it, and
-            // the decision layer reads the event contract's DecisionProbability, so the edge runs
-            // down from the decision loop to the contract and never back (ADR-0044).
+            // The model has its own package: IDecisionService is typed with it, the engine builds on
+            // it, and both read the event contract's DecisionProbability, so the edges run down to
+            // the contract and never back (ADR-0045).
+            ("Lunate.Agent", "Lunate.Decisions.Model"),
+            ("Lunate.Decisions.Model", "Lunate.Contracts"),
+            ("Lunate.Ai.Decisions", "Lunate.Decisions.Model"),
             ("Lunate.Ai.Decisions", "Lunate.Contracts"),
-            ("Lunate.Extensibility.Abstractions", "Lunate.Ai.Decisions"),
-            ("Lunate.Extensibility", "Lunate.Ai.Decisions"),
+            ("Lunate.Extensibility.Abstractions", "Lunate.Decisions.Model"),
+            ("Lunate.Extensibility", "Lunate.Decisions.Model"),
             ("Lunate.Coding", "Lunate.Ai.Decisions"),
             ("Lunate.Coding", "Lunate.Ai.SystemOne"),
             ("Lunate.Ai.SystemOne", "Lunate.Ai.Decisions"),
@@ -221,16 +224,17 @@ internal static class LayeringChecker
 
     /// <summary>
     /// The assemblies the host loads once and every extension binds to: the contract, the decision
-    /// model <c>IDecisionService</c> is typed with, and the host types its signatures expose
+    /// model package <c>IDecisionService</c> is typed with, and the host types its signatures expose
     /// (<c>ToolContext</c>, <c>ToolResult</c>, the provider surface). An extension may reference
-    /// them — compile-only, never copied — and nothing else of the host.
+    /// them — compile-only, never copied — and nothing else of the host. The engine is not one of
+    /// them (ADR-0045).
     /// </summary>
     public static IReadOnlySet<string> ExtensionHostAssemblies { get; } =
         new HashSet<string>
         {
             "Lunate.Extensibility.Abstractions",
             "Lunate.Contracts",
-            "Lunate.Ai.Decisions",
+            "Lunate.Decisions.Model",
         };
 
     /// <summary>

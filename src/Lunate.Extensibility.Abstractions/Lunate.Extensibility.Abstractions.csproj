@@ -22,15 +22,6 @@
             and every extension binds to that copy, so a copy an extension ships is ignored at load.
         </Description>
         <PackageTags>lunate;extensibility;extension-api</PackageTags>
-        <!--
-            IDecisionService is typed with the decision layer's model, so this package carries that
-            assembly in lib/ beside the contract instead of naming a package dependency on an
-            assembly that is not published on its own (ADR-0044). The same shape Lunate.Agent and
-            the test kit use for the assemblies they ship.
-        -->
-        <TargetsForTfmSpecificContentInPackage>
-            $(TargetsForTfmSpecificContentInPackage);PackOwnAssemblies
-        </TargetsForTfmSpecificContentInPackage>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>lunate-logo-dark.png</PackageIcon>
@@ -52,15 +43,11 @@
     <ItemGroup>
         <ProjectReference Include="../Lunate.Contracts/Lunate.Contracts.csproj" />
         <!--
-            The decision model lives in Lunate.Ai.Decisions (ADR-0044): the edge runs down from the
-            decision layer to the contract, and IDecisionService is typed with its request/result
-            records. PrivateAssets stops a nuspec dependency on an unpacked assembly and the pack
-            target below carries the file.
+            IDecisionService is typed with the decision model, which has its own published package
+            (ADR-0045): the edge runs model -> contract, and this package names the model as a
+            nuspec dependency instead of packing the engine beside the contract.
         -->
-        <ProjectReference
-            Include="../Lunate.Ai.Decisions/Lunate.Ai.Decisions.csproj"
-            PrivateAssets="All"
-        />
+        <ProjectReference Include="../Lunate.Decisions.Model/Lunate.Decisions.Model.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -76,13 +63,4 @@
         <AdditionalFiles Include="PublicAPI.Shipped.txt" />
         <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
     </ItemGroup>
-
-    <Target Name="PackOwnAssemblies">
-        <ItemGroup>
-            <TfmSpecificPackageFile
-                Include="$(OutDir)Lunate.Ai.Decisions.dll"
-                PackagePath="lib/$(TargetFramework)"
-            />
-        </ItemGroup>
-    </Target>
 </Project>
