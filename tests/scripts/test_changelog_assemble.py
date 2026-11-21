@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import contextlib
 import datetime
 import importlib.util
+import io
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -348,6 +351,105 @@ class ChangelogAssembleTests(unittest.TestCase):
         self.assertEqual(1, result.returncode)
         self.assertEqual(before, (root / "CHANGELOG.md").read_text(encoding="utf-8"))
 
+    def test_a_link_out_of_changes_is_rewritten_for_the_root(self) -> None:
+        root = self.tree(
+            {
+                "1234.md": fragment(
+                    "### Fixed",
+                    "- The union ([ADR-0043](../adr/0043-contract-unions.md)) holds (#1234).",
+                )
+            }
+        )
+
+        written = run(root, "--write")
+
+        self.assertEqual(0, written.returncode, written.stderr)
+        text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertIn("[ADR-0043](adr/0043-contract-unions.md)", text)
+        self.assertNotIn("../adr/", text)
+
+    def test_a_link_inside_changes_is_rewritten_into_changes(self) -> None:
+        root = self.tree(
+            {
+                "1234.md": fragment(
+                    "### Fixed", "- The rule ([the fragment rules](README.md)) (#1234)."
+                )
+            }
+        )
+
+        run(root, "--write")
+
+        text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertIn("[the fragment rules](changes/README.md)", text)
+
+    def test_a_link_that_leaves_the_repository_is_refused_by_name(self) -> None:
+        root = self.tree(
+            {
+                "1234.md": fragment(
+                    "### Fixed",
+                    "- The guide ([the guide](../../docs/dev/guide.md)) (#1234).",
+                )
+            }
+        )
+        before = snapshot(root)
+
+        checked = run(root, "--check")
+        written = run(root, "--write")
+
+        self.assertEqual(1, checked.returncode, checked.stdout)
+        self.assertIn("changes/1234.md", checked.stderr)
+        self.assertIn("'../../docs/dev/guide.md'", checked.stderr)
+        self.assertIn("'../docs/dev/guide.md' relative to the repository root", checked.stderr)
+        self.assertEqual(1, written.returncode, written.stdout)
+        self.assertEqual(before, snapshot(root))
+
+    def test_an_anchor_a_url_and_an_inline_code_span_are_carried_as_written(self) -> None:
+        root = self.tree(
+            {
+                "1234.md": fragment(
+                    "### Fixed",
+                    "- See [the map](../docs/dev/README.md#documentation-map), "
+                    "[the site](https://example.com/lunate) and `[x](../adr/y.md)` (#1234).",
+                )
+            }
+        )
+
+        run(root, "--write")
+
+        text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertIn("(docs/dev/README.md#documentation-map)", text)
+        self.assertIn("(https://example.com/lunate)", text)
+        self.assertIn("`[x](../adr/y.md)`", text)
+
+    def test_the_assembly_self_test_passes(self) -> None:
+        result = subprocess.run(
+            [sys.executable, str(ASSEMBLER), "--self-test"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("self-test OK", result.stdout)
+
+    def test_a_failing_self_test_case_is_named(self) -> None:
+        assembler = load_assembler()
+        cases = [
+            (
+                "a case that cannot pass",
+                "- See [the guide](../docs/dev/guide.md) (#1234).",
+                "nowhere",
+                None,
+            )
+        ]
+        report = io.StringIO()
+
+        with contextlib.redirect_stderr(report):
+            failures = assembler.check_cases(cases)
+
+        self.assertEqual(1, failures)
+        self.assertIn("a case that cannot pass", report.getvalue())
+
     def test_a_repeated_heading_in_one_section_is_refused_by_name(self) -> None:
         root = self.tree({}, changelog=DOUBLE_ADDED)
         before = snapshot(root)
@@ -448,6 +550,29 @@ class ChangelogAssembleTests(unittest.TestCase):
         text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
         self.assertNotIn("The fix (#1234).", text)
         self.assertNotIn("<!-- changelog-fragments:start -->", text)
+
+    def test_the_repository_fragments_assemble_links_that_stay_inside_the_tree(self) -> None:
+        """The fragments this repository carries carry links written from changes/; none may escape."""
+        root = self.tree({})
+        shutil.copyfile(REPOSITORY_ROOT / "CHANGELOG.md", root / "CHANGELOG.md")
+        for path in sorted((REPOSITORY_ROOT / "changes").glob("*.md")):
+            shutil.copyfile(path, root / "changes" / path.name)
+
+        written = run(root, "--write")
+
+        self.assertEqual(0, written.returncode, written.stderr)
+        text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertIn("[ADR-0043](adr/0043-contract-unions.md)", text)
+        assembler = load_assembler()
+        for match in assembler.MARKDOWN_LINK.finditer(text):
+            target = match.group(1).strip("<>")
+            if target.startswith(("#", "/")) or assembler.SCHEME.match(target):
+                continue
+            normalized = posixpath.normpath(target.partition("#")[0])
+            self.assertFalse(
+                normalized == ".." or normalized.startswith("../"),
+                f"an assembled link escapes the repository: {target}",
+            )
 
     def test_the_repository_tree_assembles(self) -> None:
         """The fragments this repository actually carries are grammatical and assemble."""

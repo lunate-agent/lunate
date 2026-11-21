@@ -84,7 +84,10 @@ naming the reason, when the version is not newer than the current `<Version>`, w
 refused and never promotes twice. It refuses the same way when `CHANGELOG.md` itself is a shape the
 assembler cannot read reliably — a `##` or `###` heading repeated within one version section, a
 non-blank line outside any `###` heading in the unreleased section, or a second `## [Unreleased]` —
-and prints the line that carries each one, because each of those loses or misplaces an entry. The Release workflow runs `--check --tag <tag>` on the tag, so a
+and prints the line that carries each one, because each of those loses or misplaces an entry. A
+fragment's relative link is rewritten for the root, because a fragment is written from `changes/`; a
+link that leaves the repository from there is refused, naming the fragment, the link and the path it
+resolves to. The Release workflow runs `--check --tag <tag>` on the tag, so a
 fragment that merged after this pull request fails the tag by name instead of shipping unassembled
 notes, and so does a `CHANGELOG.md` whose first heading below `## [Unreleased]` is not the tag's
 `## [<version>] - <YYYY-MM-DD>` or a `Directory.Build.props` whose `<Version>` is not the tag's
