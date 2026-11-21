@@ -1,0 +1,27 @@
+{
+    "$schema": "https://raw.githubusercontent.com/ScoopInstaller/Scoop/master/schema.json",
+    "version": "0.4.0",
+    "description": "A native C# coding agent for the terminal",
+    "homepage": "https://github.com/lunate-agent/lunate",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/lunate-agent/lunate/releases/download/v0.4.0/lunate-win-x64.zip",
+            "hash": "530b8f9de385ba5c9b9cc5c6b61498948ebe9571b108508de392b8ef7a1659b3"
+        }
+    },
+    "bin": "lunate.exe",
+    "checkver": {
+        "github": "https://github.com/lunate-agent/lunate"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/lunate-agent/lunate/releases/download/v$version/lunate-win-x64.zip",
+                "hash": {
+                    "url": "$baseurl/SHA256SUMS"
+                }
+            }
+        }
+    }
+}

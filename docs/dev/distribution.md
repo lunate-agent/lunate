@@ -18,7 +18,7 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `SHA256SUMS` | `<hash>  <filename>` lines covering every other asset |
 
 - Installers: [`install.sh`](../../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/lunate-agent/lunate/main/...`), not from the release assets.
-- Channel artifacts live in [`packaging/`](../../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 4). The guard in [`scripts/check-channel-manifests.py`](../../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
+- Channel artifacts live in [`packaging/`](../../packaging): Homebrew formula, Scoop manifest, winget manifests. Their URLs and SHA-256 values are filled per release by [`scripts/fill-release-hashes`](../../scripts/fill-release-hashes) (step 4). The guard in [`scripts/check-channel-manifests.py`](../../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
 - Every package version is derived from the tag in one place, [`scripts/release-versions.sh`](../../scripts/release-versions.sh): an RC tag publishes `-rc.<n>` for every package (the contracts too), and only a final tag publishes the stable API version and the `-preview.<n>` previews. [`scripts/pack-dry-run.sh`](../../scripts/pack-dry-run.sh) proves that derivation on every pull request, and the release workflow computes the same values from the tag before it packs or pushes anything.
 - The extension package is the distribution channel for extensions: the same tag that publishes the tool pushes it to nuget.org, so `lunate install <package-id>` installs the version the tag names. It is attached to the release as well, so a machine without feed access can point a `nuget.config` at the downloaded folder.
 - Release asset names, the installer platform map and the `LUNATE_INSTALL_*` environment seams are pinned in the distribution spec (`openspec/specs/distribution/spec.md` after archive).
@@ -118,25 +118,27 @@ cd /tmp/lunate-release
 sha256sum -c SHA256SUMS   # macOS: shasum -a 256 -c SHA256SUMS
 ```
 
-### 4. Fill the sha placeholders
+### 4. Fill the channel manifests
 
-Read the three archive hashes and replace the placeholders, then commit on `main`.
+Run the fill command on the release's `SHA256SUMS`, then let `docs-sync` write the README line, and
+commit on `main`.
 
 ```sh
-grep -E 'lunate-(osx-arm64|linux-x64|win-x64)' /tmp/lunate-release/SHA256SUMS
+scripts/fill-release-hashes v<version> --sums /tmp/lunate-release/SHA256SUMS
+scripts/docs-sync --write
 ```
 
-- `packaging/homebrew/lunate.rb`: `SHA256_PLACEHOLDER_OSX_ARM64`, `SHA256_PLACEHOLDER_LINUX_X64`
-- `packaging/scoop/lunate.json`: `SHA256_PLACEHOLDER_WIN_X64`
-- `packaging/winget/wdaniel1993.lunate.installer.yaml`: `InstallerSha256` (uppercase hex)
-- `PackageVersion` in all three winget manifests, set to the tag's version: `packaging/winget/wdaniel1993.lunate.yaml`,
-  `packaging/winget/wdaniel1993.lunate.installer.yaml` and `packaging/winget/wdaniel1993.lunate.locale.en-US.yaml`.
-  winget rejects a manifest set whose versions differ; the 0.4.0 locale file was left at 0.2.1 when
-  this list named only the installer.
+The command reads only the checksum file it is given. It rewrites the two Homebrew URLs and their
+`sha256` values, the Scoop `version`, `url` and `hash`, and `PackageVersion` in all three winget
+manifests plus `InstallerUrl` and the uppercase `InstallerSha256` in the installer manifest. It
+refuses, naming the missing archive or the manifest whose shape moved and writing nothing, when
+`SHA256SUMS` does not carry `lunate-osx-arm64.tar.gz`, `lunate-linux-x64.tar.gz` or
+`lunate-win-x64.zip`, or when a manifest no longer carries the lines it edits; a second run is a
+no-op. `scripts/check-channel-manifests.py` then measures the result against the same release.
 
 ```sh
-git add packaging
-git commit -m "chore: fill 0.1.0 release hashes"
+git add packaging README.md
+git commit -m "chore: fill <version> release hashes"
 git push
 ```
 
@@ -231,7 +233,7 @@ and a version number is never reused for different bytes.
 
 - Assemble the changelog in the release pull request (`scripts/changelog-assemble --release <version>`) — step 1.
 - Tag the new version; the gate, publish, pack and attach jobs do the rest.
-- Fill the three sha values and the three winget `PackageVersion` lines again (step 4) and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
+- Fill the channel manifests from the new release's `SHA256SUMS` with `scripts/fill-release-hashes` (step 4), run `scripts/docs-sync --write`, and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
 - Run the release smoke against the tag (see *Release smoke*) before calling the release done.
 - The Scoop bucket autoupdates itself; winget needs a new `wingetcreate update wdaniel1993.lunate --version <v> --urls <zip-url>` submission.
-- Future work: automate the placeholder rewrite and the tap/bucket updates from the release workflow (a follow-up change); until then the steps above stay manual.
+- Future work: automate the tap/bucket updates from the release workflow (a follow-up change); until then the steps above stay manual.
