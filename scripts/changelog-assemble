@@ -2,19 +2,22 @@
 """Assemble the unreleased section of CHANGELOG.md from changes/<pull-request>.md fragments.
 
 A pull request writes its release-note line in its own fragment and never edits the changelog; the
-release pull request runs this script's --write and commits the result. The generated entries live
+release pull request runs this script's --release and commits the result. The generated entries live
 inside a marker pair at the top of their heading, so text a person wrote in the same section keeps
 its place and is never rewritten.
 
 Usage:
     changelog-assemble --check      # fail when CHANGELOG.md is not what the fragments produce
     changelog-assemble --write      # rewrite the unreleased section from the fragments
+    changelog-assemble --release <version> [--date YYYY-MM-DD]
+                                    # do the whole release pull request edit in one run
     changelog-assemble --root DIR   # run against another tree (the tests use this)
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import re
 import sys
 from pathlib import Path
@@ -24,9 +27,22 @@ START = "<!-- changelog-fragments:start -->"
 END = "<!-- changelog-fragments:end -->"
 UNRELEASED = "## [Unreleased]"
 FRAGMENT_NAME = re.compile(r"^([0-9]+)\.md$")
+PROPS = "Directory.Build.props"
+VERSION_ELEMENT = re.compile(r"^([ \t]*)<Version>([^<]*)</Version>", re.MULTILINE)
+SEMVER = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 # A bullet ends with one or more pull-request references, the changelog's own shape:
 # `(#1234).` for one pull request, `(#681, #682).` for a change that landed under several.
 REFERENCE = re.compile(r"\(#[0-9]+(?:, #[0-9]+)*\)\.?$")
+
+
+def write_text(path: Path, text: str) -> None:
+    """Write UTF-8 with LF on every platform; the bytes never depend on where they were written."""
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
 
 
 def display(path: Path, root: Path) -> str:
@@ -147,6 +163,11 @@ def strip_markers(body: list[str], where: str, errors: list[str]) -> list[str]:
     return kept
 
 
+def drop_marker_lines(body: list[str]) -> list[str]:
+    """Return `body` without the generated marker comments; the entries between them stay."""
+    return [line for line in body if line.strip() not in (START, END)]
+
+
 def split_blocks(body: list[str]) -> tuple[list[str], list[list[str]]]:
     """Split the section body into preamble lines and [heading, body lines] blocks."""
     preamble: list[str] = []
@@ -247,6 +268,135 @@ def assemble(text: str, fragments: list[tuple[int, str, list[str]]]) -> tuple[st
     return "\n".join(rebuilt) + "\n", []
 
 
+def parse_version(text: str) -> tuple[int, int, int, list[tuple[int, object]] | None] | None:
+    """Return (major, minor, patch, prerelease), or None when `text` is not a semantic version."""
+    match = SEMVER.match(text)
+    if match is None:
+        return None
+    major, minor, patch = (int(match.group(index)) for index in (1, 2, 3))
+    prerelease: list[tuple[int, object]] | None = None
+    if match.group(4) is not None:
+        prerelease = []
+        for identifier in match.group(4).split("."):
+            if identifier.isdigit():
+                if len(identifier) > 1 and identifier.startswith("0"):
+                    return None
+                prerelease.append((0, int(identifier)))
+            else:
+                prerelease.append((1, identifier))
+    return major, minor, patch, prerelease
+
+
+def is_newer(requested: tuple, current: tuple) -> bool:
+    """Return whether `requested` has a higher semantic-version precedence than `current`."""
+    if requested[:3] != current[:3]:
+        return requested[:3] > current[:3]
+    mine, theirs = requested[3], current[3]
+    if mine is None:
+        return theirs is not None
+    if theirs is None:
+        return False
+    for left, right in zip(mine, theirs):
+        if left != right:
+            return left > right
+    return len(mine) > len(theirs)
+
+
+def promote(assembled: str, version: str, date: str) -> tuple[str | None, list[str]]:
+    """Return (the changelog with its unreleased section promoted, errors)."""
+    errors: list[str] = []
+    lines = assembled.splitlines()
+    heading = f"## [{version}]"
+    if any(line.startswith(f"{heading} ") or line.rstrip() == heading for line in lines):
+        errors.append(
+            f"CHANGELOG.md: a '{heading}' section already exists; "
+            "a release promotes once and never twice"
+        )
+    unreleased = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
+    )
+    if unreleased is None:
+        errors.append(f"CHANGELOG.md: no '{UNRELEASED}' section to promote")
+    if errors:
+        return None, errors
+
+    end = len(lines)
+    for index in range(unreleased + 1, len(lines)):
+        if lines[index].startswith("## "):
+            end = index
+            break
+    body = trim(drop_marker_lines(lines[unreleased + 1 : end]))
+
+    rebuilt = lines[:unreleased] + [UNRELEASED, "", f"{heading} - {date}"]
+    if body:
+        rebuilt += [""] + body
+    tail = lines[end:]
+    if tail:
+        rebuilt += [""] + tail
+    return "\n".join(rebuilt) + "\n", []
+
+
+def release(
+    root: Path, current: str, fragments: list[tuple[int, str, list[str]]], version: str, date: str
+) -> tuple[str | None, str | None, list[int], list[str]]:
+    """Return (promoted changelog, new props text, consumed fragment numbers, errors).
+
+    Every refusal is collected before the caller writes anything, so a refused run leaves the tree
+    byte-identical.
+    """
+    errors: list[str] = []
+    requested = parse_version(version)
+    if requested is None:
+        errors.append(
+            f"--release {version}: not a semantic version; expected MAJOR.MINOR.PATCH "
+            "such as 0.5.0 or 0.5.0-rc.1"
+        )
+
+    props = root / PROPS
+    props_text = props.read_text(encoding="utf-8") if props.is_file() else None
+    bumped = None
+    if props_text is None:
+        errors.append(f"{PROPS}: does not exist; the release sets its <Version>")
+    else:
+        match = VERSION_ELEMENT.search(props_text)
+        if match is None:
+            errors.append(f"{PROPS}: no <Version> element to set")
+        else:
+            existing = match.group(2).strip()
+            current_version = parse_version(existing)
+            if current_version is None:
+                errors.append(f"{PROPS}: <Version> is '{existing}', not a semantic version")
+            elif requested is not None and not is_newer(requested, current_version):
+                errors.append(
+                    f"--release {version} is not newer than the current <Version> {existing} "
+                    f"in {PROPS}"
+                )
+            if requested is not None:
+                bumped = props_text[: match.start(2)] + version + props_text[match.end(2) :]
+
+    assembled, assembly_errors = assemble(current, fragments)
+    errors.extend(assembly_errors)
+    if errors:
+        return None, None, [], errors
+
+    promoted, promote_errors = promote(assembled, version, date)
+    errors.extend(promote_errors)
+    if errors:
+        return None, None, [], errors
+    return promoted, bumped, [number for number, _, _ in fragments], []
+
+
+def consume(root: Path, numbers: list[int]) -> int:
+    """Delete the fragments whose pull-request number is in `numbers`; return how many."""
+    removed = 0
+    for path in sorted((root / "changes").glob("*.md")):
+        match = FRAGMENT_NAME.match(path.name)
+        if match is not None and int(match.group(1)) in numbers:
+            path.unlink()
+            removed += 1
+    return removed
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Assemble CHANGELOG.md's unreleased section from changes/<number>.md fragments."
@@ -254,6 +404,15 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true", help="fail when the changelog is stale")
     mode.add_argument("--write", action="store_true", help="rewrite the unreleased section")
+    mode.add_argument(
+        "--release",
+        metavar="VERSION",
+        help="do the whole release pull request edit for VERSION in one run",
+    )
+    parser.add_argument(
+        "--date",
+        help="the release date, YYYY-MM-DD (default: today in UTC); only with --release",
+    )
     parser.add_argument(
         "--root",
         type=Path,
@@ -261,6 +420,18 @@ def main() -> int:
         help="repository root (default: the script's parent directory)",
     )
     arguments = parser.parse_args()
+
+    date = arguments.date
+    if arguments.release is None:
+        if date is not None:
+            parser.error("--date is only valid with --release")
+    else:
+        date = date or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+        try:
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            parser.error(f"--date {date}: expected YYYY-MM-DD")
+
     root = arguments.root.resolve()
     changelog = root / "CHANGELOG.md"
     if not changelog.is_file():
@@ -269,17 +440,36 @@ def main() -> int:
 
     fragments, errors = load_fragments(root)
     current = changelog.read_text(encoding="utf-8")
-    expected, assembly_errors = assemble(current, fragments)
-    errors.extend(assembly_errors)
+    promoted: str | None = None
+    bumped: str | None = None
+    consumed: list[int] = []
+    if arguments.release is not None:
+        promoted, bumped, consumed, release_errors = release(
+            root, current, fragments, arguments.release, date
+        )
+        errors.extend(release_errors)
+    else:
+        expected, assembly_errors = assemble(current, fragments)
+        errors.extend(assembly_errors)
     if errors:
         for error in errors:
             print(f"changelog-assemble: {error}", file=sys.stderr)
         return 1
 
+    if arguments.release is not None:
+        write_text(changelog, promoted)
+        write_text(root / PROPS, bumped)
+        removed = consume(root, consumed)
+        fragments_word = "fragment" if removed == 1 else "fragments"
+        print(
+            f"changelog-assemble: released {arguments.release} ({date}) from {removed} "
+            f"{fragments_word}; {PROPS} <Version> is {arguments.release}"
+        )
+        return 0
+
     if arguments.write:
         if expected != current:
-            with open(changelog, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(expected)
+            write_text(changelog, expected)
         print("changelog-assemble: wrote CHANGELOG.md")
         return 0
 

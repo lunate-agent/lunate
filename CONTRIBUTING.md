@@ -293,8 +293,9 @@ Every pull request that has a release-note line writes it in `changes/<pr-number
 one or more references, `(#<pr-number>)` or `(#681, #682)`. A fragment is prose, so such a pull request
 gets the docs profile. The release
 pull request — branch `release/<version>` or a title starting `chore(release)` — is the only one
-that edits the changelog: it runs `scripts/changelog-assemble --write`, commits the result and
-deletes the consumed fragments. `ci-ok` fails any other pull request that edits `CHANGELOG.md` and
+that edits the changelog: it runs `scripts/changelog-assemble --release <version>`, commits the result
+(`CHANGELOG.md`, `Directory.Build.props` and the deleted fragments) and never promotes twice. `ci-ok`
+fails any other pull request that edits `CHANGELOG.md` and
 names the fragment path to use.
 
 ## Trust in scripted runs
