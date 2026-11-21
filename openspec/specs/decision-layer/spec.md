@@ -84,18 +84,15 @@ The primitive SHALL be available to extensions as a service: `IDecisionService` 
 `Lunate.Extensibility.Abstractions`, the evaluator SHALL live in `Lunate.Agent`, and
 `Lunate.Extensibility` SHALL bridge and register the service so an extension can resolve it. The
 decision model — the request, the question kinds, the answer and the result — SHALL live in
-`Lunate.Decisions.Model`, its own package and the one home of the model, and SHALL be the type the
-service, the transport, the parser and every consumer use. The engine — the chat adapter, the
-builder, the OpenTelemetry wrapper, the parser and the validator — SHALL live in
-`Lunate.Ai.Decisions`, which is not a package of its own. The dependency SHALL run from
-`Lunate.Decisions.Model` to `Lunate.Contracts` and never back, and from `Lunate.Ai.Decisions` to both
-and never back: neither the contract assembly nor the model package SHALL contain a decision engine
-type, and the event channel SHALL keep publishing the one distribution record
+`Lunate.Ai.Decisions`, one model with one home, and SHALL be the type the service, the transport,
+the parser and every consumer use. The dependency SHALL run from `Lunate.Ai.Decisions` to
+`Lunate.Contracts` and never back: the contract assembly SHALL NOT contain a decision request or
+result type, and the event channel SHALL keep publishing the one distribution record
 (`Lunate.Contracts.DecisionProbability`) that `DecisionEvaluated` exposes.
-`Lunate.Extensibility.Abstractions` SHALL reference `Lunate.Decisions.Model` and
-`Lunate.Contracts`, and SHALL NOT reference `Lunate.Agent` or `Lunate.Ai.Decisions`. Front ends SHALL
-keep observing decisions through the agent event channel (`DecisionEvaluated`, `DecisionUnavailable`,
-`DecisionFailed`).
+`Lunate.Extensibility.Abstractions` SHALL reference `Lunate.Ai.Decisions` and `Lunate.Contracts`, and
+SHALL NOT reference `Lunate.Agent`. Front ends SHALL keep observing decisions through the agent event channel
+(`DecisionEvaluated`, `DecisionUnavailable`, `DecisionFailed`). The public shape SHALL land before
+#237 publishes `Lunate.Extensibility.Abstractions` as stable.
 
 #### Scenario: An extension requests a decision
 
@@ -107,12 +104,11 @@ keep observing decisions through the agent event channel (`DecisionEvaluated`, `
 #### Scenario: The extension service preserves the assembly boundary
 
 - **GIVEN** the decision service in `Lunate.Extensibility.Abstractions` and the model in
-  `Lunate.Decisions.Model`
+  `Lunate.Ai.Decisions`
 - **WHEN** the layering test runs
-- **THEN** Abstractions references `Lunate.Decisions.Model` and `Lunate.Contracts` but not Agent or
-  `Lunate.Ai.Decisions`, the model package references `Lunate.Contracts` and nothing above it,
-  `Lunate.Ai.Decisions` references the model and `Lunate.Contracts` and nothing above it, and no
-  decision type names a provider, a tool or the loop
+- **THEN** Abstractions references `Lunate.Ai.Decisions` and `Lunate.Contracts` but not Agent,
+  `Lunate.Ai.Decisions` references `Lunate.Contracts` and nothing above it, and no decision type
+  names a provider, a tool or the loop
 
 #### Scenario: One request type reaches the transport
 
