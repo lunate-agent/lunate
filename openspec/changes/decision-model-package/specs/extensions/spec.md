@@ -120,10 +120,11 @@ its own and when a packaged extension's directory carries one: the copy SHALL be
 SHALL succeed, and exactly one line SHALL name what was dropped and who shipped it. That line SHALL
 be logged and SHALL appear on the extension's `/extensions` row (and as `ignoredCopy` in `--json`),
 because which copy is live is not something a user can see for themselves. The authoring template and
-the authoring page SHALL show references to `Lunate.Contracts` and
+the authoring page SHALL show references to `Lunate.Contracts`, `Lunate.Decisions.Model` and
 `Lunate.Extensibility.Abstractions` as `PrivateAssets="all"`, `ExcludeAssets="runtime"` and
-`Private="false"`, with one sentence saying the host owns those assemblies and the decision model
-package the Abstractions reference brings with it.
+`Private="false"`, with one sentence saying the host owns those assemblies. The model SHALL carry
+a reference of its own beside the Abstractions one: the package dependency alone would bring a copy
+into the extension's output directory, where a load ignores it and warns once for nothing.
 
 #### Scenario: A copied Abstractions is ignored, not loaded twice
 
@@ -152,7 +153,7 @@ package the Abstractions reference brings with it.
 
 - **GIVEN** the packaged-extension template
 - **WHEN** its project file is read
-- **THEN** its `Lunate.Contracts` and `Lunate.Extensibility.Abstractions` references carry
-  `PrivateAssets="all"`, `ExcludeAssets="runtime"` and `Private="false"`, and neither DLL is
-  written to the extension's output, while `Lunate.Decisions.Model` reaches it as the Abstractions
-  package's dependency
+- **THEN** its `Lunate.Contracts`, `Lunate.Decisions.Model` and
+  `Lunate.Extensibility.Abstractions` references carry `PrivateAssets="all"`,
+  `ExcludeAssets="runtime"` and `Private="false"`, and none of the three DLLs is written to the
+  extension's output

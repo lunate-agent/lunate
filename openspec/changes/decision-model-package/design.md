@@ -68,7 +68,11 @@ to `Lunate.Decisions.Model`, and its `PackOwnAssemblies` target is deleted. Noth
 `Lunate.Agent` references `Lunate.Ai.Decisions` for runtime, so `Lunate.Extensibility` references the
 model for `IAgentDecisionService`, and `Lunate.Extensibility.Compile` embeds the model assembly and
 offers it to the compiler. `HostOwnedAssemblies` names the model, so a copy of it is ignored at load
-exactly like a copy of the contracts.
+exactly like a copy of the contracts. Every extension project therefore references the model
+compile-only beside the contract pair: an extension's only reference to Abstractions carries the
+model as a transitive runtime asset, so without that reference the copy lands in the extension's
+output — and in a bundled package — where the load ignores it and the bundle carries an assembly
+nobody loads.
 
 ### 5. The seams are public in the model package
 

@@ -37,7 +37,11 @@ reference; nothing else in this decision changes."* Issue #972 is that change.
    and no longer references or packs the engine.
 5. **The host owns the model at load.** `Lunate.Extensibility.Compile` embeds
    `Lunate.Decisions.Model` for extension compilation, and `HostOwnedAssemblies` names it instead of
-   the engine, so a copy an extension ships is ignored exactly like a copy of the contracts.
+   the engine, so a copy an extension ships is ignored exactly like a copy of the contracts. Every
+   extension project therefore references the model compile-only beside the contract pair — an
+   extension's only reference to Abstractions carries the model as a transitive runtime asset, and
+   without the reference that copy lands in the extension's output, where the load ignores it and the
+   bundle carries an assembly nobody loads.
 
 ## Consequences
 
@@ -47,6 +51,8 @@ reference; nothing else in this decision changes."* Issue #972 is that change.
 - A test project referencing both `Lunate.Agent` and `Lunate.Extensibility.Abstractions` sees one
   model assembly and one engine assembly, not two of the engine.
 - `Lunate.Decisions.Model` gains the `PublicAPI` gate; its surface can no longer grow by accident.
+- An extension references three host assemblies compile-only instead of two, so its output and its
+  bundle carry no copy of the model and a load logs no ignored-copy warning for it.
 - The engine's surface is no longer an extension contract; a future engine change does not move
   `ExtensionApi` unless it also changes the model package.
 - `ExtensionApi.Current` does not move: the decision types were unshipped, and the contract package's

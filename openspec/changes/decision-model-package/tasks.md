@@ -31,6 +31,11 @@
 - [x] 4.2 Add a test that the model types and both seams live in `Lunate.Decisions.Model`, that the
       engine types stay internal, and that the pack list and release workflow name the package.
 - [x] 4.3 Run the named test classes and a Release build of every touched project.
+- [x] 4.4 Reference the model compile-only from every extension project and from both template
+      shapes, so an extension's output carries no host-owned assembly, and teach the template test
+      and the authoring page the third reference.
+- [x] 4.5 Pack the model into the template copy's end-to-end feed, where the Abstractions nuspec
+      already names it.
 
 ## 5. Docs and close-out
 

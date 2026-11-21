@@ -23,9 +23,10 @@ template restores from, so a template built against packages proves the dependen
 - **THEN** it packs and metadata-checks `Lunate.Decisions.Model` and fails when the expected package
   file is missing
 
-#### Scenario: The template restores the model through Abstractions
+#### Scenario: The template restores the model from the feed
 
 - **GIVEN** the verify gate's contract-package feed
 - **WHEN** the packaged-extension template restores against it
-- **THEN** `Lunate.Extensibility.Abstractions` resolves its `Lunate.Decisions.Model` dependency from
-  the freshly packed feed, not from a released copy
+- **THEN** the template's own `Lunate.Decisions.Model` reference and the dependent
+  `Lunate.Extensibility.Abstractions` both resolve from the freshly packed feed, not from a released
+  copy

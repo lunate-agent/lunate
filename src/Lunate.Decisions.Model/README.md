@@ -18,8 +18,10 @@ dotnet add package Lunate.Decisions.Model --version 1.16.0
 It depends on [`Lunate.Contracts`](https://www.nuget.org/packages/Lunate.Contracts) (same version) for
 the `DecisionProbability` record the event channel publishes, and on
 `Microsoft.Extensions.AI.Abstractions` for the usage types. `Lunate.Extensibility.Abstractions` brings
-it in as a package dependency, so an extension that references the contract resolves the model without
-a second reference.
+it in as a package dependency, so an extension that references the contract compiles against the
+model without a second reference; referencing it compile-only beside the contract keeps the copy the
+dependency would otherwise bring out of the extension's output, which is what the authoring template
+does.
 
 ## The model, not the engine
 
