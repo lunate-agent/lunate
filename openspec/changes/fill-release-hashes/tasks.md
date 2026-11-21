@@ -23,6 +23,6 @@
 
 - [x] 4.1 Update `docs/dev/distribution.md` step 4 to name the command and the `docs-sync --write`
       follow-up.
-- [ ] 4.2 Write the changelog fragment for the pull request.
+- [x] 4.2 Write the changelog fragment for the pull request.
 - [ ] 4.3 Run the fast gate, `openspec validate fill-release-hashes --type change --strict`, then
       archive the change as the last commit.
