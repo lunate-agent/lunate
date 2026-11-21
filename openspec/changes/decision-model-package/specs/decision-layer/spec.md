@@ -62,7 +62,8 @@ type, and the event channel SHALL keep publishing the one distribution record
 `Lunate.Extensibility.Abstractions` SHALL reference `Lunate.Decisions.Model` and
 `Lunate.Contracts`, and SHALL NOT reference `Lunate.Agent` or `Lunate.Ai.Decisions`. Front ends SHALL
 keep observing decisions through the agent event channel (`DecisionEvaluated`, `DecisionUnavailable`,
-`DecisionFailed`).
+`DecisionFailed`). The public shape SHALL land before #237 publishes
+`Lunate.Extensibility.Abstractions` as stable.
 
 #### Scenario: An extension requests a decision
 
