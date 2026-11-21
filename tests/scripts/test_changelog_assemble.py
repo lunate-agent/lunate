@@ -57,6 +57,13 @@ def make_tree(
     return root
 
 
+def released_changelog(heading: str = "## [0.4.0] - 2026-11-14") -> str:
+    return (
+        "# Changelog\n\n## [Unreleased]\n\n"
+        f"{heading}\n\n### Fixed\n\n- A released entry (#1).\n"
+    )
+
+
 def body_of(text: str, heading: str) -> str:
     """Return the trimmed lines between `heading` and the next `## ` heading."""
     lines = text.splitlines()
@@ -470,6 +477,131 @@ class ChangelogAssembleTests(unittest.TestCase):
         result = run(root, "--check", "--date", "2026-12-01")
 
         self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+
+
+class ChangelogTagCheckTests(unittest.TestCase):
+    """`--check --tag <tag>`: the tag's own release heading and `<Version>`."""
+
+    def setUp(self) -> None:
+        self.trees: list[Path] = []
+
+    def tearDown(self) -> None:
+        for tree in self.trees:
+            shutil.rmtree(tree, ignore_errors=True)
+
+    def tree(self, changelog: str, version: str = "0.4.0") -> Path:
+        root = make_tree({}, changelog, version)
+        self.trees.append(root)
+        return root
+
+    def released(self, heading: str = "## [0.4.0] - 2026-11-14", version: str = "0.4.0") -> Path:
+        return self.tree(released_changelog(heading), version)
+
+    def test_a_correct_tag_passes(self) -> None:
+        result = run(self.released(), "--check", "--tag", "v0.4.0")
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertIn("v0.4.0", result.stdout)
+
+    def test_a_prerelease_tag_passes(self) -> None:
+        root = self.released("## [0.5.0-rc.1] - 2026-11-14", version="0.5.0-rc.1")
+
+        result = run(root, "--check", "--tag", "v0.5.0-rc.1")
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_a_subheading_inside_unreleased_is_not_the_release_heading(self) -> None:
+        root = self.tree(
+            "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- Pending (#1).\n\n"
+            "## [0.4.0] - 2026-11-14\n\n### Fixed\n\n- A released entry (#2).\n"
+        )
+
+        result = run(root, "--check", "--tag", "v0.4.0")
+
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_a_missing_heading_fails_by_name(self) -> None:
+        root = self.tree("# Changelog\n\n## [Unreleased]\n\n- Pending (#1).\n")
+
+        result = run(root, "--check", "--tag", "v0.4.0")
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("no '## ' heading below '## [Unreleased]'", result.stderr)
+        self.assertIn("expected '## [0.4.0] - YYYY-MM-DD'", result.stderr)
+        self.assertIn("v0.4.0", result.stderr)
+
+    def test_a_missing_unreleased_section_fails_by_name(self) -> None:
+        root = self.tree(
+            "# Changelog\n\n## [0.4.0] - 2026-11-14\n\n### Fixed\n\n- A released entry (#1).\n"
+        )
+
+        result = run(root, "--check", "--tag", "v0.4.0")
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("no '## [Unreleased]' section", result.stderr)
+        self.assertIn("expected '## [0.4.0] - YYYY-MM-DD'", result.stderr)
+
+    def test_a_heading_for_another_version_fails_by_name(self) -> None:
+        result = run(self.released("## [0.3.0] - 2026-11-09"), "--check", "--tag", "v0.4.0")
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("'## [0.3.0] - 2026-11-09'", result.stderr)
+        self.assertIn("expected '## [0.4.0] - YYYY-MM-DD'", result.stderr)
+
+    def test_a_wrong_date_spelling_fails_by_name(self) -> None:
+        # The first two are forms `date.fromisoformat` also accepts, so the exact spelling is checked
+        # first; the last is a well-spelled date no calendar has.
+        for heading in (
+            "## [0.4.0] - 2026-1-2",
+            "## [0.4.0] - 20261201",
+            "## [0.4.0] - 2026-W49-1",
+            "## [0.4.0] - 2026-02-30",
+            "## [0.4.0]",
+        ):
+            with self.subTest(heading=heading):
+                result = run(self.released(heading), "--check", "--tag", "v0.4.0")
+
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn(heading, result.stderr)
+                self.assertIn("expected '## [0.4.0] - YYYY-MM-DD'", result.stderr)
+
+    def test_a_props_mismatch_fails_by_name(self) -> None:
+        result = run(self.released(version="0.3.0"), "--check", "--tag", "v0.4.0")
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn(
+            "Directory.Build.props: <Version> is '0.3.0'; expected '0.4.0'", result.stderr
+        )
+
+    def test_every_failure_is_reported_in_one_run(self) -> None:
+        result = run(
+            self.released("## [0.3.0] - 2026-11-09", version="0.3.0"),
+            "--check",
+            "--tag",
+            "v0.4.0",
+        )
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("'## [0.3.0] - 2026-11-09'", result.stderr)
+        self.assertIn("<Version> is '0.3.0'", result.stderr)
+
+    def test_a_tag_without_its_v_is_refused_by_name(self) -> None:
+        result = run(self.released(), "--check", "--tag", "0.4.0")
+
+        self.assertEqual(1, result.returncode)
+        self.assertIn("--tag '0.4.0': expected a release tag such as v0.4.0", result.stderr)
+
+    def test_the_tag_is_a_check_only_option(self) -> None:
+        for mode in (["--write"], ["--release", "0.5.0", "--date", "2026-12-01"]):
+            with self.subTest(mode=mode):
+                root = self.released()
+                before = snapshot(root)
+
+                result = run(root, *mode, "--tag", "v0.4.0")
+
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                self.assertIn("--tag is only valid with --check", result.stderr)
+                self.assertEqual(before, snapshot(root))
 
 
 if __name__ == "__main__":

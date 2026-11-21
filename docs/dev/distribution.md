@@ -81,8 +81,11 @@ fresh empty `## [Unreleased]` above it, deletes the consumed fragments and sets 
 `Directory.Build.props` and the deleted `changes/<n>.md` files. It refuses, writing nothing and
 naming the reason, when the version is not newer than the current `<Version>`, when a
 `## [<version>]` section already exists, or when a fragment is invalid — so running it twice is
-refused and never promotes twice. The Release workflow runs `--check` on the tag, so a fragment that
-merged after this pull request fails the tag by name instead of shipping unassembled notes.
+refused and never promotes twice. The Release workflow runs `--check --tag <tag>` on the tag, so a
+fragment that merged after this pull request fails the tag by name instead of shipping unassembled
+notes, and so does a `CHANGELOG.md` whose first heading below `## [Unreleased]` is not the tag's
+`## [<version>] - <YYYY-MM-DD>` or a `Directory.Build.props` whose `<Version>` is not the tag's
+version.
 
 The repository verifies the lane contract at the tag instead of trusting this runbook. A pull
 request on `release/<version>` or titled `chore(release): <version>` is exempt from the changelog
@@ -96,9 +99,9 @@ repos/lunate-agent/lunate/commits/<sha>/pulls`, and `gh release view <tag>`.
 
 ### 2. Tag the release
 
-The Release workflow fails the tag when it does not match `<Version>` in `Directory.Build.props`,
-when the tagged commit is not on `main`, or when that commit is not a merged release pull request;
-the release pull request must be merged first.
+The Release workflow fails the tag when `CHANGELOG.md`'s first release heading or `<Version>` in
+`Directory.Build.props` is not the tag's version, when the tagged commit is not on `main`, or when
+that commit is not a merged release pull request; the release pull request must be merged first.
 
 ```sh
 git switch main

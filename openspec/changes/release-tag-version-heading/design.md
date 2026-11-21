@@ -57,10 +57,11 @@ can never quietly run the tag proof.
 
 ### The first level-2 heading below `## [Unreleased]`
 
-The assembler already treats a line starting `## ` as the end of the unreleased section, so the same
-boundary decides the release heading: the first `## ` line after `## [Unreleased]`. `### Added` and
-its siblings are inside the unreleased section and are never the release heading. If no `## ` line
-follows, the failure names the missing section and the expected heading rather than an exception.
+The assembler already treats a line starting with the level-2 marker (`##`) as the end of the
+unreleased section, so the same boundary decides the release heading: the first such line after
+`## [Unreleased]`. `### Added` and its siblings are inside the unreleased section and are never the
+release heading. If no level-2 line follows, the failure names the missing section and the expected
+heading rather than an exception.
 
 The heading is matched as `## [<version>] - <date>` as a whole. A heading without the date, a heading
 for another version, and a heading with a date the release process does not spell are different
