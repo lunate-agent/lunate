@@ -449,6 +449,7 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/check-channel-manifests.py" --self-test
 
   step "channel manifests"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_fill_release_hashes.py"
   python3 "${SCRIPT_DIR}/check-channel-manifests.py" --root "$PWD"
 
   step "published channel version guard"
