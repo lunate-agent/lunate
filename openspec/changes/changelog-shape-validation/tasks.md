@@ -32,9 +32,9 @@
 - [x] 4.1 `openspec/specs/ci-pipeline` delta: the shape check, its named diagnostics and the
       entry-count refusal in the *Changelog assembly* requirement.
 - [x] 4.2 `changes/<pull-request>.md`: this change's own fragment under `### Fixed`.
-- [ ] 4.3 `python3 tests/scripts/test_changelog_assemble.py`, `python3 tests/scripts/test_changelog_guard.py`,
+- [x] 4.3 `python3 tests/scripts/test_changelog_assemble.py`, `python3 tests/scripts/test_changelog_guard.py`,
       `dotnet csharpier check .`, `openspec validate changelog-shape-validation --type change --strict`.
       (A plain `--check` run on this branch's tree is expected to fail: the open fragments are
       assembled by the release pull request, not by an ordinary branch.)
-- [ ] 4.4 `openspec sync-specs` then `openspec archive changelog-shape-validation --yes` as the final
+- [x] 4.4 `openspec sync-specs` then `openspec archive changelog-shape-validation --yes` as the final
       commit.
