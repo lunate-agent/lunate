@@ -202,8 +202,8 @@ Notable changes to Lunate, one section per release. The format follows
   hook-result families (`ProjectTrustResult`, `InputReceivedResult`, `RunStartingResult`,
   `MessageCompletedResult`, `ToolCallingResult`, `TurnEndedResult`, `CompactingResult`), are `union`
   types over their case records, so the set of event kinds and hook outcomes is fixed at compile time
-  and a consumer's `switch` is checked for exhaustiveness (ADR-0043 (contract unions),
-  superseding ADR-0042 (contract closed sets)). **Version note for extension
+  and a consumer's `switch` is checked for exhaustiveness (ADR-0043 contract unions,
+  superseding ADR-0042 contract closed sets). **Version note for extension
   authors:** every type name, case name, constructor and the `IHookResult`/`IHookPayload` markers are
   unchanged, so `new ToolCallingResult.Block("held")` and `is ToolCallingResult.Block` compile as
   before, and the hook wire and the `--json` event stream are byte-identical. What changes is the
