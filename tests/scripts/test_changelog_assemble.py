@@ -365,15 +365,17 @@ class ChangelogAssembleTests(unittest.TestCase):
 
     def test_a_repeated_heading_in_a_released_section_is_refused_by_name(self) -> None:
         released = CLEAN.replace("### Fixed\n\n- A released entry", "### Added\n\n- A released entry")
-        root = self.tree({}, changelog=released)
+        root = self.tree({}, changelog=released, version="0.3.0")
 
-        result = run(root, "--check")
+        for arguments in (("--check",), ("--check", "--tag", "v0.3.0")):
+            with self.subTest(arguments=arguments):
+                result = run(root, *arguments)
 
-        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
-        self.assertIn("CHANGELOG.md:21:", result.stderr)
-        self.assertIn("'### Added'", result.stderr)
-        self.assertIn("line 17", result.stderr)
-        self.assertIn("'## [0.3.0] - 2026-11-09'", result.stderr)
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("CHANGELOG.md:21:", result.stderr)
+                self.assertIn("'### Added'", result.stderr)
+                self.assertIn("line 17", result.stderr)
+                self.assertIn("'## [0.3.0] - 2026-11-09'", result.stderr)
 
     def test_a_second_unreleased_section_is_refused_by_name(self) -> None:
         root = self.tree({}, changelog=DOUBLE_UNRELEASED)
