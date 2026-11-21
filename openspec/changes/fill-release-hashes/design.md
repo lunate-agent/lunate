@@ -74,9 +74,11 @@ Only the matched value is rewritten, so comments, ordering and the `$schema` lin
 
 Scoop is JSON, so the command parses it, validates that `architecture.64bit` carries a version, a
 `lunate-win-x64.zip` URL and a 64-hex `hash`, then serialises it with the same four-space indentation
-the file already uses. The current file round-trips byte-for-byte through
-`json.dumps(..., indent=4) + "\n"`, which the test pins; a future formatting change would make the
-command refuse only if the shape (not the whitespace) changed.
+the file already uses. The decoder refuses a duplicated object member name before validation, so a
+manifest with two `hash` members is named and rejected rather than silently collapsed to one. The
+current file round-trips byte-for-byte through `json.dumps(..., indent=4) + "\n"`, which the test
+pins; a future formatting change would make the command refuse only if the shape (not the
+whitespace) changed.
 
 ### Validate everything, then write only what changed
 

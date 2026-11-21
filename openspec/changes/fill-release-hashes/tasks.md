@@ -18,6 +18,8 @@
 - [x] 3.1 Add `tests/scripts/test_fill_release_hashes.py`: the 0.4.0 golden comparison, the channel
       guard passing, the docs-sync README update, every refusal and the idempotent second run.
 - [x] 3.2 Wire the test into `scripts/verify.sh`'s platform channel-manifest step.
+- [x] 3.3 Refuse a duplicated Scoop JSON member and pin the refusal with a regression test that
+      proves the manifest bytes are untouched.
 
 ## 4. Docs and close-out
 

@@ -202,6 +202,23 @@ class FillReleaseHashesTests(unittest.TestCase):
         self.assertIn("found 2", result.stderr)
         self.assertEqual(before, snapshot(root))
 
+    def test_a_duplicated_scoop_key_is_refused(self) -> None:
+        root = self.tree()
+        path = root / SCOOP
+        original = path.read_text(encoding="utf-8")
+        needle = '            "hash": "'
+        duplicate = '            "hash": "' + "0" * 64 + '",\n'
+        write(path, original.replace(needle, duplicate + needle, 1))
+        before = snapshot(root)
+
+        result = run(root, "v0.4.0", "--sums", str(SUMS))
+
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn(SCOOP, result.stderr)
+        self.assertIn("duplicate", result.stderr)
+        self.assertIn('"hash"', result.stderr)
+        self.assertEqual(before, snapshot(root))
+
     def test_a_malformed_checksum_file_is_refused(self) -> None:
         root = self.tree()
         before = snapshot(root)

@@ -49,6 +49,24 @@ INSTALLER_SHA256 = re.compile(
 )
 
 
+class DuplicateKey(ValueError):
+    """A JSON object carried the same member name twice."""
+
+    def __init__(self, key: str) -> None:
+        super().__init__(key)
+        self.key = key
+
+
+def no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Build a JSON object, refusing a member name that appears more than once."""
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise DuplicateKey(key)
+        result[key] = value
+    return result
+
+
 def write_text(path: Path, text: str) -> None:
     """Write UTF-8 with LF on every platform; the bytes never depend on where they were written."""
     with open(path, "w", encoding="utf-8", newline="\n") as handle:
@@ -112,7 +130,9 @@ def fill_homebrew(text: str, tag: str, sums: dict[str, str]) -> tuple[str | None
 def fill_scoop(text: str, tag: str, sums: dict[str, str]) -> tuple[str | None, list[str]]:
     where = SCOOP
     try:
-        data = json.loads(text)
+        data = json.loads(text, object_pairs_hook=no_duplicate_keys)
+    except DuplicateKey as error:
+        return None, [f'{where}: duplicate JSON key "{error.key}"; expected each key exactly once']
     except json.JSONDecodeError as error:
         return None, [f"{where}: invalid JSON: {error}"]
     if not isinstance(data, dict):
