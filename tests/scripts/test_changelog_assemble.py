@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import datetime
+import importlib.util
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -55,6 +57,99 @@ def make_tree(
     write(root / "CHANGELOG.md", changelog)
     write(root / "Directory.Build.props", PROPS.format(version=version))
     return root
+
+
+# The shapes the assembler cannot read reliably: it would drop the first block's bullet, carry a
+# bullet that no heading owns, or never look at the second unreleased section.
+DOUBLE_ADDED = """# Changelog
+
+## [Unreleased]
+
+### Added
+
+- First hand-written entry (#1).
+
+### Added
+
+- Second hand-written entry (#2).
+
+## [0.3.0] - 2026-11-09
+
+### Fixed
+
+- A released entry keeps its text (#3).
+"""
+
+STRAY_ENTRY = """# Changelog
+
+## [Unreleased]
+
+- A stray entry (#1).
+
+### Fixed
+
+- A real entry (#2).
+
+## [0.3.0] - 2026-11-09
+
+### Fixed
+
+- A released entry keeps its text (#3).
+"""
+
+DOUBLE_UNRELEASED = """# Changelog
+
+## [Unreleased]
+
+### Added
+
+- A first-section entry (#1).
+
+## [Unreleased]
+
+### Fixed
+
+- An entry in the second section (#2).
+
+## [0.3.0] - 2026-11-09
+
+### Fixed
+
+- A released entry keeps its text (#3).
+"""
+
+CLEAN = """# Changelog
+
+## [Unreleased]
+
+### Added
+
+- A pending addition (#1).
+
+### Fixed
+
+- A pending fix (#2).
+
+## [0.3.0] - 2026-11-09
+
+The 0.3.0 release, in the prose a released section keeps above its headings.
+
+### Added
+
+- A released addition (#3).
+
+### Fixed
+
+- A released entry keeps its text (#4).
+"""
+
+
+def load_assembler():
+    """Load `scripts/changelog-assemble` as a module; it has no `.py` name to import."""
+    loader = SourceFileLoader("changelog_assemble", str(ASSEMBLER))
+    module = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader))
+    loader.exec_module(module)
+    return module
 
 
 def released_changelog(heading: str = "## [0.4.0] - 2026-11-14") -> str:
@@ -200,9 +295,11 @@ class ChangelogAssembleTests(unittest.TestCase):
 
         self.assertEqual(0, written.returncode, written.stderr)
         self.assertEqual(0, checked.returncode, checked.stderr)
-        self.assertIn("The wizard (#681, #682).", (root / "CHANGELOG.md").read_text())
+        self.assertIn(
+            "The wizard (#681, #682).", (root / "CHANGELOG.md").read_text(encoding="utf-8")
+        )
 
-
+    def test_a_bullet_with_trailing_text_is_malformed(self) -> None:
         root = self.tree({"1234.md": fragment("### Fixed", "- The fix (#1234) trailing.")})
 
         result = run(root, "--check")
@@ -250,6 +347,73 @@ class ChangelogAssembleTests(unittest.TestCase):
 
         self.assertEqual(1, result.returncode)
         self.assertEqual(before, (root / "CHANGELOG.md").read_text(encoding="utf-8"))
+
+    def test_a_repeated_heading_in_one_section_is_refused_by_name(self) -> None:
+        root = self.tree({}, changelog=DOUBLE_ADDED)
+        before = snapshot(root)
+
+        checked = run(root, "--check")
+        written = run(root, "--write")
+
+        for result in (checked, written):
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertIn("CHANGELOG.md:9:", result.stderr)
+            self.assertIn("'### Added'", result.stderr)
+            self.assertIn("line 5", result.stderr)
+        self.assertEqual(before, snapshot(root))
+        self.assertIn("First hand-written entry (#1).", before["CHANGELOG.md"].decode("utf-8"))
+
+    def test_a_repeated_heading_in_a_released_section_is_refused_by_name(self) -> None:
+        released = CLEAN.replace("### Fixed\n\n- A released entry", "### Added\n\n- A released entry")
+        root = self.tree({}, changelog=released, version="0.3.0")
+
+        for arguments in (("--check",), ("--check", "--tag", "v0.3.0")):
+            with self.subTest(arguments=arguments):
+                result = run(root, *arguments)
+
+                self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+                self.assertIn("CHANGELOG.md:21:", result.stderr)
+                self.assertIn("'### Added'", result.stderr)
+                self.assertIn("line 17", result.stderr)
+                self.assertIn("'## [0.3.0] - 2026-11-09'", result.stderr)
+
+    def test_a_second_unreleased_section_is_refused_by_name(self) -> None:
+        root = self.tree({}, changelog=DOUBLE_UNRELEASED)
+        before = snapshot(root)
+
+        checked = run(root, "--check")
+        released = run(root, "--release", "0.5.0", "--date", "2026-12-01")
+
+        for result in (checked, released):
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertIn("CHANGELOG.md:9:", result.stderr)
+            self.assertIn("'## [Unreleased]'", result.stderr)
+            self.assertIn("line 3", result.stderr)
+        self.assertEqual(before, snapshot(root))
+
+    def test_text_outside_a_heading_in_the_unreleased_section_is_refused_by_name(self) -> None:
+        root = self.tree({}, changelog=STRAY_ENTRY)
+        before = snapshot(root)
+
+        checked = run(root, "--check")
+        written = run(root, "--write")
+
+        for result in (checked, written):
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertIn("CHANGELOG.md:5:", result.stderr)
+            self.assertIn("outside any '###' heading", result.stderr)
+            self.assertIn("'- A stray entry (#1).'", result.stderr)
+        self.assertEqual(before, snapshot(root))
+
+    def test_a_clean_changelog_passes(self) -> None:
+        root = self.tree({}, changelog=CLEAN)
+
+        checked = run(root, "--check")
+        written = run(root, "--write")
+
+        self.assertEqual(0, checked.returncode, checked.stdout + checked.stderr)
+        self.assertEqual(0, written.returncode, written.stdout + written.stderr)
+        self.assertEqual(CLEAN, (root / "CHANGELOG.md").read_text(encoding="utf-8"))
 
     def test_no_fragments_and_no_markers_pass(self) -> None:
         root = self.tree({})
@@ -477,6 +641,50 @@ class ChangelogAssembleTests(unittest.TestCase):
         result = run(root, "--check", "--date", "2026-12-01")
 
         self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+
+
+class ChangelogEntryCountTests(unittest.TestCase):
+    """The write-time guard: the assembly never carries fewer entries than it read.
+
+    The shape check refuses every file the guard would fire on, so a lost entry is unreachable
+    through the command line; the guard is defence in depth and is exercised on its own functions,
+    while the end-to-end cases above pin that no hand-written entry is dropped.
+    """
+
+    def setUp(self) -> None:
+        self.assembler = load_assembler()
+
+    def test_the_count_skips_the_generated_region(self) -> None:
+        text = (
+            "# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n"
+            "<!-- changelog-fragments:start -->\n- A generated entry (#1).\n"
+            "<!-- changelog-fragments:end -->\n\n- A hand-written entry (#2).\n"
+        )
+
+        self.assertEqual(1, self.assembler.kept_entries(text))
+
+    def test_a_released_section_does_not_add_to_the_count(self) -> None:
+        self.assertEqual(2, self.assembler.kept_entries(CLEAN))
+        self.assertEqual(0, self.assembler.kept_entries("# Changelog\n"))
+
+    def test_equal_counts_are_accepted(self) -> None:
+        self.assertEqual([], self.assembler.entry_count_errors(2, 2))
+        self.assertEqual([], self.assembler.entry_count_errors(0, 0))
+
+    def test_a_lost_entry_is_refused_naming_both_counts(self) -> None:
+        errors = self.assembler.entry_count_errors(2, 1)
+
+        self.assertEqual(1, len(errors))
+        self.assertIn("CHANGELOG.md:", errors[0])
+        self.assertIn("1 entry", errors[0])
+        self.assertIn("2 entries", errors[0])
+
+    def test_an_extra_entry_is_refused_too(self) -> None:
+        errors = self.assembler.entry_count_errors(1, 2)
+
+        self.assertEqual(1, len(errors))
+        self.assertIn("2 entries", errors[0])
+        self.assertIn("1 entry", errors[0])
 
 
 class ChangelogTagCheckTests(unittest.TestCase):

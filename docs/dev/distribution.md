@@ -81,7 +81,10 @@ fresh empty `## [Unreleased]` above it, deletes the consumed fragments and sets 
 `Directory.Build.props` and the deleted `changes/<n>.md` files. It refuses, writing nothing and
 naming the reason, when the version is not newer than the current `<Version>`, when a
 `## [<version>]` section already exists, or when a fragment is invalid — so running it twice is
-refused and never promotes twice. The Release workflow runs `--check --tag <tag>` on the tag, so a
+refused and never promotes twice. It refuses the same way when `CHANGELOG.md` itself is a shape the
+assembler cannot read reliably — a `##` or `###` heading repeated within one version section, a
+non-blank line outside any `###` heading in the unreleased section, or a second `## [Unreleased]` —
+and prints the line that carries each one, because each of those loses or misplaces an entry. The Release workflow runs `--check --tag <tag>` on the tag, so a
 fragment that merged after this pull request fails the tag by name instead of shipping unassembled
 notes, and so does a `CHANGELOG.md` whose first heading below `## [Unreleased]` is not the tag's
 `## [<version>] - <YYYY-MM-DD>` or a `Directory.Build.props` whose `<Version>` is not the tag's

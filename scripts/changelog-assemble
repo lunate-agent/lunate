@@ -28,6 +28,10 @@ HEADINGS = ("### Added", "### Changed", "### Fixed")
 START = "<!-- changelog-fragments:start -->"
 END = "<!-- changelog-fragments:end -->"
 UNRELEASED = "## [Unreleased]"
+# A level-2 line opens a version section, a level-3 line a block inside it; both are read by prefix
+# because that is how the assembly splits the section back out.
+LEVEL_TWO = "## "
+LEVEL_THREE = "### "
 FRAGMENT_NAME = re.compile(r"^([0-9]+)\.md$")
 # The exact spelling a release heading carries; `date.fromisoformat` alone also accepts compact and
 # week forms such as 20261201 or 2026-W49-1, which are not the contract.
@@ -180,7 +184,7 @@ def split_blocks(body: list[str]) -> tuple[list[str], list[list[str]]]:
     preamble: list[str] = []
     blocks: list[list[str]] = []
     for line in body:
-        if line.startswith("### "):
+        if line.startswith(LEVEL_THREE):
             blocks.append([line.rstrip(), []])
         elif blocks:
             blocks[-1][1].append(line)
@@ -189,19 +193,117 @@ def split_blocks(body: list[str]) -> tuple[list[str], list[list[str]]]:
     return trim(preamble), blocks
 
 
+def shape_errors(lines: list[str]) -> list[str]:
+    """Return a diagnostic per shape of `CHANGELOG.md` the assembler cannot read reliably.
+
+    A repeated heading makes `split_blocks`' last block win over the earlier one, text above the
+    first heading of the unreleased section belongs to no heading, and a second unreleased section
+    lies past the end of the section the assembler reads, so each one loses or misplaces entries
+    without a word.
+    """
+    errors: list[str] = []
+    sections: dict[str, int] = {}
+    section: str | None = None
+    headings: dict[str, int] = {}
+    for index, raw in enumerate(lines):
+        number = index + 1
+        line = raw.rstrip()
+        if line.startswith(LEVEL_TWO):
+            if line in sections:
+                if line == UNRELEASED:
+                    errors.append(
+                        f"CHANGELOG.md:{number}: '{UNRELEASED}' already appeared at line "
+                        f"{sections[line]}; only the first unreleased section is assembled, so "
+                        "every entry under the second is never released"
+                    )
+                else:
+                    errors.append(
+                        f"CHANGELOG.md:{number}: the heading '{line}' already appeared at line "
+                        f"{sections[line]}; a version section appears once"
+                    )
+            else:
+                sections[line] = number
+            section = line
+            headings = {}
+            continue
+        if line.startswith(LEVEL_THREE):
+            if line in headings:
+                where = f"in '{section}'" if section else "before any '##' heading"
+                errors.append(
+                    f"CHANGELOG.md:{number}: the heading '{line}' already appeared at line "
+                    f"{headings[line]} {where}; one section carries each heading once"
+                )
+            else:
+                headings[line] = number
+            continue
+        if line.strip() and section == UNRELEASED and not headings:
+            errors.append(
+                f"CHANGELOG.md:{number}: text outside any '###' heading in '{UNRELEASED}': "
+                f"'{line.strip()}'; put it under {', '.join(HEADINGS)}"
+            )
+    return errors
+
+
+def kept_entries(text: str) -> int:
+    """Count the unreleased section's top-level bullets outside the generated marker region.
+
+    Those are the entries a person wrote: the ones between the markers are the fragments' and are
+    replaced on every write, so a consumed fragment may legitimately disappear from the section.
+    """
+    lines = text.splitlines()
+    unreleased = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
+    )
+    if unreleased is None:
+        return 0
+    end = len(lines)
+    for index in range(unreleased + 1, len(lines)):
+        if lines[index].startswith(LEVEL_TWO):
+            end = index
+            break
+    outside: list[str] = []
+    inside = False
+    for line in lines[unreleased + 1 : end]:
+        if line.strip() == START:
+            inside = True
+        elif line.strip() == END:
+            inside = False
+        elif not inside:
+            outside.append(line)
+    return sum(1 for line in outside if line.startswith("- "))
+
+
+def counted(count: int) -> str:
+    return f"{count} entry" if count == 1 else f"{count} entries"
+
+
+def entry_count_errors(before: int, after: int) -> list[str]:
+    """Return the refusal when the rewrite would carry a different number of kept entries."""
+    if before == after:
+        return []
+    return [
+        f"CHANGELOG.md: the assembled section would carry {counted(after)} outside the generated "
+        f"region but the current one carries {counted(before)}; refusing to write a different "
+        "number of entries"
+    ]
+
+
 def assemble(text: str, fragments: list[tuple[int, str, list[str]]]) -> tuple[str, list[str]]:
     """Return (rewritten changelog, errors)."""
-    errors: list[str] = []
     lines = text.splitlines()
+    errors: list[str] = shape_errors(lines)
     unreleased = next(
         (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
     )
     if unreleased is None:
         if fragments:
             return text, [
-                f"CHANGELOG.md: no '{UNRELEASED}' section to assemble the fragments into"
+                *errors,
+                f"CHANGELOG.md: no '{UNRELEASED}' section to assemble the fragments into",
             ]
-        return text, []
+        return text, errors
+    if errors:
+        return text, errors
 
     end = len(lines)
     for index in range(unreleased + 1, len(lines)):
@@ -272,7 +374,11 @@ def assemble(text: str, fragments: list[tuple[int, str, list[str]]]) -> tuple[st
     tail = lines[end:]
     if tail:
         rebuilt += [""] + tail
-    return "\n".join(rebuilt) + "\n", []
+    assembled = "\n".join(rebuilt) + "\n"
+    count_errors = entry_count_errors(kept_entries(text), kept_entries(assembled))
+    if count_errors:
+        return text, count_errors
+    return assembled, []
 
 
 def parse_version(text: str) -> tuple[int, int, int, list[tuple[int, object]] | None] | None:
