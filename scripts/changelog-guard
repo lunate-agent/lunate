@@ -2,7 +2,7 @@
 """Refuse a pull request that edits CHANGELOG.md and is not the release pull request.
 
 Every other pull request writes its release-note line in changes/<pr-number>.md; only the release
-pull request assembles the changelog (scripts/changelog-assemble --write). A release pull request is
+pull request assembles the changelog (scripts/changelog-assemble --release <version>). A release pull request is
 recognised by its branch (release/<version>) or its title (starting chore(release)), which keeps the
 assembler from being blocked by the check it exists to satisfy.
 
@@ -44,7 +44,7 @@ def decide(paths: list[str], pull_request: int, branch: str, title: str) -> str 
         f"{CHANGELOG} was edited, but this is not the release pull request. "
         f"Write the line in changes/{pull_request}.md instead; only the release pull request "
         f"(branch {RELEASE_BRANCH}<version> or a title starting {RELEASE_TITLE}) runs "
-        "scripts/changelog-assemble --write."
+        "scripts/changelog-assemble --release <version>."
     )
 
 

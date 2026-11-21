@@ -66,19 +66,23 @@ gh run list --workflow release.yml --limit 1
 ### 1. Assemble the changelog (release pull request)
 
 Only the release pull request edits `CHANGELOG.md`. Cut it from `main` on `release/<version>` (or
-title it `chore(release): <version>`), then fold the fragments into the unreleased section:
+title it `chore(release): <version>`), then do the whole changelog edit in one run:
 
 ```sh
-python3 scripts/changelog-assemble --write
+python3 scripts/changelog-assemble --release <version>   # --date YYYY-MM-DD overrides today in UTC
 python3 scripts/changelog-assemble --check
 ```
 
-`--write` places every `changes/<pr-number>.md` under its heading in ascending pull-request order
-and leaves text written before the fragments existed where it is. Promote `## [Unreleased]` to
-`## [<version>] - <date>`, remove the generated `changelog-fragments` marker comments from the
-promoted section, leave a fresh empty `## [Unreleased]` above it, delete the consumed fragments, and
-commit the result. The Release workflow runs `--check` on the tag, so a fragment that merged after
-this pull request fails the tag by name instead of shipping unassembled notes.
+`--release` folds every `changes/<pr-number>.md` under its heading in ascending pull-request order,
+leaves text written before the fragments existed where it is, promotes `## [Unreleased]` to
+`## [<version>] - <date>` with the generated `changelog-fragments` marker comments removed, leaves a
+fresh empty `## [Unreleased]` above it, deletes the consumed fragments and sets `<Version>` in
+`Directory.Build.props`. `git status` then shows exactly three kinds of change: `CHANGELOG.md`,
+`Directory.Build.props` and the deleted `changes/<n>.md` files. It refuses, writing nothing and
+naming the reason, when the version is not newer than the current `<Version>`, when a
+`## [<version>]` section already exists, or when a fragment is invalid — so running it twice is
+refused and never promotes twice. The Release workflow runs `--check` on the tag, so a fragment that
+merged after this pull request fails the tag by name instead of shipping unassembled notes.
 
 The repository verifies the lane contract at the tag instead of trusting this runbook. A pull
 request on `release/<version>` or titled `chore(release): <version>` is exempt from the changelog
@@ -225,7 +229,7 @@ and a version number is never reused for different bytes.
 
 ## Later releases
 
-- Assemble the changelog in the release pull request (`scripts/changelog-assemble --write`), promote the unreleased section and delete the consumed fragments (step 1).
+- Assemble the changelog in the release pull request (`scripts/changelog-assemble --release <version>`) — step 1.
 - Tag the new version; the gate, publish, pack and attach jobs do the rest.
 - Fill the three sha values and the three winget `PackageVersion` lines again (step 4) and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
 - Run the release smoke against the tag (see *Release smoke*) before calling the release done.
