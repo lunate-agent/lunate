@@ -93,16 +93,18 @@ the `changelog-assemble:` prefix, and returns 1 before any write. Then it writes
 report is discovered before the first byte changes, which is what makes "refused … with nothing
 written" true rather than approximately true.
 
-`--date` is validated with the same `datetime.date.fromisoformat` the promotion formats, so a bad date
-fails as a usage error instead of appearing in a heading.
+`--date` is checked against an exact `YYYY-MM-DD` pattern and then parsed with
+`datetime.date.fromisoformat` for calendar validity, so a bad date — including a form the parser
+also accepts, such as `20261201` or `2026-W49-1` — fails as a usage error instead of appearing in a
+heading.
 
 ### Tests drive the tree through `--root`
 
 The suite already builds a temporary tree per test (`make_tree`, `run(root, …)`). It gains a
 `Directory.Build.props` at the tree's root and a `version=` argument, so a release test is one
 `--release` call plus assertions on the three files. The scenarios are the acceptance list: a normal
-release, a prerelease, the UTC date default, each refusal (not newer, heading exists, invalid
-fragment), a second run and a fragment-less release.
+release, a prerelease, the UTC date default, a date spelled another way, each refusal (not newer,
+heading exists, invalid fragment), a second run and a fragment-less release.
 
 The repository's own fragments are still proved by `test_the_repository_tree_assembles`; it stays on
 `--write`/`--check`, because running `--release` there would need a version nobody has decided yet.

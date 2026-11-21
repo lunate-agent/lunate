@@ -19,7 +19,8 @@
 - [x] 2.2 A normal release: promoted heading with the date, no markers, fresh empty unreleased
       section, fragments deleted, `<Version>` bumped, `--check` passes and released history untouched.
 - [x] 2.3 A prerelease: `0.5.0-rc.1` on a `0.5.0-rc.1`-ready tree promotes that heading.
-- [x] 2.4 The UTC default date, and that `--date` is required to parse as `YYYY-MM-DD`.
+- [x] 2.4 The UTC default date, and that `--date` is refused unless it is spelled exactly
+      `YYYY-MM-DD` (`20261201`, `2026-W49-1`, `2026-1-2` and `01/12/2026` all fail as usage errors).
 - [x] 2.5 Each refusal writes nothing: not newer (equal and lower), an existing heading, an invalid
       fragment; a second run is refused and leaves exactly one release heading.
 - [x] 2.6 A release with no fragments left: empty promoted section, version bumped, `--check` passes.

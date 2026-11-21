@@ -27,6 +27,9 @@ START = "<!-- changelog-fragments:start -->"
 END = "<!-- changelog-fragments:end -->"
 UNRELEASED = "## [Unreleased]"
 FRAGMENT_NAME = re.compile(r"^([0-9]+)\.md$")
+# The exact spelling a release heading carries; `date.fromisoformat` alone also accepts compact and
+# week forms such as 20261201 or 2026-W49-1, which are not the contract.
+RELEASE_DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 PROPS = "Directory.Build.props"
 VERSION_ELEMENT = re.compile(r"^([ \t]*)<Version>([^<]*)</Version>", re.MULTILINE)
 SEMVER = re.compile(
@@ -427,6 +430,8 @@ def main() -> int:
             parser.error("--date is only valid with --release")
     else:
         date = date or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+        if RELEASE_DATE.match(date) is None:
+            parser.error(f"--date {date}: expected YYYY-MM-DD")
         try:
             datetime.date.fromisoformat(date)
         except ValueError:

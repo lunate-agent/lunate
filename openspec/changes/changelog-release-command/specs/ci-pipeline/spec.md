@@ -8,8 +8,9 @@ run against the repository root: it SHALL assemble the fragments into the unrele
 `--write` does, SHALL promote that section to `## [<version>] - <date>` with the generated marker
 comments removed, SHALL leave a fresh empty `## [Unreleased]` section above the promoted one, SHALL
 delete every fragment it consumed, and SHALL set `<Version>` in `Directory.Build.props` to the
-released version. `--date` SHALL default to the current date in UTC and SHALL be read as
-`YYYY-MM-DD`. A successful run SHALL leave `--check` passing and SHALL change exactly three kinds of
+released version. `--date` SHALL default to the current date in UTC and SHALL be spelled exactly
+`YYYY-MM-DD`; a value in any other form SHALL be refused as a usage error before anything is written.
+A successful run SHALL leave `--check` passing and SHALL change exactly three kinds of
 path: `CHANGELOG.md`, `Directory.Build.props` and the deleted `changes/<n>.md` fragments.
 
 The mode SHALL refuse, naming the reason and writing nothing at all, when the requested version is
@@ -40,6 +41,12 @@ command instead of the manual promote, strip, delete and bump steps.
 - **GIVEN** a tree with fragments
 - **WHEN** `scripts/changelog-assemble --release 0.5.0` runs without `--date`
 - **THEN** the promoted heading carries the current UTC date, and a second run is refused
+
+#### Scenario: A date not spelled YYYY-MM-DD is refused
+
+- **GIVEN** a tree with fragments
+- **WHEN** `--release 0.5.0 --date 20261201` or `--date 2026-W49-1` runs
+- **THEN** it fails as a usage error naming `YYYY-MM-DD`, and nothing is written
 
 #### Scenario: A version that is not newer is refused
 

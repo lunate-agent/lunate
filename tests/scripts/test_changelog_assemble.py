@@ -450,6 +450,20 @@ class ChangelogAssembleTests(unittest.TestCase):
         self.assertEqual(2, result.returncode, result.stdout + result.stderr)
         self.assertEqual(before, snapshot(root))
 
+    def test_release_rejects_a_date_spelled_without_dashes(self) -> None:
+        # The first two are forms `date.fromisoformat` also accepts, so the exact spelling is checked
+        # before parsing; the third is non-padded and the parser alone rejects it.
+        for date in ("20261201", "2026-W49-1", "2026-1-2"):
+            with self.subTest(date=date):
+                root = self.tree({"1234.md": fragment("### Fixed", "- The fix (#1234).")})
+                before = snapshot(root)
+
+                result = run(root, "--release", "0.5.0", "--date", date)
+
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                self.assertIn(f"--date {date}: expected YYYY-MM-DD", result.stderr)
+                self.assertEqual(before, snapshot(root))
+
     def test_a_date_without_a_release_is_a_usage_error(self) -> None:
         root = self.tree({})
 
