@@ -4,6 +4,15 @@ This page answers what to do when a run will not start, a request fails or a com
 and the short answer is: read the message first — it names the cause and the next step — then find
 it in the table below.
 
+## Start with `lunate doctor`
+
+`lunate doctor` prints the facts a bug report needs in one offline command: the version, OS and
+architecture, install channel, config and state paths with whether each exists, the resolved
+provider and model, whether a credential is present (never its value), container-engine
+availability, terminal capabilities and the last update-check result. Add `--json` for one
+pasteable object. It exits 0 when the state root and `settings.json` exist and the settings read,
+and 1 when a required path is missing or the settings cannot be read.
+
 ## Start with the message
 
 | What you see | Cause | Next step |
