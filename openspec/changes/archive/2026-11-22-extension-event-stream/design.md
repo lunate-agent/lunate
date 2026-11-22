@@ -42,7 +42,8 @@ remote host) and ADR-0043 (the contract's closed sets are unions). None of them 
 `ExtensionLoader` owns a `SessionEventStream` (public in `Lunate.Extensibility`, like
 `FileChangeBus`), created in its constructor and handed to every `ExtensionContext` it creates. The
 front ends that iterate a run call `ExtensionSession.Publish(AgentEvent)` for each event — the
-interactive session's run loop and print mode's run loop — and the test kit's host does the same.
+interactive session's run loop, print mode's run loop and an ACP serve's prompt loop — and the test
+kit's host does the same.
 `ExtensionSession` is the extension host a front end already holds, so no new seam is needed in
 `Lunate.Agent` and ADR-0007's "the harness keeps `IAsyncEnumerable<AgentEvent>`" stays literally
 true. Alternative: an event-tap option on `AgentHarnessOptions`; rejected because it would put an
@@ -50,8 +51,11 @@ extension-shaped concern into the harness for no gain, and because the front end
 extension host in hand.
 
 Child runs need no extra work: `SubagentRunner` forwards child events onto the parent's channel with
-`ParentRunId`, so the parent's loop publishes them like any other event. ACP composes no extension
-host today, so it publishes nothing and needs no change; the wire follow-up owns the remote surface.
+`ParentRunId`, so the parent's loop publishes them like any other event. ACP composes the same
+extension host (`AcpMode` composes an `ExtensionSession` for the whole serve), so it publishes too:
+`AcpMode` hands the host's `Publish` to `LibAcpServer`, whose prompt loop offers every event it
+receives before its own filtering — child-run events and lifecycle markers included, which
+`session/update` never carries. Only the out-of-process surface stays with the wire follow-up.
 
 ### 2. One bounded queue and one pump per subscription
 

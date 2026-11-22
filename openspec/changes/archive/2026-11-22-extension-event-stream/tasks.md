@@ -15,8 +15,9 @@
 - [x] 2.2 Wire it through `ExtensionContext.Events`, the loader (created once, completed on unload,
       rollback and session end) and `ExtensionSession.Publish`.
 - [x] 2.3 Add the `#:event` header directive and its scanner case so the manifest mirror holds.
-- [x] 2.4 Publish from the interactive-session and print-mode run loops and from the test kit's
-      `ExtensionTestHost`; warn once when a remote manifest declares `events`.
+- [x] 2.4 Publish from the interactive-session, print-mode and ACP prompt loops and from the test
+      kit's `ExtensionTestHost`; the ACP loop publishes before its own filtering so child-run events
+      reach the stream; warn once when a remote manifest declares `events`.
 
 ## 3. Surfaces
 

@@ -21,8 +21,10 @@ and that stream is what an observer wants.
 - The manifest gains `events`, the `--json` kind vocabulary or `["*"]`, mirrored by a single-file
   `#:event` directive. It is shown by `/extensions` and carried in the trust prompt as information,
   not a permission; in-process delivery is not filtered by it.
-- The stream is fed by the front ends that iterate a run (the interactive session and print mode);
-  child-run events arrive through the parent's stream exactly as the hooks and `--json` see them.
+- The stream is fed by the front ends that iterate a run (the interactive session, print mode and an
+  ACP serve); child-run events arrive through the parent's stream exactly as the hooks and `--json`
+  see them, and ACP publishes before its own protocol filtering so even what it does not render
+  reaches an observer.
 - The contract moves a semver minor: `ExtensionApi.Current` and the contract package version go from
   `1.16.0` to `1.17.0`, with the `PublicAPI.Unshipped.txt` entries the analyzer requires.
 - An out-of-process extension keeps the hook catalogue only. The `events` projection over protocol
@@ -49,6 +51,7 @@ _None._
 - Projects: `Lunate.Extensibility.Abstractions` (interface, manifest, API version, PublicAPI),
   `Lunate.Extensibility` (the stream, the loader wiring, the header directive),
   `Lunate.Coding` (publishing from the run loops, `/extensions`, the trust prompt),
+  `Lunate.Protocols` (the ACP prompt loop offers each event to the host's stream),
   `Lunate.Extensibility.Testing` (the test host feeds the stream), `Lunate.Contracts` and
   `Lunate.Decisions.Model` (contract version only).
 - Packaging: no new package and no new dependency; the contract pair keeps publishing in lockstep.
