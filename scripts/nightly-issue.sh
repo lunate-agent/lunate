@@ -20,6 +20,15 @@
 # version becomes the target. The area label comes from the failing test's project, and only when it
 # decides it: `scripts/ci-issue-triage` owns that decision and is covered by the same self-test.
 #
+# The two jobs whose result is derived from the others' file nothing beside a job that ran: `ci-ok` fails
+# because a required leg did not succeed and this reporter fails because it deferred a capacity red, so the
+# leg's card is the finding and a second card would name no failure of its own (#1002 -- run 45013417456
+# filed "CI failed: ci-ok" beside the card for `verify-powershell (windows)`, which is all its failing step
+# restated). Their record is in the document at the read only when the aggregate happened to finish first,
+# because this job does not need `ci-ok`, so the card appeared on one run of a red tree and not on the
+# next. `scripts/ci-issue-triage` names the derived job it did not file, with the run link, on stderr;
+# a run whose only red is the aggregate still files, because then nothing else speaks for the gate.
+#
 # `--jobs-json` is the GitHub Actions jobs endpoint for one run: an object with a `jobs` list, the
 # `--paginate --slurp` list of page objects, or a bare job list. The decisions are pure (read the files,
 # pick the red jobs, decide whether the red is a capacity red, pick the milestone and the area); the only
