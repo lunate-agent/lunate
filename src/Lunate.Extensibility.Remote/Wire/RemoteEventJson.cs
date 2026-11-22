@@ -11,9 +11,11 @@ namespace Lunate.Extensibility.Remote;
 /// The event wire projection: one <see cref="AgentEvent"/> becomes the one JSON line object the
 /// documented <c>--json</c> stream writes, which is what an <c>event/&lt;kind&gt;</c> notification
 /// carries (ADR-0040). The switch covers every sealed event record and <see cref="HandledEventTypes"/>
-/// pins that set, so a new event type cannot reach the wire unmapped. <c>--json</c> delegates here
-/// and adds its own optional <c>costUsd</c>, so the run stream, the wire and the documented kind
-/// vocabulary are one projection and never a second event model.
+/// pins that set, so a new event type cannot reach the wire unmapped. Pricing needs the session
+/// catalog, which this package does not reference, so the caller supplies the optional
+/// <c>costUsd</c> per record: <c>--json</c> and the extension host each pass the catalog estimate
+/// they hold, and the run stream, the wire and the documented kind vocabulary stay one projection
+/// and never a second event model.
 /// </summary>
 public static class RemoteEventJson
 {
@@ -93,15 +95,23 @@ public static class RemoteEventJson
 
     /// <summary>
     /// Returns the one-line JSON object for an event, including the stamped fields: the exact
-    /// object <c>--json</c> writes for an event no catalog prices. <paramref name="extend"/> adds
-    /// fields to the event's own body before it is stamped, which is how <c>--json</c> writes the
-    /// catalog's <c>costUsd</c>; the wire passes none, so its line is the bare projection.
+    /// object <c>--json</c> writes. <paramref name="costUsd"/> prices a <c>usage_updated</c> record
+    /// the way the catalog does — a number when the model prices, absent otherwise — so the same
+    /// delegate makes <c>--json</c>'s line and the wire's line byte for byte; null writes the bare
+    /// projection.
     /// </summary>
-    public static string Serialize(AgentEvent agentEvent, Action<JsonObject>? extend = null)
+    public static string Serialize(
+        AgentEvent agentEvent,
+        Func<UsageUpdated, decimal?>? costUsd = null
+    )
     {
         string type = KindOf(agentEvent.Kind);
         JsonObject body = Describe(agentEvent);
-        extend?.Invoke(body);
+        if (agentEvent is UsageUpdated usage && costUsd?.Invoke(usage) is { } cost)
+        {
+            body["costUsd"] = JsonValue.Create(cost);
+        }
+
         var line = new JsonObject { ["type"] = type, ["runId"] = agentEvent.RunId };
         if (agentEvent.SessionId is not null)
         {

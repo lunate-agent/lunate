@@ -84,6 +84,7 @@ public sealed partial class RemoteExtension
             kinds,
             _options.MaxLineBytes,
             _options.Context.Events,
+            _options.CostUsd,
             () => Interlocked.Exchange(ref _eventProjection, null)
         );
     }
@@ -107,6 +108,7 @@ internal sealed class RemoteEventProjection : IObserver<AgentEvent>, IDisposable
     private readonly IExtensionLog _log;
     private readonly RemoteWire _wire;
     private readonly int _maxLineBytes;
+    private readonly Func<UsageUpdated, decimal?>? _costUsd;
     private readonly Action _onStopped;
     private readonly HashSet<string> _kinds;
     private readonly bool _allKinds;
@@ -128,6 +130,7 @@ internal sealed class RemoteEventProjection : IObserver<AgentEvent>, IDisposable
         IReadOnlyList<string> kinds,
         int maxLineBytes,
         IObservable<AgentEvent> events,
+        Func<UsageUpdated, decimal?>? costUsd,
         Action onStopped
     )
     {
@@ -135,6 +138,7 @@ internal sealed class RemoteEventProjection : IObserver<AgentEvent>, IDisposable
         _log = log;
         _wire = wire;
         _maxLineBytes = maxLineBytes;
+        _costUsd = costUsd;
         _onStopped = onStopped;
         _allKinds = kinds.Contains("*", StringComparer.Ordinal);
         _kinds = _allKinds ? [] : [.. kinds];
@@ -304,7 +308,7 @@ internal sealed class RemoteEventProjection : IObserver<AgentEvent>, IDisposable
         string line;
         try
         {
-            line = RemoteEventJson.Serialize(agentEvent);
+            line = RemoteEventJson.Serialize(agentEvent, _costUsd);
         }
         catch (ArgumentException exception)
         {

@@ -53,6 +53,7 @@ public sealed partial class ExtensionLoader
                 ProcessRunner = runner,
                 Context = CreateExtensionContext(descriptor, secrets),
                 Notify = _options.Notify,
+                CostUsd = _options.CostUsd,
                 UnregisterHook = handler => _hooks.Unregister(descriptor.Id, handler),
             }
         );

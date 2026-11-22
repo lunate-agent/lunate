@@ -227,6 +227,7 @@ internal sealed class ExtensionSession : IAsyncDisposable
             Log = log,
             Notify = seams.Notice,
             ModelCatalog = seams.ModelCatalog,
+            CostUsd = ExtensionWireCost.For(seams.ModelCatalog),
             ClientFactory = seams.ClientFactory,
             GlobalPackagesFolder = seams.GlobalPackagesFolder,
             ReservedCommands = Commands.BuiltinNames,

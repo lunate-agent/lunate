@@ -29,6 +29,7 @@ public sealed class RemoteEventProjectionQueueTests
             ["*"],
             maxLineBytes: 16 * 1024 * 1024,
             source,
+            costUsd: null,
             onStopped: () => { }
         );
 
@@ -68,6 +69,7 @@ public sealed class RemoteEventProjectionQueueTests
             ["*"],
             maxLineBytes: 200,
             source,
+            costUsd: null,
             onStopped: () => { }
         );
 

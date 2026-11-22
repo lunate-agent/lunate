@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lunate.Agent;
 using Lunate.Extensibility.Abstractions;
 using Lunate.Extensibility.Remote;
 using Lunate.Extensibility.Testing;
@@ -212,6 +213,31 @@ public sealed class LoaderRemoteTests
 
         Assert.Equal(2, workspace.Child.StartCount);
         Assert.False(await loader.RestartRemoteAsync("absent", Ct));
+    }
+
+    [Fact]
+    public async Task An_observer_receives_the_json_line_with_the_host_priced_cost()
+    {
+        using var workspace = new RemoteTestWorkspace(events: ["usage_updated"]);
+        // The host holds the catalog and prices the record; the wire package cannot, so the
+        // composition hands it this delegate and the observer's params are the --json line.
+        ExtensionLoader loader = workspace.CreateLoader(costUsd: _ => 0.25m);
+        await workspace.LoadAsync(loader);
+        var usage = new UsageUpdated(
+            "run_1",
+            new Microsoft.Extensions.AI.UsageDetails { InputTokenCount = 1000 }
+        );
+
+        loader.EventStream.Publish(usage);
+
+        await WaitAsync(
+            () => workspace.Child.ObservedEventKinds().Contains("usage_updated"),
+            "the usage event"
+        );
+        (string _, JsonElement? parameters) = workspace.Child.Notifications.Single(notification =>
+            notification.Method == "event/usage_updated"
+        );
+        Assert.Equal(0.25m, parameters!.Value.GetProperty("costUsd").GetDecimal());
     }
 
     private static async Task WaitAsync(Func<bool> condition, string what)

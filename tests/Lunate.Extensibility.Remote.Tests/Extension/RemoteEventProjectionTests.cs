@@ -209,6 +209,37 @@ public sealed class RemoteEventProjectionTests
         );
     }
 
+    [Fact]
+    public async Task A_priced_usage_reaches_the_child_as_the_json_line_with_its_cost()
+    {
+        Harness harness = Harness.Create(events: ["usage_updated"], costUsd: _ => 0.5m);
+        await harness.Extension.EnsureStartedAsync(Ct);
+        var usage = new UsageUpdated(
+            "run_1",
+            new Microsoft.Extensions.AI.UsageDetails { InputTokenCount = 1000 }
+        );
+
+        harness.Context.Stream.Publish(usage);
+
+        await WaitAsync(
+            () => harness.Child.ObservedEventKinds().Contains("usage_updated"),
+            "the usage event"
+        );
+        (string _, JsonElement? parameters) = harness.Child.Notifications.Single(notification =>
+            notification.Method == "event/usage_updated"
+        );
+        // The wire line is the --json line, cost included: the host supplies the catalog estimate,
+        // because the wire package sits below the catalog and cannot price a record itself.
+        Assert.True(
+            JsonNode.DeepEquals(
+                JsonNode.Parse(RemoteEventJson.Serialize(usage, _ => 0.5m)),
+                JsonNode.Parse(parameters!.Value.GetRawText())
+            ),
+            parameters!.Value.GetRawText()
+        );
+        Assert.Equal(0.5m, parameters!.Value.GetProperty("costUsd").GetDecimal());
+    }
+
     private static async Task WaitAsync(Func<bool> condition, string what)
     {
         for (var attempt = 0; attempt < 500; attempt++)
@@ -249,7 +280,8 @@ public sealed class RemoteEventProjectionTests
 
         public static Harness Create(
             IReadOnlyList<string>? events = null,
-            IReadOnlyList<string>? hooks = null
+            IReadOnlyList<string>? hooks = null,
+            Func<UsageUpdated, decimal?>? costUsd = null
         )
         {
             var context = new FakeExtensionContext();
@@ -277,6 +309,7 @@ public sealed class RemoteEventProjectionTests
                     Workspace = Workspace,
                     ProcessRunner = child.Runner,
                     Context = context,
+                    CostUsd = costUsd,
                     UnregisterHook = handler => context.Handlers.Remove(handler),
                     ShutdownGrace = TimeSpan.FromMilliseconds(300),
                 }

@@ -7,9 +7,9 @@ namespace Lunate.Coding;
 /// <summary>
 /// Serializes one <see cref="AgentEvent"/> to one JSON line for <c>lunate -p --json</c>: the shared
 /// projection in <see cref="RemoteEventJson"/> (the same object the extension wire carries,
-/// ADR-0040) plus <c>--json</c>'s own optional <c>costUsd</c>, which needs the model catalog the
-/// wire does not have. Keeping the event switch in one place is what stops the stream, the wire and
-/// the documented kind vocabulary from drifting apart.
+/// ADR-0040) with the <c>costUsd</c> the session catalog prices, which is the one field the wire
+/// cannot compute for itself. Keeping the event switch in one place is what stops the stream, the
+/// wire and the documented kind vocabulary from drifting apart.
 /// </summary>
 internal static class PrintEventJson
 {
@@ -25,20 +25,7 @@ internal static class PrintEventJson
         AgentEvent agentEvent,
         ModelCatalog? catalog = null,
         string? fallbackModelId = null
-    )
-    {
-        if (
-            agentEvent is UsageUpdated usage
-            && CostUsd(usage, catalog, fallbackModelId) is { } cost
-        )
-        {
-            return RemoteEventJson.Serialize(agentEvent, body =>
-                body["costUsd"] = System.Text.Json.Nodes.JsonValue.Create(cost)
-            );
-        }
-
-        return RemoteEventJson.Serialize(agentEvent);
-    }
+    ) => RemoteEventJson.Serialize(agentEvent, usage => CostUsd(usage, catalog, fallbackModelId));
 
     private static decimal? CostUsd(
         UsageUpdated usage,
