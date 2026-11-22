@@ -110,6 +110,13 @@ internal static class WaitCeilingChecker
             Signal.Duration,
             "the simulated frame step handed to the scheduler, not a wait"
         ),
+        // The gate's durations are its inputs: a turn's elapsed time and a threshold compared
+        // against it, advanced by no clock and waited on by nothing.
+        new(
+            "DesktopNotificationTests.cs",
+            Signal.Duration,
+            "the turn duration and threshold are the gate's inputs, not a wait"
+        ),
     ];
 
     /// <summary>The violations, as <c>path:line: detail</c>, in file order.</summary>

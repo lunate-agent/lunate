@@ -14,17 +14,24 @@ internal sealed class KeyReader : IDisposable
     private readonly object _gate = new();
     private readonly IScheduler _scheduler;
     private readonly Action<KeyEvent> _onKey;
+    private readonly Action<bool>? _onFocus;
     private readonly TimeSpan _quietWindow;
     private readonly List<byte> _buffer = [];
     private IDisposable? _escapeTimer;
     private bool _inPaste;
     private bool _disposed;
 
-    public KeyReader(IScheduler scheduler, Action<KeyEvent> onKey, TimeSpan? quietWindow = null)
+    public KeyReader(
+        IScheduler scheduler,
+        Action<KeyEvent> onKey,
+        TimeSpan? quietWindow = null,
+        Action<bool>? onFocus = null
+    )
     {
         _scheduler = scheduler;
         _onKey = onKey;
         _quietWindow = quietWindow ?? DefaultQuietWindow;
+        _onFocus = onFocus;
     }
 
     public void Feed(ReadOnlySpan<byte> bytes)
@@ -100,6 +107,12 @@ internal sealed class KeyReader : IDisposable
                 continue;
             }
 
+            if (TryConsumeFocus(out bool focused))
+            {
+                _onFocus?.Invoke(focused);
+                continue;
+            }
+
             if (_buffer.Count == 1 && _buffer[0] == 0x1B)
             {
                 return;
@@ -121,6 +134,29 @@ internal sealed class KeyReader : IDisposable
             InputTrace.Key(key!);
             _onKey(key!);
         }
+    }
+
+    /// <summary>
+    /// Consumes the xterm focus reports (<c>CSI I</c> and <c>CSI O</c>) before the key decoder can
+    /// turn them into unknown keys. A paste keeps its literal text: this is checked only outside a
+    /// bracketed paste.
+    /// </summary>
+    private bool TryConsumeFocus(out bool focused)
+    {
+        focused = false;
+        if (
+            _buffer.Count < 3
+            || _buffer[0] != 0x1B
+            || _buffer[1] != (byte)'['
+            || _buffer[2] is not ((byte)'I' or (byte)'O')
+        )
+        {
+            return false;
+        }
+
+        focused = _buffer[2] == (byte)'I';
+        _buffer.RemoveRange(0, 3);
+        return true;
     }
 
     private void ArmEscapeTimer()

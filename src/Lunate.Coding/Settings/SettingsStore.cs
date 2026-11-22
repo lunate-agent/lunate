@@ -152,6 +152,21 @@ public sealed record AgentSettings
     /// <summary>Whether the interactive session checks for a newer release once a day; defaults to on.</summary>
     public bool UpdateCheck { get; init; } = true;
 
+    /// <summary>
+    /// Whether a long interactive turn sends a desktop notification when the terminal is not
+    /// focused; defaults to off.
+    /// </summary>
+    public bool Notify { get; init; }
+
+    /// <summary>The documented default of <see cref="NotifyMinSeconds"/>: ten seconds.</summary>
+    public const int DefaultNotifyMinSeconds = 10;
+
+    /// <summary>
+    /// The minimum turn duration in seconds before a notification is sent; 0 removes the
+    /// threshold.
+    /// </summary>
+    public int NotifyMinSeconds { get; init; } = DefaultNotifyMinSeconds;
+
     /// <summary>The session thinking level; defaults to <see cref="ThinkingLevel.Off"/>.</summary>
     public ThinkingLevel Thinking { get; init; } = ThinkingLevel.Off;
 
@@ -520,6 +535,15 @@ public static partial class SettingsStore
                         break;
                     case "model":
                         settings = settings with { Model = ReadModel(property.Value, problems) };
+                        break;
+                    case "notify":
+                        settings = settings with { Notify = ReadNotify(property.Value, problems) };
+                        break;
+                    case "notifyMinSeconds":
+                        settings = settings with
+                        {
+                            NotifyMinSeconds = ReadNotifyMinSeconds(property.Value, problems),
+                        };
                         break;
                     case "approval":
                         settings = settings with
@@ -1080,6 +1104,39 @@ public static partial class SettingsStore
     }
 
     /// <summary>
+    /// Reads <c>notify</c>: a JSON boolean; a missing key keeps the documented default (off).
+    /// </summary>
+    private static bool ReadNotify(JsonElement value, List<string> problems)
+    {
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return value.GetBoolean();
+        }
+
+        problems.Add("'notify' must be true or false");
+        return false;
+    }
+
+    /// <summary>
+    /// Reads <c>notifyMinSeconds</c>: a non-negative integer; a missing key keeps the documented
+    /// default (10).
+    /// </summary>
+    private static int ReadNotifyMinSeconds(JsonElement value, List<string> problems)
+    {
+        if (
+            value.ValueKind == JsonValueKind.Number
+            && value.TryGetInt32(out int seconds)
+            && seconds >= 0
+        )
+        {
+            return seconds;
+        }
+
+        problems.Add("'notifyMinSeconds' must be a non-negative integer");
+        return AgentSettings.DefaultNotifyMinSeconds;
+    }
+
+    /// <summary>
     /// Reads <c>updateCheck</c>: a JSON boolean; a missing key keeps the documented default
     /// (on).
     /// </summary>
@@ -1594,6 +1651,7 @@ public static partial class SettingsStore
             MaxCostUsd = launch.MaxCostUsd ?? settings.MaxCostUsd,
             MaxTime = launch.MaxTime ?? settings.MaxTime,
             Environment = launch.Environment ?? settings.Environment,
+            Notify = launch.Notify || settings.Notify,
         };
         if (launch.ExtraTools is { } extra)
         {

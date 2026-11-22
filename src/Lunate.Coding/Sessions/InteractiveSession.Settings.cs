@@ -56,6 +56,13 @@ internal sealed partial class InteractiveSession
         lines.Add(Row("tui.keys", KeysText(_settings.Tui.Keys)));
         lines.Add(Row("startupHeader", BooleanLiteral(_settings.StartupHeader)));
         lines.Add(Row("updateCheck", BooleanLiteral(_settings.UpdateCheck)));
+        lines.Add(Row("notify", BooleanLiteral(_settings.Notify)));
+        lines.Add(
+            Row(
+                "notifyMinSeconds",
+                _settings.NotifyMinSeconds.ToString(CultureInfo.InvariantCulture)
+            )
+        );
         lines.Add(Row("favorites", ListValue(_settings.Favorites)));
         lines.Add(Row("tools.extra", ListValue(_settings.Tools.Extra)));
         lines.Add(
@@ -121,6 +128,8 @@ internal sealed partial class InteractiveSession
             "tui.keys" => KeysText(_settings.Tui.Keys),
             "startupHeader" => BooleanLiteral(_settings.StartupHeader),
             "updateCheck" => BooleanLiteral(_settings.UpdateCheck),
+            "notify" => BooleanLiteral(_settings.Notify),
+            "notifyMinSeconds" => _settings.NotifyMinSeconds.ToString(CultureInfo.InvariantCulture),
             "favorites" => ListValue(_settings.Favorites),
             "tools.extra" => ListValue(_settings.Tools.Extra),
             "toolEnvironment.passthrough" => ListValue(_settings.ToolEnvironment.Passthrough),
@@ -277,6 +286,8 @@ internal sealed partial class InteractiveSession
                 or "tui.keys"
                 or "startupHeader"
                 or "updateCheck"
+                or "notify"
+                or "notifyMinSeconds"
                 or "favorites"
                 or "tools.extra"
                 or "toolEnvironment.passthrough"

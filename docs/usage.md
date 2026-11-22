@@ -127,6 +127,28 @@ When a tool result would flood the window, the text is spilled to a file and the
 stub it can page back through; observation masking trims old turns without losing the transcript.
 `/context` reports what each saved: `saved tokens: spills 0, masking 0, read stubs 0`.
 
+## Notify when a long turn ends
+
+A turn can finish while you are looking at another window. Desktop notifications are off by
+default; turn them on with `notify: true` in `settings.json` or for one session with `--notify`. A
+notification is sent only when the turn is at least `notifyMinSeconds` long (10 seconds by default;
+`0` removes the threshold), the turn is the session's own run rather than a subagent, and the
+terminal reports that its window is not focused. The notification carries the `/name` title (the
+session id when unnamed) and the outcome — finished, cancelled, failed, or stopped by a length,
+step, token, cost or time limit — with the elapsed time.
+
+Focus is read from the standard xterm focus-reporting sequence, which Lunate requests when it enters
+raw mode. A terminal that does not implement it, a remote session that strips the sequence, or one
+that never sends a focus report leaves the state unknown, so Lunate sends nothing rather than guess.
+That is the documented limit: notifications are a best-effort convenience, not a delivery guarantee.
+
+Delivery uses the host's own tool: `osascript` on macOS, `notify-send` on Linux and a PowerShell
+notification through the Windows shell's notification area. Windows would need a Start-menu shortcut
+with an application identity for a Windows Runtime toast; the notification-area balloon needs none,
+and Windows 10 and 11 render it as a toast. A missing tool, a refused permission or a failing
+command is silent and never changes the turn, its output or its exit code. Notifications are
+interactive-only; print mode, ACP and child runs never send one.
+
 ## Run limits
 
 A run is capped by its step limit — 50 model calls by default — and can also be capped by cost and
