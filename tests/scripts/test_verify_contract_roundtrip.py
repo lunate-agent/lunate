@@ -2,7 +2,7 @@
 
 (#932, #937, #936)
 
-The verify gate packs the four SDK packages at the version the release carries and builds the
+The verify gate packs the five SDK packages at the version the release carries and builds the
 packaged-extension template against that feed, so the NuGet shape the gate proves is the one
 nuget.org serves after the next tag. While a release is out, that version is *also* served by a feed,
 which means a machine's global packages folder can already hold a copy of the same id and version
@@ -227,6 +227,28 @@ def powershell_roundtrip() -> str:
     text = without_comments(VERIFY_POWERSHELL.read_text(encoding="utf-8"))
     start = text.index("contract package roundtrip")
     return text[start : text.index('Write-Host "`n==> format"', start)]
+
+
+TEMPLATE = (
+    REPOSITORY_ROOT / "templates" / "extension" / "TemplateExtension" / "TemplateExtension.csproj"
+)
+
+
+def packed_projects(block: str) -> set[str]:
+    """The projects a roundtrip step packs into its feed."""
+    return set(re.findall(r"src/[\w./-]+\.csproj", block))
+
+
+def checked_package_ids(block: str) -> set[str]:
+    """The package ids a roundtrip step asserts the metadata of."""
+    return set(re.findall(r"--id ([\w.]+)", block)) | set(
+        re.findall(r"-PackageId '([\w.]+)'", block)
+    )
+
+
+def template_package_ids() -> set[str]:
+    """The Lunate packages the template binds when it restores against the packed feed."""
+    return set(re.findall(r'Include="(Lunate\.[\w.]+)"', TEMPLATE.read_text(encoding="utf-8")))
 
 
 def restore(consumer: Path, feed: Path, packages: Path) -> str:
@@ -470,6 +492,33 @@ class RoundtripWiringTest(unittest.TestCase):
             "the packs build the repository's own projects: their obj, bin and pack output must "
             "land under this test's folder, not in the worktree whose next build would then read "
             "the packages folder the test deleted",
+        )
+
+    def test_both_gates_pack_and_check_every_package_the_template_binds(self):
+        # #973 moved the decision model into its own package, versioned with the contract, and
+        # updated the bash gate only. The Windows gate kept packing the other four, so the
+        # template's restore asked the packed feed -- the only source `Lunate.*` may come from --
+        # for a package the feed did not hold: NU1101 for Lunate.Decisions.Model, and
+        # `verify-powershell (windows)` was the one leg that went red on run 45010395784 (#1000).
+        bash_block = roundtrip()
+        powershell_block = powershell_roundtrip()
+
+        self.assertEqual(
+            packed_projects(bash_block),
+            packed_projects(powershell_block),
+            "the PowerShell twin must pack the projects the bash gate packs: a package the feed "
+            "lacks is a restore failure in the template build",
+        )
+        self.assertEqual(
+            checked_package_ids(bash_block),
+            checked_package_ids(powershell_block),
+            "both gates must assert the metadata of the same packages",
+        )
+        self.assertEqual(
+            set(),
+            template_package_ids() - checked_package_ids(powershell_block),
+            "every Lunate package the template binds must be in the feed the roundtrip restores "
+            "from, so the mapping cannot hide the one package a gate forgot to pack",
         )
 
     def test_the_powershell_twin_keeps_the_same_properties(self):
