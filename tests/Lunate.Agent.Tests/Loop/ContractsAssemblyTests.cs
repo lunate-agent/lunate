@@ -127,6 +127,34 @@ public sealed class ContractsAssemblyTests
     }
 
     [Fact]
+    public void The_decision_model_package_exports_only_the_accepted_inventory()
+    {
+        // The model package holds the model and the seams, nothing else (ADR-0045). Transport
+        // bookkeeping such as the OpenCode usage sidecar is internal to the model so it cannot
+        // appear in the package's PublicAPI inventory by accident.
+        string[] exported = typeof(DecisionRequest)
+            .Assembly.GetExportedTypes()
+            .Select(type => type.FullName!)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        string[] expected =
+        [
+            "Lunate.Ai.Decisions.DecisionAnswer",
+            "Lunate.Ai.Decisions.DecisionBox",
+            "Lunate.Ai.Decisions.DecisionQuestion",
+            "Lunate.Ai.Decisions.DecisionQuestionKind",
+            "Lunate.Ai.Decisions.DecisionRequest",
+            "Lunate.Ai.Decisions.DecisionResult",
+            "Lunate.Ai.Decisions.DecisionUsage",
+            "Lunate.Ai.Decisions.IAgentDecisionService",
+            "Lunate.Ai.Decisions.INativeDecisionClient",
+        ];
+
+        Assert.Equal(expected, exported);
+    }
+
+    [Fact]
     public void The_decision_engine_types_stay_internal_to_the_engine()
     {
         // The model package is the extension surface; the engine is not (ADR-0045). A new engine type

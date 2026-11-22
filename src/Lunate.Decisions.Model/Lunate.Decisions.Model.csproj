@@ -54,6 +54,14 @@
     </ItemGroup>
 
     <ItemGroup>
+        <!--
+            The OpenCode usage sidecar is transport bookkeeping, not model contract: the native
+            System One mapper fills it, so the engine's transport sees the model internals.
+        -->
+        <InternalsVisibleTo Include="Lunate.Ai.SystemOne" />
+    </ItemGroup>
+
+    <ItemGroup>
         <AdditionalFiles Include="PublicAPI.Shipped.txt" />
         <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
     </ItemGroup>

@@ -90,17 +90,6 @@ Lunate.Ai.Decisions.DecisionUsage.InputTokens.get -> long?
 Lunate.Ai.Decisions.DecisionUsage.InputTokens.init -> void
 Lunate.Ai.Decisions.DecisionUsage.IsProviderReported.get -> bool
 Lunate.Ai.Decisions.DecisionUsage.IsProviderReported.init -> void
-Lunate.Ai.Decisions.DecisionUsage.Opencode.get -> Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage?
-Lunate.Ai.Decisions.DecisionUsage.Opencode.init -> void
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.<Clone>$() -> Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage!
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.BillingSource.get -> string?
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.BillingSource.init -> void
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.Deconstruct(out string? BillingSource, out double? ListCost) -> void
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.Equals(Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? other) -> bool
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.ListCost.get -> double?
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.ListCost.init -> void
-Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.OpencodeUsage(string? BillingSource, double? ListCost) -> void
 Lunate.Ai.Decisions.DecisionUsage.OutputTokens.get -> long?
 Lunate.Ai.Decisions.DecisionUsage.OutputTokens.init -> void
 Lunate.Ai.Decisions.IAgentDecisionService
@@ -124,9 +113,6 @@ override Lunate.Ai.Decisions.DecisionResult.GetHashCode() -> int
 override Lunate.Ai.Decisions.DecisionResult.ToString() -> string!
 override Lunate.Ai.Decisions.DecisionUsage.Equals(object? obj) -> bool
 override Lunate.Ai.Decisions.DecisionUsage.GetHashCode() -> int
-override Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.Equals(object? obj) -> bool
-override Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.GetHashCode() -> int
-override Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.ToString() -> string!
 override Lunate.Ai.Decisions.DecisionUsage.ToString() -> string!
 static Lunate.Ai.Decisions.DecisionAnswer.operator !=(Lunate.Ai.Decisions.DecisionAnswer? left, Lunate.Ai.Decisions.DecisionAnswer? right) -> bool
 static Lunate.Ai.Decisions.DecisionAnswer.operator ==(Lunate.Ai.Decisions.DecisionAnswer? left, Lunate.Ai.Decisions.DecisionAnswer? right) -> bool
@@ -138,7 +124,5 @@ static Lunate.Ai.Decisions.DecisionRequest.operator !=(Lunate.Ai.Decisions.Decis
 static Lunate.Ai.Decisions.DecisionRequest.operator ==(Lunate.Ai.Decisions.DecisionRequest? left, Lunate.Ai.Decisions.DecisionRequest? right) -> bool
 static Lunate.Ai.Decisions.DecisionResult.operator !=(Lunate.Ai.Decisions.DecisionResult? left, Lunate.Ai.Decisions.DecisionResult? right) -> bool
 static Lunate.Ai.Decisions.DecisionResult.operator ==(Lunate.Ai.Decisions.DecisionResult? left, Lunate.Ai.Decisions.DecisionResult? right) -> bool
-static Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.operator !=(Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? left, Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? right) -> bool
-static Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage.operator ==(Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? left, Lunate.Ai.Decisions.DecisionUsage.OpencodeUsage? right) -> bool
 static Lunate.Ai.Decisions.DecisionUsage.operator !=(Lunate.Ai.Decisions.DecisionUsage? left, Lunate.Ai.Decisions.DecisionUsage? right) -> bool
 static Lunate.Ai.Decisions.DecisionUsage.operator ==(Lunate.Ai.Decisions.DecisionUsage? left, Lunate.Ai.Decisions.DecisionUsage? right) -> bool

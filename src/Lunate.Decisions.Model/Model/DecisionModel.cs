@@ -62,9 +62,9 @@ public sealed record DecisionUsage(
     /// The provider's own usage sidecar when one adds cost detail: OpenCode reports its billing
     /// source (its own balance or a marketplace) and list cost in <c>usage.opencode</c>.
     /// </summary>
-    public OpencodeUsage? Opencode { get; init; }
+    internal OpencodeUsage? Opencode { get; init; }
 
-    public sealed record OpencodeUsage(string? BillingSource, double? ListCost);
+    internal sealed record OpencodeUsage(string? BillingSource, double? ListCost);
 }
 
 /// <summary>Validated answers keyed by question id, with what the exchange cost.</summary>
