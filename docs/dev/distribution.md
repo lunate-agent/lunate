@@ -23,6 +23,43 @@ How Lunate reaches users: what a release carries, how the one-command installers
 - The extension package is the distribution channel for extensions: the same tag that publishes the tool pushes it to nuget.org, so `lunate install <package-id>` installs the version the tag names. It is attached to the release as well, so a machine without feed access can point a `nuget.config` at the downloaded folder.
 - Release asset names, the installer platform map and the `LUNATE_INSTALL_*` environment seams are pinned in the distribution spec (`openspec/specs/distribution/spec.md` after archive).
 
+## Single-file release shape: size vs startup
+
+The archives are published self-contained, single file and ReadyToRun, without
+`EnableCompressionInSingleFile` ([ADR-0008](../../adr/0008-release-publish-flags.md));
+[`scripts/verify.sh`](../../scripts/verify.sh) and the release workflow publish the same flags, so the
+verify gate measures the artifact users get. Three flags decide what the asset weighs and what a
+launch costs, and they were measured per component in
+[spike S-9](spikes/S-9/report.md) — `osx-arm64`, version 0.5.0, .NET 11, Apple M4, startup floor as
+the gate measures it (hyperfine, fastest of 20 runs, ADR-0005):
+
+| Publish shape | Binary | `tar.gz` asset | Startup floor, `lunate --version` |
+| --- | --- | --- | --- |
+| Single file + ReadyToRun (shipped) | 440.6 MiB | 139.0 MB | 139–177 ms |
+| Single file + ReadyToRun + compression | 137.2 MiB | 134.2 MB | 860–910 ms |
+| Single file, no ReadyToRun | 136.9 MiB | 51.2 MB | 38–66 ms |
+| Single file + compression, no ReadyToRun | 54.9 MiB | 51.1 MB | 92–334 ms |
+
+What the numbers say, and what the next person to touch the publish step should keep in mind:
+
+- **ReadyToRun is the size.** It is +318.5 MB of the binary and 2.7× the download (139.0 → 51.2 MB);
+  the same delta appears on `linux-x64` (149.7 → 53.4 MB). The Roslyn ring is the largest component of
+  the payload (24.0 MB of the 150.0 MB loose publish, 16%) but it is not what makes the asset large.
+- **Single-file compression barely touches the download**, because the archive is `gzip` already: it
+  halves the binary (440.6 → 137.2 MiB) for 3.5% of the asset, and 0.1% without ReadyToRun. It is not
+  the flag to reach for when the asset feels big.
+- **Compression costs a factor of five at startup** (139–177 → 860–910 ms), so it stays off. ADR-0008
+  also kept it off for a macOS crash under .NET 10; that crash did not reproduce in 100 starts under
+  .NET 11, and the startup cost alone is enough to keep the flag out.
+- **Dropping ReadyToRun is the lever for the size**, and the measurement on `osx-arm64` says it would
+  also lower the startup floor. That flips an accepted ADR and needs the `linux-x64` and `win-x64`
+  floors, which only the CI matrix can take, so it is a follow-up change rather than something a
+  packaging measurement settles.
+
+Re-measure before changing a flag; the commands are in the [S-9 report](spikes/S-9/report.md#reproducing-it)
+and the startup number is the gate's own (`scripts/perf.sh`), so the result is comparable with the
+budget it feeds.
+
 ## Pre-release checks (manual, T-33)
 
 Before tagging, run the terminal matrix from the guide: Windows Terminal, conhost, Git Bash, macOS Terminal, one Linux terminal, and tmux over SSH. The Release workflow runs the full verify gate on ubuntu before anything is published; the branch push already ran the three-OS CI matrix.
