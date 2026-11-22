@@ -825,6 +825,14 @@ started job can still report `runner_id: 0`. The rule SHALL NOT cover a job that
 SHALL still file, and a job whose `steps` list or `runner_id` is missing or unreadable SHALL be treated as
 red, so the rule fails closed instead of passing on a document it cannot read.
 
+The two jobs whose result is derived from the others' results — the `ci-ok` aggregate and this
+reporter — SHALL NOT be opened as a card or commented on when the run also holds a red job that ran and is
+neither of those, because that job's card already names the failure the derived job restates; the reporter
+SHALL name the derived red it did not file, with the run link, in the run's own log instead. When the run's
+only red jobs that ran are the derived ones, the aggregate's card SHALL still be filed, because then
+nothing else in the run speaks for the gate. A derived job that never started keeps the never-started rule
+above: it is named, not filed, like any other abandoned job.
+
 A run whose red jobs never reached a machine SHALL be a capacity red, not a code red: GitHub cancels a
 job when it never acquires a hosted runner for it, so nothing the repository builds or tests has run and
 no step exists to triage. The two jobs whose result is derived from the others' — the `ci-ok` aggregate
@@ -893,6 +901,18 @@ when it does not.
 - **GIVEN** a job concluded `cancelled` with an empty `steps` list and `runner_id: 7`, as a superseding run leaves it, and a job concluded `cancelled` with an empty `steps` list and no `runner_id` at all
 - **WHEN** the reporter runs on each
 - **THEN** both file a card, because an empty step list alone is not evidence that no runner was acquired
+
+#### Scenario: The aggregate is not filed beside the leg it restates (#1002)
+
+- **GIVEN** a push run on `main` in which `verify-powershell (windows)` failed and `ci-ok` failed because that required leg did not succeed
+- **WHEN** the reporter runs
+- **THEN** it files exactly one card, naming `verify-powershell (windows)`, and the run's log names `ci-ok` together with the run link
+
+#### Scenario: The aggregate's card is filed when it is the run's only red
+
+- **GIVEN** a push run on `main` in which every leg the plan required succeeded and `ci-ok` concluded `failure` anyway
+- **WHEN** the reporter runs
+- **THEN** it files a card naming `ci-ok`, because nothing else in the run explains the gate's red
 
 #### Scenario: A real failure beside an unstarted job still files
 
