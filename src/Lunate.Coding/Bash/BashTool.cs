@@ -13,7 +13,7 @@ public sealed class BashTool : ITool
     /// <summary>The model-facing name; also what <see cref="HighRiskCall"/> classifies.</summary>
     internal const string ToolName = "bash";
 
-    private const int CaptureCap = 1_000_000;
+    internal const int CaptureCap = 1_000_000;
 
     /// <summary>
     /// What every child this tool spawns carries besides its inherited environment: the session
@@ -46,6 +46,10 @@ public sealed class BashTool : ITool
                 "command": {
                   "type": "string",
                   "description": "Shell command line to run through the resolved shell"
+                },
+                "background": {
+                  "type": "boolean",
+                  "description": "Start the command without waiting; returns a job id for bash_output and bash_kill"
                 }
               },
               "required": ["command"]
@@ -62,6 +66,7 @@ public sealed class BashTool : ITool
     private readonly bool _guardEnabled;
     private readonly IExtensionLog? _log;
     private readonly IExecutionEnvironment _environment;
+    private readonly BashJobRegistry _jobs;
     private bool _noticeShown;
 
     public BashTool(
@@ -70,7 +75,7 @@ public sealed class BashTool : ITool
         TimeSpan? timeout = null,
         IExtensionLog? log = null
     )
-        : this(workspace, resolver, timeout, log, new BashGuard(), null, true, null) { }
+        : this(workspace, resolver, timeout, log, new BashGuard(), null, true, null, null) { }
 
     /// <summary>
     /// The seam for the guard: tests substitute a guard whose targets point at a fixture's
@@ -85,7 +90,8 @@ public sealed class BashTool : ITool
         BashGuard guard,
         TimeSpan? changeScanTimeout = null,
         bool guardEnabled = true,
-        IExecutionEnvironment? environment = null
+        IExecutionEnvironment? environment = null,
+        BashJobRegistry? jobs = null
     )
     {
         _workspace = workspace;
@@ -96,12 +102,16 @@ public sealed class BashTool : ITool
         _guardEnabled = guardEnabled;
         _log = log;
         _environment = environment ?? LocalExecutionEnvironment.Instance;
+        _jobs = jobs ?? new BashJobRegistry();
         Description = _shell is null
             ? $"Run a command in the platform shell (no shell was found on this machine). {Rules}"
             : $"Run a command in {_shell.DisplayName} ({Dialect(_shell.Kind)}). {Rules}";
     }
 
     public string Name => ToolName;
+
+    /// <summary>The registry shared with the other two bash tools of this session.</summary>
+    internal BashJobRegistry Jobs => _jobs;
 
     public string Description { get; }
 
@@ -126,6 +136,17 @@ public sealed class BashTool : ITool
         )
         {
             return Error("command is required and must be a string");
+        }
+
+        bool background = false;
+        if (args.TryGetProperty("background", out JsonElement backgroundElement))
+        {
+            if (backgroundElement.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                return Error("background must be true or false");
+            }
+
+            background = backgroundElement.GetBoolean();
         }
 
         if (_shell is null)
@@ -155,28 +176,17 @@ public sealed class BashTool : ITool
             return new ToolResult(refusal, IsError: true);
         }
 
+        if (background)
+        {
+            return await StartBackgroundAsync(commandElement.GetString()!, launch, ctx, ct)
+                .ConfigureAwait(false);
+        }
+
         ProcessRunResult run;
         try
         {
             run = await _environment
-                .RunAsync(
-                    new ProcessRunRequest(
-                        _environment.StartsHostClient ? _shell.ExecutablePath : launch.FileName,
-                        [
-                            .. _environment.StartsHostClient
-                                ? _shell.ArgumentsPrefix
-                                : launch.ArgumentsPrefix,
-                            commandElement.GetString()!,
-                        ],
-                        _workspace.WorktreeRoot,
-                        Timeout: _timeout,
-                        OutputCapBytes: CaptureCap
-                    )
-                    {
-                        ExtraEnvironment = SessionEnvironment,
-                    },
-                    ct
-                )
+                .RunAsync(Request(launch, commandElement.GetString()!), ct)
                 .ConfigureAwait(false);
         }
         catch (ExecutionEnvironmentUnavailableException exception)
@@ -232,6 +242,77 @@ public sealed class BashTool : ITool
             new BashDetails(exitCode)
         );
     }
+
+    /// <summary>
+    /// Starts one background job and returns its id. The command goes through the same environment
+    /// mapping as the foreground path; the job owns the wait, the timeout and the tree kill.
+    /// </summary>
+    private async Task<ToolResult> StartBackgroundAsync(
+        string command,
+        GuardCommand launch,
+        ToolContext ctx,
+        CancellationToken ct
+    )
+    {
+        BashJob job;
+        try
+        {
+            job = await _jobs
+                .StartAsync(
+                    command,
+                    _ => _environment.StartBackgroundAsync(Request(launch, command), ct),
+                    _timeout
+                )
+                .ConfigureAwait(false);
+        }
+        catch (ExecutionEnvironmentUnavailableException exception)
+        {
+            return Error(exception.Message);
+        }
+        catch (Exception exception)
+            when (exception
+                    is Win32Exception
+                        or InvalidOperationException
+                        or PlatformNotSupportedException
+                        or ArgumentException
+                        or IOException
+            )
+        {
+            var message = string.Create(
+                CultureInfo.InvariantCulture,
+                $"could not start {_shell!.DisplayName} ({_shell.ExecutablePath}): {exception.Message}; check the shell installation"
+            );
+            return Error(message);
+        }
+
+        await PublishChangesAsync(ctx).ConfigureAwait(false);
+        NoticeOnce(launch);
+        string started = string.Create(
+            CultureInfo.InvariantCulture,
+            $"started background job {job.Id}; read it with bash_output (job_id: {job.Id}) and stop it with bash_kill"
+        );
+        if (!_guardEnabled)
+        {
+            started += Environment.NewLine + "bash guard is disabled by settings";
+        }
+
+        return new ToolResult(started, IsError: false);
+    }
+
+    private ProcessRunRequest Request(GuardCommand launch, string command) =>
+        new(
+            _environment.StartsHostClient ? _shell!.ExecutablePath : launch.FileName,
+            [
+                .. _environment.StartsHostClient ? _shell!.ArgumentsPrefix : launch.ArgumentsPrefix,
+                command,
+            ],
+            _workspace.WorktreeRoot,
+            Timeout: _timeout,
+            OutputCapBytes: CaptureCap
+        )
+        {
+            ExtraEnvironment = SessionEnvironment,
+        };
 
     /// <summary>
     /// The guard's notice goes to the log, once, and never into the command's output: stdout belongs

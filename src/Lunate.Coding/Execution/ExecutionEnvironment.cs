@@ -35,6 +35,15 @@ internal interface IExecutionEnvironment
     Task<ProcessRunResult> RunAsync(ProcessRunRequest request, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Starts one tool command without waiting for it. The returned handle carries the environment's
+    /// cancel step, so a container background job still kills its container-side process group.
+    /// </summary>
+    Task<StartedBackgroundProcess> StartBackgroundAsync(
+        ProcessRunRequest request,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>
     /// Starts one interactive tool command with this environment's cancel semantics; see
     /// <see cref="IProcessSession"/>.
     /// </summary>
@@ -69,6 +78,15 @@ internal sealed record ExecutionCommand(
     string WorkingDirectory,
     IReadOnlyDictionary<string, string>? Environment,
     IReadOnlyDictionary<string, string>? ExtraEnvironment = null
+);
+
+/// <summary>
+/// A process an environment started without waiting for it. <see cref="AfterKill"/> runs after the
+/// handle's own tree kill, which is where a container environment kills the command's group.
+/// </summary>
+internal sealed record StartedBackgroundProcess(
+    IExecutionProcess Process,
+    Func<Task>? AfterKill = null
 );
 
 /// <summary>

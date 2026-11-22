@@ -26,7 +26,18 @@ public sealed class SystemPromptParityTests
         // registration order, then the question tool each frontend adds.
         string expected = SystemPrompt.Compose(
             new Workspace(root),
-            ["read", "write", "edit", "bash", "todo", "web_search", "web_fetch", "ask_user"],
+            [
+                "read",
+                "write",
+                "edit",
+                "bash",
+                "bash_output",
+                "bash_kill",
+                "todo",
+                "web_search",
+                "web_fetch",
+                "ask_user",
+            ],
             launch
         );
 

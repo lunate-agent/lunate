@@ -36,6 +36,20 @@ internal sealed partial class LocalExecutionEnvironment : IExecutionEnvironment
         CancellationToken cancellationToken
     ) => await RunAsync(request, cancellationToken, afterCancel: null).ConfigureAwait(false);
 
+    public Task<StartedBackgroundProcess> StartBackgroundAsync(
+        ProcessRunRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.FileName);
+        ArgumentNullException.ThrowIfNull(request.Arguments);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.WorkingDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
+        IExecutionProcess child = ChildProcess.Start(MapRequest(request));
+        return Task.FromResult(new StartedBackgroundProcess(child));
+    }
+
     /// <summary>
     /// The batch run with an environment's extra cancel step: after the host-side children-first
     /// tree kill, <paramref name="afterCancel"/> runs. A container environment passes the

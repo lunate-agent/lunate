@@ -16,13 +16,15 @@ A tool that fails reports what failed and what to do next back to the model as t
 
 ## The tools are the only way it acts
 
-Seven built-in tools do the work: `read`, `write`, `edit`, `bash`, `todo`, `web_search` and
-`web_fetch`. The model uses `todo` to keep one short plan — each item is `pending`, `in_progress` or
-`done` — and the live area shows it above the prompt, bounded to a few lines. The web tools search and
-read pages through the same approval path as `bash`; a search returns ranked title, URL and snippet
-results, and a fetch returns readable text with the page title and links as markdown, both bounded in
-bytes. In a C# workspace the model can also call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`,
-`cs_find_references` and `cs_outline` — which load on the first C# call rather than at startup.
+Nine built-in tools do the work: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`,
+`web_search` and `web_fetch`. The bash family can start a long command in the background, poll only
+the output written since the last poll, and stop the whole process tree. The model uses `todo` to keep
+one short plan — each item is `pending`, `in_progress` or `done` — and the live area shows it above
+the prompt, bounded to a few lines. The web tools search and read pages through the same approval path
+as `bash`; a search returns ranked title, URL and snippet results, and a fetch returns readable text
+with the page title and links as markdown, both bounded in bytes. In a C# workspace the model can also
+call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` —
+which load on the first C# call rather than at startup.
 Extensions, MCP servers and skills add tools of their own, and they go through the same approval
 policy as the built-ins.
 

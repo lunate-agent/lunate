@@ -34,3 +34,10 @@ process-table read used by the local tree kill, and bash's post-call host change
 - **GIVEN** a `BashTool` composed with an execution environment in a git workspace
 - **WHEN** the command changes a tracked file
 - **THEN** the post-call change scan runs locally, outside the tool-command environment, and still
+  publishes the change
+
+#### Scenario: Host support is not routed through the seam
+
+- **GIVEN** the editor, clipboard, guard-probe and `ps` process starts
+- **WHEN** they run
+- **THEN** they start locally and never call an `IExecutionEnvironment`

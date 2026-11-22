@@ -150,6 +150,8 @@ internal sealed class ExtensionSession : IAsyncDisposable
         "write",
         "edit",
         "bash",
+        "bash_output",
+        "bash_kill",
         "todo",
         "web_search",
         "web_fetch",

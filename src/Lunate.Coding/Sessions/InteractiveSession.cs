@@ -501,6 +501,7 @@ internal sealed partial class InteractiveSession : IDisposable
                     catch (OperationCanceledException) { }
                 }
 
+                await _bashJobs.KillAllAsync();
                 await DisposeExtensionsAsync();
                 await DisposeExecutionEnvironmentAsync();
                 // Every exit path leaves the viewer's alternate screen, exceptions included.
@@ -673,7 +674,8 @@ internal sealed partial class InteractiveSession : IDisposable
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
             bashGuard: _bashGuard,
-            environment: _executionEnvironment
+            environment: _executionEnvironment,
+            bashJobs: _bashJobs
         );
         _tools.Add(new AskUserTool());
         await ComposeMcpConfigAsync(ct);
@@ -703,7 +705,8 @@ internal sealed partial class InteractiveSession : IDisposable
             verificationMode: _settings.Verify,
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
-            environment: _executionEnvironment
+            environment: _executionEnvironment,
+            bashJobs: _bashJobs
         );
         // The model resolves after the extension host: the configured id may name a virtual or
         // extension-registered model, which only the registry knows.

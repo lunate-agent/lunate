@@ -151,6 +151,7 @@ internal static class PrintMode
         ExtensionSession? extensions = null;
         McpToolSet? mcp = null;
         ContainerExecutionEnvironment? environment = null;
+        var bashJobs = new BashJobRegistry();
         try
         {
             IReadOnlyList<ITool> mcpTools = [];
@@ -365,6 +366,7 @@ internal static class PrintMode
                     inheritedTools,
                     skills,
                     environment,
+                    bashJobs,
                     notice => interaction.Notify(notice)
                 );
             }
@@ -456,6 +458,7 @@ internal static class PrintMode
         }
         finally
         {
+            await bashJobs.KillAllAsync().ConfigureAwait(false);
             if (environment is not null)
             {
                 try
@@ -821,6 +824,7 @@ internal static class PrintMode
         List<ITool> inheritedTools,
         SkillCatalog skills,
         ContainerExecutionEnvironment? environment,
+        BashJobRegistry bashJobs,
         Action<UserNotice> warn
     )
     {
@@ -845,7 +849,8 @@ internal static class PrintMode
             verificationMode: settings.Verify,
             refusalTracker: refusalTracker,
             bashGuardEnabled: settings.BashGuard,
-            environment: environment
+            environment: environment,
+            bashJobs: bashJobs
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -950,7 +955,8 @@ internal static class PrintMode
                 verificationMode: settings.Verify,
                 refusalTracker: refusalTracker,
                 bashGuardEnabled: settings.BashGuard,
-                environment: environment
+                environment: environment,
+                bashJobs: bashJobs
             ),
         };
 
