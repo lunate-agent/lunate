@@ -16,6 +16,10 @@ parseable on its own, so a consumer reads the stream as it arrives instead of wa
 lunate -p --json "list the files you changed" > events.jsonl
 ```
 
+The `type` names are also the vocabulary an extension declares in its manifest `events` list (or
+`["*"]`), so what an extension watches is named the way `--json` names it; see
+[the event stream](extensions/contributions/event-stream.md).
+
 Every line carries `type` and `runId`; `sessionId` is present when the run has a session,
 `parentRunId` on a child run's events, and `source` only when it is not `core`. A consumer scopes
 events by `runId` and never assumes one run per stream: a child run's events keep their own ids.

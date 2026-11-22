@@ -102,6 +102,10 @@
               "path": "extensions/contributions/background-services.md"
             },
             {
+              "title": "Event stream",
+              "path": "extensions/contributions/event-stream.md"
+            },
+            {
               "title": "File changes",
               "path": "extensions/contributions/file-changes.md"
             },
@@ -315,6 +319,10 @@
     },
     {
       "path": "extensions/contributions/background-services.md",
+      "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
+    },
+    {
+      "path": "extensions/contributions/event-stream.md",
       "reason": "Its example is a C# contribution the extension host compiles, so no command runs unattended."
     },
     {

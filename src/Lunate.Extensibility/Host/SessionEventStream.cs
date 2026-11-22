@@ -374,6 +374,12 @@ public sealed class SessionEventStream : IDisposable
                     }
                     catch (Exception exception)
                     {
+                        lock (_gate)
+                        {
+                            _closed = true;
+                            _pending.Clear();
+                        }
+
                         owner.ReportFailure(extensionId, exception);
                         owner.Remove(this);
                         _finished.TrySetResult();

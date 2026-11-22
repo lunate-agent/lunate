@@ -97,6 +97,11 @@ real `~/.lunate` is never touched.
 `Load`-time failures throw; the session's per-extension isolation belongs to the product, not the
 kit.
 
+`RunAsync` publishes every event to the host's `SessionEventStream` as well, so an extension that
+watches through [`context.Events`](contributions/event-stream.md) sees the same run the `Events`
+recorder holds; assert on what the extension observed — a marker file it wrote, or its log — and the
+run itself proves the delivery.
+
 ## Assertions
 
 `SessionAssertions` reads the session file through the real `Session.Load`:
