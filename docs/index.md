@@ -35,6 +35,7 @@ New here? [Quickstart](quickstart.md) installs Lunate and walks the first run, a
   - **Contributions**
     - [Contribution surfaces](extensions/contributions/README.md)
     - [Background services](extensions/contributions/background-services.md)
+    - [Event stream](extensions/contributions/event-stream.md)
     - [File changes](extensions/contributions/file-changes.md)
     - [Hooks](extensions/contributions/hooks.md)
     - [MCP servers](extensions/contributions/mcp-servers.md)

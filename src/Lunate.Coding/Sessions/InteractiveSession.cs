@@ -1891,6 +1891,9 @@ internal sealed partial class InteractiveSession : IDisposable
                 : _harness!.RunAsync(input, runCts.Token);
             await foreach (AgentEvent agentEvent in events)
             {
+                // The extensions watch the same events the session renders (ADR-0040); publishing
+                // is enqueueing only, so no observer can pace the run.
+                _extensions?.Publish(agentEvent);
                 _options.EventObserver?.Invoke(agentEvent);
                 HandleEvent(agentEvent);
             }

@@ -1,3 +1,4 @@
+using Lunate.Agent;
 using Lunate.Extensibility.Abstractions;
 
 namespace Lunate.Extensibility;
@@ -30,6 +31,7 @@ internal sealed class ExtensionContext : IExtensionContext
     private readonly Func<string, object?>? _findCoreService;
     private readonly IExtensionSettings _settings;
     private readonly IExtensionSecrets _secrets;
+    private readonly ObservableEvents _events;
     private volatile bool _disposed;
 
     public ExtensionContext(
@@ -47,6 +49,7 @@ internal sealed class ExtensionContext : IExtensionContext
         Action<string, McpServerRegistration>? registerMcpServer = null,
         Action<string, ExtensionToolRegistration>? registerTool = null,
         Action<string, WriteVerifierRegistration>? registerWriteVerifier = null,
+        SessionEventStream? events = null,
         Action<string, ExtensionModelProvider>? registerModelProvider = null,
         Action<string, ExtensionModelMiddleware>? registerModelMiddleware = null,
         Action<string, VirtualModelRegistration>? registerVirtualModel = null,
@@ -67,6 +70,7 @@ internal sealed class ExtensionContext : IExtensionContext
         _settings = settings;
         _secrets = secrets;
         Log = log;
+        _events = new ObservableEvents(events, id, log);
         _register = register;
         _registerService = registerService;
         _subscribeFileChanged = subscribeFileChanged;
@@ -107,6 +111,15 @@ internal sealed class ExtensionContext : IExtensionContext
     }
 
     public IExtensionLog Log { get; }
+
+    public IObservable<AgentEvent> Events
+    {
+        get
+        {
+            ThrowIfDisposed();
+            return _events;
+        }
+    }
 
     /// <summary>
     /// Marks the context disposed: the extension was unloaded, so a host call from a handler that
@@ -279,6 +292,47 @@ internal sealed class ExtensionContext : IExtensionContext
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         service = _findCoreService?.Invoke(name) as T;
         return service is not null;
+    }
+
+    /// <summary>
+    /// The one observable an extension's subscriptions go through: it forwards to the host's
+    /// <see cref="SessionEventStream"/> under this extension's id, so completion, drops and the
+    /// error isolation are the stream's. A host that wired no stream (a bare context in a test, or
+    /// a host that does not carry run events) warns once and delivers nothing, the way a missing
+    /// <c>core/file-bus</c> handle does.
+    /// </summary>
+    private sealed class ObservableEvents(
+        SessionEventStream? stream,
+        string extensionId,
+        IExtensionLog log
+    ) : IObservable<AgentEvent>
+    {
+        private int _warned;
+
+        public IDisposable Subscribe(IObserver<AgentEvent> observer)
+        {
+            ArgumentNullException.ThrowIfNull(observer);
+            if (stream is not null)
+            {
+                return stream.Subscribe(extensionId, observer);
+            }
+
+            if (Interlocked.Exchange(ref _warned, 1) == 0)
+            {
+                log.Warn(
+                    $"extension '{extensionId}' subscribed to the event stream, but this host wired no stream; the subscription will not receive events."
+                );
+            }
+
+            return EmptySubscription.Instance;
+        }
+    }
+
+    private sealed class EmptySubscription : IDisposable
+    {
+        public static readonly EmptySubscription Instance = new();
+
+        public void Dispose() { }
     }
 
     private void ThrowIfDisposed()

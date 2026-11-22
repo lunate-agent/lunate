@@ -723,9 +723,16 @@ public sealed partial class AgentHarness
 
                 _danglingCalls.Clear();
                 _danglingCalls.AddRange(calls);
-                foreach (FunctionCallContent call in calls)
+                if (CanRunReadOnlyBatch(calls))
                 {
-                    await ExecuteCallAsync(runId, call, channel, ct);
+                    await ExecuteReadOnlyBatchAsync(runId, calls, channel, ct);
+                }
+                else
+                {
+                    foreach (FunctionCallContent call in calls)
+                    {
+                        await ExecuteCallAsync(runId, call, channel, ct);
+                    }
                 }
             }
         }

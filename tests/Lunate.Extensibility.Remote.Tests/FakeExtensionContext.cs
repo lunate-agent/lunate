@@ -19,6 +19,12 @@ internal sealed class FakeExtensionContext : IExtensionContext
 
     IExtensionLog IExtensionContext.Log => Log;
 
+    /// <summary>
+    /// The event stream of the fake host: empty, because these tests drive registrations directly
+    /// and never iterate a run (the remote wire projection is the protocol-3 follow-up).
+    /// </summary>
+    public IObservable<Lunate.Agent.AgentEvent> Events { get; } = new EmptyEvents();
+
     public List<IHookHandler> Handlers { get; } = [];
 
     public Dictionary<string, IBackgroundService> Services { get; } = new(StringComparer.Ordinal);
@@ -28,6 +34,20 @@ internal sealed class FakeExtensionContext : IExtensionContext
     public List<WriteVerifierRegistration> WriteVerifiers { get; } = [];
 
     public void Register(IHookHandler handler) => Handlers.Add(handler);
+
+    private sealed class EmptyEvents : IObservable<Lunate.Agent.AgentEvent>
+    {
+        public IDisposable Subscribe(IObserver<Lunate.Agent.AgentEvent> observer)
+        {
+            ArgumentNullException.ThrowIfNull(observer);
+            return new Subscription();
+        }
+
+        private sealed class Subscription : IDisposable
+        {
+            public void Dispose() { }
+        }
+    }
 
     public void RegisterWriteVerifier(WriteVerifierRegistration registration) =>
         WriteVerifiers.Add(registration);

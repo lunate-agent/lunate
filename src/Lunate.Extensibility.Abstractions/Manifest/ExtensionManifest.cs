@@ -29,6 +29,14 @@ public sealed partial record ExtensionManifest
 
     public IReadOnlyList<string> Hooks { get; init; } = [];
 
+    /// <summary>
+    /// What the extension watches: the <c>--json</c> event kind vocabulary, or <c>["*"]</c> for
+    /// everything (ADR-0040). Information, not a permission — an in-process subscription receives
+    /// every event whatever this declares; a remote extension's declaration becomes the wire's
+    /// projection filter with protocol version 3.
+    /// </summary>
+    public IReadOnlyList<string> Events { get; init; } = [];
+
     public IReadOnlyList<string> Services { get; init; } = [];
 
     public IReadOnlyList<string> Capabilities { get; init; } = [];
@@ -150,6 +158,7 @@ public sealed partial record ExtensionManifest
                 ToolAliases = ToolAliasesObject(root, fileName, tools),
                 Commands = DeclarationArray(root, fileName, "commands"),
                 Hooks = DeclarationArray(root, fileName, "hooks"),
+                Events = EventArray(root, fileName),
                 Services = DeclarationArray(root, fileName, "services"),
                 Capabilities = StringArray(root, fileName, "capabilities"),
                 ModelProviders = ModelProviderArray(root, fileName),
@@ -247,6 +256,25 @@ public sealed partial record ExtensionManifest
         }
 
         return values;
+    }
+
+    /// <summary>
+    /// The optional <c>events</c> watch list: the <c>--json</c> kind vocabulary, or <c>["*"]</c>
+    /// alone for everything. The wildcard declares no narrower watch, so combining it with a kind
+    /// is refused rather than silently widened. The vocabulary itself is not repeated here: an
+    /// unknown name simply never matches, and <c>docs/json-events.md</c> owns the list.
+    /// </summary>
+    private static List<string> EventArray(JsonElement root, string fileName)
+    {
+        List<string> events = DeclarationArray(root, fileName, "events").ToList();
+        if (events.Count > 1 && events.Contains("*", StringComparer.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"{fileName}: field 'events' declares '*' beside other kinds; '*' means every event, so declare it alone."
+            );
+        }
+
+        return events;
     }
 
     private static JsonElement? OptionalSettingsSchema(JsonElement root, string fileName)

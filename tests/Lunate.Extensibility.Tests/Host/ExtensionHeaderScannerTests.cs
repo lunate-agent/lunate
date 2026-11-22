@@ -17,6 +17,8 @@ public sealed class ExtensionHeaderScannerTests
             #:tool close_issue
             #:command ping
             #:hook tool-calling
+            #:event run_started
+            #:event tool_call_result
             #:service greeter
             #:capability net
             #:provider acme-models
@@ -35,6 +37,7 @@ public sealed class ExtensionHeaderScannerTests
         Assert.Equal(["fetch_issue", "close_issue"], header.Tools);
         Assert.Equal(["ping"], header.Commands);
         Assert.Equal(["tool-calling"], header.Hooks);
+        Assert.Equal(["run_started", "tool_call_result"], header.Events);
         Assert.Equal(["greeter"], header.Services);
         Assert.Equal(["net"], header.Capabilities);
         Assert.Equal(["acme-models"], header.Providers);
@@ -44,6 +47,25 @@ public sealed class ExtensionHeaderScannerTests
         Assert.Equal("Octokit@14.0.0", Assert.Single(header.Packages).Written);
         Assert.True(header.Generators);
         Assert.True(header.IsValid);
+    }
+
+    [Fact]
+    public void A_wildcard_beside_a_kind_is_refused_at_its_line()
+    {
+        ExtensionHeader header = ExtensionHeaderScanner.Scan(
+            """
+            #:extension acme-tools@1.2.3
+            #:event *
+            #:event run_started
+
+            public sealed class Acme;
+            """
+        );
+
+        ExtensionHeaderIssue issue = Assert.Single(header.Errors);
+        Assert.Equal(3, issue.Line);
+        Assert.Contains("declare it alone", issue.Message, StringComparison.Ordinal);
+        Assert.False(header.IsValid);
     }
 
     [Fact]

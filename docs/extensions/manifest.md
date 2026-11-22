@@ -24,6 +24,7 @@ Known fields with the wrong type or shape fail the parse.
 | `builtin` | no | boolean | Yes. Provenance assertion reserved for host-supplied built-ins; directory manifests cannot enable it. |
 | `commands` | no | string array | Parsed and displayed only. No command registration API exists; see [commands and keybindings](contributions/README.md#commands-and-keybindings). |
 | `hooks` | no | string array | Declaration. `/extensions` compares registered count with declared count; in-process registrations are not cross-checked. Remote extensions enforce it at the handshake. |
+| `events` | no | string array | Declaration. The `--json` event kinds the extension watches, or `["*"]` alone for every event; see [event stream](contributions/event-stream.md). Shown by `/extensions` as `watches …`; information, not a permission. |
 | `services` | no | string array | Declaration, same as `hooks`. |
 | `capabilities` | no | string array | No. Free-form strings; no surface renders them and nothing is gated by them. |
 | `settingsSchema` | no | object | Partly. See [settings and secrets](contributions/settings-and-secrets.md). |
@@ -32,12 +33,29 @@ Known fields with the wrong type or shape fail the parse.
 Exactly one of `entryAssembly` and `runtime` must be present. A missing pair and a double pair are
 both refused with a message that names the conflict.
 
-`tools`, `commands`, `hooks` and `services` must be arrays of strings and may not repeat a value.
+`tools`, `commands`, `hooks`, `events` and `services` must be arrays of strings and may not repeat a
+value; `events` accepts `*` only as its single entry.
 `capabilities` may repeat values; it is informational.
 
 `workspaceServices` must be an array of objects with a unique, non-empty `name`. Each object may
 set `maxLoadedWorkspaces` to a positive integer; the default is 2. `toolActivation` is keyed by `*`
 or a declared local tool name; `toolAliases` is keyed only by declared local tool names.
+
+### `events`
+
+Name what the extension watches, using the `--json` event kinds
+([`docs/json-events.md`](../json-events.md)):
+
+```json
+"events": ["run_started", "tool_call_result", "usage_updated"]
+```
+
+`["*"]` means every event and must be declared alone. The declaration is information: an in-process
+subscription receives every event whatever the list says, and nothing is gated by it. It is shown by
+`/extensions` and in the interactive trust question, and it becomes the wire's projection filter when
+the event stream reaches out-of-process extensions (protocol version 3, a follow-up card). An
+out-of-process manifest that declares it today logs one warning. See
+[event stream](contributions/event-stream.md).
 
 ### `toolAliases`
 

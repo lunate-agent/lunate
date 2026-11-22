@@ -10,6 +10,7 @@ resources belong in a background service or start on first use.
 | Surface | Register with | Page | Reference |
 | --- | --- | --- | --- |
 | Hook handlers | `context.Register(handler)` | [hooks.md](hooks.md) | `permission-gate`, `lsp-diagnostics` |
+| Event stream (observing) | `context.Events.Subscribe(observer)` | [event-stream.md](event-stream.md) | loader fixture `ObserverExtension` |
 | Tools | `context.RegisterTool(registration)` | [tools.md](tools.md) | `ui-showcase` |
 | Named services | `context.RegisterService(name, service)` | [services.md](services.md) | `memory-provider`, `model-router` |
 | File-change subscriptions | `context.SubscribeFileChanged(handler, pattern)` | [file-changes.md](file-changes.md) | loader fixture `HelloExtension` |

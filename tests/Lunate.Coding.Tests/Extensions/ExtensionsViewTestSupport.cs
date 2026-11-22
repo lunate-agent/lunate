@@ -20,7 +20,8 @@ internal static class ExtensionsViewTestData
         IReadOnlyList<string>? tools = null,
         IReadOnlyList<string>? commands = null,
         IReadOnlyList<string>? hooks = null,
-        IReadOnlyList<string>? services = null
+        IReadOnlyList<string>? services = null,
+        IReadOnlyList<string>? events = null
     ) =>
         new(
             id,
@@ -36,6 +37,7 @@ internal static class ExtensionsViewTestData
                 Tools = tools ?? [],
                 Commands = commands ?? [],
                 Hooks = hooks ?? [],
+                Events = events ?? [],
                 Services = services ?? [],
             }
         );

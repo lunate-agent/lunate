@@ -23,6 +23,7 @@ public sealed partial class ExtensionLoader
         StringComparer.Ordinal
     );
     private readonly HookRunner _hooks;
+    private readonly SessionEventStream _eventStream;
     private readonly BackgroundServiceHost _backgroundServices;
     private readonly ModelRegistry _modelRegistry;
     private readonly ToolResultRendererRegistry _toolResultRenderers;
@@ -53,6 +54,7 @@ public sealed partial class ExtensionLoader
         _options = options;
         _tools = new ExtensionToolRegistry(options.ReservedToolNames);
         _hooks = hooks ?? new HookRunner(null, options.Log);
+        _eventStream = new SessionEventStream(options.Log);
         _backgroundServices = new BackgroundServiceHost(options.Log);
         _toolResultRenderers = new ToolResultRendererRegistry(options.Log);
         _statusWidgets = new StatusWidgetRegistry(options.Log);
@@ -73,6 +75,13 @@ public sealed partial class ExtensionLoader
 
     /// <summary>The hook runner handlers registered through extension contexts dispatch to.</summary>
     public HookRunner Hooks => _hooks;
+
+    /// <summary>
+    /// The session's observable event stream (<see cref="Abstractions.IExtensionContext.Events"/>).
+    /// The host that iterates a run publishes each event through it; it never receives anything by
+    /// itself, because the run belongs to the front end (ADR-0040).
+    /// </summary>
+    public SessionEventStream EventStream => _eventStream;
 
     /// <summary>The tool-result renderers the loaded extensions registered.</summary>
     public ToolResultRendererRegistry ToolResultRenderers => _toolResultRenderers;
@@ -228,6 +237,7 @@ public sealed partial class ExtensionLoader
         _commandSources.Unregister(id);
         _declaredNotProvidedCommands.Remove(id);
         DropSubscriptions(id);
+        await _eventStream.CompleteExtensionAsync(id, CancellationToken.None).ConfigureAwait(false);
         if (_contexts.Remove(id, out AssemblyLoadContext? context))
         {
             context.Unload();
@@ -344,6 +354,9 @@ public sealed partial class ExtensionLoader
         await _backgroundServices.StopAsync(cancellationToken).ConfigureAwait(false);
         await ShutdownRemotesAsync(cancellationToken).ConfigureAwait(false);
         _workspaceServices.EndSession();
+        // A subscriber's last events and its completion are delivered before any context is marked
+        // disposed, so a completion callback can still log (the stream caps the wait).
+        await _eventStream.CompleteAllAsync(cancellationToken).ConfigureAwait(false);
 
         // The contexts are marked disposed only now: a session-ending hook or a background
         // service's stop still makes host calls, and those must not throw (design D3, sign-off Q2).

@@ -94,6 +94,7 @@ internal static class LayeringChecker
             ("Lunate.Coding.Tests", "ServiceConsumerExtension"),
             ("Lunate.Coding.Tests", "SkillSourceExtension"),
             ("Lunate.Coding.Tests", "ToolExtension"),
+            ("Lunate.Coding.Tests", "ObserverExtension"),
             ("Lunate.Coding.Tests", "TestMcpServer"),
             ("Lunate.Coding.Tests", "UiShowcaseExtension"),
             // The shared TestMcpServer path/marker/process helpers are a BCL-only support project.
@@ -153,6 +154,7 @@ internal static class LayeringChecker
             ("ServiceConsumerExtension", "Lunate.Extensibility.Abstractions"),
             ("SkillSourceExtension", "Lunate.Extensibility.Abstractions"),
             ("ToolExtension", "Lunate.Extensibility.Abstractions"),
+            ("ObserverExtension", "Lunate.Extensibility.Abstractions"),
             ("ModelExtension", "Lunate.Extensibility.Abstractions"),
             ("ModelRouterExtension", "Lunate.Extensibility.Abstractions"),
             ("ModelRouterExtension.Tests", "Lunate.Ai"),
