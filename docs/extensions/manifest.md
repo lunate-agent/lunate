@@ -24,7 +24,7 @@ Known fields with the wrong type or shape fail the parse.
 | `builtin` | no | boolean | Yes. Provenance assertion reserved for host-supplied built-ins; directory manifests cannot enable it. |
 | `commands` | no | string array | Parsed and displayed only. No command registration API exists; see [commands and keybindings](contributions/README.md#commands-and-keybindings). |
 | `hooks` | no | string array | Declaration. `/extensions` compares registered count with declared count; in-process registrations are not cross-checked. Remote extensions enforce it at the handshake. |
-| `events` | no | string array | Declaration. The `--json` event kinds the extension watches, or `["*"]` alone for every event; see [event stream](contributions/event-stream.md). Shown by `/extensions` as `watches …`; information, not a permission. |
+| `events` | no | string array | Declaration. The `--json` event kinds the extension watches, or `["*"]` alone for every event; see [event stream](contributions/event-stream.md). Shown by `/extensions` as `watches …`; information in-process, the wire's projection filter for a remote extension (which the handshake negotiates and a pre-3 child is refused for). |
 | `services` | no | string array | Declaration, same as `hooks`. |
 | `capabilities` | no | string array | No. Free-form strings; no surface renders them and nothing is gated by them. |
 | `settingsSchema` | no | object | Partly. See [settings and secrets](contributions/settings-and-secrets.md). |
@@ -50,12 +50,14 @@ Name what the extension watches, using the `--json` event kinds
 "events": ["run_started", "tool_call_result", "usage_updated"]
 ```
 
-`["*"]` means every event and must be declared alone. The declaration is information: an in-process
+`["*"]` means every event and must be declared alone. The declaration is information in-process: a
 subscription receives every event whatever the list says, and nothing is gated by it. It is shown by
-`/extensions` and in the interactive trust question, and it becomes the wire's projection filter when
-the event stream reaches out-of-process extensions (protocol version 3, a follow-up card). An
-out-of-process manifest that declares it today logs one warning. See
-[event stream](contributions/event-stream.md).
+`/extensions` and in the interactive trust question. For a remote extension it is the wire's
+projection filter: the host sends only these kinds, and only those the child accepts over protocol
+version 3, so an out-of-process manifest that declares it against a child below version 3 is refused
+at the handshake naming the version it needs. A remote manifest that declares `events` starts its
+child at session start — `startup: "background"` or not — so the projection is live before the first
+run emits. See [event stream](contributions/event-stream.md).
 
 ### `toolAliases`
 

@@ -51,6 +51,26 @@ public sealed class RemoteConformanceOptions
     /// <summary>A command whose handler fails; null skips the failure step.</summary>
     public string? FailingCommand { get; init; }
 
+    /// <summary>
+    /// The event kinds the runner declares in its handshake (the host's watch list); <c>["*"]</c>
+    /// by default, so a version-3 child can accept whatever it implements.
+    /// </summary>
+    public IReadOnlyList<string> Events { get; init; } = ["*"];
+
+    /// <summary>The probe events sent over <c>event/&lt;kind&gt;</c> when the child accepts them.</summary>
+    public IReadOnlyList<RemoteEventSample> ProbeEvents { get; init; } =
+    [
+        new("RunStarted", new Lunate.Agent.RunStarted("conformance-run")),
+        new("RunFinished", new Lunate.Agent.RunFinished("conformance-run", "stop")),
+    ];
+
+    /// <summary>
+    /// A command that reports the kinds the child observed, so the event step can assert receipt
+    /// (notifications are never acknowledged). The default is the node reference extension's
+    /// <c>observed</c>; null sends the probe events without asserting receipt.
+    /// </summary>
+    public string? EventProbeCommand { get; init; } = "observed";
+
     /// <summary>The step timeout (start, handshake, each round trip).</summary>
     public TimeSpan Timeout { get; init; } = TimeSpan.FromSeconds(30);
 
@@ -171,7 +191,10 @@ public static class RemoteConformanceRunner
                 workspace,
                 [.. HookContracts.All.Select(contract => contract.Name)],
                 options.Services
-            );
+            )
+            {
+                Events = options.Events,
+            };
             JsonElement? handshake = await wire.CallAsync(
                     RemoteProtocol.InitializeMethod,
                     JsonSerializer.SerializeToElement(
@@ -319,6 +342,15 @@ public static class RemoteConformanceRunner
                     );
                 }
             }
+
+            // The observable projection (protocol version 3): sent after the command probes so the
+            // receipt probe can reuse the command path, and before shutdown so its notifications
+            // land while the child is alive.
+            steps.Add(
+                await RemoteEventNotificationConformance
+                    .RunAsync(wire, options, answer, cancellationToken)
+                    .ConfigureAwait(false)
+            );
 
             try
             {

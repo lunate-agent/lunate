@@ -341,7 +341,11 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
         wire.Start();
         try
         {
-            await HandshakeAsync(wire, cancellationToken).ConfigureAwait(false);
+            InitializeResult answer = await HandshakeAsync(wire, cancellationToken)
+                .ConfigureAwait(false);
+            // The projection starts only for a child that answered: an event published while the
+            // handshake runs is not queued for a child that may still refuse the extension.
+            StartEventProjection(wire, answer);
         }
         catch (Exception exception)
         {
@@ -376,7 +380,10 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
         return wire;
     }
 
-    private async Task HandshakeAsync(RemoteWire wire, CancellationToken cancellationToken)
+    private async Task<InitializeResult> HandshakeAsync(
+        RemoteWire wire,
+        CancellationToken cancellationToken
+    )
     {
         ExtensionManifest manifest = _options.Manifest;
         IReadOnlyList<HookContract> declared = DeclaredHooks();
@@ -387,7 +394,10 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
             _options.Workspace,
             [.. declared.Select(contract => contract.Name)],
             manifest.Services
-        );
+        )
+        {
+            Events = manifest.Events,
+        };
 
         JsonElement? result = await wire.CallAsync(
                 RemoteProtocol.InitializeMethod,
@@ -427,6 +437,19 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
                 string.Create(
                     CultureInfo.InvariantCulture,
                     $"it speaks protocol {answer.ProtocolVersion} but this host reads {RemoteProtocol.MinimumVersion} to {RemoteProtocol.Version}"
+                )
+            );
+        }
+
+        // The declaration decides the gate, not the child's version: a version-1 or version-2
+        // child still loads when the manifest has no watch list, and a manifest that declares
+        // events names the version it needs instead of being ignored.
+        if (manifest.Events.Count > 0 && answer.ProtocolVersion < RemoteProtocol.EventsVersion)
+        {
+            throw Refuse(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"it speaks protocol {answer.ProtocolVersion} but the manifest declares 'events', which reaches a child only over protocol version {RemoteProtocol.EventsVersion}"
                 )
             );
         }
@@ -482,6 +505,7 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
         }
 
         SetMissingSurface(missing, missingServices);
+        return answer;
     }
 
     /// <summary>
@@ -555,6 +579,10 @@ public sealed partial class RemoteExtension : IExtension, IAsyncDisposable
 
     private async ValueTask StopChildAsync(CancellationToken cancellationToken)
     {
+        // The projection ends before the shutdown is sent, so no event notification races the
+        // shutdown frame and a restart starts with an empty queue and a fresh subscription.
+        StopEventProjection();
+
         RemoteWire? wire;
         RemoteProcessChannel? channel;
         lock (_gate)

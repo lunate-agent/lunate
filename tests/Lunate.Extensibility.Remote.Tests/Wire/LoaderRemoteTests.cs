@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lunate.Agent;
 using Lunate.Extensibility.Abstractions;
 using Lunate.Extensibility.Remote;
 using Lunate.Extensibility.Testing;
@@ -111,6 +112,43 @@ public sealed class LoaderRemoteTests
     }
 
     [Fact]
+    public async Task An_events_only_extension_starts_at_session_start_and_observes()
+    {
+        // No hook, service or command: only the declared watch list would ever bring this child to
+        // life, and it must be alive before the first run emits (ADR-0040).
+        using var workspace = new RemoteTestWorkspace(hooks: [], events: ["*"]);
+        ExtensionLoader loader = workspace.CreateLoader();
+
+        await workspace.LoadAsync(loader);
+
+        Assert.Equal(1, workspace.Child.StartCount);
+        loader.EventStream.Publish(new Lunate.Agent.RunStarted("run_1"));
+        await WaitAsync(
+            () => workspace.Child.ObservedEventKinds().Contains("run_started"),
+            "the projected event"
+        );
+    }
+
+    [Fact]
+    public async Task An_events_declaration_starts_a_background_child_at_session_start()
+    {
+        // `background` moves the deferred session-started to the post-ready point, but an observer
+        // that waited for it would miss the first run: the events declaration starts the child at
+        // session start even in background mode (the one startup-path exception).
+        using var workspace = new RemoteTestWorkspace(events: ["*"], startup: "background");
+        ExtensionLoader loader = workspace.CreateLoader();
+
+        await workspace.LoadAsync(loader);
+
+        Assert.Equal(1, workspace.Child.StartCount);
+        loader.EventStream.Publish(new RunStarted("run_1"));
+        await WaitAsync(
+            () => workspace.Child.ObservedEventKinds().Contains("run_started"),
+            "the projected event"
+        );
+    }
+
+    [Fact]
     public async Task Background_mode_starts_after_the_explicit_trigger_only()
     {
         using var workspace = new RemoteTestWorkspace(startup: "background");
@@ -194,6 +232,31 @@ public sealed class LoaderRemoteTests
 
         Assert.Equal(2, workspace.Child.StartCount);
         Assert.False(await loader.RestartRemoteAsync("absent", Ct));
+    }
+
+    [Fact]
+    public async Task An_observer_receives_the_json_line_with_the_host_priced_cost()
+    {
+        using var workspace = new RemoteTestWorkspace(events: ["usage_updated"]);
+        // The host holds the catalog and prices the record; the wire package cannot, so the
+        // composition hands it this delegate and the observer's params are the --json line.
+        ExtensionLoader loader = workspace.CreateLoader(costUsd: _ => 0.25m);
+        await workspace.LoadAsync(loader);
+        var usage = new UsageUpdated(
+            "run_1",
+            new Microsoft.Extensions.AI.UsageDetails { InputTokenCount = 1000 }
+        );
+
+        loader.EventStream.Publish(usage);
+
+        await WaitAsync(
+            () => workspace.Child.ObservedEventKinds().Contains("usage_updated"),
+            "the usage event"
+        );
+        (string _, JsonElement? parameters) = workspace.Child.Notifications.Single(notification =>
+            notification.Method == "event/usage_updated"
+        );
+        Assert.Equal(0.25m, parameters!.Value.GetProperty("costUsd").GetDecimal());
     }
 
     private static async Task WaitAsync(Func<bool> condition, string what)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lunate.Agent;
 using Lunate.Extensibility.Abstractions;
 using Lunate.Extensibility.Remote;
 using Lunate.Extensibility.Testing;
@@ -21,7 +22,8 @@ internal sealed class RemoteTestWorkspace : IDisposable
         string? startup = null,
         IReadOnlyList<string>? hooks = null,
         IReadOnlyList<string>? commands = null,
-        IReadOnlyList<string>? services = null
+        IReadOnlyList<string>? services = null,
+        IReadOnlyList<string>? events = null
     )
     {
         _root = Path.Combine(
@@ -52,6 +54,7 @@ internal sealed class RemoteTestWorkspace : IDisposable
                 "hooks": [{{Declarations(hooks ?? ["tool-calling"])}}],
                 "services": [{{Declarations(services ?? [])}}],
                 "commands": [{{Declarations(commands ?? [])}}],
+                "events": [{{Declarations(events ?? [])}}],
                 {{runtime}}
             }
             """
@@ -73,7 +76,10 @@ internal sealed class RemoteTestWorkspace : IDisposable
     /// <summary>Every one-line notice the host raised (an unload cancelling a command).</summary>
     public List<string> Notices { get; } = [];
 
-    public ExtensionLoader CreateLoader(IReadOnlyList<string>? reservedCommands = null)
+    public ExtensionLoader CreateLoader(
+        IReadOnlyList<string>? reservedCommands = null,
+        Func<UsageUpdated, decimal?>? costUsd = null
+    )
     {
         var loader = new ExtensionLoader(
             new ExtensionHostOptions
@@ -81,6 +87,7 @@ internal sealed class RemoteTestWorkspace : IDisposable
                 StorePath = StorePath,
                 Log = Log,
                 Notify = Notices.Add,
+                CostUsd = costUsd,
                 ReservedCommands = reservedCommands ?? [],
             }
         );

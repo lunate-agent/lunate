@@ -73,7 +73,9 @@ public sealed class RemoteConformanceTests
         );
         Assert.True(invoke.Passed, invoke.Detail);
         Assert.Contains("pong conformance", invoke.Detail, StringComparison.Ordinal);
-        CommandInvokeRequest request = Assert.Single(child.CommandRequests);
+        CommandInvokeRequest request = Assert.Single(child.CommandRequests, candidate =>
+            candidate.Name == "ping"
+        );
         Assert.Equal("ping", request.Name);
         Assert.Equal("conformance", request.Argument);
     }

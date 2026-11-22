@@ -18,7 +18,9 @@ lunate -p --json "list the files you changed" > events.jsonl
 
 The `type` names are also the vocabulary an extension declares in its manifest `events` list (or
 `["*"]`), so what an extension watches is named the way `--json` names it; see
-[the event stream](extensions/contributions/event-stream.md).
+[the event stream](extensions/contributions/event-stream.md). A remote extension receives the same
+object over the wire as an `event/<type>` notification; see
+[the remote wire](extensions-remote.md#events).
 
 Every line carries `type` and `runId`; `sessionId` is present when the run has a session,
 `parentRunId` on a child run's events, and `source` only when it is not `core`. A consumer scopes
@@ -110,7 +112,9 @@ The model is resolved in the scope of the provider the run selected, so the wire
 on the record (`deepseek-v4.1-flash` for `opencode-go/deepseek-v4.1-flash`) prices as that provider's
 entry even when another preset serves the same wire id; `modelId` on the line stays what the
 provider reported. An id that still names no entry, or that stays ambiguous outside the selected
-provider, keeps the field absent rather than guessing an entry.
+provider, keeps the field absent rather than guessing an entry. The extension wire carries the same
+number: the host prices the record from the session catalog before it sends `event/usage_updated`, so
+an observer's params are this line.
 
 ## Related
 

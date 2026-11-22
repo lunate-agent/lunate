@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lunate.dev/schemas/remote-extension-wire.json",
-  "title": "Lunate remote extension wire (protocol version 2)",
-  "description": "JSON-RPC 2.0 over newline-delimited UTF-8 JSON on stdio. Stdout is protocol-only; a non-JSON line or a line over 16 MB is a protocol error. Interceptor hooks are requests, observer hooks are notifications, service-call and command/invoke are requests, and $/cancelRequest carries { id }.",
+  "title": "Lunate remote extension wire (protocol version 3)",
+  "description": "JSON-RPC 2.0 over newline-delimited UTF-8 JSON on stdio. Stdout is protocol-only; a non-JSON line or a line over 16 MB is a protocol error. Interceptor hooks are requests, observer hooks are notifications, service-call and command/invoke are requests, one event notification per kind carries the --json event line (protocol version 3), and $/cancelRequest carries { id }.",
   "type": "object",
   "properties": {
     "initialize.request": {
@@ -54,6 +54,9 @@
     },
     "command.result": {
       "$ref": "#/$defs/CommandInvokeResult"
+    },
+    "event.notification": {
+      "$ref": "#/$defs/EventNotification"
     },
     "cancel": {
       "type": "object",
@@ -1105,6 +1108,12 @@
           "items": {
             "type": "string"
           }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -1113,7 +1122,8 @@
         "manifest",
         "workspace",
         "hooks",
-        "services"
+        "services",
+        "events"
       ]
     },
     "InitializeResult": {
@@ -1136,13 +1146,82 @@
         },
         "commands": {
           "type": "boolean"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
         "protocolVersion",
         "hooks",
         "services",
-        "commands"
+        "commands",
+        "events"
+      ]
+    },
+    "EventNotification": {
+      "title": "EventNotification",
+      "description": "One \u0060--json\u0060 event line, sent as the params of an event notification named after its kind (never awaited, never answered). The kind-specific fields are the ones docs/json-events.md documents.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "approval_requested",
+            "compaction_applied",
+            "cost_limit_reached",
+            "decision_evaluated",
+            "decision_failed",
+            "decision_unavailable",
+            "model_routed",
+            "reasoning_end",
+            "reasoning_message_content",
+            "reasoning_start",
+            "retrying",
+            "run_error",
+            "run_finished",
+            "run_started",
+            "steering_injected",
+            "step_limit_reached",
+            "text_message_content",
+            "text_message_end",
+            "text_message_start",
+            "time_limit_reached",
+            "todo_updated",
+            "tool_call_args",
+            "tool_call_end",
+            "tool_call_result",
+            "tool_call_start",
+            "tool_output_spill_failed",
+            "tool_progress_update",
+            "usage_updated"
+          ]
+        },
+        "runId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parentRunId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "runId"
       ]
     }
   }

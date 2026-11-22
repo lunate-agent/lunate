@@ -64,6 +64,8 @@ internal sealed class ScriptedChild : IAsyncDisposable
         new(request.ProtocolVersion, request.Hooks, request.Services)
         {
             Commands = AdvertisesCommands,
+            // A well-behaved version-3 child accepts what the manifest declares.
+            Events = request.Events,
         };
 
     /// <summary>
@@ -103,19 +105,62 @@ internal sealed class ScriptedChild : IAsyncDisposable
     /// <summary>Every observer notification the child received, by method.</summary>
     public List<(string Method, JsonElement? Parameters)> Notifications { get; } = [];
 
+    /// <summary>How many notifications every session of this child has received so far.</summary>
+    public int NotificationCount
+    {
+        get
+        {
+            lock (Notifications)
+            {
+                return Notifications.Count;
+            }
+        }
+    }
+
     /// <summary>Every <c>command/invoke</c> the child received, in arrival order.</summary>
     public List<CommandInvokeRequest> CommandRequests { get; } = [];
 
     /// <summary>
     /// Answers one invoked command through <see cref="RemoteCommandInvoke.DispatchAsync"/> — the
-    /// real child entry, so cancellation and failure map exactly as a real child's do.
+    /// real child entry, so cancellation and failure map exactly as a real child's do. The default
+    /// echoes the remainder as <c>pong</c> and answers <c>observed</c> with the event kinds it
+    /// received, which is what a conforming version-3 child does.
     /// </summary>
     public Func<
         CommandInvokeRequest,
         CancellationToken,
         ValueTask<CommandResult>
-    > CommandAnswers { get; set; } =
-        (request, _) => ValueTask.FromResult(CommandResult.Notice("pong " + request.Argument));
+    > CommandAnswers { get; set; }
+
+    public ScriptedChild() =>
+        CommandAnswers = (request, _) =>
+            ValueTask.FromResult(
+                request.Name == "observed"
+                    ? CommandResult.Notice(string.Join(",", ObservedEventKinds()))
+                    : CommandResult.Notice("pong " + request.Argument)
+            );
+
+    /// <summary>The event kinds every session of this child has received, in arrival order.</summary>
+    public IReadOnlyList<string> ObservedEventKinds()
+    {
+        lock (Notifications)
+        {
+            return
+            [
+                .. Notifications
+                    .Where(notification =>
+                        notification.Method.StartsWith(
+                            RemoteProtocol.EventMethodPrefix,
+                            StringComparison.Ordinal
+                        )
+                    )
+                    .Select(notification =>
+                        notification.Method[RemoteProtocol.EventMethodPrefix.Length..]
+                    )
+                    .Distinct(StringComparer.Ordinal),
+            ];
+        }
+    }
 
     /// <summary>Answers one <c>service-call</c>; the default returns null.</summary>
     public Func<ServiceCallEnvelope, JsonElement?> ServiceAnswers { get; set; } = _ => null;

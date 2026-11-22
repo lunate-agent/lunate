@@ -1,3 +1,4 @@
+using Lunate.Agent;
 using Lunate.Ai;
 using Lunate.Extensibility.Abstractions;
 
@@ -16,6 +17,14 @@ public sealed class ExtensionHostOptions
 
     /// <summary>The session catalog the model registry falls back to; null disables the fallback.</summary>
     public ModelCatalog? ModelCatalog { get; init; }
+
+    /// <summary>
+    /// Prices a <c>usage_updated</c> record for a remote observer's <c>event/usage_updated</c> line,
+    /// so its params carry the same <c>costUsd</c> the <c>--json</c> line does. The wire package sits
+    /// below the catalog, so the composition that owns one passes the estimate down; null leaves
+    /// the field off.
+    /// </summary>
+    public Func<UsageUpdated, decimal?>? CostUsd { get; init; }
 
     /// <summary>
     /// The client factory the model registry uses for catalog models and declared providers; null

@@ -1,61 +1,20 @@
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using Lunate.Agent;
 using Lunate.Ai;
-using Lunate.Contracts;
+using Lunate.Extensibility.Remote;
 
 namespace Lunate.Coding;
 
 /// <summary>
-/// Serializes one <see cref="AgentEvent"/> to one JSON line for <c>lunate -p --json</c>: camelCase,
-/// invariant, no pretty printing. The switch covers every sealed event record and the reflection
-/// test pins that set, so a new event type fails the test run. <c>details</c> is written as a JSON
-/// element (the eval reads <c>matchTier</c> from edit details).
+/// Serializes one <see cref="AgentEvent"/> to one JSON line for <c>lunate -p --json</c>: the shared
+/// projection in <see cref="RemoteEventJson"/> (the same object the extension wire carries,
+/// ADR-0040) with the <c>costUsd</c> the session catalog prices, which is the one field the wire
+/// cannot compute for itself. Keeping the event switch in one place is what stops the stream, the
+/// wire and the documented kind vocabulary from drifting apart.
 /// </summary>
 internal static class PrintEventJson
 {
-    /// <summary>The adapter's additional-usage key for cache-creation tokens.</summary>
-    private const string CacheCreationInputTokensKey = "CacheCreationInputTokens";
-
-    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = false,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-
     /// <summary>The event types the serializer handles; the reflection test pins this against the assembly.</summary>
-    internal static IReadOnlyList<Type> HandledEventTypes =>
-        [
-            typeof(RunStarted),
-            typeof(RunFinished),
-            typeof(RunError),
-            typeof(TextMessageStart),
-            typeof(TextMessageContent),
-            typeof(TextMessageEnd),
-            typeof(ReasoningStart),
-            typeof(ReasoningMessageContent),
-            typeof(ReasoningEnd),
-            typeof(ToolCallStart),
-            typeof(ToolCallArgs),
-            typeof(ToolCallEnd),
-            typeof(ToolCallResult),
-            typeof(ApprovalRequested),
-            typeof(UsageUpdated),
-            typeof(DecisionEvaluated),
-            typeof(DecisionUnavailable),
-            typeof(DecisionFailed),
-            typeof(ModelRouted),
-            typeof(Retrying),
-            typeof(CompactionApplied),
-            typeof(StepLimitReached),
-            typeof(CostLimitReached),
-            typeof(TimeLimitReached),
-            typeof(SteeringInjected),
-            typeof(ToolProgressUpdate),
-            typeof(ToolOutputSpillFailed),
-            typeof(TodoUpdated),
-        ];
+    internal static IReadOnlyList<Type> HandledEventTypes => RemoteEventJson.HandledEventTypes;
 
     /// <summary>
     /// Returns the one-line JSON object for an event, including the stamped fields. A catalog and
@@ -66,240 +25,21 @@ internal static class PrintEventJson
         AgentEvent agentEvent,
         ModelCatalog? catalog = null,
         string? fallbackModelId = null
-    )
-    {
-        (string type, JsonObject body) = Describe(agentEvent, catalog, fallbackModelId);
-        var line = new JsonObject { ["type"] = type, ["runId"] = agentEvent.RunId };
-        if (agentEvent.SessionId is not null)
-        {
-            line["sessionId"] = agentEvent.SessionId;
-        }
+    ) => RemoteEventJson.Serialize(agentEvent, usage => CostUsd(usage, catalog, fallbackModelId));
 
-        if (agentEvent.ParentRunId is not null)
-        {
-            line["parentRunId"] = agentEvent.ParentRunId;
-        }
-
-        if (agentEvent.Source != "core")
-        {
-            line["source"] = agentEvent.Source;
-        }
-
-        foreach ((string name, JsonNode? value) in body)
-        {
-            line[name] = value?.DeepClone();
-        }
-
-        return line.ToJsonString(Options);
-    }
-
-    private static (string Type, JsonObject Body) Describe(
-        AgentEvent agentEvent,
+    private static decimal? CostUsd(
+        UsageUpdated usage,
         ModelCatalog? catalog,
         string? fallbackModelId
     ) =>
-        agentEvent switch
-        {
-            RunStarted => ("run_started", new JsonObject()),
-            RunFinished e => ("run_finished", new JsonObject { ["stopReason"] = e.StopReason }),
-            RunError e => ("run_error", new JsonObject { ["message"] = e.Message }),
-            TextMessageStart e => ("text_message_start", MessageBody(e.MessageId)),
-            TextMessageContent e => (
-                "text_message_content",
-                new JsonObject { ["messageId"] = e.MessageId, ["text"] = e.Text }
-            ),
-            TextMessageEnd e => ("text_message_end", MessageBody(e.MessageId)),
-            ReasoningStart e => ("reasoning_start", MessageBody(e.MessageId)),
-            ReasoningMessageContent e => (
-                "reasoning_message_content",
-                new JsonObject { ["messageId"] = e.MessageId, ["text"] = e.Text }
-            ),
-            ReasoningEnd e => ("reasoning_end", MessageBody(e.MessageId)),
-            ToolCallStart e => (
-                "tool_call_start",
-                ToolCallBody(e.CallId, e.ParentToolCallId, toolName: e.ToolName)
-            ),
-            ToolCallArgs e => (
-                "tool_call_args",
-                ToolCallBody(e.CallId, e.ParentToolCallId, args: e.Args)
-            ),
-            ToolCallEnd e => ("tool_call_end", ToolCallBody(e.CallId, e.ParentToolCallId)),
-            ToolCallResult e => ("tool_call_result", ToolResultBody(e)),
-            ApprovalRequested e => ("approval_requested", ApprovalBody(e)),
-            UsageUpdated e => ("usage_updated", UsageBody(e, catalog, fallbackModelId)),
-            DecisionEvaluated e => ("decision_evaluated", DecisionBody(e)),
-            DecisionUnavailable e => (
-                "decision_unavailable",
-                new JsonObject { ["questionId"] = e.QuestionId }
-            ),
-            DecisionFailed e => (
-                "decision_failed",
-                new JsonObject
-                {
-                    ["questionId"] = e.QuestionId,
-                    ["modelId"] = e.ModelId,
-                    ["reason"] = e.Reason,
-                }
-            ),
-            ModelRouted e => (
-                "model_routed",
-                new JsonObject
-                {
-                    ["requestedModel"] = e.RequestedModel,
-                    ["resolvedModel"] = e.ResolvedModel,
-                }
-            ),
-            Retrying e => (
-                "retrying",
-                new JsonObject { ["attempt"] = e.Attempt, ["reason"] = e.Reason }
-            ),
-            CompactionApplied e => ("compaction_applied", CompactionBody(e)),
-            SteeringInjected e => ("steering_injected", SteeringBody(e)),
-            StepLimitReached e => (
-                "step_limit_reached",
-                new JsonObject { ["maxSteps"] = e.MaxSteps }
-            ),
-            CostLimitReached e => (
-                "cost_limit_reached",
-                new JsonObject { ["maxCostUsd"] = e.MaxCostUsd, ["spendUsd"] = e.SpendUsd }
-            ),
-            TimeLimitReached e => (
-                "time_limit_reached",
-                new JsonObject
-                {
-                    ["maxTimeSeconds"] = e.MaxTime.TotalSeconds,
-                    ["elapsedSeconds"] = e.Elapsed.TotalSeconds,
-                }
-            ),
-            ToolProgressUpdate e => (
-                "tool_progress_update",
-                new JsonObject { ["callId"] = e.CallId, ["message"] = e.Message }
-            ),
-            ToolOutputSpillFailed e => (
-                "tool_output_spill_failed",
-                new JsonObject { ["message"] = e.Message }
-            ),
-            TodoUpdated e => ("todo_updated", new JsonObject { ["items"] = TodoBody(e.Items) }),
-            _ => throw new ArgumentException(
-                $"Event type '{agentEvent.Kind.Name}' has no JSON mapping.",
-                nameof(agentEvent)
-            ),
-        };
-
-    private static JsonObject DecisionBody(DecisionEvaluated e)
-    {
-        var body = new JsonObject
-        {
-            ["questionId"] = e.QuestionId,
-            ["modelId"] = e.ModelId,
-            ["method"] = e.Method,
-            ["answer"] = e.Answer,
-            ["option"] = e.Option,
-            ["probability"] = e.Probability,
-        };
-        if (e.Distribution is { } distribution)
-        {
-            var values = new JsonArray();
-            foreach (DecisionProbability item in distribution)
-            {
-                values.Add(
-                    new JsonObject { ["answer"] = item.Answer, ["probability"] = item.Probability }
-                );
-            }
-
-            body["distribution"] = values;
-        }
-
-        if (e.Confidence is { } confidence)
-        {
-            body["confidence"] = confidence;
-        }
-
-        if (e.ConfidenceThreshold is { } confidenceThreshold)
-        {
-            body["confidenceThreshold"] = confidenceThreshold;
-        }
-
-        if (e.Outcome is { } outcome)
-        {
-            body["outcome"] = outcome;
-        }
-
-        if (e.Strategy is { } strategy)
-        {
-            body["strategy"] = strategy;
-        }
-
-        if (e.Warning is { } warning)
-        {
-            body["warning"] = warning;
-        }
-
-        return body;
-    }
-
-    private static JsonObject MessageBody(string messageId) => new() { ["messageId"] = messageId };
-
-    private static JsonObject ApprovalBody(ApprovalRequested e)
-    {
-        var body = new JsonObject
-        {
-            ["callId"] = e.CallId,
-            ["toolName"] = e.ToolName,
-            ["args"] = e.Args,
-        };
-        if (e.WorkspaceRoot is { Length: > 0 } root)
-        {
-            body["workspaceRoot"] = root;
-        }
-
-        return body;
-    }
-
-    private static JsonObject UsageBody(
-        UsageUpdated e,
-        ModelCatalog? catalog,
-        string? fallbackModelId
-    )
-    {
-        var body = new JsonObject { ["usage"] = JsonSerializer.SerializeToNode(e.Usage, Options) };
-        // Cache counts are additive metadata next to the provider's raw usage object; unknown
-        // counts stay absent rather than becoming zero.
-        if (e.Usage.CachedInputTokenCount is { } cacheReadTokens && cacheReadTokens > 0)
-        {
-            body["cacheReadTokens"] = cacheReadTokens;
-        }
-
-        if (
-            e.Usage.AdditionalCounts is { } counts
-            && counts.TryGetValue(CacheCreationInputTokensKey, out long cacheWriteTokens)
-            && cacheWriteTokens > 0
-        )
-        {
-            body["cacheWriteTokens"] = cacheWriteTokens;
-        }
-
-        if (e.ModelId is { Length: > 0 } modelId)
-        {
-            body["modelId"] = modelId;
-        }
-
-        if (
-            catalog is not null
-            && UsageCost.ForRecord(
+        catalog is null
+            ? null
+            : UsageCost.ForRecord(
                 catalog,
-                e.ModelId ?? fallbackModelId,
-                UsageLanes.From(e.Usage),
+                usage.ModelId ?? fallbackModelId,
+                UsageLanes.From(usage.Usage),
                 SelectedProvider(catalog, fallbackModelId)
-            )
-                is decimal cost
-        )
-        {
-            body["costUsd"] = JsonValue.Create(cost);
-        }
-
-        return body;
-    }
+            );
 
     /// <summary>
     /// The provider the run selected, from the fallback model id (always a catalogue id): a
@@ -310,105 +50,4 @@ internal static class PrintEventJson
         string.IsNullOrEmpty(fallbackModelId)
             ? null
             : catalog.FindUsageModel(fallbackModelId, provider: null)?.Provider;
-
-    private static JsonObject ToolCallBody(
-        string callId,
-        string? parentToolCallId,
-        string? toolName = null,
-        string? args = null
-    )
-    {
-        var body = new JsonObject { ["callId"] = callId };
-        AddParent(body, parentToolCallId);
-        if (toolName is not null)
-        {
-            body["toolName"] = toolName;
-        }
-
-        if (args is not null)
-        {
-            body["args"] = args;
-        }
-
-        return body;
-    }
-
-    private static JsonObject ToolResultBody(ToolCallResult e)
-    {
-        var body = new JsonObject { ["callId"] = e.CallId };
-        AddParent(body, e.ParentToolCallId);
-        body["output"] = e.Output;
-        body["isError"] = e.IsError;
-        if (e.Details is not null)
-        {
-            body["details"] = JsonSerializer.SerializeToNode(
-                e.Details,
-                e.Details.GetType(),
-                Options
-            );
-        }
-
-        return body;
-    }
-
-    private static void AddParent(JsonObject body, string? parentToolCallId)
-    {
-        if (parentToolCallId is not null)
-        {
-            body["parentToolCallId"] = parentToolCallId;
-        }
-    }
-
-    private static JsonObject CompactionBody(CompactionApplied e)
-    {
-        var replaced = new JsonArray();
-        foreach (string id in e.ReplacedEntryIds)
-        {
-            replaced.Add(id);
-        }
-
-        return new JsonObject
-        {
-            ["replacedEntryIds"] = replaced,
-            ["estimatedTokensAfter"] = e.EstimatedTokensAfter,
-        };
-    }
-
-    private static JsonObject SteeringBody(SteeringInjected e)
-    {
-        var body = new JsonObject();
-        if (e.EntryId is not null)
-        {
-            body["entryId"] = e.EntryId;
-        }
-
-        return body;
-    }
-
-    private static JsonArray TodoBody(IReadOnlyList<TodoItem> items)
-    {
-        var body = new JsonArray();
-        foreach (TodoItem item in items)
-        {
-            body.Add(
-                new JsonObject
-                {
-                    ["text"] = item.Text,
-                    ["status"] = item.Status switch
-                    {
-                        TodoItemStatus.Pending => "pending",
-                        TodoItemStatus.InProgress => "in_progress",
-                        TodoItemStatus.Done => "done",
-                        _ => throw new ArgumentOutOfRangeException(
-                            nameof(items),
-                            item.Status,
-                            "Unknown todo status."
-                        ),
-                    },
-                }
-            );
-        }
-
-        return body;
-    }
 }

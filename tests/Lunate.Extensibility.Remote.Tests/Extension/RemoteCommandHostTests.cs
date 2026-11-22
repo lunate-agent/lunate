@@ -231,10 +231,7 @@ public sealed class RemoteCommandHostTests
         Assert.Equal("remote-sample", loaded.Id);
         Assert.Equal(RemoteExtensionState.Failed, loader.RemoteStatus("remote-sample")!.State);
         Assert.Contains(workspace.Log.Warnings, warning =>
-            warning.Contains(
-                "could not start while its declared commands were being listed",
-                StringComparison.Ordinal
-            )
+            warning.Contains("could not start during the session start", StringComparison.Ordinal)
         );
         Assert.Equal(["ping"], loader.DeclaredNotProvidedCommands("remote-sample"));
         // The source is registered, but it offers nothing: the command it declares is reported,

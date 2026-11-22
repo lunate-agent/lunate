@@ -1,3 +1,4 @@
+using Lunate.Agent;
 using Lunate.Extensibility.Abstractions;
 
 namespace Lunate.Extensibility.Remote;
@@ -56,4 +57,12 @@ public sealed class RemoteExtensionOptions
 
     /// <summary>The wire's per-line byte cap (the protocol error bound).</summary>
     public int MaxLineBytes { get; init; } = 16 * 1024 * 1024;
+
+    /// <summary>
+    /// Prices a <c>usage_updated</c> record for the event line's <c>costUsd</c> — the same catalog
+    /// estimate the <c>--json</c> line carries, so an observer's params are that line. The wire
+    /// package sits below the catalog and cannot price; the composition that owns the catalog
+    /// supplies this, and null omits the field (an unpriced record omits it either way).
+    /// </summary>
+    public Func<UsageUpdated, decimal?>? CostUsd { get; init; }
 }

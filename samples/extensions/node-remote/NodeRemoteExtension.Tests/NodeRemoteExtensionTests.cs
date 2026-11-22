@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lunate.Agent;
 using Lunate.Extensibility;
 using Lunate.Extensibility.Abstractions;
 using Lunate.Extensibility.Testing;
@@ -40,7 +41,60 @@ public sealed class NodeRemoteExtensionTests
         Assert.Contains(report.Steps, step => step.Name == "command invoke" && step.Passed);
         Assert.Contains(report.Steps, step => step.Name == "command cancel" && step.Passed);
         Assert.Contains(report.Steps, step => step.Name == "command failure" && step.Passed);
+        Assert.Contains(report.Steps, step => step.Name == "event notification" && step.Passed);
         Assert.Contains(report.Steps, step => step.Name == "shutdown" && step.Passed);
+    }
+
+    [Fact]
+    public async Task The_reference_extension_observes_a_real_turn_over_the_wire()
+    {
+        using var temp = new TempDirectory();
+        await using var host = new ExtensionTestHost(
+            new ExtensionTestHostOptions
+            {
+                TempDirectory = temp.Root,
+                ExtensionId = "node-remote",
+                ExtensionDirectory = SampleExtension.Directory,
+            }
+        );
+
+        // The manifest declares `events`, so the extension starts at session start and subscribed
+        // before the turn: the child observes it from `run_started` to `run_finished`.
+        ExtensionRunResult turn = await host.RunAsync(
+            new SingleReplyChatClient("hello from the node reference"),
+            "say hello",
+            Ct
+        );
+        Assert.Contains(turn.Events, agentEvent => agentEvent is RunStarted);
+        Assert.Contains(turn.Events, agentEvent => agentEvent is RunFinished);
+
+        // The projection is never awaited (ADR-0040): the child's pump may still be draining the
+        // turn when it finishes, so the receipt is polled for a bounded window like the
+        // conformance runner does.
+        RegisteredCommandSource commands = Assert.Single(host.Runner.CommandSources.List());
+        string said = string.Empty;
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            CommandResult observed = await commands.Source.InvokeAsync(
+                new CommandInvocation("observed", string.Empty),
+                Ct
+            );
+            Assert.False(observed.IsError);
+            said = observed.Message ?? string.Empty;
+            if (said.Contains("run_finished", StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            await Task.Delay(30, Ct);
+        }
+
+        int started = said.IndexOf("run_started", StringComparison.Ordinal);
+        int finished = said.IndexOf("run_finished", StringComparison.Ordinal);
+        Assert.True(started >= 0, $"the child did not observe run_started: {said}");
+        Assert.True(finished > started, $"run_finished did not follow run_started: {said}");
+        // The turn's text events arrived too: the whole stream, not the lifecycle markers alone.
+        Assert.Contains("text_message_content", said, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -109,7 +163,7 @@ public sealed class NodeRemoteExtensionTests
         // source-qualified id.
         RegisteredCommandSource commands = Assert.Single(host.Runner.CommandSources.List());
         Assert.Equal(
-            ["ping", "wait", "fail"],
+            ["ping", "wait", "fail", "observed"],
             [.. commands.Descriptors.Select(descriptor => descriptor.Name)]
         );
         CommandResult ping = await commands.Source.InvokeAsync(

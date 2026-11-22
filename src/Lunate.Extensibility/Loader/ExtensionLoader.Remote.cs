@@ -43,15 +43,6 @@ public sealed partial class ExtensionLoader
                 ? registered
                 : new WorkspaceInfo(Path.GetFullPath(workingDirectory), null, null);
 
-        if (descriptor.Manifest.Events.Count > 0)
-        {
-            // ADR-0040's wire projection is protocol version 3, its own follow-up card. Saying so
-            // once is the difference between "not yet" and a silently ignored declaration.
-            (_options.Log ?? NullExtensionLog.Instance).Warn(
-                $"extension '{descriptor.Id}' declares 'events', but the event stream reaches an out-of-process extension with protocol version 3, which this host does not speak yet; the declaration has no effect in this session."
-            );
-        }
-
         IExtensionSecrets secrets = ExtensionSecretsStore.Load(_options, descriptor.Id);
         var remote = new RemoteExtension(
             new RemoteExtensionOptions
@@ -62,18 +53,24 @@ public sealed partial class ExtensionLoader
                 ProcessRunner = runner,
                 Context = CreateExtensionContext(descriptor, secrets),
                 Notify = _options.Notify,
+                CostUsd = _options.CostUsd,
                 UnregisterHook = handler => _hooks.Unregister(descriptor.Id, handler),
             }
         );
         _remoteExtensions[descriptor.Id] = remote;
         try
         {
-            if (startSession && descriptor.Manifest.Commands.Count > 0)
+            if (
+                startSession
+                && (descriptor.Manifest.Commands.Count > 0 || descriptor.Manifest.Events.Count > 0)
+            )
             {
                 // The start observes the load's token — the start gate, the spawn and the
                 // initialize handshake all take it — so a cancellation while the child starts ends
-                // the load here instead of leaving it to finish under a token nobody reads.
-                await StartForDeclaredCommandsAsync(remote, descriptor, cancellationToken)
+                // the load here instead of leaving it to finish under a token nobody reads. An
+                // observer-only extension starts here too: nothing would dispatch a hook, call a
+                // service or list a command, so without this start it could never observe a run.
+                await StartForHandshakeAsync(remote, descriptor, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -108,15 +105,17 @@ public sealed partial class ExtensionLoader
     }
 
     /// <summary>
-    /// Starts one remote extension before its manifest commands are cross-checked, because the
-    /// capability that decides the command listing (`commands: true` in <c>initialize</c>) only
-    /// exists after the handshake: a declared command is either offered and dispatchable, or
-    /// reported as declared, not provided — never offered and dead. Contained: a child that
-    /// cannot start leaves the extension's commands declarations and the load continues. The
-    /// caller's own cancellation is not contained — it ends the load, which rolls back. The
-    /// register-only inspect mode passes <c>startSession: false</c> and starts nothing.
+    /// Starts one remote extension before its manifest commands are cross-checked and before the
+    /// first run emits, because two things only exist after the handshake: the capability that
+    /// decides the command listing (<c>commands: true</c> in <c>initialize</c>) and the event
+    /// acceptance that decides the observable projection. A declared command is either offered and
+    /// dispatchable or reported as declared, not provided — never offered and dead; a declared
+    /// watch list is either projected or the handshake refused it naming the version it needs.
+    /// Contained: a child that cannot start leaves the extension's declarations and the load
+    /// continues. The caller's own cancellation is not contained — it ends the load, which rolls
+    /// back. The register-only inspect mode passes <c>startSession: false</c> and starts nothing.
     /// </summary>
-    private async Task StartForDeclaredCommandsAsync(
+    private async Task StartForHandshakeAsync(
         RemoteExtension remote,
         ExtensionDescriptor descriptor,
         CancellationToken cancellationToken
@@ -135,7 +134,7 @@ public sealed partial class ExtensionLoader
         catch (Exception exception)
         {
             (_options.Log ?? NullExtensionLog.Instance).Warn(
-                $"extension '{descriptor.Id}': the child could not start while its declared commands were being listed: {exception.Message} Its commands are reported as declared, not provided."
+                $"extension '{descriptor.Id}': the child could not start during the session start, so its declared commands stay declared, not provided and its declared events reach it only if a later start succeeds: {exception.Message}"
             );
         }
     }
