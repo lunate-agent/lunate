@@ -199,9 +199,11 @@ public sealed class WebFetchTool : ITool
 
     private static string Render(string body, string contentType, Uri pageUri)
     {
+        // A text/plain response is the decoded text itself, so it keeps its whitespace: only the
+        // output cap may shorten it.
         if (!IsHtml(contentType))
         {
-            return WebText.Cap(body.Trim(), MaxOutputBytes, "page text");
+            return WebText.Cap(body, MaxOutputBytes, "page text");
         }
 
         HtmlPage page = HtmlToText.Parse(body, pageUri);

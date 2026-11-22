@@ -133,6 +133,23 @@ public sealed class WebFetchToolTests
     }
 
     [Fact]
+    public async Task A_text_response_keeps_its_surrounding_whitespace()
+    {
+        const string Body = "\n\n  first line\nsecond line  \n\n";
+        using var handler = StubHttpHandler.Text(Body);
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
+
+        ToolResult result = await tool.ExecuteAsync(
+            WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
+            WebTestSupport.Context(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.False(result.IsError);
+        Assert.Equal(Body, result.Output);
+    }
+
+    [Fact]
     public async Task A_non_text_response_names_the_content_type()
     {
         using var handler = StubHttpHandler.Html("%PDF-1.7", contentType: "application/pdf");
