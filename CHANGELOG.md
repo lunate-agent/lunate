@@ -12,6 +12,23 @@ Notable changes to Lunate, one section per release. The format follows
 
 ### Added
 
+- **Extensions can watch a session without being able to change it.** `IExtensionContext.Events` is
+  an `IObservable<AgentEvent>` (BCL only, no reactive package) that carries every run, every child
+  run and every extension event through one session-scoped subscription; each subscriber has its own
+  bounded queue and pump, so a slow observer loses its oldest events — counted, warned once and shown
+  by `/extensions` — instead of delaying the run, and a throw from `OnNext` drops only that
+  subscription. The manifest gains the `events` watch list (mirrored by `#:event` for single-file
+  extensions), shown by `/extensions` and in the trust question as information; the intercepting hook
+  catalogue, its ordering and its failure policies are unchanged, and the contract moves to
+  `1.18.0`. Implements [ADR-0040](adr/0040-hook-based-extensibility-on-observables.md); the
+  out-of-process projection (protocol version 3) is its own follow-up card (#983).
+
+- **Every frontend publishes to the stream, ACP included.** Interactive sessions, `-p`/`--json` print
+  runs and an ACP serve (`lunate --acp`) all feed the same extension stream, so an observer is written
+  once: the ACP prompt loop offers every event it receives to the composed host before its own
+  protocol filtering, so child-run events and lifecycle markers reach the subscription even though
+  `session/update` never carries them (#983).
+
 - The `todo` tool keeps one short, replaceable plan per session: each item is `pending`, `in_progress` or `done`, the live area shows it in at most five lines, and `--json` emits one `todo_updated` event with the full list on every update. The list replays from the session's existing tool calls, so the session format is unchanged. The event is a new case in the contract's event unions, so the contract moves to `1.17.0`; the extension-author note is under that version in `docs/extensions/README.md` (#992).
 
 - **`web_search` and `web_fetch` are core tools.** A plain install can now look up a library's
@@ -47,6 +64,12 @@ Notable changes to Lunate, one section per release. The format follows
 - **`lunate doctor` prints the facts a bug report needs.** One offline command reports the version, OS and architecture, install channel (`dotnet tool`, `self-contained`, `Homebrew` or `Scoop`), config and state paths with whether each exists, the resolved provider and model, credential presence — never a value — container-engine availability, terminal capabilities and the last update-check result. `--json` prints one pasteable object; a missing required path or an unreadable settings file exits 1, and the command never makes a network request (#997).
 
 ### Changed
+
+- **Independent read-only tool calls run in parallel.** When one model turn returns several `read`,
+  `grep`, `find`, `ls`, `web_search` or `web_fetch` calls, Lunate now runs their bodies concurrently
+  under a fixed cap of four. Start and result events stay in call order with their own call ids,
+  approvals remain per call, and a declined or failing call does not cancel its siblings. Writes,
+  edits, `bash`, extension, MCP and Roslyn tools keep the serial path (#1011).
 
 - **The decision model is its own package.** `DecisionRequest`, `DecisionQuestion` and its kinds, `DecisionAnswer`, `DecisionBox`, `DecisionResult`, `DecisionUsage` and the two seams `INativeDecisionClient` and `IAgentDecisionService` move to `Lunate.Decisions.Model`, with `PublicAPI` files and the contract pair's version. The engine — the chat adapter, builder, OpenTelemetry wrapper, parser and validator — stays in the unpacked `Lunate.Ai.Decisions`, which only `Lunate.Agent` ships; `Lunate.Extensibility.Abstractions` depends on the model package instead of packing the engine, so a contract consumer no longer sees the engine twice. The types keep the `Lunate.Ai.Decisions` namespace ([ADR-0045](adr/0045-decision-model-package.md), amending [ADR-0044](adr/0044-decision-model-ownership.md)) (#973).
 
