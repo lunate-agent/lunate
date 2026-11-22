@@ -225,6 +225,75 @@ public sealed class AuthStoreTests
         Assert.Equal("work-secret", reloaded.TryGet("work"));
     }
 
+    /// <summary>
+    /// A save is a read-modify-write under the claim, not "write the dictionary I loaded": a key
+    /// another process saved between this store's load and its save must survive it.
+    /// </summary>
+    [Fact]
+    public void Save_keeps_a_key_another_process_wrote_since_the_load()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("auth.json");
+        File.WriteAllText(path, """{ "schemaVersion": 1, "keys": { "work": "work-secret" } }""");
+        AuthStore store = AuthStore.Load(path, _ => null);
+
+        File.WriteAllText(
+            path,
+            """
+            { "schemaVersion": 1, "keys": { "work": "work-secret", "other": "other-secret" } }
+            """
+        );
+        store.Set("groq", "groq-secret");
+        store.Save();
+
+        AuthStore reloaded = AuthStore.Load(path, _ => null);
+        Assert.Equal("groq-secret", reloaded.TryGet("groq"));
+        Assert.Equal("other-secret", reloaded.TryGet("other"));
+        Assert.Equal("work-secret", reloaded.TryGet("work"));
+    }
+
+    [Fact]
+    public void Save_removes_only_the_key_this_store_removed()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("auth.json");
+        File.WriteAllText(
+            path,
+            """{ "schemaVersion": 1, "keys": { "work": "work-secret", "gone": "gone-secret" } }"""
+        );
+        AuthStore store = AuthStore.Load(path, _ => null);
+
+        Assert.True(store.Remove("gone"));
+        File.WriteAllText(
+            path,
+            """{ "schemaVersion": 1, "keys": { "work": "work-secret", "gone": "gone-secret", "other": "other-secret" } }"""
+        );
+        store.Save();
+
+        AuthStore reloaded = AuthStore.Load(path, _ => null);
+        Assert.Null(reloaded.TryGet("gone"));
+        Assert.Equal("other-secret", reloaded.TryGet("other"));
+        Assert.Equal("work-secret", reloaded.TryGet("work"));
+    }
+
+    [Fact]
+    public void Save_with_nothing_changed_writes_nothing()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("auth.json");
+        File.WriteAllText(path, """{ "schemaVersion": 1, "keys": { "work": "work-secret" } }""");
+        byte[] before = File.ReadAllBytes(path);
+
+        AuthStore store = AuthStore.Load(path, _ => null);
+        store.Save();
+
+        Assert.Equal(before, File.ReadAllBytes(path));
+        Assert.False(
+            File.Exists(Path.ChangeExtension(path, ".lock")),
+            "a save with nothing to change took the claim"
+        );
+    }
+
     [Fact]
     public void Saved_auth_files_are_owner_only_on_posix()
     {

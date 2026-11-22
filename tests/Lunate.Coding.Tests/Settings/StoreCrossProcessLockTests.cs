@@ -5,11 +5,11 @@ using Lunate.Ai;
 namespace Lunate.Coding.Tests;
 
 /// <summary>
-/// The settings and provider stores serialize their read-modify-write across processes, not just
-/// threads: the in-process gate cannot stop two Lunate processes from each reading the file and
-/// each replacing it with a document that lacks the other's change (review finding N-4). The proof
-/// is a real second process contending on the same lock file; an in-process second handle would not
-/// show that the claim is the file, and asserting a share-mode constant is not evidence.
+/// The settings, provider and auth stores serialize their read-modify-write across processes, not
+/// just threads: the in-process gate cannot stop two Lunate processes from each reading the file
+/// and each replacing it with a document that lacks the other's change (review finding N-4). The
+/// proof is a real second process contending on the same lock file; an in-process second handle
+/// would not show that the claim is the file, and asserting a share-mode constant is not evidence.
 /// </summary>
 public sealed class StoreCrossProcessLockTests
 {
@@ -25,6 +25,7 @@ public sealed class StoreCrossProcessLockTests
         A_provider_save_waits_for_a_claim_another_process_holds
     );
     private const string MigrationChild = nameof(A_migration_reads_again_under_the_claim);
+    private const string AuthChild = nameof(An_auth_save_waits_for_a_claim_another_process_holds);
 
     [Fact]
     public async Task A_settings_write_waits_for_a_claim_another_process_holds()
@@ -209,6 +210,88 @@ public sealed class StoreCrossProcessLockTests
     }
 
     [Fact]
+    public async Task An_auth_save_waits_for_a_claim_another_process_holds()
+    {
+        string? authPath = Environment.GetEnvironmentVariable(AuthPathVariable);
+        if (TestChildProcess.IsChild(AuthChild))
+        {
+            File.WriteAllText(Environment.GetEnvironmentVariable(ReadyPathVariable)!, "ready");
+            AuthStore auth = AuthStore.Load(authPath!);
+            auth.Set("child", "child-secret");
+            auth.Save();
+            return;
+        }
+
+        using var temp = new TempDirectory();
+        string path = temp.File("auth.json");
+        string ready = temp.File("auth.ready");
+        File.WriteAllText(path, """{ "schemaVersion": 1, "keys": { "seed": "seed-secret" } }""");
+
+        using FileLock held = FileLock.Acquire(
+            Path.ChangeExtension(path, ".lock"),
+            WaitBudgets.StoreClaimHold
+        );
+        Task<(int ExitCode, string Output)> child = TestChildProcess.RunAsync(
+            typeof(StoreCrossProcessLockTests),
+            AuthChild,
+            new Dictionary<string, string?>
+            {
+                [AuthPathVariable] = path,
+                [ReadyPathVariable] = ready,
+            }
+        );
+
+        await WaitForReadyAsync(ready);
+
+        // The child has reached the save. While this process holds the claim, the write must not
+        // land: a last-writer-wins store would let it through here.
+        await Task.Delay(WaitBudgets.StoreClaimContention, TestContext.Current.CancellationToken);
+        Assert.False(child.IsCompleted, "the child saved while another process held the claim");
+        Assert.DoesNotContain("child", File.ReadAllText(path), StringComparison.Ordinal);
+
+        // A key another process saves while the child waits must survive the child's
+        // read-modify-write, not be replaced by the document the child loaded before it.
+        File.WriteAllText(
+            path,
+            """{ "schemaVersion": 1, "keys": { "seed": "seed-secret", "parent": "parent-secret" } }"""
+        );
+
+        held.Dispose();
+        (int exitCode, string output) = await child;
+        Assert.True(exitCode == 0, $"the child process failed:\n{output}");
+
+        AuthStore reloaded = AuthStore.Load(path);
+        Assert.Equal("child-secret", reloaded.TryGet("child"));
+        Assert.Equal("parent-secret", reloaded.TryGet("parent"));
+        Assert.Equal("seed-secret", reloaded.TryGet("seed"));
+    }
+
+    [Fact]
+    public void An_auth_claim_refusal_names_the_file_and_the_lock()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("auth.json");
+        File.WriteAllText(path, """{ "schemaVersion": 1, "keys": { "seed": "seed-secret" } }""");
+        byte[] before = File.ReadAllBytes(path);
+
+        using FileLock held = FileLock.Acquire(
+            Path.ChangeExtension(path, ".lock"),
+            WaitBudgets.StoreClaimHold
+        );
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+            AuthStore.AcquireLock(path, WaitBudgets.StoreClaimRefusal)
+        );
+
+        Assert.Contains(path, error.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            Path.ChangeExtension(path, ".lock"),
+            error.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(before, File.ReadAllBytes(path));
+    }
+
+    [Fact]
     public void A_settings_claim_refusal_names_the_file_and_the_lock()
     {
         using var temp = new TempDirectory();
@@ -258,22 +341,31 @@ public sealed class StoreCrossProcessLockTests
     }
 
     [Fact]
-    public void Reading_settings_and_providers_creates_no_lock_file()
+    public void Reading_the_stores_creates_no_lock_file()
     {
         using var temp = new TempDirectory();
         string settingsPath = temp.File("settings.json");
         string providersPath = temp.File("providers.json");
+        string authPath = temp.File("auth.json");
         SettingsStore.WriteFavorites(["seed"], settingsPath);
         ProviderStore.Save(providersPath, [SeedProvider()]);
+        File.WriteAllText(
+            authPath,
+            """{ "schemaVersion": 1, "keys": { "work": "work-secret" } }"""
+        );
         File.Delete(Path.ChangeExtension(settingsPath, ".lock"));
         File.Delete(Path.ChangeExtension(providersPath, ".lock"));
 
         _ = SettingsStore.Resolve(settingsPath, _ => null);
-        AuthStore auth = AuthStore.Load(temp.File("auth.json"));
+        AuthStore auth = AuthStore.Load(authPath);
         _ = ProviderStore.Load(providersPath, auth, []);
 
         Assert.False(File.Exists(Path.ChangeExtension(settingsPath, ".lock")));
         Assert.False(File.Exists(Path.ChangeExtension(providersPath, ".lock")));
+        Assert.False(
+            File.Exists(Path.ChangeExtension(authPath, ".lock")),
+            "loading the auth store created its claim"
+        );
     }
 
     private static ProviderEntry SeedProvider() =>

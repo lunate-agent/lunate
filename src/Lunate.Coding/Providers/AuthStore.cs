@@ -6,8 +6,10 @@ namespace Lunate.Coding;
 
 /// <summary>
 /// Reads and writes <c>~/.lunate/auth.json</c> (schema 1): named API keys for per-model
-/// credential references. <see cref="Save"/> replaces the file atomically and restricts it to
-/// owner-only permissions on POSIX. The provider preset's environment variable (and its alias)
+/// credential references. <see cref="Save"/> takes the store's cross-process claim beside the file
+/// and re-reads the document under it, applies the keys this store set and removed since its load,
+/// and replaces the file atomically with owner-only permissions on POSIX — so a key another process
+/// saved is merged, not dropped. The provider preset's environment variable (and its alias)
 /// overrides the corresponding provider entry when it is non-blank; custom named keys have no
 /// environment override. Errors name keys, never values. The path and the environment lookup are
 /// injectable.
@@ -26,9 +28,27 @@ public sealed class AuthStore
         NewLine = "\n",
     };
 
+    /// <summary>How long a save waits for another process's claim before it refuses.</summary>
+    private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Serializes this process's saves. The claim refuses a second handle from this process too, so
+    /// two threads saving at once would otherwise wait one another out to the timeout.
+    /// </summary>
+    private static readonly Lock Gate = new();
+
     private readonly string _filePath;
     private readonly Func<string, string?> _environment;
-    private readonly Dictionary<string, string> _keys;
+
+    /// <summary>The document as this store last read or wrote it; replaced, never mutated in place, so a reader sees one reading.</summary>
+    private Dictionary<string, string> _keys;
+
+    /// <summary>
+    /// The keys this store changed since it loaded or last saved, and their new value; a null value
+    /// is a removal. A save applies these to the document it re-reads under the claim, so it writes
+    /// only what this store meant to change.
+    /// </summary>
+    private readonly Dictionary<string, string?> _changes = new(StringComparer.Ordinal);
 
     private AuthStore(
         string filePath,
@@ -101,22 +121,80 @@ public sealed class AuthStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(secret);
         _keys[name] = secret;
+        _changes[name] = secret;
     }
 
     /// <summary>Removes a named key in memory; returns whether it was present. Call <see cref="Save"/> to persist it.</summary>
     public bool Remove(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        return _keys.Remove(name);
+        if (!_keys.Remove(name))
+        {
+            return false;
+        }
+
+        _changes[name] = null;
+        return true;
     }
 
     /// <summary>
-    /// Writes the store atomically, creating the replacement owner-only on POSIX before the move so
-    /// a secret is never briefly world-readable. A failed write leaves the old file intact.
+    /// Merges this store's changes into the document the file holds and replaces it atomically,
+    /// all under the store's cross-process claim: another process's save that lands while this one
+    /// waits is kept, and a failed write leaves the old file intact. Nothing is written when this
+    /// store changed no key. The replacement is created owner-only on POSIX before the move, so a
+    /// secret is never briefly world-readable.
     /// </summary>
     public void Save()
     {
-        string? directory = Path.GetDirectoryName(_filePath);
+        lock (Gate)
+        {
+            if (_changes.Count == 0)
+            {
+                return;
+            }
+
+            using FileLock lease = AcquireLock(_filePath);
+
+            // Re-read under the claim: the file, not this store's load, is the base a save merges
+            // into, so a key another process wrote in between survives.
+            var merged = new Dictionary<string, string>(StringComparer.Ordinal);
+            var problems = new List<string>();
+            if (File.Exists(_filePath))
+            {
+                Parse(_filePath, merged, problems);
+                if (problems.Count > 0)
+                {
+                    throw new InvalidDataException(
+                        $"Invalid auth file '{_filePath}': {string.Join("; ", problems)}. "
+                            + "No keys were written."
+                    );
+                }
+            }
+
+            foreach ((string name, string? secret) in _changes)
+            {
+                if (secret is null)
+                {
+                    merged.Remove(name);
+                }
+                else
+                {
+                    merged[name] = secret;
+                }
+            }
+
+            Write(_filePath, merged);
+
+            // The file is now this store's document: adopt the merged reading, so a later change
+            // is tracked against what is actually on disk.
+            _keys = merged;
+            _changes.Clear();
+        }
+    }
+
+    private static void Write(string filePath, Dictionary<string, string> keys)
+    {
+        string? directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
@@ -124,7 +202,7 @@ public sealed class AuthStore
 
         string targetDirectory = string.IsNullOrEmpty(directory) ? "." : directory;
         string temp = Path.Combine(targetDirectory, Path.GetRandomFileName() + ".tmp");
-        var sorted = new SortedDictionary<string, string>(_keys, StringComparer.Ordinal);
+        var sorted = new SortedDictionary<string, string>(keys, StringComparer.Ordinal);
         string json = JsonSerializer.Serialize(
             new AuthFile(SupportedSchemaVersion, sorted),
             SerializerOptions
@@ -149,12 +227,12 @@ public sealed class AuthStore
                 writer.Write(json);
             }
 
-            File.Move(temp, _filePath, overwrite: true);
+            File.Move(temp, filePath, overwrite: true);
 
             // Best-effort on Windows: the ACL model has no direct rw------- equivalent here.
             if (!OperatingSystem.IsWindows())
             {
-                File.SetUnixFileMode(_filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                File.SetUnixFileMode(filePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
             }
         }
         finally
@@ -271,6 +349,35 @@ public sealed class AuthStore
 
     private static string DefaultFilePath() =>
         Path.Combine(Lunate.Ai.LunateHome.Store, "auth.json");
+
+    /// <summary>
+    /// The cross-process claim beside an auth file: <c>auth.lock</c> for <c>auth.json</c>. It
+    /// serializes one save against another process's read-modify-write; a read does not take it.
+    /// </summary>
+    internal static string WriteLockPath(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        return Path.ChangeExtension(filePath, ".lock");
+    }
+
+    internal static FileLock AcquireLock(string filePath) => AcquireLock(filePath, LockTimeout);
+
+    internal static FileLock AcquireLock(string filePath, TimeSpan timeout)
+    {
+        string lockPath = WriteLockPath(filePath);
+        try
+        {
+            return FileLock.Acquire(lockPath, timeout);
+        }
+        catch (TimeoutException exception)
+        {
+            throw new InvalidOperationException(
+                $"the auth file '{filePath}' is being written by another Lunate process (lock "
+                    + $"'{lockPath}'); nothing was changed. Try again.",
+                exception
+            );
+        }
+    }
 
     internal static string SettingsFilePath(string? authFilePath = null) =>
         SiblingFilePath(authFilePath, "settings.json");
