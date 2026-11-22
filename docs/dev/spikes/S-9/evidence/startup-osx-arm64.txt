@@ -1,0 +1,54 @@
+Startup on osx-arm64: macOS 26.3.1, Apple M4, .NET 11.0.100, commit 642b178b, version 0.5.0
+
+Method: hyperfine 2.0.0 with 3 warmup and 20 runs per cell, the same measurement scripts/perf.sh
+takes for the gate's startup budget (ADR-0005: the floor -- the fastest run -- is the number)
+The state root is an empty LUNATE_HOME, so no user store or settings take part.
+Every binary is built from the same commit; only the publish flags differ.
+
+== `lunate --version`, three separate measurements per binary ==
+pass 1  v1-sf-r2r                floor  168 ms  median  270 ms
+pass 1  v2-sf-r2r-compressed     floor  910 ms  median 1334 ms
+pass 1  v3-sf-no-r2r             floor   48 ms  median   49 ms
+pass 1  v4-sf-no-r2r-compressed  floor   96 ms  median  108 ms
+pass 2  v1-sf-r2r                floor  145 ms  median  226 ms
+pass 2  v2-sf-r2r-compressed     floor  876 ms  median  954 ms
+pass 2  v3-sf-no-r2r             floor   66 ms  median   72 ms
+pass 2  v4-sf-no-r2r-compressed  floor  334 ms  median  527 ms
+pass 3  v1-sf-r2r                floor  177 ms  median  373 ms
+pass 3  v2-sf-r2r-compressed     floor  860 ms  median  901 ms
+pass 3  v3-sf-no-r2r             floor   47 ms  median   48 ms
+pass 3  v4-sf-no-r2r-compressed  floor   93 ms  median   96 ms
+
+== interleaved: one hyperfine invocation per workload, all four binaries in it ==
+--version          v1-sf-r2r                floor  139 ms  median  266 ms
+--version          v2-sf-r2r-compressed     floor  894 ms  median  913 ms
+--version          v3-sf-no-r2r             floor   38 ms  median   49 ms
+--version          v4-sf-no-r2r-compressed  floor   92 ms  median   97 ms
+--help             v1-sf-r2r                floor  139 ms  median  218 ms
+--help             v2-sf-r2r-compressed     floor  823 ms  median  941 ms
+--help             v3-sf-no-r2r             floor   51 ms  median   54 ms
+--help             v4-sf-no-r2r-compressed  floor  100 ms  median  104 ms
+extensions --json  v1-sf-r2r                floor  228 ms  median  308 ms
+extensions --json  v2-sf-r2r-compressed     floor 1351 ms  median 2265 ms
+extensions --json  v3-sf-no-r2r             floor  224 ms  median  805 ms
+extensions --json  v4-sf-no-r2r-compressed  floor  319 ms  median  748 ms
+packages --json    v1-sf-r2r                floor  288 ms  median  615 ms
+packages --json    v2-sf-r2r-compressed     floor  904 ms  median 1028 ms
+packages --json    v3-sf-no-r2r             floor   48 ms  median   65 ms
+packages --json    v4-sf-no-r2r-compressed  floor  112 ms  median  143 ms
+
+`extensions --json` and `packages --json` scan the workspace and the state root, so their medians
+carry the page cache and the scheduler; their floors sit in the same order as the other workloads.
+
+== `lunate --acp` (composes the agent, tools and providers; exits at stdin EOF), two measurements ==
+pass 1  v1-sf-r2r                floor  178 ms  median  224 ms
+pass 1  v2-sf-r2r-compressed     floor  854 ms  median  946 ms
+pass 1  v3-sf-no-r2r             floor  100 ms  median  126 ms
+pass 1  v4-sf-no-r2r-compressed  floor  119 ms  median  182 ms
+pass 2  v1-sf-r2r                floor  163 ms  median  225 ms
+pass 2  v2-sf-r2r-compressed     floor  931 ms  median 1712 ms
+pass 2  v3-sf-no-r2r             floor   52 ms  median   69 ms
+pass 2  v4-sf-no-r2r-compressed  floor  119 ms  median  123 ms
+
+Not measured here: the interactive first frame. It needs a terminal and a configured model, so it is
+not observable on a published binary from a script; `--acp` is the deepest offline path that is.
