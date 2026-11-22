@@ -96,9 +96,7 @@ public sealed class RememberTool(
                     else
                     {
                         (oldText, hasBom) = _files.ReadRaw(target);
-                        ending = oldText.Contains('\n')
-                            ? TextFile.DominantEnding(oldText)
-                            : LineEndingPolicy.ResolveEnding(target);
+                        ending = ExistingEnding(oldText, target);
                     }
                 }
                 catch (Exception exception)
@@ -115,7 +113,7 @@ public sealed class RememberTool(
                 }
                 else
                 {
-                    string separator = oldText.EndsWith('\n') ? string.Empty : ending;
+                    string separator = EndsWithLineEnding(oldText) ? string.Empty : ending;
                     written = oldText + separator + bullet + ending;
                 }
 
@@ -214,6 +212,23 @@ public sealed class RememberTool(
         note = value;
         return true;
     }
+
+    /// <summary>
+    /// The ending the existing file's own text uses, whatever a policy above it says: its dominant
+    /// LF or CRLF ending, a CR-only file's CR, and the project convention only for a text that
+    /// carries no line ending at all.
+    /// </summary>
+    private static string ExistingEnding(string text, string path) =>
+        text.Contains('\n') ? TextFile.DominantEnding(text)
+        : text.Contains('\r') ? "\r"
+        : LineEndingPolicy.ResolveEnding(path);
+
+    /// <summary>
+    /// Whether the text already ends with a line ending, so the new bullet needs no separator.
+    /// A lone CR is the ending of a CR-only file, not a character in the middle of a line.
+    /// </summary>
+    private static bool EndsWithLineEnding(string text) =>
+        text.EndsWith('\n') || text.EndsWith('\r');
 
     private static string RelativePath(string workingDirectory, string target) =>
         Path.GetRelativePath(workingDirectory, target)

@@ -99,6 +99,33 @@ public sealed class RememberToolTests
     }
 
     [Fact]
+    public async Task An_existing_CR_only_file_keeps_its_ending()
+    {
+        using var temp = new TempDirectory();
+        var workspace = new Workspace(temp.Root);
+        File.WriteAllBytes(temp.File(ProjectNotes.FileName), Encoding.UTF8.GetBytes("one\r"));
+
+        ToolResult result = await ExecuteAsync(workspace, """{"note":"two"}""");
+
+        Assert.False(result.IsError);
+        Assert.Equal("one\r- two\r", File.ReadAllText(temp.File(ProjectNotes.FileName)));
+    }
+
+    [Fact]
+    public async Task A_CR_only_file_ignores_a_different_project_ending()
+    {
+        using var temp = new TempDirectory();
+        var workspace = new Workspace(temp.Root);
+        File.WriteAllText(temp.File(".editorconfig"), "root = true\n[*]\nend_of_line = crlf\n");
+        File.WriteAllBytes(temp.File(ProjectNotes.FileName), Encoding.UTF8.GetBytes("one\rtwo\r"));
+
+        ToolResult result = await ExecuteAsync(workspace, """{"note":"three"}""");
+
+        Assert.False(result.IsError);
+        Assert.Equal("one\rtwo\r- three\r", File.ReadAllText(temp.File(ProjectNotes.FileName)));
+    }
+
+    [Fact]
     public async Task The_budget_refuses_an_append_and_leaves_the_file_unchanged()
     {
         using var temp = new TempDirectory();
