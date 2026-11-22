@@ -21,7 +21,10 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from published_release import SHA256, STABLE_TAG, ReleaseError, parse_sums, tag_version
+SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))  # `python3 -I` drops the script's directory from sys.path
+
+from published_release import SHA256, STABLE_TAG, ReleaseError, parse_sums, tag_version  # noqa: E402
 
 DOWNLOAD = "https://github.com/lunate-agent/lunate/releases/download"
 HOME_BREW = "packaging/homebrew/lunate.rb"
