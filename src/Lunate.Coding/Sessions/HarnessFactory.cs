@@ -69,6 +69,8 @@ internal static class HarnessFactory
             )
         );
         tools.Add(new TodoTool());
+        tools.Add(new WebSearchTool());
+        tools.Add(new WebFetchTool());
         AddOptionalTools(tools, workspace, extraTools);
         return tools;
     }

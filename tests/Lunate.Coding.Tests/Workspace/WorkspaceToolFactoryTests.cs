@@ -32,7 +32,7 @@ public sealed class WorkspaceToolFactoryTests
         );
 
         Assert.Equal(
-            ["read", "write", "edit", "bash", "todo"],
+            ["read", "write", "edit", "bash", "todo", "web_search", "web_fetch"],
             tools.Tools.Select(tool => tool.Name)
         );
     }
@@ -64,6 +64,8 @@ public sealed class WorkspaceToolFactoryTests
                 "edit",
                 "bash",
                 "todo",
+                "web_search",
+                "web_fetch",
                 "cs_diagnostics",
                 "cs_find_symbol",
                 "cs_find_references",
@@ -97,7 +99,17 @@ public sealed class WorkspaceToolFactoryTests
 
         ToolRegistry plain = factory(plainRoot);
         Assert.Equal(
-            ["read", "write", "edit", "bash", "todo", "ext-tool", "global__echo"],
+            [
+                "read",
+                "write",
+                "edit",
+                "bash",
+                "todo",
+                "web_search",
+                "web_fetch",
+                "ext-tool",
+                "global__echo",
+            ],
             plain.Tools.Select(tool => tool.Name)
         );
 
