@@ -543,6 +543,10 @@ internal static class PrintMode
                 )
             ),
             ToolOutputSpillFailed failed => new UserNotice(NoticeLevel.Warning, failed.Message),
+            SteeringInjected { Text.Length: > 0 } injected => new UserNotice(
+                NoticeLevel.Info,
+                injected.Text
+            ),
             _ => null,
         };
 
