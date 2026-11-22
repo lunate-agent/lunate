@@ -229,6 +229,10 @@ is a rerun — the reporter files no card for it and names it, together with the
 log and job summary instead, also when the run's other red job that ran is filed as its own card, so a
 hosted-runner shortage no longer produces an unactionable card (#922). The rule fails closed: a job
 cancelled after reaching a step, and a document whose step list or runner id is missing, still files. The
+two jobs whose result is derived from the others' — the `ci-ok` aggregate and the reporter itself — likewise
+file no card beside a job that ran, because that job's card already names the failure they only restate;
+the reporter names the derived job it did not file, with the run link, in the run's own log, and a run
+whose only red is the aggregate still files, because then nothing else speaks for the gate (#1002). The
 card takes the lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its
 milestone, so the next version becomes the target), read from the GitHub API, and an `area/tui` or
 `area/core` label only when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a
