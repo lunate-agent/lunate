@@ -28,8 +28,8 @@
 
 ## 6. Documentation
 
-- [ ] 6.1 Update the user-facing tool, live-area, session and JSON docs that enumerate the core tools or event kinds.
-- [ ] 6.2 Write the changelog fragment at `changes/<pr-number>.md` and commit it before the archive.
+- [x] 6.1 Update the user-facing tool, live-area, session and JSON docs that enumerate the core tools or event kinds.
+- [x] 6.2 Write the changelog fragment at `changes/<pr-number>.md` and commit it before the archive.
 
 ## 7. Verification
 

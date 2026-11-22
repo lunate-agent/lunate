@@ -59,6 +59,8 @@ and outcomes is a compile-time fact. ADR-0043 supersedes
   events by value (`==`), and use `Kind` where you used `GetType()`.
 - **If a case is added:** it is a breaking contract change, it moves the API version and it gets a
   note here. Your exhaustive `switch` is why that is announced rather than shipped quietly.
+- **Added in 1.16.0:** `TodoUpdated` joins the event unions, carrying the complete todo list after
+  each successful `todo` tool call. Handle it or leave it to your `_` arm.
 
 ## Quickstart
 
