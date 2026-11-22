@@ -24,4 +24,4 @@
 
 ## 4. Finish
 
-- [x] 4.1 Archive as the last commit: `openspec archive add-web-tools --yes`.
+- [ ] 4.1 Archive as the last commit: `openspec archive add-web-tools --yes`.
