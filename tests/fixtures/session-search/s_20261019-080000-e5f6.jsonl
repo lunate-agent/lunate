@@ -1,0 +1,5 @@
+{"type":"header","schema":4,"id":"s_20261019-080000-e5f6","cwd":"/repo/docs","created":"2026-10-19T08:00:00.0000000+00:00","meai":"10.10.1"}
+{"type":"message","id":"e_01","parentId":null,"timestamp":"2026-10-19T08:00:01.0000000+00:00","message":{"role":"user","contents":[{"$type":"text","text":"How do I export a session?"}]}}
+{"type":"message","id":"e_02","parentId":"e_01","timestamp":"2026-10-19T08:00:02.0000000+00:00","message":{"role":"tool","contents":[{"$type":"text","text":"a tool result mentioning the retry budget"}]}}
+{"type":"message","id":"e_03","parentId":"e_02","timestamp":"2026-10-19T08:00:03.0000000+00:00","message":{"role":"assistant","contents":[{"$type":"text","text":"Use the export command."}]},"model":"gpt-4o-mini","usage":{"input":9,"output":6}}
+{"type":"compaction","id":"e_04","parentId":"e_03","timestamp":"2026-10-19T08:00:04.0000000+00:00","summary":"Compaction noting the retry budget decision.","replaces":["e_01"]}

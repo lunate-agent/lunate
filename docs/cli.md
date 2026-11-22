@@ -70,6 +70,23 @@ record.
 
 [The provider reference](providers.md) owns the merge order and the catalog's shape.
 
+## Find a past session
+
+| Command | What it does |
+| --- | --- |
+| `lunate sessions search <query> [--json]` | find past turns by their text: one row per matching turn with the session id, the turn's timestamp, the session's `cwd`, the message text around the hit and the session file path; `--json` prints the same rows as a JSON array on stdout and the bound on stderr |
+
+The search is a linear scan of the session store — no index, no cache, no second store — bounded to
+the 200 most recently written session files, 8 MiB of message text and 20 matches; every run prints
+that bound and whether it stopped there, and with `--json` that summary goes to stderr so stdout
+stays one JSON array. It matches `user` and `assistant` turns only (not tool results or compaction
+summaries), reads every file, writes nothing, treats the query as one case-insensitive phrase, skips
+a malformed JSONL line and reports how many it skipped. A run with no match exits 0.
+
+The interactive session's picker (`/resume`, `--resume`) has the same search as a field: typing a
+query lists the matching turns, and confirming one resumes that session at the turn, so the
+conversation continues from there. See [Long sessions keep their place](usage.md#find-the-turn-you-mean).
+
 ## Session and per-run options
 
 These apply to the interactive session and to print mode.

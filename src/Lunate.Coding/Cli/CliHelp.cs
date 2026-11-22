@@ -93,6 +93,13 @@ internal static class CliHelp
             "                                 last update check for a bug report; --json is"
         );
         output.WriteLine("                                 pasteable and no secret is printed");
+        output.WriteLine("  lunate sessions search <query> [--json]");
+        output.WriteLine(
+            "                                 find past turns by their text: session id, timestamp,"
+        );
+        output.WriteLine(
+            "                                 cwd, snippet and path per match; bounded scan, no index"
+        );
         output.WriteLine("  lunate trust [--yes [--digest <sha>]] [--json] [--clear]");
         output.WriteLine(
             "                                 show this repository's trust records and pending"

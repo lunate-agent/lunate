@@ -121,6 +121,17 @@ reasoning on: it streams live in the live area in its own colour and collapses t
 copy from an earlier turn. A fork carries the session's images and redacts what the source redacted,
 so it resumes instead of failing on the first request.
 
+## Find the turn you mean
+
+`/resume` lists the session directory newest first. Once the picker is open, typing searches the past
+turns themselves — not the session ids — and the rows become the turns that contain the phrase, each
+labelled with its timestamp, session id and the text around the hit. Confirming a row resumes that
+session at the turn: the conversation continues from there and the rest of the file stays in `/tree`.
+Esc clears the query before it dismisses the picker.
+
+`lunate sessions search <query>` runs the same search outside the session and prints the path for
+each match ([Command reference](cli.md#find-a-past-session)).
+
 ## Long sessions keep their place
 
 When a tool result would flood the window, the text is spilled to a file and the model sees a short

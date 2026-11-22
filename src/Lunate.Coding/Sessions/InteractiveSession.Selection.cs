@@ -173,3 +173,23 @@ internal sealed partial class InteractiveSession
         return session;
     }
 }
+
+/// <summary>
+/// A session picker row's value: the session file and, for a row from the picker's search field, the
+/// entry to open it at. The picker carries values as strings, so the two are joined by a separator no
+/// filesystem path contains; a plain listing row is the path alone.
+/// </summary>
+internal readonly record struct SessionPickValue(string Path, string? EntryId)
+{
+    /// <summary>The unit separator: a session path cannot contain it.</summary>
+    private const char Separator = '\u001f';
+
+    public override string ToString() => EntryId is null ? Path : Path + Separator + EntryId;
+
+    /// <summary>Splits a picker value back into its file and optional entry.</summary>
+    internal static SessionPickValue Parse(string value)
+    {
+        int index = value.IndexOf(Separator, StringComparison.Ordinal);
+        return index < 0 ? new(value, null) : new(value[..index], value[(index + 1)..]);
+    }
+}
