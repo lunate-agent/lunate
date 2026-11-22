@@ -117,7 +117,7 @@ internal static class SessionsCommand
         : bytes < 1024 * 1024 ? FormattableString.Invariant($"{bytes / 1024.0:0.0} KiB")
         : FormattableString.Invariant($"{bytes / (1024.0 * 1024.0):0.0} MiB");
 
-    /// <summary>The machine-readable form: the rows plus the scan counters and the bound.</summary>
+    /// <summary>The machine-readable form: the same rows as the human output, as a JSON array.</summary>
     private static string ToJson(SessionSearchResult result)
     {
         var matches = new JsonArray();
@@ -137,21 +137,7 @@ internal static class SessionsCommand
             );
         }
 
-        return new JsonObject
-        {
-            ["matches"] = matches,
-            ["sessionsScanned"] = result.SessionsScanned,
-            ["sessionsSkipped"] = result.SessionsSkipped,
-            ["malformedLines"] = result.MalformedLines,
-            ["textBytes"] = result.TextBytes,
-            ["stoppedAtBound"] = result.StoppedAtBound,
-            ["bound"] = new JsonObject
-            {
-                ["sessions"] = Session.SearchSessionLimit,
-                ["textBytes"] = Session.SearchTextBytesLimit,
-                ["matches"] = Session.SearchMatchLimit,
-            },
-        }.ToJsonString();
+        return matches.ToJsonString();
     }
 
     /// <summary>

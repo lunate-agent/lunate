@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using Lunate.Agent;
 using Lunate.TestSupport;
 
 namespace Lunate.Coding.Tests;
@@ -46,28 +45,27 @@ public sealed class SessionsCommandTests
     }
 
     [Fact]
-    public void Json_carries_the_rows_the_scan_and_the_bound()
+    public void Json_is_the_rows_as_an_array()
     {
         (int exit, string output, string errors) = Run("search", "retry budget", "--json");
 
         Assert.Equal(SessionsCommand.ExitOk, exit);
         Assert.Empty(errors);
-        JsonNode json = JsonNode.Parse(output.Trim())!;
-        JsonArray matches = json["matches"]!.AsArray();
+        JsonArray matches = JsonNode.Parse(output.Trim())!.AsArray();
         Assert.Equal(2, matches.Count);
-        Assert.Equal(1, json["malformedLines"]!.GetValue<int>());
-        Assert.Equal(Session.SearchTextBytesLimit, json["bound"]!["textBytes"]!.GetValue<long>());
-        Assert.False(json["stoppedAtBound"]!.GetValue<bool>());
         JsonNode row = Assert.Single(matches, match =>
             match!["sessionId"]!.GetValue<string>() == "s_20261020-090000-a1b2"
         )!;
         Assert.Equal("e_01", row["entryId"]!.GetValue<string>());
+        Assert.Equal("2026-10-20T09:00:01Z", row["timestamp"]!.GetValue<string>());
         Assert.Equal("/repo/app", row["cwd"]!.GetValue<string>());
+        Assert.Equal("user", row["role"]!.GetValue<string>());
         Assert.Contains(
             "retry budget",
             row["snippet"]!.GetValue<string>(),
             StringComparison.OrdinalIgnoreCase
         );
+        Assert.EndsWith("a1b2.jsonl", row["path"]!.GetValue<string>(), StringComparison.Ordinal);
     }
 
     [Fact]

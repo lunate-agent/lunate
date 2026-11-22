@@ -74,7 +74,7 @@ record.
 
 | Command | What it does |
 | --- | --- |
-| `lunate sessions search <query> [--json]` | find past turns by their text: one row per matching turn with the session id, the turn's timestamp, the session's `cwd`, the message text around the hit and the session file path; `--json` prints the rows with the scan counters |
+| `lunate sessions search <query> [--json]` | find past turns by their text: one row per matching turn with the session id, the turn's timestamp, the session's `cwd`, the message text around the hit and the session file path; `--json` prints the same rows as a JSON array |
 
 The search is a linear scan of the session store — no index, no cache, no second store — bounded to
 the 200 most recently written session files, 8 MiB of message text and 20 matches; every run prints
