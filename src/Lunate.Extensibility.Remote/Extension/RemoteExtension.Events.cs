@@ -231,13 +231,22 @@ internal sealed class RemoteEventProjection : IObserver<AgentEvent>, IDisposable
             _pending.Clear();
         }
 
+        Release();
+    }
+
+    private void Stop() => Dispose();
+
+    /// <summary>
+    /// Releases the subscription and the owner's reference once, whichever path ended the
+    /// projection: an unload, a dead wire, or the stream's own completion after the queue drained.
+    /// </summary>
+    private void Release()
+    {
         _subscription?.Dispose();
         _subscription = null;
         _signal.Release();
         _onStopped();
     }
-
-    private void Stop() => Dispose();
 
     private async Task PumpAsync()
     {
@@ -282,7 +291,9 @@ internal sealed class RemoteEventProjection : IObserver<AgentEvent>, IDisposable
                 continue;
             }
 
-            Dispose();
+            // The stream completed the subscription and the queue is drained: release what the
+            // projection held without re-entering the closed guard.
+            Release();
             return;
         }
     }

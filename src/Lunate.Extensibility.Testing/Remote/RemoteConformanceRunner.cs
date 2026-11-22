@@ -361,7 +361,8 @@ public static class RemoteConformanceRunner
                         cancellationToken
                     )
                     .ConfigureAwait(false);
-            }            catch (Exception)
+            }
+            catch (Exception)
             {
                 // A child that exits on shutdown may never answer; the process state decides.
             }

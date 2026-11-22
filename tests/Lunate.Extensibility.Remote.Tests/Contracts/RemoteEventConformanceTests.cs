@@ -104,13 +104,12 @@ public sealed class RemoteEventConformanceTests
         Assembly contract = typeof(IExtensionContext).Assembly;
         string contractName = contract.GetName().Name!;
 
-        Assert.DoesNotContain(
-            contract.GetReferencedAssemblies(),
-            reference => reference.Name == "Lunate.Extensibility.Remote"
+        Assert.DoesNotContain(contract.GetReferencedAssemblies(), reference =>
+            reference.Name == "Lunate.Extensibility.Remote"
         );
-        Assert.DoesNotContain(
-            contract.GetTypes(),
-            type => type.Namespace?.StartsWith("Lunate.Extensibility.Remote", StringComparison.Ordinal) == true
+        Assert.DoesNotContain(contract.GetTypes(), type =>
+            type.Namespace?.StartsWith("Lunate.Extensibility.Remote", StringComparison.Ordinal)
+            == true
         );
 
         Type[] wireTypes =

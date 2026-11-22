@@ -67,9 +67,10 @@ internal static class RemoteEventNotificationConformance
                     continue;
                 }
 
-                using JsonDocument line = JsonDocument.Parse(RemoteEventJson.Serialize(sample.Event));
-                await wire
-                    .NotifyAsync(
+                using JsonDocument line = JsonDocument.Parse(
+                    RemoteEventJson.Serialize(sample.Event)
+                );
+                await wire.NotifyAsync(
                         RemoteProtocol.EventMethod(kind),
                         line.RootElement.Clone(),
                         cancellationToken

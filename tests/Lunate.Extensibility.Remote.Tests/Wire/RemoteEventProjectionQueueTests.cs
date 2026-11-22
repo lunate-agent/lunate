@@ -35,13 +35,14 @@ public sealed class RemoteEventProjectionQueueTests
         int offered = RemoteProtocol.EventQueueCapacity + 44;
         for (var index = 0; index < offered; index++)
         {
-            source.Publish(new RunStarted("run_" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            source.Publish(
+                new RunStarted(
+                    "run_" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                )
+            );
         }
 
-        await WaitAsync(
-            () => projection.Dropped > 0,
-            "the queue to overflow"
-        );
+        await WaitAsync(() => projection.Dropped > 0, "the queue to overflow");
 
         // The pump took a few before the queue filled, so the exact count is the queue's business;
         // what the contract states is that the loss happens, is counted, and warns exactly once.

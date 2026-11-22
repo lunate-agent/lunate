@@ -18,7 +18,9 @@ lunate -p --json "list the files you changed" > events.jsonl
 
 The `type` names are also the vocabulary an extension declares in its manifest `events` list (or
 `["*"]`), so what an extension watches is named the way `--json` names it; see
-[the event stream](extensions/contributions/event-stream.md).
+[the event stream](extensions/contributions/event-stream.md). A remote extension receives the same
+object over the wire as an `event/<type>` notification; see
+[the remote wire](extensions-remote.md#events).
 
 Every line carries `type` and `runId`; `sessionId` is present when the run has a session,
 `parentRunId` on a child run's events, and `source` only when it is not `core`. A consumer scopes

@@ -32,9 +32,8 @@ internal static class PrintEventJson
             && CostUsd(usage, catalog, fallbackModelId) is { } cost
         )
         {
-            return RemoteEventJson.Serialize(
-                agentEvent,
-                body => body["costUsd"] = System.Text.Json.Nodes.JsonValue.Create(cost)
+            return RemoteEventJson.Serialize(agentEvent, body =>
+                body["costUsd"] = System.Text.Json.Nodes.JsonValue.Create(cost)
             );
         }
 

@@ -46,10 +46,7 @@ public sealed class RemoteEventProjectionTests
             received.Parameters!.Value.GetRawText()
         );
         // The line, not a second model: the same stamped fields `--json` writes.
-        Assert.Equal(
-            "run_started",
-            received.Parameters!.Value.GetProperty("type").GetString()
-        );
+        Assert.Equal("run_started", received.Parameters!.Value.GetProperty("type").GetString());
         Assert.Equal("s_1", received.Parameters!.Value.GetProperty("sessionId").GetString());
     }
 
@@ -74,9 +71,8 @@ public sealed class RemoteEventProjectionTests
             () => harness.Child.ObservedEventKinds().Contains("run_started"),
             "the declared kind"
         );
-        Assert.DoesNotContain(
-            harness.Child.Notifications,
-            notification => notification.Method == "event/run_finished"
+        Assert.DoesNotContain(harness.Child.Notifications, notification =>
+            notification.Method == "event/run_finished"
         );
         Assert.Contains(harness.Context.Log.Warnings, warning =>
             warning.Contains("event 'run_finished'", StringComparison.Ordinal)
@@ -132,7 +128,8 @@ public sealed class RemoteEventProjectionTests
         );
 
         RemoteExtensionException exception = await Assert.ThrowsAsync<RemoteExtensionException>(
-            () => harness.Extension.EnsureStartedAsync(Ct).AsTask()
+            () =>
+                harness.Extension.EnsureStartedAsync(Ct).AsTask()
         );
 
         Assert.Equal(RemoteExtensionState.Refused, harness.Extension.Status.State);
@@ -172,14 +169,16 @@ public sealed class RemoteEventProjectionTests
 
         harness.Child.Crash();
         await WaitAsync(
-            () => harness.Extension.Status.State == RemoteExtensionState.Ready
-            && harness.Child.StartCount == 2,
+            () =>
+                harness.Extension.Status.State == RemoteExtensionState.Ready
+                && harness.Child.StartCount == 2,
             "the automatic restart"
         );
         harness.Context.Stream.Publish(new RunStarted("run_2"));
         await WaitAsync(
-            () => harness.Child.ObservedEventKinds().Count >= 1
-            && harness.Child.NotificationCount > 1,
+            () =>
+                harness.Child.ObservedEventKinds().Count >= 1
+                && harness.Child.NotificationCount > 1,
             "the restarted child's event"
         );
 
@@ -189,6 +188,25 @@ public sealed class RemoteEventProjectionTests
         harness.Context.Stream.Publish(new RunStarted("run_3"));
         await Task.Delay(100, Ct);
         Assert.Equal(seen, harness.Child.NotificationCount);
+    }
+
+    [Fact]
+    public async Task A_session_end_drains_the_queue_and_releases_the_subscription()
+    {
+        Harness harness = Harness.Create(events: ["*"]);
+        await harness.Extension.EnsureStartedAsync(Ct);
+        harness.Context.Stream.Publish(new RunStarted("run_1"));
+
+        await harness.Context.Stream.CompleteAllAsync(Ct);
+
+        await WaitAsync(
+            () => harness.Child.ObservedEventKinds().Contains("run_started"),
+            "the queued event to reach the child"
+        );
+        await WaitAsync(
+            () => !harness.Context.Stream.Status(harness.Context.Id).Subscribed,
+            "the projection to release its subscription"
+        );
     }
 
     private static async Task WaitAsync(Func<bool> condition, string what)

@@ -46,6 +46,19 @@ public sealed class RemoteJsonSchemaTests
         // The command-invocation wire (protocol version 2) is published with the same generator.
         Assert.NotNull(definitions["CommandInvokeRequest"]);
         Assert.NotNull(definitions["CommandInvokeResult"]);
+        // The observable projection (protocol version 3) publishes the handshake's event list and
+        // one event-line definition whose kind enum is the projection's own vocabulary.
+        Assert.NotNull(definitions["InitializeRequest"]!["properties"]!["events"]);
+        Assert.NotNull(definitions["InitializeResult"]!["properties"]!["events"]);
+        JsonNode notification = definitions["EventNotification"]!;
+        Assert.Equal(
+            RemoteEventJson.Kinds.Count,
+            notification["properties"]!["type"]!["enum"]!.AsArray().Count
+        );
+        Assert.Equal(
+            ["type", "runId"],
+            notification["required"]!.AsArray().Select(value => value!.GetValue<string>())
+        );
         Assert.Equal(
             ["completed", "cancelled", "failed"],
             definitions["CommandInvokeDisposition"]!["enum"]!

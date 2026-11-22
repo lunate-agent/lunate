@@ -178,8 +178,9 @@ restart per session; after that, use:
 /extensions restart <id>
 ```
 
-A refusal at `initialize` means the protocol version is incompatible or the child implements a hook
-or service the manifest does not declare. See [remote extensions](../extensions-remote.md).
+A refusal at `initialize` means the protocol version is incompatible, the child implements a hook
+or service the manifest does not declare, or the manifest declares `events` and the child speaks a
+protocol below version 3. See [remote extensions](../extensions-remote.md).
 
 ## Related
 

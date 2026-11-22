@@ -61,10 +61,7 @@ public sealed partial class ExtensionLoader
         {
             if (
                 startSession
-                && (
-                    descriptor.Manifest.Commands.Count > 0
-                    || descriptor.Manifest.Events.Count > 0
-                )
+                && (descriptor.Manifest.Commands.Count > 0 || descriptor.Manifest.Events.Count > 0)
             )
             {
                 // The start observes the load's token — the start gate, the spawn and the

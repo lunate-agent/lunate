@@ -32,7 +32,8 @@ Exactly one of `entryAssembly` (in-process) or `runtime` (out-of-process) is req
     },
     "hooks": ["tool-calling"],
     "services": ["echo"],
-    "commands": ["ping"]
+    "commands": ["ping"],
+    "events": ["run_started", "tool_call_result"]
 }
 ```
 
@@ -56,6 +57,12 @@ Exactly one of `entryAssembly` (in-process) or `runtime` (out-of-process) is req
   started when the session composes its command listing. A child that does not advertise the
   `commands` capability has every declared command reported as `declared, not provided`, and the
   command is not offered or dispatched — never offered and dead.
+- `events` — the `--json` event kinds the extension watches (or `["*"]` alone), the same
+  declaration an in-process extension uses; see [the event stream](extensions/contributions/event-stream.md).
+  Only the declared kinds are projected to the child, and only those it accepts. A child that
+  answers a protocol version below 3 is refused when the manifest declares `events`, naming the
+  version it needs; an extension that declares only `events` starts at session start, so an
+  observer needs no hook, service or command to be alive when the first run emits.
 
 The trust prompt states that the extension runs with the user's privileges; the trust digest hashes
 the manifest together with the extension directory contents, so changing `index.js` after trust
@@ -68,21 +75,32 @@ One compact JSON object per line, UTF-8, no BOM, no batches. **Stdout is protoco
 non-JSON line or a line over 16 MB is a protocol error and stops the extension. stderr is captured
 into the extension log, capped at 64 KB.
 
-Protocol version 2. The host sends `initialize` first, with
-`{ protocolVersion, capabilities, manifest, workspace: { worktreeRoot, repoRoot, gitCommonDir }, hooks, services }`;
-the child answers `{ protocolVersion, hooks, services, commands }`. A version the host does not
-read or an undeclared surface refuses the extension; the session continues without it. Version 1
-stays readable for hooks and services — its answer simply omits `commands`.
+Protocol version 3. The host sends `initialize` first, with
+`{ protocolVersion, capabilities, manifest, workspace: { worktreeRoot, repoRoot, gitCommonDir }, hooks, services, events }`;
+the child answers `{ protocolVersion, hooks, services, commands, events }`. A version the host does
+not read or an undeclared surface refuses the extension; the session continues without it. Version 1
+stays readable for hooks and services — its answer simply omits `commands` and `events` — and
+version 2 stays readable for hooks, services and commands. The version only gates what the child can
+use, not what it must implement:
+
+- A version-1 or version-2 child loads when the manifest declares no `events`.
+- A manifest that declares `events` refuses a child below version 3 at the handshake, naming the
+  version it needs. The declaration is never silently ignored.
+- The child's `events` answer is an acceptance list, not a promise: the host sends the manifest's
+  declared kinds it accepts. A version-3 child that accepts none while the manifest declares some
+  is warned about and sent nothing; a child that accepts `["*"]` or more than the manifest declares
+  simply receives the manifest's set.
 
 Methods:
 
 | Direction | Method | Shape |
 | --- | --- | --- |
-| host → child | `initialize` | request; result `{ protocolVersion, hooks, services, commands }` |
+| host → child | `initialize` | request; result `{ protocolVersion, hooks, services, commands, events }` |
 | host → child | `hook/<Name>` | request for interceptor hooks, notification for observer hooks |
 | child → host | `service/<name>/<method>` | request; params are the method's JSON arguments |
 | host → child | `service-call` | request; params `{ service, method, arguments }` |
 | host → child | `command/invoke` | request; params `{ name, argument, requestId }`; result `{ output, error, disposition }` |
+| host → child | `event/<kind>` | notification; params are one `--json` event line (see below) |
 | either | `$/cancelRequest` | notification; params `{ id }` — maps to the handler's `CancellationToken` |
 | host → child | `shutdown` | request; sent at session end, then a bounded grace, then the tree is killed |
 
@@ -164,6 +182,33 @@ hook-handler time for the reply before the process is stopped.
 {"jsonrpc":"2.0","id":7,"result":{"output":"pong hello","error":null,"disposition":"completed"}}
 ```
 
+### Events
+
+The observable half of the extension surface (ADR-0040) crosses the wire as `event/<kind>`
+notifications, one per event of the session: every run, every child run with its ids intact, and
+every extension event. They are notifications — never awaited, never answered, never a request. The
+params are exactly the JSON object one `--json` line carries, with `<kind>` naming its `type`:
+
+```json
+{"jsonrpc":"2.0","method":"event/run_started",
+ "params":{"type":"run_started","runId":"run_1","sessionId":"s_20261110-090000-ab12"}}
+{"jsonrpc":"2.0","method":"event/tool_call_result",
+ "params":{"type":"tool_call_result","runId":"run_1","callId":"call_1","output":"wrote a.cs","isError":false}}
+```
+
+The shape is the one [`docs/json-events.md`](json-events.md) documents — there is no second event
+model and no per-kind wire DTO. `type` and `runId` are always present; `sessionId` when the run has
+a session, `parentRunId` on a child run's events, `source` when it is not `core`.
+
+Delivery mirrors the in-process stream. One subscription is live per started child, filtered by the
+manifest's `events` declaration; each child has one bounded queue (256 events) drained by one pump,
+so the run never waits on the child's stdin. When the queue is full the oldest event is dropped,
+counted and warned about once naming the extension; an event whose line exceeds the wire's 16 MB
+line cap is dropped with one warning naming the kind rather than breaking the wire. The subscription
+is disposed when the child stops, crashes or restarts, and a restart subscribes again. A child never
+receives an event before its handshake answered, so a `run_started` published during the handshake
+is not replayed.
+
 ### Lifecycle
 
 One child serves the whole session (subagent and worktree runs included). A process that exits
@@ -176,7 +221,7 @@ children-first.
 
 `RemoteConformanceRunner` in `Lunate.Extensibility.Testing` points at any executable that speaks
 the wire and performs start, handshake, a hook round-trip, a service call in each direction, the
-command steps and shutdown, reporting each step:
+command steps, the event notification step and shutdown, reporting each step:
 
 ```csharp
 RemoteConformanceReport report = await RemoteConformanceRunner.RunAsync(
@@ -188,6 +233,8 @@ RemoteConformanceReport report = await RemoteConformanceRunner.RunAsync(
         // Optional: the commands that stay in flight until cancelled, and that fail.
         CancelCommand = "wait",
         FailingCommand = "fail",
+        // Optional: the command that reports the event kinds the child observed (the default).
+        EventProbeCommand = "observed",
     },
     cancellationToken
 );
@@ -199,6 +246,13 @@ capability has its declared commands offered; one that does not has them reporte
 provided, and the invoke, cancel and failure steps are not exercised. `command invoke` sends
 `ProbeCommand` (default `ping`) with `ProbeCommandArguments` and requires the reply to carry them;
 `command cancel` and `command failure` run only when the options name a command for them.
+
+`event notification` runs when the child accepts event kinds: the runner sends `ProbeEvents`
+(default `run_started` and `run_finished`) as real notifications and then invokes
+`EventProbeCommand` (default `observed`), requiring its output to name the kinds the child received.
+Notifications are never acknowledged, so that probe command is the only receipt a conformance run
+can observe; with `EventProbeCommand` null the step sends without asserting, and a child that
+accepts no event kinds marks the step not exercised rather than failed.
 
 The [node-remote sample](../samples/extensions/node-remote) is the reference implementation; its
 fitness tests run in CI.

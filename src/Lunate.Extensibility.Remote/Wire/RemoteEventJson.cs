@@ -30,10 +30,7 @@ public static class RemoteEventJson
     /// The event type each <c>--json</c> kind names, and the one place the kind vocabulary is
     /// written. <see cref="Kinds"/> publishes it for the schema and the wire catalogue.
     /// </summary>
-    private static readonly FrozenDictionary<Type, string> KindByType = new Dictionary<
-        Type,
-        string
-    >
+    private static readonly FrozenDictionary<Type, string> KindByType = new Dictionary<Type, string>
     {
         [typeof(RunStarted)] = "run_started",
         [typeof(RunFinished)] = "run_finished",
@@ -70,18 +67,14 @@ public static class RemoteEventJson
     /// process; the reflection test pins it against the union.
     /// </summary>
     public static IReadOnlyList<Type> HandledEventTypes { get; } =
-    [
-        .. KindByType.Keys.OrderBy(type => type.Name, StringComparer.Ordinal),
-    ];
+    [.. KindByType.Keys.OrderBy(type => type.Name, StringComparer.Ordinal)];
 
     /// <summary>
     /// The <c>--json</c> kind vocabulary, ordinal-sorted so the published schema and the wire
     /// catalogue are byte-stable across processes (a frozen dictionary's order is not promised).
     /// </summary>
     public static IReadOnlyList<string> Kinds { get; } =
-    [
-        .. KindByType.Values.OrderBy(kind => kind, StringComparer.Ordinal),
-    ];
+    [.. KindByType.Values.OrderBy(kind => kind, StringComparer.Ordinal)];
 
     /// <summary>Whether an event record type has a wire projection.</summary>
     public static bool IsMapped(Type eventType) => KindByType.ContainsKey(eventType);

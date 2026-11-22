@@ -95,12 +95,10 @@ the catalogue gains no payload or result per event kind.
 - **Manifest declaration.** `events` names the `--json` event kinds the extension watches, or `["*"]`
   alone for everything; a single-file header declares the same list with `#:event`. It is
   information, not a permission: in-process delivery is not filtered by it, `/extensions` shows it as
-  `watches …`, and the interactive trust question carries it as a detail line. Out-of-process
-  extensions do not receive the stream yet: the `event/` projection over protocol version 3, its
-  conformance entry, the refusal path for a protocol-2 host and the node-remote sample are ADR-0040's
-  follow-up card, and a remote manifest that declares `events` logs one warning until then.
-- **Same records as the other projections.** `--json` and ACP render the same `AgentEvent` union;
-  there is no second event model and an observer never writes to stdout.
+  `watches …`, and the interactive trust question carries it as a detail line. On the wire the
+  declaration is the projection filter (`Out-of-process extensions` below).
+- **Same records as the other projections.** `--json`, ACP and the extension wire render the same
+  `AgentEvent` union; there is no second event model and an observer never writes to stdout.
 - **File changes stay separate.** `IFileChangeBus` keeps its handler-shaped subscription; it predates
   this surface and is not migrated.
 
@@ -158,6 +156,7 @@ Every run — child runs included — has a workspace: `WorktreeRoot`, `RepoRoot
 
 - Every hook payload/result and service call round-trips through `System.Text.Json`; the wire conformance suite covers the catalogue exhaustively (a new DTO without a wire entry fails by name).
 - Command invocations cross the same wire (`command/invoke`, protocol version 2) as a wire DTO owned by the remote package — never a serialisation of the public `CommandInvocation`/`CommandResult` — with `$/cancelRequest` as the one cancel path and `commands: true` in `initialize` as the capability the listing follows. The conformance runner and the `node-remote` sample prove it.
+- The observable stream crosses the wire as an `event/<kind>` notification (protocol version 3) whose params are the same JSON line `--json` writes — one projection, in `Lunate.Extensibility.Remote`, with `--json` delegating to it. `initialize` carries the manifest `events` watch list and answers with the kinds the child accepts; the projection sends only the manifest's kinds the child accepts, never awaited and never answered. A version-1 or version-2 child still loads when the manifest declares no `events`; a manifest that declares them refuses it at the handshake naming protocol version 3. Each started child has one bounded projection pump (256 events): overflow drops the oldest event, counts it and warns once, and an event line over the wire's cap is dropped with one warning rather than breaking the wire. A remote extension declaring `events` starts at session start, so an observer-only extension is live before the first run. The conformance inventory round-trips every `AgentEvent` record, the runner's `event notification` step proves receipt through the child's probe command, and the `node-remote` sample's fitness test observes a real turn through the host. No wire type lives in `Lunate.Extensibility.Abstractions`.
 - All hooks are async with cancellation and a per-handler timeout.
 - `Lunate.Extensibility.Remote` (T-52) hosts an extension declaring a manifest `runtime` as a child process speaking newline-delimited JSON-RPC 2.0 over stdio. Manifest and wire reference for authors, with the generated JSON Schema and the conformance runner: [`docs/extensions-remote.md`](../../extensions-remote.md). The reference extension is the `node-remote` sample in the fitness suite.
 - The process boundary is runtime isolation (dependencies, language, crash containment), not a permission boundary; in-process trust and the trust prompt (now stating the extension runs with the user's privileges) are unchanged (ADR-0017).
