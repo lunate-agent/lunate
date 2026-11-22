@@ -121,6 +121,8 @@ answer in the first paragraph. The list below is the short tour.
   ([skills](docs/skills.md)).
 - **`AGENTS.md`** — project rules from the root down to the launch directory, appended under their
   relative path ([AGENTS.md](docs/agents-md.md)).
+- **`LUNATE.md`** — project notes the agent appends to and reads back next session, under an explicit
+  budget ([AGENTS.md](docs/agents-md.md)).
 - **Update check** — one GitHub Releases check a day, no telemetry, `updateCheck: false` to stop
   ([configuration](docs/configuration.md)).
 

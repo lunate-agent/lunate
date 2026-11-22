@@ -20,9 +20,10 @@ When one model turn asks for several independent read-only calls — `read`, `gr
 
 ## The tools are the only way it acts
 
-Nine built-in tools do the work: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`,
-`web_search` and `web_fetch`. The bash family can start a long command in the background, poll only
-the output written since the last poll, and stop the whole process tree. The model uses `todo` to keep
+Ten built-in tools do the work: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`,
+`remember`, `web_search` and `web_fetch`. The bash family can start a long command in the background,
+poll only the output written since the last poll, and stop the whole process tree. The model uses
+`remember` to append one durable fact to the project's `LUNATE.md`, and `todo` to keep
 one short plan — each item is `pending`, `in_progress` or `done` — and the live area shows it above
 the prompt, bounded to a few lines. The web tools search and read pages through the same approval path
 as `bash`; a search returns ranked title, URL and snippet results, and a fetch returns readable text
@@ -40,8 +41,9 @@ refuses what it may not approve. [Run Lunate safely](security.md) owns the trust
 
 ## Context is what fits the window
 
-The model sees the composed system prompt, your `AGENTS.md` chain, the session's messages and the
-tool declarations — trimmed to fit the selected model's context window. Lunate keeps a long session
+The model sees the composed system prompt, your `AGENTS.md` chain, the project notes from
+`LUNATE.md` when it exists, the session's messages and the tool declarations — trimmed to fit the
+selected model's context window. Lunate keeps a long session
 inside it without losing the transcript:
 
 - A large tool result is spilled to a file, and the model gets a short stub with a pointer it can page

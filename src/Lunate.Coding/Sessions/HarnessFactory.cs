@@ -74,6 +74,7 @@ internal static class HarnessFactory
         tools.Add(new BashOutputTool(bashJobs));
         tools.Add(new BashKillTool(bashJobs));
         tools.Add(new TodoTool());
+        tools.Add(new RememberTool(workspace, files: files));
         tools.Add(new WebSearchTool());
         tools.Add(new WebFetchTool());
         AddOptionalTools(tools, workspace, extraTools);

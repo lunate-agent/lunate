@@ -12,6 +12,6 @@ Working rules:
 - Never touch files outside the repository. Ask before destructive commands.
 - Be brief. Show what you changed and why, not every step.
 
-Project instructions from AGENTS.md, root first (the closest file is the most specific):
+Project instructions from AGENTS.md, root first (the closest file is the most specific), followed by the project notes when it has them (the rules above win):
 
 {agents}

@@ -7,9 +7,11 @@ namespace Lunate.Coding;
 /// <summary>
 /// Composes the system prompt from the embedded <c>system-prompt.md</c> template: the template's
 /// named tokens are replaced with the runtime facts (canonical working directory, OS, resolved
-/// shell, UTC date, registered tool names) and the <c>AGENTS.md</c> chain. Plain
-/// <see cref="string.Replace(string, string, StringComparison)"/> is used deliberately - braces in
-/// prose or in user instruction files must never throw, so no formatting engine is involved.
+/// shell, UTC date, registered tool names) and the <c>AGENTS.md</c> chain followed by the project
+/// notes. Plain <see cref="string.Replace(string, string, StringComparison)"/> is used deliberately
+/// - braces in prose or in user instruction files must never throw, so no formatting engine is
+/// involved. Both the <c>AGENTS.md</c> blocks and the notes enter as one substituted value, so
+/// neither user text is rescanned for tokens.
 /// </summary>
 public static class SystemPrompt
 {
@@ -29,6 +31,11 @@ public static class SystemPrompt
 
         string repositoryRoot = workspace.RepoRoot ?? workspace.WorktreeRoot;
         string instructions = AgentsInstructions.Compose(repositoryRoot, workspace.WorktreeRoot);
+        string notes = ProjectNotes.Compose(workspace);
+        string project =
+            notes.Length == 0 ? instructions
+            : instructions.Length == 0 ? notes
+            : instructions + "\n\n" + notes;
         string shell = (shellResolver ?? new ShellResolver()).Resolve()?.DisplayName ?? "unknown";
         string tools = toolNames.Count == 0 ? "none" : string.Join(", ", toolNames);
         string date = (now ?? DateFromEnvironment() ?? DateTimeOffset.UtcNow).UtcDateTime.ToString(
@@ -43,7 +50,7 @@ public static class SystemPrompt
             .Replace("{shell}", shell, StringComparison.Ordinal)
             .Replace("{tools}", tools, StringComparison.Ordinal)
             .Replace("{date}", date, StringComparison.Ordinal)
-            .Replace("{agents}", instructions, StringComparison.Ordinal)
+            .Replace("{agents}", project, StringComparison.Ordinal)
             .TrimEnd();
     }
 

@@ -4,7 +4,7 @@ Implementation guide · v3 · Oct 4, 2026 · @Daniel
 
 ## Purpose, goals and non-goals
 
-Lunate is a lightweight terminal coding agent for C# developers — a daily driver you can customise in the language it is written in: a reliable core loop, nine core tools, a Spectre-based TUI, zero-setup C# tooling through Roslyn, and runtime extensions for tools, slash commands and event handlers. It is a personal, MIT-licensed project, and it is built change by change with OpenCode and OpenSpec from this guide.
+Lunate is a lightweight terminal coding agent for C# developers — a daily driver you can customise in the language it is written in: a reliable core loop, ten core tools, a Spectre-based TUI, zero-setup C# tooling through Roslyn, and runtime extensions for tools, slash commands and event handlers. It is a personal, MIT-licensed project, and it is built change by change with OpenCode and OpenSpec from this guide.
 
 ## Why Lunate
 
@@ -57,7 +57,7 @@ These claims age quickly, so the Phase 5 gate tests them head to head: the same 
 
 Every feature request and every OpenCode plan is checked against these seven rules; when in doubt, leave it out or make it an extension.
 
-1. **Primitives, not features.** The core ships nine tools: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`, `web_search` and `web_fetch`. Roslyn is a built-in offered only when its manifest activation rule matches the workspace; configured MCP servers and optional `grep`/`find`/`ls` tools remain separate from the core set.
+1. **Primitives, not features.** The core ships ten tools: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`, `remember`, `web_search` and `web_fetch`. Roslyn is a built-in offered only when its manifest activation rule matches the workspace; configured MCP servers and optional `grep`/`find`/`ls` tools remain separate from the core set.
 2. **Robust, never silently wrong.** Tools tolerate harmless differences (line endings, indentation) but refuse anything ambiguous. Every fallback is visible: the result says which match tier was used and the TUI shows the diff.
 3. **Performance budgets are a gate.** Startup time and idle memory are measured in CI on every commit. Heavy components (Roslyn, MCP servers, extensions) load on first use, never at startup.
 4. **Small system prompt.** Under 1,000 tokens, asserted in a test — the base prompt; the session skills index is a separate section indexed in full, each description carried whole to the Agent Skills limit of 1,024 characters (a longer description is truncated in the index with one warning; the skill still loads), with a soft notice at 2% and a hard ceiling at 5% of the model's context window (`skills.indexBudget` overrides both; `AGENTS.md`-named skills never drop). Project rules come from `AGENTS.md`, not from the harness.
@@ -358,16 +358,16 @@ Append-only JSONL, one entry per line, each with `id`, `parentId`, `type` and a 
 
 - **Shape:** our strategy implements `IChatReducer` (not `[Experimental]` in the pinned Microsoft.Extensions.AI 10.10.x) and the loop calls it before each model request, so it can emit `CompactionApplied` and write the compaction entry. Do not use `ReducingChatClient` — the loop decides when to compact. MEAI also ships `SummarizingChatReducer` and `MessageCountingChatReducer` (both `[Experimental]` in 10.10.x); evaluate them as the base before writing custom reduction logic. A base reducer is only acceptable if it meets our compaction rules: never split a tool call from its result, always keep the system prompt, AGENTS.md and the last turns verbatim, and record a compaction entry. If it does not, wrap it; do not weaken the rules.
 - **Trigger:** estimated context tokens pass 80% of the model's window. Estimate is characters / 4, corrected by the last `UsageReported`. Also on `/compact <instructions>`; the optional trailing text is focus for that one summarization only — appended after the fixed sections, capped at 1,000 characters (refused, not truncated), and never stored in the session or reused by a later compaction.
-- **What stays verbatim:** system prompt, `AGENTS.md`, the last N turns (default 4, configurable), and any turn whose tool call or result would otherwise be split.
+- **What stays verbatim:** system prompt, `AGENTS.md`, the project notes, the last N turns (default 4, configurable), and any turn whose tool call or result would otherwise be split.
 - **What is summarized:** everything older, by the same model with a fixed summarization prompt (goal, decisions, files touched, open problems), stored as a `compaction` entry. The session file keeps the full history; only the request sent to the model is shortened.
 - **Never:** split a tool call from its result, or summarize the current turn.
 - **Test:** a recorded long session compacts once, the next request is under 60% of the window, and replay still matches.
 
 ## Layer 3: Lunate.Coding (the app)
 
-`Lunate.Coding` turns the brain into a coding agent: the nine tools, project instructions, config, sessions on disk and two frontends.
+`Lunate.Coding` turns the brain into a coding agent: the ten tools, project instructions, config, sessions on disk and two frontends.
 
-**The nine tools**
+**The ten tools**
 
 Tool results are written for the model: short, factual, and every error says what to do next.
 
@@ -380,6 +380,7 @@ Tool results are written for the model: short, factual, and every error says wha
 | `bash_output` | `job_id` | The unread stdout/stderr since the last poll, then `running` or the exit code | Unknown job; a non-zero exit code is reported as an error |
 | `bash_kill` | `job_id` | `killed; process tree stopped`, or the exit code when the job had already ended | Unknown job; an ended job is reported, never treated as a failure |
 | `todo` | `items`, each with `text` and `status` (`pending`, `in_progress`, `done`) | `todo list updated: N items (…)`; the complete list is emitted as a `TodoUpdated` event | More than one `in_progress`, blank text, an unknown status, more than 20 items; the error says what to send instead |
+| `remember` | `note` (one non-empty line) | `remembered in LUNATE.md (created; 42 of 8,000 characters); later sessions read it from the system prompt`; a file-change event | Empty or multi-line note; unknown argument; a note that would push the file past 8,000 characters — the error names the current size and the remedy |
 | `web_search` | `query`, optional `max_results` (5 default, 10 max) | Numbered results in rank order, each with title, absolute URL and snippet; bounded at 8 KiB with a marker | Empty query; unknown argument; the endpoint's HTTP failure, named with its reason |
 | `web_fetch` | `url` (absolute `http`/`https` only) | The page title, readable text, and every http(s) link as markdown; the source body is capped at 2 MiB and the text at 20 KiB with a marker | Invalid or unsupported URL; non-2xx naming the status and reason; redirect loop; timeout; transport failure — each naming the URL |
 
@@ -445,14 +446,14 @@ One folder per case: `input` file, `request.json`, and `expected` file or `expec
 
 **System prompt and instructions**
 
-- One embedded `system-prompt.md`, under 1,000 tokens: who the agent is, the nine tools, "read before you edit", "run the build or tests after changes".
-- Appended at runtime: OS, shell, working directory, date, and the content of `AGENTS.md` files found from the repo root down to the working directory.
+- One embedded `system-prompt.md`, under 1,000 tokens: who the agent is, the ten tools, "read before you edit", "run the build or tests after changes".
+- Appended at runtime: OS, shell, working directory, date, the content of `AGENTS.md` files found from the repo root down to the working directory, and the project notes from `LUNATE.md` (after `AGENTS.md`, under an 8,000-character read budget).
 
 First draft of `system-prompt.md` (T-16 refines it and asserts the token budget):
 
 ```markdown
 You are Lunate, a coding agent working in the user's repository at {cwd} on {os}, shell {shell}.
-Tools: read, write, edit, bash, bash_output, bash_kill, todo{extra_tools}.
+Tools: read, write, edit, bash, bash_output, bash_kill, todo, remember{extra_tools}.
 - Read a file before you edit it; after a stale-read refusal, read the changed file before retrying. Prefer edit over write for existing files.
 - Keep old_text in edit short but unique; include start_line if the text repeats.
 - After changing code, build or run the relevant tests and report the result.
@@ -817,7 +818,7 @@ The Phase 5 gate is external (T-35): the same C# task suite with Lunate, with Cl
 **Rules**
 
 - Outputs are compact text, not JSON dumps. Cap at the same limit as other tools.
-- If the solution fails to load, tools return a clear error and the agent falls back to the nine core tools.
+- If the solution fails to load, tools return a clear error and the agent falls back to the ten core tools.
 - Measure it: run the same task set with and without `Lunate.Roslyn` and compare success rate and tokens (see Testing).
 
 **Later (no card yet).** A generic LSP client extension would give Lunate baseline diagnostics and navigation for TypeScript, Python and other languages, similar to OpenCode — reusing the same name-based tool shape where possible. Explicitly not v1 scope.

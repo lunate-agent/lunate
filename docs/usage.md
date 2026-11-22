@@ -80,6 +80,15 @@ above the input box as up to five lines — the rest collapses to `… N more` �
 prompt off screen. An empty list, or a session that never calls the tool, renders no plan. The list is
 part of the session's tool calls, so a resumed session shows the same plan it had before the restart.
 
+## Facts survive in LUNATE.md
+
+The model can carry a project fact into later sessions with the `remember` tool. It appends one
+Markdown bullet to `LUNATE.md` at the repository root — never a global file — and leaves the rest of
+the file alone. The next session reads it from the system prompt after your `AGENTS.md` rules, which
+still win if a note disagrees. The file is capped at 8,000 characters: a longer file is read up to
+the cap with a marker saying what was omitted, and an append that would pass the cap is refused
+without touching the file. [AGENTS.md](agents-md.md) owns the whole rule.
+
 ## C# the compiler agrees with
 
 In a C# workspace the model can ask `cs_diagnostics` for compiler errors and warnings — a compile
