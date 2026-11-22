@@ -218,19 +218,78 @@ internal sealed class SystemConsoleIO : IConsoleIO, ITerminalFocus
         { }
     }
 
-    private sealed class RawModeScope(SystemConsoleIO console, ITerminalMode mode) : IDisposable
+    private sealed class RawModeScope(SystemConsoleIO console, ITerminalMode mode)
+        : IDisposable,
+            ISignalTerminalRestore
     {
+        /// <summary>
+        /// How long a signal exit waits for the best-effort focus-report-off request. The restore
+        /// itself has already happened; this only bounds the optional terminal write.
+        /// </summary>
+        private static readonly TimeSpan SignalFocusWriteBudget = TimeSpan.FromMilliseconds(100);
+
         private bool _left;
 
         public void Dispose()
         {
-            if (_left)
+            if (!TryLeave())
             {
                 return;
             }
 
-            _left = true;
             console.WriteFocusReporting(enabled: false);
+            RestoreMode();
+        }
+
+        /// <summary>
+        /// The signal path: restore the mode first, then ask the terminal to stop focus reporting
+        /// without ever gating the exit on that write. A signal can arrive while the UI thread
+        /// holds the console writer blocked on a full output buffer, so a synchronous request
+        /// would deadlock the process instead of letting the signal end it.
+        /// </summary>
+        public void RestoreForSignal()
+        {
+            if (!TryLeave())
+            {
+                return;
+            }
+
+            RestoreMode();
+            Task write = Task.Run(() =>
+            {
+                try
+                {
+                    console.WriteFocusReporting(enabled: false);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    // Best effort: the process is exiting on the signal, and the terminal mode
+                    // restore above is the part that must survive.
+                }
+            });
+            try
+            {
+                write.Wait(SignalFocusWriteBudget);
+            }
+            catch (AggregateException)
+            {
+                // The worker already swallowed its own failure; a wait error cannot delay exit.
+            }
+        }
+
+        private bool TryLeave()
+        {
+            if (_left)
+            {
+                return false;
+            }
+
+            _left = true;
+            return true;
+        }
+
+        private void RestoreMode()
+        {
             console.ResetFocus();
             mode.Dispose();
             if (ReferenceEquals(console._terminalMode, mode))
