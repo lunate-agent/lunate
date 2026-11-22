@@ -26,7 +26,9 @@ and that stream is what an observer wants.
   see them, and ACP publishes before its own protocol filtering so even what it does not render
   reaches an observer.
 - The contract moves a semver minor: `ExtensionApi.Current` and the contract package version go from
-  `1.16.0` to `1.17.0`, with the `PublicAPI.Unshipped.txt` entries the analyzer requires.
+  `1.17.0` to `1.18.0`, with the `PublicAPI.Unshipped.txt` entries the analyzer requires. `1.17.0`
+  went to the `todo` event and shipped in `0.6.0`, so this second contract change takes the next
+  minor instead of reusing a published number.
 - An out-of-process extension keeps the hook catalogue only. The `events` projection over protocol
   version 3, its conformance entry and the node-remote sample are the follow-up card ADR-0040 names;
   a remote manifest that declares `events` today logs one warning instead of silently ignoring it.
@@ -44,7 +46,7 @@ _None._
 - `extensions`: a session-scoped observable event stream (`IExtensionContext.Events`) next to the
   unchanged intercepting hook catalogue, with per-subscription bounded queues, drop counting, error
   isolation and completion; the manifest `events` declaration and its single-file `#:event` mirror;
-  the `/extensions` counters and the trust-prompt information line; the `1.17.0` contract bump.
+  the `/extensions` counters and the trust-prompt information line; the `1.18.0` contract bump.
 
 ## Impact
 

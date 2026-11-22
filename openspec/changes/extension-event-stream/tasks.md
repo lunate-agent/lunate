@@ -2,7 +2,7 @@
 
 - [x] 1.1 Add `IObservable<AgentEvent> Events` to `IExtensionContext` and `Events` to
       `ExtensionManifest` (parsed, shape-validated, `*` only alone).
-- [x] 1.2 Bump `ExtensionApi.Current` and `Directory.Build.props` `ContractApiVersion` to `1.17.0`;
+- [x] 1.2 Bump `ExtensionApi.Current` and `Directory.Build.props` `ContractApiVersion` to `1.18.0`;
       update the contract version tests and the authoring contract note.
 - [x] 1.3 Add the analyzer entries to `Lunate.Extensibility.Abstractions`'s
       `PublicAPI.Unshipped.txt`.

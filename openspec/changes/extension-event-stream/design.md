@@ -103,10 +103,16 @@ the per-event caps land with that card. No protocol message, version or sample c
 
 ### 6. Contract version and PublicAPI
 
-`ExtensionApi.Current` and `Directory.Build.props` `ContractApiVersion` move from `1.16.0` to
-`1.17.0` together, so the contract assemblies' version and the manifest gate stay one number. The
+`ExtensionApi.Current` and `Directory.Build.props` `ContractApiVersion` move from `1.17.0` to
+`1.18.0` together, so the contract assemblies' version and the manifest gate stay one number. The
 observable is BCL, so no package reference changes. The analyzer-required entries go to
 `PublicAPI.Unshipped.txt`: `IExtensionContext.Events` and `ExtensionManifest.Events`.
+
+`1.17.0` is taken: the `todo` event moved the contract to it in the same minor and `0.6.0`
+published it, and a NuGet version cannot be republished. An extension built against this tree
+would otherwise declare `apiVersion` `1.17.0` while the published `1.17.0` has no
+`IExtensionContext.Events`, so the change takes the next minor — the note in
+`docs/extensions/README.md` is under `1.18.0` for the same reason.
 
 ## Risks / Trade-offs
 
