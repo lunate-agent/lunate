@@ -932,7 +932,7 @@ XML
   cd "$repo_root"
 
   step "contract package roundtrip"
-  # The extension contract ships beside the tool (#237), on the same tag and no looser: the four SDK
+  # The extension contract ships beside the tool (#237), on the same tag and no looser: the five SDK
   # packages are checked by the same metadata script (the preview pair under --prerelease), and the
   # template's NuGet shape is proven against this feed — the packages nuget.org serves after the
   # next tag, exercised on every commit where they exist only in dist/.
@@ -940,13 +940,14 @@ XML
   contract_feed="$(native_path "${contract_tmp}/feed")"
   for contract_project in \
     src/Lunate.Contracts/Lunate.Contracts.csproj \
+    src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj \
     src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj \
     src/Lunate.Agent/Lunate.Agent.csproj \
     src/Lunate.Extensibility.Testing/Lunate.Extensibility.Testing.csproj
   do
     dotnet pack "$contract_project" -c "$CONFIGURATION" -o "$contract_feed" --nologo -nodeReuse:false
   done
-  # The contract pair carries the API version plus the tag's prerelease suffix, the preview pair the
+  # The contract trio carries the API version plus the tag's prerelease suffix, the preview pair the
   # product version while it is a prerelease and <version>-preview.1 otherwise — never a constant,
   # and never readable from the csproj, where these are $(ContractVersion) and $(PreviewVersion).
   # One derivation (`scripts/release-versions.sh`) decides both here and in the pack-only job.
@@ -957,6 +958,8 @@ XML
   preview_version="${derived_PREVIEW}"
   "${SCRIPT_DIR}/check-package-metadata.sh" \
     "${contract_feed}/Lunate.Contracts.${contract_version}.nupkg" --id Lunate.Contracts
+  "${SCRIPT_DIR}/check-package-metadata.sh" \
+    "${contract_feed}/Lunate.Decisions.Model.${contract_version}.nupkg" --id Lunate.Decisions.Model
   "${SCRIPT_DIR}/check-package-metadata.sh" \
     "${contract_feed}/Lunate.Extensibility.Abstractions.${contract_version}.nupkg" --id Lunate.Extensibility.Abstractions
   "${SCRIPT_DIR}/check-package-metadata.sh" \

@@ -179,6 +179,7 @@ public sealed class ExtensionTemplateCopyEndToEndTests
         string[] packables =
         [
             "src/Lunate.Contracts/Lunate.Contracts.csproj",
+            "src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj",
             "src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj",
             "src/Lunate.Agent/Lunate.Agent.csproj",
             "src/Lunate.Extensibility.Testing/Lunate.Extensibility.Testing.csproj",

@@ -39,7 +39,7 @@
         <ItemGroup>
             <EmbeddedResource
                 Include="@(ReferencePath)"
-                Condition="'%(Filename)' == 'Lunate.Contracts' Or '%(Filename)' == 'Lunate.Extensibility.Abstractions' Or '%(Filename)' == 'Lunate.Ai.Decisions' Or '%(Filename)' == 'Microsoft.Extensions.AI.Abstractions'"
+                Condition="'%(Filename)' == 'Lunate.Contracts' Or '%(Filename)' == 'Lunate.Extensibility.Abstractions' Or '%(Filename)' == 'Lunate.Decisions.Model' Or '%(Filename)' == 'Microsoft.Extensions.AI.Abstractions'"
             >
                 <LogicalName>contracts/%(Filename).dll</LogicalName>
             </EmbeddedResource>

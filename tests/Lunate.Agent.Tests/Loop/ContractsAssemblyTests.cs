@@ -103,23 +103,76 @@ public sealed class ContractsAssemblyTests
     }
 
     [Fact]
-    public void The_decision_model_lives_in_the_decision_assembly()
+    public void The_decision_model_lives_in_its_own_package()
     {
-        // One model, one home (ADR-0044): the request/result records belong to the decision loop, and
-        // the contract keeps only the event distribution it publishes.
-        System.Reflection.Assembly decisions = typeof(DecisionRequest).Assembly;
+        // One model, one home, and its own package (ADR-0045): the request/result records and the
+        // seams belong to Lunate.Decisions.Model, the engine stays in Lunate.Ai.Decisions, and the
+        // contract keeps only the event distribution it publishes.
+        System.Reflection.Assembly model = typeof(DecisionRequest).Assembly;
 
-        Assert.Equal("Lunate.Ai.Decisions", decisions.GetName().Name);
-        Assert.Equal(decisions, typeof(DecisionQuestion).Assembly);
-        Assert.Equal(decisions, typeof(DecisionAnswer).Assembly);
-        Assert.Equal(decisions, typeof(DecisionBox).Assembly);
-        Assert.Equal(decisions, typeof(DecisionResult).Assembly);
+        Assert.Equal("Lunate.Decisions.Model", model.GetName().Name);
+        Assert.Equal(model, typeof(DecisionQuestion).Assembly);
+        Assert.Equal(model, typeof(DecisionAnswer).Assembly);
+        Assert.Equal(model, typeof(DecisionBox).Assembly);
+        Assert.Equal(model, typeof(DecisionResult).Assembly);
+        Assert.Equal(model, typeof(DecisionUsage).Assembly);
+        Assert.Equal(model, typeof(INativeDecisionClient).Assembly);
+        Assert.Equal(model, typeof(IAgentDecisionService).Assembly);
         Assert.Equal(typeof(DecisionEvaluated).Assembly, typeof(DecisionProbability).Assembly);
-        Assert.NotEqual(typeof(DecisionEvaluated).Assembly, decisions);
+        Assert.NotEqual(typeof(DecisionEvaluated).Assembly, model);
         Assert.Equal(0, (int)DecisionQuestionKind.YesNo);
         Assert.Equal(1, (int)DecisionQuestionKind.Choice);
         Assert.Equal(2, (int)DecisionQuestionKind.Score);
         Assert.Equal(3, (int)DecisionQuestionKind.Box);
+    }
+
+    [Fact]
+    public void The_decision_model_package_exports_only_the_accepted_inventory()
+    {
+        // The model package holds the model and the seams, nothing else (ADR-0045). Transport
+        // bookkeeping such as the OpenCode usage sidecar is internal to the model so it cannot
+        // appear in the package's PublicAPI inventory by accident.
+        string[] exported = typeof(DecisionRequest)
+            .Assembly.GetExportedTypes()
+            .Select(type => type.FullName!)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        string[] expected =
+        [
+            "Lunate.Ai.Decisions.DecisionAnswer",
+            "Lunate.Ai.Decisions.DecisionBox",
+            "Lunate.Ai.Decisions.DecisionQuestion",
+            "Lunate.Ai.Decisions.DecisionQuestionKind",
+            "Lunate.Ai.Decisions.DecisionRequest",
+            "Lunate.Ai.Decisions.DecisionResult",
+            "Lunate.Ai.Decisions.DecisionUsage",
+            "Lunate.Ai.Decisions.IAgentDecisionService",
+            "Lunate.Ai.Decisions.INativeDecisionClient",
+        ];
+
+        Assert.Equal(expected, exported);
+    }
+
+    [Fact]
+    public void The_decision_engine_types_stay_internal_to_the_engine()
+    {
+        // The model package is the extension surface; the engine is not (ADR-0045). A new engine type
+        // that is public would become contract by accident again, so the gate names each one.
+        Type[] engineTypes =
+        [
+            typeof(DecisionClientBuilder),
+            typeof(DecisionResponseParser),
+            typeof(DecisionResultValidator),
+            typeof(DecisionOptions),
+        ];
+
+        Assert.All(engineTypes, type =>
+        {
+            Assert.Equal("Lunate.Ai.Decisions", type.Assembly.GetName().Name);
+            Assert.False(type.IsPublic, $"{type.Name} must stay internal to the engine.");
+            Assert.False(type.IsNestedPublic, $"{type.Name} must stay internal to the engine.");
+        });
     }
 
     [Fact]

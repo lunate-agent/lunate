@@ -12,6 +12,7 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `lunate.<version>.nupkg` | framework-dependent `dotnet tool` (package and command `lunate`); its `net11.0` asset requires the .NET 11 runtime |
 | `Lunate.Extensions.Subagents.<version>.nupkg` | the reference subagents extension, installed with `lunate install Lunate.Extensions.Subagents` |
 | `Lunate.Contracts.<ExtensionApi.Current>[-rc.<n>].nupkg` | the message/tool contract half (versioned with `ExtensionApi`, not the tool; an RC tag publishes the `-rc.<n>` prerelease and only the final tag publishes the stable version) |
+| `Lunate.Decisions.Model.<ExtensionApi.Current>[-rc.<n>].nupkg` | the decision model and its two seams, versioned with the contract pair; the Abstractions package depends on it |
 | `Lunate.Extensibility.Abstractions.<ExtensionApi.Current>.nupkg` | the stable extension contract the template installs from NuGet |
 | `Lunate.Agent.<product version>.nupkg` | the embedded harness, preview — the product version while it is a prerelease (`0.2.0-rc.<n>`), `<version>-preview.<n>` on a final tag |
 | `Lunate.Extensibility.Testing.<product version>.nupkg` | the test kit, preview, versioned the same way |

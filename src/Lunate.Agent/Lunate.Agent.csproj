@@ -36,10 +36,15 @@
 
     <ItemGroup>
         <ProjectReference Include="../Lunate.Ai/Lunate.Ai.csproj" PrivateAssets="All" />
+        <!--
+            The engine is unpacked (ADR-0045), so this package carries its file; the model is its
+            own published package, so it travels as a nuspec dependency instead of a second copy.
+        -->
         <ProjectReference
             Include="../Lunate.Ai.Decisions/Lunate.Ai.Decisions.csproj"
             PrivateAssets="All"
         />
+        <ProjectReference Include="../Lunate.Decisions.Model/Lunate.Decisions.Model.csproj" />
         <ProjectReference Include="../Lunate.Contracts/Lunate.Contracts.csproj" />
     </ItemGroup>
 
@@ -70,10 +75,11 @@
     </ItemGroup>
 
     <!--
-        The package's lib carries the harness plus the project it depends on but does not
+        The package's lib carries the harness plus the engine project it depends on but does not
         depend on as a package: the file is named here, so the list is the inventory a reader
-        (and the gate) can diff against. The contract assemblies ride through the dependency
-        chain they belong to — a copy inside this package would blur which copy types bind to.
+        (and the gate) can diff against. The model and contract packages ride through the
+        dependency chain they belong to — a copy inside this package would blur which copy types
+        bind to.
     -->
     <Target Name="PackOwnAssemblies">
         <ItemGroup>
