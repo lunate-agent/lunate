@@ -256,6 +256,18 @@ job's startup step reports the measurement it failed on the same way: its floor,
 plus the first attempt's floor when the noise policy retried, because the shared macOS runner's
 300-330 ms floor and a doubled startup look alike from the run alone (#950).
 
+A `perf` budget miss is triaged against the machine before it is read as a regression, because
+interference only ever adds time and a regression is what moves the floor
+([ADR 0005](adr/0005-addendum-startup-floor.md)): the check is the same job's most recent push run on
+`main`, which measured the startup path at another moment. The card for run 45053133975 (#1017) read
+386 ms on its first attempt and 343 ms on the noise policy's retry, with a 467 ms median against the
+300 ms budget, while the pushes either side of it measured under it on the same runner class and
+`main`'s head floors at 143 ms in a local `osx-arm64` publish of the release shape
+([S-9](docs/dev/spikes/S-9/report.md) records 139-177 ms for it) — a starved runner under the macOS
+arm64 capacity notice the run carried, not a startup path that changed. That red is a rerun, not a
+re-calibration and not an edit to the gate: a red job that ran is never retried that way, and no
+change in this repository makes a shared runner measure its quiet floor.
+
 A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
 legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore
 the extension template against the feed the step has just packed, so a single fix lands for all three
