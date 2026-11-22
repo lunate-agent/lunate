@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace Lunate.Tui;
 
-internal sealed class FakeConsoleIO : IConsoleIO, IDisposable
+internal sealed class FakeConsoleIO : IConsoleIO, ITerminalFocus, IDisposable
 {
     private readonly Subject<ConsoleSize> _resized = new();
     private readonly IObservable<ConsoleSize> _distinctSizes;
@@ -36,6 +36,9 @@ internal sealed class FakeConsoleIO : IConsoleIO, IDisposable
         : this(scheduler, new ConsoleSize(80, 24)) { }
 
     public bool IsInteractive { get; set; } = true;
+
+    /// <summary>Scripted focus state; null is the unknown state a terminal without reporting has.</summary>
+    public bool? IsFocused { get; set; }
 
     public ConsoleSize Size { get; private set; }
 

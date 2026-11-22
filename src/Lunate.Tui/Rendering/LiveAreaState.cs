@@ -8,6 +8,9 @@ internal sealed record LiveAreaState
 
     public string TailText { get; init; } = string.Empty;
 
+    /// <summary>The current todo list; empty when the session has no plan.</summary>
+    public IReadOnlyList<TodoItemView> TodoItems { get; init; } = [];
+
     public string? ToolName { get; init; }
 
     /// <summary>The active tool call's one-line argument summary; empty when the args are unknown.</summary>

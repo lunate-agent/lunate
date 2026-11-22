@@ -16,7 +16,7 @@ public sealed class OptionalToolRegistrationTests
 
         ToolRegistry tools = HarnessFactory.CreateTools(new Workspace(temp.Root));
 
-        Assert.Equal(["read", "write", "edit", "bash"], Names(tools));
+        Assert.Equal(CoreNames, Names(tools));
     }
 
     [Theory]
@@ -32,7 +32,7 @@ public sealed class OptionalToolRegistrationTests
             extraTools: [name]
         );
 
-        Assert.Equal(["read", "write", "edit", "bash", name], Names(tools));
+        Assert.Equal([.. CoreNames, name], Names(tools));
         Assert.Equal(ToolRisk.ReadOnly, tools.Find(name)!.Risk);
     }
 
@@ -46,7 +46,7 @@ public sealed class OptionalToolRegistrationTests
             extraTools: ["grep", "ls"]
         );
 
-        Assert.Equal(["read", "write", "edit", "bash", "grep", "ls"], Names(tools));
+        Assert.Equal([.. CoreNames, "grep", "ls"], Names(tools));
         Assert.Null(tools.Find("find"));
     }
 
@@ -65,6 +65,30 @@ public sealed class OptionalToolRegistrationTests
         Assert.NotNull(tools.Find("grep"));
     }
 
+    [Theory]
+    [InlineData("web_search")]
+    [InlineData("web_fetch")]
+    public void An_extra_name_cannot_shadow_a_web_tool(string name)
+    {
+        using var temp = new TempDirectory();
+
+        ToolRegistry tools = HarnessFactory.CreateTools(
+            new Workspace(temp.Root),
+            extraTools: [name]
+        );
+
+        Assert.Single(tools.Tools, tool => tool.Name == name);
+        Assert.Equal(ToolRisk.Execute, tools.Find(name)!.Risk);
+    }
+
+    [Fact]
+    public void The_todo_tool_is_a_core_name_and_cannot_be_an_extra()
+    {
+        string error = OptionalTools.Error("--extra-tools", "todo");
+
+        Assert.Contains("core tool 'todo'", error, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void An_unknown_name_is_not_registered()
     {
@@ -75,7 +99,26 @@ public sealed class OptionalToolRegistrationTests
             extraTools: ["wat"]
         );
 
-        Assert.Equal(["read", "write", "edit", "bash"], Names(tools));
+        Assert.Equal(CoreNames, Names(tools));
+    }
+
+    [Fact]
+    public void The_launch_filter_can_select_a_web_tool()
+    {
+        using var temp = new TempDirectory();
+        ToolRegistry tools = HarnessFactory.CreateTools(new Workspace(temp.Root));
+
+        Assert.True(
+            HarnessFactory.TryFilterTools(
+                tools,
+                null,
+                new LaunchOptions { Tools = ["read", "web_fetch"] },
+                out string? error
+            ),
+            error
+        );
+
+        Assert.Equal(["read", "web_fetch"], Names(tools));
     }
 
     [Fact]
@@ -178,6 +221,19 @@ public sealed class OptionalToolRegistrationTests
         Assert.Contains("ls", names);
         Assert.DoesNotContain("grep", names);
     }
+
+    private static readonly string[] CoreNames =
+    [
+        "read",
+        "write",
+        "edit",
+        "bash",
+        "bash_output",
+        "bash_kill",
+        "todo",
+        "web_search",
+        "web_fetch",
+    ];
 
     private static List<string> Names(ToolRegistry tools) =>
         [.. tools.Tools.Select(tool => tool.Name)];

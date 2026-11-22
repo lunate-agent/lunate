@@ -37,6 +37,8 @@ public sealed partial class SettingsSchemaTests
         ["verify"] = "off",
         ["toolDetails"] = "expanded",
         ["startupHeader"] = false,
+        ["notify"] = true,
+        ["notifyMinSeconds"] = 0,
         ["bashGuard"] = false,
         ["environment"] = "docker:probe",
         ["updateCheck"] = false,

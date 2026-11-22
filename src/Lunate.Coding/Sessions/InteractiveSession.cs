@@ -84,6 +84,9 @@ internal sealed partial record InteractiveSessionOptions
     /// <summary>The text clipboard behind <c>/copy</c>; null composes the platform transport.</summary>
     public ITextClipboard? TextClipboard { get; init; }
 
+    /// <summary>The desktop notification sender; null composes the platform transport.</summary>
+    public INotificationSender? NotificationSender { get; init; }
+
     /// <summary>The wall clock the export and diagnostic file names read; null uses the local time.</summary>
     public Func<DateTimeOffset>? Clock { get; init; }
 
@@ -501,6 +504,7 @@ internal sealed partial class InteractiveSession : IDisposable
                     catch (OperationCanceledException) { }
                 }
 
+                await _bashJobs.KillAllAsync();
                 await DisposeExtensionsAsync();
                 await DisposeExecutionEnvironmentAsync();
                 // Every exit path leaves the viewer's alternate screen, exceptions included.
@@ -673,7 +677,8 @@ internal sealed partial class InteractiveSession : IDisposable
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
             bashGuard: _bashGuard,
-            environment: _executionEnvironment
+            environment: _executionEnvironment,
+            bashJobs: _bashJobs
         );
         _tools.Add(new AskUserTool());
         await ComposeMcpConfigAsync(ct);
@@ -703,7 +708,8 @@ internal sealed partial class InteractiveSession : IDisposable
             verificationMode: _settings.Verify,
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
-            environment: _executionEnvironment
+            environment: _executionEnvironment,
+            bashJobs: _bashJobs
         );
         // The model resolves after the extension host: the configured id may name a virtual or
         // extension-registered model, which only the registry knows.
@@ -1140,6 +1146,7 @@ internal sealed partial class InteractiveSession : IDisposable
         IChatClient client = _extensionModelId is { } extensionModelId
             ? _extensions!.ModelRegistry.Resolve(extensionModelId)
             : chatModel?.Client ?? CreateSessionClient(model);
+        ApplyTodoReplay();
         return new AgentHarness(client, _tools, harnessOptions);
     }
 
@@ -1801,6 +1808,7 @@ internal sealed partial class InteractiveSession : IDisposable
         _turnActive = true;
         // A turn in flight has no answer yet: /copy must not treat its streamed text as one.
         _lastTurnCompleted = false;
+        BeginNotificationTurn();
         if (hadCost)
         {
             UpdateStatus();
@@ -1890,6 +1898,7 @@ internal sealed partial class InteractiveSession : IDisposable
         catch (OperationCanceledException) when (runCts.IsCancellationRequested)
         {
             // The interrupted turn still hands over to the queue below.
+            MarkNotificationStopped(StopReasons.Cancelled);
         }
         catch (Exception exception)
         {
@@ -1897,6 +1906,7 @@ internal sealed partial class InteractiveSession : IDisposable
             // path a throw mid-stream surfaces in — must not end the turn silently (#338): the
             // same `run failed:` notice a failed model request gets, and the input stays usable.
             _lastTurnCompleted = false;
+            MarkNotificationFailed(exception.Message);
             Notify("run failed: " + exception.Message, NoticeLevel.Error);
         }
         finally
@@ -1906,6 +1916,7 @@ internal sealed partial class InteractiveSession : IDisposable
             _live.SetCancellable(false);
             _live.SetRunUsage(null, null);
             _live.SetTool(null);
+            OfferTurnNotification();
         }
     }
 

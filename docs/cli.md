@@ -109,6 +109,7 @@ These apply to the interactive session and to print mode.
 | `--allow-unpriced` | allow a cost limit over a model with no known price |
 | `--env <engine:image>` | run process-backed tools in one `docker` or `podman` container: `docker:<image>` or `podman:<image>`, wins over the `environment` setting ([Run tool calls in a container](execution-environments.md)) |
 | `--offline` | skip the daily update check for this run |
+| `--notify` | send a desktop notification when a long interactive turn ends while the terminal window is not focused ([Usage](usage.md#notify-when-a-long-turn-ends)) |
 | `--fullscreen` | run the session on the alternate screen; inline is the default ([Full screen](full-screen.md)) |
 | `--theme <name\|path>` | paint with `default`, `dark`, `light`, `ansi16` or `mono`, or read the token file at `<path>` instead of the home `theme.json` ([Themes](themes.md)) |
 | `--system-prompt <text>` | replace the composed system prompt wholesale, including the tool-call conventions: the caller owns them |

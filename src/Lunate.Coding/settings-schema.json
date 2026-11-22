@@ -119,6 +119,20 @@
       "description": "The default model id. `LUNATE_MODEL` overrides it."
     },
     {
+      "name": "notify",
+      "type": "boolean",
+      "default": "false",
+      "scope": "user",
+      "description": "Sends a desktop notification when a long interactive turn ends while the terminal window is not focused. Off by default; `--notify` enables it for one run. A failed notification never changes the turn's result."
+    },
+    {
+      "name": "notifyMinSeconds",
+      "type": "integer",
+      "default": "10",
+      "scope": "user",
+      "description": "The minimum turn duration in seconds before a desktop notification is sent; 0 removes the threshold. Has no effect unless `notify` or `--notify` enables notifications."
+    },
+    {
       "name": "output.spillThresholdTokens",
       "type": "integer",
       "default": "2000",

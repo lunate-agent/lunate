@@ -86,16 +86,24 @@ or the user settings described below.
 
 `BashTool` and every process-backed tool command SHALL run through `IExecutionEnvironment`.
 `BashTool` SHALL send its command through the environment, and the ripgrep-backed search SHALL send
-its invocation through the same environment. Host support subprocesses SHALL remain local and SHALL
-NOT be routed through the tool-command environment: the editor and clipboard helpers, guard
-mechanism probes, the `ps` process-table read used by the local tree kill, and bash's post-call
-host change scan.
+its invocation through the same environment. A background `bash` start SHALL likewise map its
+command through the environment and SHALL start it through the environment's own start hook, so a
+container job keeps its container-side cancel step; the job family SHALL NOT spawn a child beside
+the seam. Host support subprocesses SHALL remain local and SHALL NOT be routed through the
+tool-command environment: the editor and clipboard helpers, guard mechanism probes, the `ps`
+process-table read used by the local tree kill, and bash's post-call host change scan.
 
 #### Scenario: Bash uses the environment
 
 - **GIVEN** a `BashTool` composed with an execution environment
 - **WHEN** the model calls `bash`
 - **THEN** the command is mapped and run by that environment
+
+#### Scenario: A background bash start uses the environment
+
+- **GIVEN** a `BashTool` composed with an execution environment
+- **WHEN** the model calls `bash` with `background: true`
+- **THEN** the command is mapped and started by that environment, and its kill uses that environment's cancel hook
 
 #### Scenario: Process-backed search uses the environment
 

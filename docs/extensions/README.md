@@ -37,6 +37,11 @@ What an extension compiles against is versioned under `ExtensionApi`, and a cont
 author can feel gets a note here. The notes are additive: the version a note names is the one an
 extension declares in its manifest's `apiVersion`.
 
+### 1.17.0 — the todo event
+
+`TodoUpdated` joins `AgentEvent` and `ExtensionEvent`, carrying the complete todo list after each
+successful `todo` tool call. Handle it, or leave it to your `_` arm.
+
 ### 1.16.0 — the event and hook-result families are unions
 
 The contract's closed sets are C# 15 `union` types ([ADR-0043](../../adr/0043-contract-unions.md)):

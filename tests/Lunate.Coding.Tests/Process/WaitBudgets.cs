@@ -177,6 +177,22 @@ internal static class WaitBudgets
     public static readonly TimeSpan ProviderProbeTimeout = TimeSpan.FromMilliseconds(50);
 
     /// <summary>
+    /// The request timeout the web-tool tests hand <c>web_search</c> and <c>web_fetch</c>. It is an
+    /// input to the code under test, not a wait the test performs: the stub handler answers from
+    /// memory, so a test that expects an answer exits long before this number, and the ceiling only
+    /// keeps a stub that never answers from hanging the leg.
+    /// </summary>
+    public static readonly TimeSpan WebStubRequest = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// The request timeout that has to <em>fire</em> in the web tools' timeout tests, against a stub
+    /// handler that never answers. Here the number is the behaviour under test — the result has to
+    /// name the URL and this expiry in its message — so it stays short enough that the assertion is
+    /// about the tool's timeout rather than about how long the test took.
+    /// </summary>
+    public static readonly TimeSpan WebStubExpiry = TimeSpan.FromMilliseconds(50);
+
+    /// <summary>
     /// The interval for polling a marker file the spawned child writes (the pid its grandchild
     /// records): the marker is the signal, so polling stays short while the enclosing
     /// <see cref="SpawnWindow"/> bounds the wait.

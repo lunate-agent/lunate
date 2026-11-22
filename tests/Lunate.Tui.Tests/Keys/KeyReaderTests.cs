@@ -171,6 +171,36 @@ public sealed class KeyReaderTests
     }
 
     [Fact]
+    public void Focus_reports_change_the_state_without_becoming_keys()
+    {
+        var scheduler = new TestScheduler();
+        var keys = new List<KeyEvent>();
+        var focus = new List<bool>();
+        using var reader = new KeyReader(scheduler, keys.Add, onFocus: focus.Add);
+
+        reader.Feed(Ascii("\u001b[I"));
+        reader.Feed(Ascii("x"));
+        reader.Feed(Ascii("\u001b[O"));
+
+        Assert.Equal([true, false], focus);
+        AssertKeys(keys, new KeyEvent(KeyKind.Character, "x", false, false, false));
+    }
+
+    [Fact]
+    public void Focus_markers_inside_a_paste_stay_text()
+    {
+        var scheduler = new TestScheduler();
+        var keys = new List<KeyEvent>();
+        var focus = new List<bool>();
+        using var reader = new KeyReader(scheduler, keys.Add, onFocus: focus.Add);
+
+        reader.Feed(Ascii("\u001b[200~a\u001b[Ib\u001b[201~"));
+
+        Assert.Empty(focus);
+        AssertKeys(keys, new KeyEvent(KeyKind.Paste, "a\u001b[Ib", false, false, false));
+    }
+
+    [Fact]
     public void Fake_console_routes_scripted_bytes_through_the_reader()
     {
         var scheduler = new TestScheduler();

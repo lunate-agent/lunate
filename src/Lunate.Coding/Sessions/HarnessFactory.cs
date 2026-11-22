@@ -28,10 +28,12 @@ internal static class HarnessFactory
         TimeSpan? bashChangeScanTimeout = null,
         bool bashGuardEnabled = true,
         BashGuard? bashGuard = null,
-        IExecutionEnvironment? environment = null
+        IExecutionEnvironment? environment = null,
+        BashJobRegistry? bashJobs = null
     )
     {
         refusalTracker ??= new WriteVerificationRefusalTracker();
+        bashJobs ??= new BashJobRegistry();
         var tools = new ToolRegistry();
         tools.Add(new ReadTool(workspace, files, skillReadAllowance));
         tools.Add(
@@ -65,9 +67,15 @@ internal static class HarnessFactory
                 bashGuard ?? new BashGuard(),
                 bashChangeScanTimeout,
                 bashGuardEnabled,
-                environment
+                environment,
+                bashJobs
             )
         );
+        tools.Add(new BashOutputTool(bashJobs));
+        tools.Add(new BashKillTool(bashJobs));
+        tools.Add(new TodoTool());
+        tools.Add(new WebSearchTool());
+        tools.Add(new WebFetchTool());
         AddOptionalTools(tools, workspace, extraTools);
         return tools;
     }
@@ -128,7 +136,8 @@ internal static class HarnessFactory
         WriteVerificationMode verificationMode = WriteVerificationMode.Block,
         WriteVerificationRefusalTracker? refusalTracker = null,
         bool bashGuardEnabled = true,
-        IExecutionEnvironment? environment = null
+        IExecutionEnvironment? environment = null,
+        BashJobRegistry? bashJobs = null
     )
     {
         ArgumentNullException.ThrowIfNull(inheritedTools);
@@ -147,7 +156,8 @@ internal static class HarnessFactory
                 verificationMode: verificationMode,
                 refusalTracker: refusalTracker,
                 bashGuardEnabled: bashGuardEnabled,
-                environment: environment
+                environment: environment,
+                bashJobs: bashJobs
             );
             if (extensionTools is not null)
             {

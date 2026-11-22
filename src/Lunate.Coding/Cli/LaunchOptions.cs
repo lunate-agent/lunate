@@ -75,6 +75,9 @@ internal sealed record LaunchOptions
     /// <summary>Skip the daily update check for this run.</summary>
     public bool Offline { get; init; }
 
+    /// <summary>Send a desktop notification when a long turn ends while the terminal is unfocused.</summary>
+    public bool Notify { get; init; }
+
     /// <summary>Run the interactive session on the alternate screen; inline stays the default.</summary>
     public bool Fullscreen { get; init; }
 
@@ -119,6 +122,7 @@ internal sealed record LaunchOptions
         var json = false;
         var yolo = false;
         var offline = false;
+        var notify = false;
         var fullscreen = false;
         string? keymap = null;
         string? theme = null;
@@ -193,6 +197,9 @@ internal sealed record LaunchOptions
                     break;
                 case "--offline":
                     offline = true;
+                    break;
+                case "--notify":
+                    notify = true;
                     break;
                 case "--fullscreen":
                     fullscreen = true;
@@ -504,6 +511,7 @@ internal sealed record LaunchOptions
             Json = json,
             Yolo = yolo,
             Offline = offline,
+            Notify = notify,
             Fullscreen = fullscreen,
             Keymap = keymap,
             Theme = theme,
@@ -563,6 +571,7 @@ internal sealed record LaunchOptions
                 or "--json"
                 or "--yolo"
                 or "--offline"
+                or "--notify"
                 or "--fullscreen"
                 or "-c"
                 or "--continue"

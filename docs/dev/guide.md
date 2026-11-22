@@ -4,7 +4,7 @@ Implementation guide · v3 · Oct 4, 2026 · @Daniel
 
 ## Purpose, goals and non-goals
 
-Lunate is a lightweight terminal coding agent for C# developers — a daily driver you can customise in the language it is written in: a reliable core loop, four core tools, a Spectre-based TUI, zero-setup C# tooling through Roslyn, and runtime extensions for tools, slash commands and event handlers. It is a personal, MIT-licensed project, and it is built change by change with OpenCode and OpenSpec from this guide.
+Lunate is a lightweight terminal coding agent for C# developers — a daily driver you can customise in the language it is written in: a reliable core loop, nine core tools, a Spectre-based TUI, zero-setup C# tooling through Roslyn, and runtime extensions for tools, slash commands and event handlers. It is a personal, MIT-licensed project, and it is built change by change with OpenCode and OpenSpec from this guide.
 
 ## Why Lunate
 
@@ -57,7 +57,7 @@ These claims age quickly, so the Phase 5 gate tests them head to head: the same 
 
 Every feature request and every OpenCode plan is checked against these seven rules; when in doubt, leave it out or make it an extension.
 
-1. **Primitives, not features.** The core ships four tools: `read`, `write`, `edit`, `bash`. Roslyn is a built-in offered only when its manifest activation rule matches the workspace; configured MCP servers and optional `grep`/`find`/`ls` tools remain separate from the core set.
+1. **Primitives, not features.** The core ships nine tools: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`, `web_search` and `web_fetch`. Roslyn is a built-in offered only when its manifest activation rule matches the workspace; configured MCP servers and optional `grep`/`find`/`ls` tools remain separate from the core set.
 2. **Robust, never silently wrong.** Tools tolerate harmless differences (line endings, indentation) but refuse anything ambiguous. Every fallback is visible: the result says which match tier was used and the TUI shows the diff.
 3. **Performance budgets are a gate.** Startup time and idle memory are measured in CI on every commit. Heavy components (Roslyn, MCP servers, extensions) load on first use, never at startup.
 4. **Small system prompt.** Under 1,000 tokens, asserted in a test — the base prompt; the session skills index is a separate section indexed in full, each description carried whole to the Agent Skills limit of 1,024 characters (a longer description is truncated in the index with one warning; the skill still loads), with a soft notice at 2% and a hard ceiling at 5% of the model's context window (`skills.indexBudget` overrides both; `AGENTS.md`-named skills never drop). Project rules come from `AGENTS.md`, not from the harness.
@@ -149,7 +149,7 @@ Each spike is throwaway code in `docs/dev/spikes/S-x/` with a short report and a
 | S-3 Startup baseline | Single-file ReadyToRun hello-world on all OSes: startup and memory | Calibrated budgets for `scripts/perf.sh` |
 | S-4 MSBuildWorkspace reality check | Does in-process Roslyn load real solutions reliably and fast enough, also from the published single-file build? | ADR: go, move Roslyn out of process, or narrow the C# claim; calibrated Roslyn budgets |
 
-**S-1 in detail.** Build a minimal harness agent with our four tools and every optional harness feature (todos, modes, web search, file memory, file access) switched off. Check six things:
+**S-1 in detail.** Build a minimal harness agent with our primitive tools and every optional harness feature (modes, web search, file memory, file access) switched off. Check six things:
 
 1. Startup and idle memory against our own loop.
 2. System prompt size with everything off: under 1,000 tokens?
@@ -299,6 +299,7 @@ Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP a
 | `ToolCallResult` (with `Details`) | Tool call result | Tool call update | Tool block: output excerpt, diff |
 | Extension: `ApprovalRequested` | Custom | Permission request | Approval prompt |
 | Extension: `UsageUpdated`, `Retrying`, `CompactionApplied`, `StepLimitReached` | Custom | Not sent, logged | Footer, notices |
+| Extension: `TodoUpdated` | Custom | Not sent, logged | Live todo block |
 
 The harness exposes them as `IAsyncEnumerable<AgentEvent>` from `AgentHarness.RunAsync(userInput, ct)`.
 
@@ -364,9 +365,9 @@ Append-only JSONL, one entry per line, each with `id`, `parentId`, `type` and a 
 
 ## Layer 3: Lunate.Coding (the app)
 
-`Lunate.Coding` turns the brain into a coding agent: the four tools, project instructions, config, sessions on disk and two frontends.
+`Lunate.Coding` turns the brain into a coding agent: the nine tools, project instructions, config, sessions on disk and two frontends.
 
-**The four tools**
+**The nine tools**
 
 Tool results are written for the model: short, factual, and every error says what to do next.
 
@@ -375,7 +376,12 @@ Tool results are written for the model: short, factual, and every error says wha
 | `read` | `path`, `offset` (1-based line, default 1), `limit` (default 2,000) | Numbered lines; footer `[lines 1–2000 of 5400, use offset to continue]` | Not found; binary file (size given); directory (use `bash ls`); outside workspace |
 | `write` | `path`, `content` | `wrote 42 lines to src/X.cs (created)`; diff in `Details` | Outside workspace; path is a directory |
 | `edit` | `path`, `old_text`, `new_text`, optional `start_line` | `edited src/X.cs lines 40–48 (match: indent)`; diff in `Details` | Not found + closest region; ambiguous + line numbers of all matches; tier refused for whitespace-significant file; `old_text` equals `new_text` |
-| `bash` | `command` (the timeout is a session setting, not a tool argument; 120 s) | Exit code + combined stdout/stderr, cut in the middle when too long | Timeout (process tree killed); shell could not start. A non-zero exit code is reported, not treated as a tool error |
+| `bash` | `command`; optional `background` (default false; the timeout is a session setting, not a tool argument; 120 s) | Exit code + combined stdout/stderr, cut in the middle when too long; with `background: true`, the job id immediately | Timeout (process tree killed); shell could not start. A non-zero exit code is reported, not treated as a tool error |
+| `bash_output` | `job_id` | The unread stdout/stderr since the last poll, then `running` or the exit code | Unknown job; a non-zero exit code is reported as an error |
+| `bash_kill` | `job_id` | `killed; process tree stopped`, or the exit code when the job had already ended | Unknown job; an ended job is reported, never treated as a failure |
+| `todo` | `items`, each with `text` and `status` (`pending`, `in_progress`, `done`) | `todo list updated: N items (…)`; the complete list is emitted as a `TodoUpdated` event | More than one `in_progress`, blank text, an unknown status, more than 20 items; the error says what to send instead |
+| `web_search` | `query`, optional `max_results` (5 default, 10 max) | Numbered results in rank order, each with title, absolute URL and snippet; bounded at 8 KiB with a marker | Empty query; unknown argument; the endpoint's HTTP failure, named with its reason |
+| `web_fetch` | `url` (absolute `http`/`https` only) | The page title, readable text, and every http(s) link as markdown; the source body is capped at 2 MiB and the text at 20 KiB with a marker | Invalid or unsupported URL; non-2xx naming the status and reason; redirect loop; timeout; transport failure — each naming the URL |
 
 After approval, `write` and `edit` pass staged content to a matching registered verifier through
 `IWriteVerifier` in `Lunate.Extensibility.Abstractions`. The host alone applies the staged content.
@@ -439,14 +445,14 @@ One folder per case: `input` file, `request.json`, and `expected` file or `expec
 
 **System prompt and instructions**
 
-- One embedded `system-prompt.md`, under 1,000 tokens: who the agent is, the four tools, "read before you edit", "run the build or tests after changes".
+- One embedded `system-prompt.md`, under 1,000 tokens: who the agent is, the nine tools, "read before you edit", "run the build or tests after changes".
 - Appended at runtime: OS, shell, working directory, date, and the content of `AGENTS.md` files found from the repo root down to the working directory.
 
 First draft of `system-prompt.md` (T-16 refines it and asserts the token budget):
 
 ```markdown
 You are Lunate, a coding agent working in the user's repository at {cwd} on {os}, shell {shell}.
-Tools: read, write, edit, bash{extra_tools}.
+Tools: read, write, edit, bash, bash_output, bash_kill, todo{extra_tools}.
 - Read a file before you edit it; after a stale-read refusal, read the changed file before retrying. Prefer edit over write for existing files.
 - Keep old_text in edit short but unique; include start_line if the text repeats.
 - After changing code, build or run the relevant tests and report the result.
@@ -811,7 +817,7 @@ The Phase 5 gate is external (T-35): the same C# task suite with Lunate, with Cl
 **Rules**
 
 - Outputs are compact text, not JSON dumps. Cap at the same limit as other tools.
-- If the solution fails to load, tools return a clear error and the agent falls back to the four core tools.
+- If the solution fails to load, tools return a clear error and the agent falls back to the nine core tools.
 - Measure it: run the same task set with and without `Lunate.Roslyn` and compare success rate and tokens (see Testing).
 
 **Later (no card yet).** A generic LSP client extension would give Lunate baseline diagnostics and navigation for TypeScript, Python and other languages, similar to OpenCode — reusing the same name-based tool shape where possible. Explicitly not v1 scope.

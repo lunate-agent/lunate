@@ -16,13 +16,20 @@ A tool that fails reports what failed and what to do next back to the model as t
 
 ## The tools are the only way it acts
 
-Four built-in tools do the work: `read`, `write`, `edit` and `bash`. In a C# workspace the model can
-also call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and
-`cs_outline` — which load on the first C# call rather than at startup. Extensions, MCP servers and
-skills add tools of their own, and they go through the same approval policy as the built-ins.
+Nine built-in tools do the work: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`,
+`web_search` and `web_fetch`. The bash family can start a long command in the background, poll only
+the output written since the last poll, and stop the whole process tree. The model uses `todo` to keep
+one short plan — each item is `pending`, `in_progress` or `done` — and the live area shows it above
+the prompt, bounded to a few lines. The web tools search and read pages through the same approval path
+as `bash`; a search returns ranked title, URL and snippet results, and a fetch returns readable text
+with the page title and links as markdown, both bounded in bytes. In a C# workspace the model can also
+call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` —
+which load on the first C# call rather than at startup.
+Extensions, MCP servers and skills add tools of their own, and they go through the same approval
+policy as the built-ins.
 
-Every write, edit and command stops at an approval prompt with the command or the edit's diff on
-screen; a read does not. The `approval` setting decides what still asks, `--yolo` approves everything
+Every write, edit, command and web call stops at an approval prompt with the command or the edit's
+diff on screen; a read does not. The `approval` setting decides what still asks, `--yolo` approves everything
 for one run, and a run with no one to ask — print mode, CI — maps the same policy onto tool risk and
 refuses what it may not approve. [Run Lunate safely](security.md) owns the trust model;
 [Use the terminal](usage.md#edits-you-approve-with-the-diff) owns the panel itself.

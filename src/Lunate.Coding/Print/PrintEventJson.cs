@@ -54,6 +54,7 @@ internal static class PrintEventJson
             typeof(SteeringInjected),
             typeof(ToolProgressUpdate),
             typeof(ToolOutputSpillFailed),
+            typeof(TodoUpdated),
         ];
 
     /// <summary>
@@ -178,6 +179,7 @@ internal static class PrintEventJson
                 "tool_output_spill_failed",
                 new JsonObject { ["message"] = e.Message }
             ),
+            TodoUpdated e => ("todo_updated", new JsonObject { ["items"] = TodoBody(e.Items) }),
             _ => throw new ArgumentException(
                 $"Event type '{agentEvent.Kind.Name}' has no JSON mapping.",
                 nameof(agentEvent)
@@ -378,6 +380,33 @@ internal static class PrintEventJson
         if (e.EntryId is not null)
         {
             body["entryId"] = e.EntryId;
+        }
+
+        return body;
+    }
+
+    private static JsonArray TodoBody(IReadOnlyList<TodoItem> items)
+    {
+        var body = new JsonArray();
+        foreach (TodoItem item in items)
+        {
+            body.Add(
+                new JsonObject
+                {
+                    ["text"] = item.Text,
+                    ["status"] = item.Status switch
+                    {
+                        TodoItemStatus.Pending => "pending",
+                        TodoItemStatus.InProgress => "in_progress",
+                        TodoItemStatus.Done => "done",
+                        _ => throw new ArgumentOutOfRangeException(
+                            nameof(items),
+                            item.Status,
+                            "Unknown todo status."
+                        ),
+                    },
+                }
+            );
         }
 
         return body;

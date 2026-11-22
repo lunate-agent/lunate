@@ -15,15 +15,19 @@ are approved automatically, commands still require approval), `verify` (`block` 
 `true`; `false` suppresses the interactive welcome header). It SHALL also read optional `favorites`,
 an ordered array of at most eight unique non-empty model ids, and optional `tools.extra`, an array of
 optional search tool names (`grep`, `find`, `ls`; default empty), where an unknown name or a name
-colliding with a core tool SHALL be rejected with the accepted values. The value `yolo` SHALL be
+colliding with a core tool SHALL be rejected with the accepted values. It SHALL also read `notify`, a
+boolean that enables desktop notifications for long interactive turns (default `false`; the
+`--notify` launch flag enables it for one run), and `notifyMinSeconds`, a non-negative integer
+threshold in seconds (default 10; `0` removes the threshold). The value `yolo` SHALL be
 rejected: it exists only as a per-run flag, never a saved setting. A missing file SHALL yield
 defaults; a present file SHALL be validated with all problems collected into one actionable error.
 Environment variables (`LUNATE_MODEL`, `LUNATE_APPROVAL`, `LUNATE_TOOL_OUTPUT_LIMIT`,
 `LUNATE_STARTUP_HEADER`) SHALL override their corresponding file values and SHALL be validated
 identically, with one documented alias: where the file takes a JSON boolean, the environment
 variable also accepts `1` and `0` (case-insensitive) beside `true` and `false`, and a rejected value
-SHALL name the accepted literals. `verify` is a settings-file value without an environment-variable
-override. The resolved output limit SHALL govern tool-output truncation in the loop.
+SHALL name the accepted literals. `verify`, `notify` and `notifyMinSeconds` are settings-file values
+without an environment-variable override. The resolved output limit SHALL govern tool-output
+truncation in the loop.
 
 A settings write SHALL be read-modify-write over the existing JSON: unrelated keys and values SHALL
 survive, favourites SHALL be validated through the same rules, and the replacement SHALL be atomic.
@@ -34,7 +38,7 @@ A failed write SHALL leave the old file intact. A write SHALL emit `schemaVersio
 - **GIVEN** no settings file
 - **WHEN** settings are resolved
 - **THEN** the model is unset, approval is `ask`, `verify` is `block`, the tool result limit is
-  30,000, and favourites are empty
+  30,000, favourites are empty, notifications are off and the threshold is 10 seconds
 
 #### Scenario: Environment overrides the file
 
@@ -132,6 +136,13 @@ A failed write SHALL leave the old file intact. A write SHALL emit `schemaVersio
 - **GIVEN** a settings file with `verify` set to `warn` or `off`
 - **WHEN** settings are resolved without an environment override
 - **THEN** the resolved verification mode is the configured value
+
+#### Scenario: Notification settings resolve and validate
+
+- **GIVEN** a settings file with `notify` set to `true` and `notifyMinSeconds` set to `0`
+- **WHEN** settings are resolved
+- **THEN** notifications are enabled with no duration threshold; and a negative or non-integer
+  `notifyMinSeconds` is refused with the accepted value shape and no partial settings are applied
 
 ### Requirement: Auth store
 

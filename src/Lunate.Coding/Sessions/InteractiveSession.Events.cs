@@ -177,9 +177,11 @@ internal sealed partial class InteractiveSession
                 // The root run's own verdict: stop and length produced an answer; cancelled did
                 // not. /copy uses this to step over a failed tail.
                 _lastTurnCompleted = finished.StopReason is StopReasons.Stop or StopReasons.Length;
+                MarkNotificationStopped(finished.StopReason);
                 break;
             case RunError error:
                 _lastTurnCompleted = false;
+                MarkNotificationFailed(error.Message);
                 Notify("run failed: " + error.Message, NoticeLevel.Error);
                 break;
             case SteeringInjected injected:
@@ -218,6 +220,13 @@ internal sealed partial class InteractiveSession
                 break;
             case ToolOutputSpillFailed failed:
                 Notify(failed.Message, NoticeLevel.Warning);
+                break;
+            case TodoUpdated todo:
+                if (!child)
+                {
+                    _live.SetTodo(TodoReplay.ToView(todo.Items));
+                }
+
                 break;
         }
     }

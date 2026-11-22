@@ -40,8 +40,8 @@ elapsed seconds.
 
 ## Edits you approve, with the diff
 
-Writes and commands stop at a panel: a warning headline naming the tool and what it will do, a
-bounded detail block with the command or the edit's diff, and
+Writes, commands and web calls stop at a panel: a warning headline naming the tool and what it will
+do, a bounded detail block with the command, the edit's diff or the URL, and
 `Allow edit?  [y]es  [n]o  [a]lways this session`. Below 60 columns the detail shortens first and
 every choice stays on screen. The result names the match tier it used (`exact`, `normalized` or
 `indent`), and an ambiguous edit is refused instead of guessed.
@@ -51,12 +51,34 @@ every choice stays on screen. The result names the match tier it used (`exact`, 
 ## Tool calls commit as one line
 
 A finished call collapses to one header line — `✓ read  src/Foo.cs (1-13)`,
-`✗ bash  dotnet test · exit 1 · 12s`, `✓ edit  src/Foo.cs · +3 −0` (ASCII `+`/`x` without Unicode) —
+`✗ bash  dotnet test · exit 1 · 12s`, `✓ edit  src/Foo.cs · +3 −0`,
+`✓ web_fetch  example.com/page` (ASCII `+`/`x` without Unicode) —
 with a per-tool excerpt and the diff for `edit`/`write` under it. What the excerpt elides is one
 `ctrl+o` away: the full-screen transcript viewer shows every block with its complete output and
 diff, scrolls with the arrows and PageUp/PageDown, and closes on `q` or `Esc`.
 
 ![Compact tool blocks and the Ctrl+O transcript viewer](media/features/tools.gif)
+
+`web_search` and `web_fetch` ask like `bash`: one panel per call, with the query or URL in the
+detail, and `[a]lways this session` covers that tool for the rest of the session. A search returns
+ranked title, URL and snippet results; a fetch returns the page's readable text, its title and its
+links as markdown. Both stop at their byte cap and a failure names the URL and the reason.
+
+## Long commands keep running in the background
+
+A build, a test suite or a dev server does not have to hold the turn. `bash` with `background: true`
+starts it and returns a job id immediately; `bash_output` returns only what the job wrote since the
+last poll and says whether it is still running or has ended with its exit code; `bash_kill` stops
+the job and its whole process tree. The existing bash timeout still applies, unread output is
+bounded with a truncation marker, and ending the session kills the jobs it still owns.
+
+## The plan stays on screen
+
+The model can keep a short todo list with the `todo` tool. Each call sends the whole list, with every
+item `pending`, `in_progress` or `done`, and at most one item in progress. The live area shows the list
+above the input box as up to five lines — the rest collapses to `… N more` — so it never pushes the
+prompt off screen. An empty list, or a session that never calls the tool, renders no plan. The list is
+part of the session's tool calls, so a resumed session shows the same plan it had before the restart.
 
 ## C# the compiler agrees with
 
@@ -115,6 +137,28 @@ each match ([Command reference](cli.md#find-a-past-session)).
 When a tool result would flood the window, the text is spilled to a file and the model sees a short
 stub it can page back through; observation masking trims old turns without losing the transcript.
 `/context` reports what each saved: `saved tokens: spills 0, masking 0, read stubs 0`.
+
+## Notify when a long turn ends
+
+A turn can finish while you are looking at another window. Desktop notifications are off by
+default; turn them on with `notify: true` in `settings.json` or for one session with `--notify`. A
+notification is sent only when the turn is at least `notifyMinSeconds` long (10 seconds by default;
+`0` removes the threshold), the turn is the session's own run rather than a subagent, and the
+terminal reports that its window is not focused. The notification carries the `/name` title (the
+session id when unnamed) and the outcome — finished, cancelled, failed, or stopped by a length,
+step, token, cost or time limit — with the elapsed time.
+
+Focus is read from the standard xterm focus-reporting sequence, which Lunate requests when it enters
+raw mode. A terminal that does not implement it, a remote session that strips the sequence, or one
+that never sends a focus report leaves the state unknown, so Lunate sends nothing rather than guess.
+That is the documented limit: notifications are a best-effort convenience, not a delivery guarantee.
+
+Delivery uses the host's own tool: `osascript` on macOS, `notify-send` on Linux and a PowerShell
+notification through the Windows shell's notification area. Windows would need a Start-menu shortcut
+with an application identity for a Windows Runtime toast; the notification-area balloon needs none,
+and Windows 10 and 11 render it as a toast. A missing tool, a refused permission or a failing
+command is silent and never changes the turn, its output or its exit code. Notifications are
+interactive-only; print mode, ACP and child runs never send one.
 
 ## Run limits
 

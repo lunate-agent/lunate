@@ -15,6 +15,7 @@ internal sealed partial class InteractiveSession
     private Task? _bashRun;
     private CancellationTokenSource? _bashCancellation;
     private readonly BashHistory _bashHistory = new();
+    private readonly BashJobRegistry _bashJobs = new();
     private string? _bashHistoryDraft;
 
     /// <summary>Whether the input line is in bash mode (the tests' view).</summary>
