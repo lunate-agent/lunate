@@ -68,10 +68,10 @@ publish with R2R is 236,754,205 bytes. Grouped by assembly name:
 
 So the Roslyn ring is the largest single component of the *payload* (24.0 MB, 16% of the IL bytes) and
 the most expensive to pre-compile (+31.6 MB, the largest delta), but it is not what makes the asset
-378 MiB: the single-file R2R bundle is 318.5 MB larger than the same bundle without R2R, while the
-whole loose R2R delta is 86.7 MB. The bundle's R2R image covers more than the loose publish does —
-twice the loose R2R payload sits inside it — which is the shape ADR-0008 chose and the reason the
-download is what it is.
+378 MiB. That is ReadyToRun itself: the single-file R2R bundle is 318.5 MB larger than the same bundle
+without R2R, while the whole loose R2R delta is 86.7 MB (the bundle is 462.0 MB against a loose
+payload of 236.8 MB), so the bundle carries pre-compiled code the loose tree does not account for.
+Attribute the size by the flag A/B and the components by the loose tree, not the other way round.
 
 ## Startup across workloads
 
