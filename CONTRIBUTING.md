@@ -259,7 +259,7 @@ plus the first attempt's floor when the noise policy retried, because the shared
 A `perf` budget miss is triaged against the machine before it is read as a regression, because
 interference only ever adds time and a regression is what moves the floor
 ([ADR 0005](adr/0005-addendum-startup-floor.md)): the check is the same job's most recent push run on
-`main`, which measured the same binary at another moment. The card for run 45053133975 (#1017) read
+`main`, which measured the startup path at another moment. The card for run 45053133975 (#1017) read
 386 ms on its first attempt and 343 ms on the noise policy's retry, with a 467 ms median against the
 300 ms budget, while the pushes either side of it measured under it on the same runner class and
 `main`'s head floors at 143 ms in a local `osx-arm64` publish of the release shape
