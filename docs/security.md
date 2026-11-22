@@ -12,8 +12,8 @@ single-user CLI tool, not a sandbox. The boundaries are worth knowing about.
 **Approval prompts.** The `read`, `write`, `edit`, `bash`, `web_search` and `web_fetch` tools all
 run as you, on model-chosen arguments. Every write, edit, command and web call is shown as a prompt
 — `Allow edit src/Order.cs?  [y]es  [n]o  [a]lways this session` — before it runs, and the
-`approval` setting (`ask`, the default, or `auto-edit`) decides what still asks. `--yolo` approves everything for one run and is never a saved
-setting. Print mode has nobody to ask, so it maps the same policy onto tool risk and refuses what it
+`approval` setting (`ask`, the default, or `auto-edit`) decides what still asks. `--yolo` approves
+everything for one run and is never a saved setting. Print mode has nobody to ask, so it maps the same policy onto tool risk and refuses what it
 may not approve, turning a refusal into an error result the model can read; ACP mode asks the
 editor's own permission request for everything the policy does not already allow, and has no
 `--yolo`.

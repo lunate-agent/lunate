@@ -60,9 +60,8 @@ stdin never prompts, and `TERM=dumb` without a terminal is print mode only
 Nobody can answer the approval panel in print mode, so the resolved `approval` policy maps onto tool
 risk: `ask` (the default) allows read-only tools and denies file writes, commands and web calls,
 `auto-edit` also allows file writes and edits and denies commands and web calls, and the per-run
-`--yolo` flag allows everything. The
-interactive tracked-file refinement of the `ask` level is a TUI rule; print mode's approximation is
-the mapping in the table.
+`--yolo` flag allows everything. The interactive tracked-file refinement of the `ask` level is a TUI
+rule; print mode's approximation is the mapping in the table.
 
 | Approval | Read-only tools | Writes and edits | Commands and web calls |
 | --- | --- | --- | --- |

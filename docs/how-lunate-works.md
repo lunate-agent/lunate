@@ -19,9 +19,10 @@ A tool that fails reports what failed and what to do next back to the model as t
 Six built-in tools do the work: `read`, `write`, `edit`, `bash`, `web_search` and `web_fetch`. The
 web tools search and read pages through the same approval path as `bash`; a search returns ranked
 title, URL and snippet results, and a fetch returns readable text with the page title and links as
-markdown, both bounded in bytes. In a C# workspace the model can also call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and
-`cs_outline` — which load on the first C# call rather than at startup. Extensions, MCP servers and
-skills add tools of their own, and they go through the same approval policy as the built-ins.
+markdown, both bounded in bytes. In a C# workspace the model can also call the Roslyn tools —
+`cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` — which load on the first
+C# call rather than at startup. Extensions, MCP servers and skills add tools of their own, and they
+go through the same approval policy as the built-ins.
 
 Every write, edit, command and web call stops at an approval prompt with the command or the edit's
 diff on screen; a read does not. The `approval` setting decides what still asks, `--yolo` approves everything
