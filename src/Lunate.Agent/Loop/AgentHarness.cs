@@ -1542,11 +1542,9 @@ public sealed partial class AgentHarness
         copy.Contents =
         [
             .. copy.Contents.Select(content =>
-                content is not ImageContentReference reference
-                    ? content
-                    : described
-                        ? new TextContent(VisionText(reference))
-                        : ReadImage(reference)
+                content is not ImageContentReference reference ? content
+                : described ? new TextContent(VisionText(reference))
+                : ReadImage(reference)
             ),
         ];
         return copy;
@@ -1598,11 +1596,7 @@ public sealed partial class AgentHarness
                 $"[image {reference.Width}x{reference.Height}] described by profile '{vision.ProfileName}' ({vision.Model.Id}): {description}"
             );
             channel.Emit(
-                new SteeringInjected(
-                    runId,
-                    EntryId: null,
-                    Text: _visionTexts[reference.Digest]
-                )
+                new SteeringInjected(runId, EntryId: null, Text: _visionTexts[reference.Digest])
             );
         }
 
@@ -1622,12 +1616,7 @@ public sealed partial class AgentHarness
         {
             DataContent image = ReadImage(reference);
             ChatResponse response = await vision.Client.GetResponseAsync(
-                [
-                    new ChatMessage(
-                        ChatRole.User,
-                        [new TextContent(VisionDescriptionPrompt), image]
-                    ),
-                ],
+                [new ChatMessage(ChatRole.User, [new TextContent(VisionDescriptionPrompt), image])],
                 options: null,
                 ct
             );

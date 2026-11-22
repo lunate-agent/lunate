@@ -446,9 +446,8 @@ internal static class AcpMode
             );
         }
 
-        IReadOnlyDictionary<string, UsageModelClient>? resolvedUsageModels = usageModels.Count == 0
-            ? null
-            : usageModels;
+        IReadOnlyDictionary<string, UsageModelClient>? resolvedUsageModels =
+            usageModels.Count == 0 ? null : usageModels;
         // The routing consumer is wired like the interactive session: an editor session is
         // selected between the configured profiles it configured. Unresolved routing profiles
         // are a settings-validation error before this point, so a resolution failure is a

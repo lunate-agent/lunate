@@ -36,10 +36,19 @@ public sealed class AgentVisionFallbackTests
 
         Assert.DoesNotContain(events, agentEvent => agentEvent is RunError);
         ScriptedRequest visionRequest = Assert.Single(vision.Requests);
-        Assert.Single(visionRequest.Messages.SelectMany(message => message.Contents).OfType<DataContent>());
+        Assert.Single(
+            visionRequest.Messages.SelectMany(message => message.Contents).OfType<DataContent>()
+        );
         ScriptedRequest chatRequest = Assert.Single(chat.Requests);
-        Assert.Empty(chatRequest.Messages.SelectMany(message => message.Contents).OfType<DataContent>());
-        string chatText = string.Concat(chatRequest.Messages.SelectMany(message => message.Contents).OfType<TextContent>().Select(content => content.Text));
+        Assert.Empty(
+            chatRequest.Messages.SelectMany(message => message.Contents).OfType<DataContent>()
+        );
+        string chatText = string.Concat(
+            chatRequest
+                .Messages.SelectMany(message => message.Contents)
+                .OfType<TextContent>()
+                .Select(content => content.Text)
+        );
         Assert.Contains("A red square.", chatText, StringComparison.Ordinal);
         Assert.Contains("[image 2x3]", chatText, StringComparison.Ordinal);
 
@@ -179,7 +188,9 @@ public sealed class AgentVisionFallbackTests
 
         Assert.Single(vision.Requests);
         ScriptedRequest chatRequest = Assert.Single(chat.Requests);
-        Assert.Empty(chatRequest.Messages.SelectMany(message => message.Contents).OfType<DataContent>());
+        Assert.Empty(
+            chatRequest.Messages.SelectMany(message => message.Contents).OfType<DataContent>()
+        );
         Assert.Contains(
             "A resumed image.",
             string.Concat(

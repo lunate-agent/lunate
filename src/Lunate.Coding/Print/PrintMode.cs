@@ -916,9 +916,8 @@ internal static class PrintMode
             );
         }
 
-        IReadOnlyDictionary<string, UsageModelClient>? resolvedUsageModels = usageModels.Count == 0
-            ? null
-            : usageModels;
+        IReadOnlyDictionary<string, UsageModelClient>? resolvedUsageModels =
+            usageModels.Count == 0 ? null : usageModels;
         // The routing consumer is wired like the interactive session: a routed selection applies
         // to the run nobody watches too. Unresolved routing profiles are a settings-validation
         // error before this point, so a resolution failure is a run error, not a degraded gate.

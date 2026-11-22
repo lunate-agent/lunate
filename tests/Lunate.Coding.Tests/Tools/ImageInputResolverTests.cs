@@ -211,11 +211,7 @@ public sealed class ImageInputResolverTests
     {
         using var temp = new TempDirectory();
         File.WriteAllBytes(temp.File("diagram.png"), ImageSamples.Png(64, 32));
-        var resolver = new ImageInputResolver(
-            temp.Root,
-            TextModel,
-            allowVisionFallback: true
-        );
+        var resolver = new ImageInputResolver(temp.Root, TextModel, allowVisionFallback: true);
 
         ImageInputResult result = await ResolveAsync(resolver, "@diagram.png");
 

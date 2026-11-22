@@ -21,8 +21,7 @@ internal static class VisionFallback
     )
     {
         if (
-            !settings.Usages.TryGetValue(Usage, out string? name)
-            || string.IsNullOrWhiteSpace(name)
+            !settings.Usages.TryGetValue(Usage, out string? name) || string.IsNullOrWhiteSpace(name)
         )
         {
             return null;
