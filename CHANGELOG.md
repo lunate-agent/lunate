@@ -12,6 +12,27 @@ Notable changes to Lunate, one section per release. The format follows
 
 ### Added
 
+- The `todo` tool keeps one short, replaceable plan per session: each item is `pending`, `in_progress` or `done`, the live area shows it in at most five lines, and `--json` emits one `todo_updated` event with the full list on every update. The list replays from the session's existing tool calls, so the session format is unchanged. The event is a new case in the contract's event unions, so the contract moves to `1.17.0`; the extension-author note is under that version in `docs/extensions/README.md` (#992).
+
+- **`web_search` and `web_fetch` are core tools.** A plain install can now look up a library's
+  current API, a changelog or an error message without an MCP server: `web_search` returns ranked
+  title, URL and snippet results from DuckDuckGo's HTML endpoint with no API key, and `web_fetch`
+  returns a page's readable text with its title and links as markdown. Both are `Execute` risk, so
+  the interactive panel asks once per call, ACP asks its editor, and an unattended run declines them
+  unless `--yolo` is set. Search stops at 5 results by default (max 10) and 8 KiB, fetch at 20 KiB,
+  and a non-2xx response, a redirect loop or a timeout names the URL and the reason. No new NuGet
+  package (#998).
+
+- **A desktop notification when a long turn ends while the terminal is unfocused.** The `notify`
+  setting or `--notify` flag enables it, `notifyMinSeconds` sets the duration threshold (10 seconds
+  by default), and the notification carries the session title and the outcome. Delivery uses
+  `osascript`, `notify-send` or a PowerShell notification through the Windows shell's notification
+  area, which needs no registered application identity, and is best effort; a failing notification
+  never changes the turn. Focus comes from the terminal's own xterm focus reports, so a terminal
+  without them stays silent rather than guessing (#1008).
+
+- **The bash family can run a command in the background.** `bash` with `background: true` returns a job id immediately, `bash_output` returns only the output written since the last read plus the job's state or exit code, and `bash_kill` stops the job and its whole process tree with the foreground path's children-first kill. Unread output is bounded with a truncation marker, the existing bash timeout still applies, and ending the session kills the jobs it still owns (#1010).
+
 - **A budget-tier write-up says where Lunate's 50 steps go.** The analysis replays the five budget
   arm trajectories of `rerun-624-bosgame-2` and finds the ceiling is not tool errors: three of the
   four failures never edit source at all, spending 26–32 steps downloading and comparing upstream
@@ -27,6 +48,14 @@ Notable changes to Lunate, one section per release. The format follows
 
 ### Changed
 
+- **The red `verify-powershell (windows)` on `main` was a card about a run that predates its fix, and
+  this pull request records the triage instead of a second change.** Run `45016780346` ran commit
+  `e28e95fd`, whose `scripts/verify.ps1` still packed the four SDK packages from before
+  `Lunate.Decisions.Model` became one, so the contract roundtrip's template restore failed with
+  `NU1101` on the package the feed the step had just packed did not hold — the failure `#1000` named.
+  `#1001` packs and metadata-checks the fifth package, and its own run `45019942790` is green in that
+  step, which is the state `main` carries, so nothing in the tree needs to change (#1005).
+
 - **The decision model is its own package.** `DecisionRequest`, `DecisionQuestion` and its kinds, `DecisionAnswer`, `DecisionBox`, `DecisionResult`, `DecisionUsage` and the two seams `INativeDecisionClient` and `IAgentDecisionService` move to `Lunate.Decisions.Model`, with `PublicAPI` files and the contract pair's version. The engine — the chat adapter, builder, OpenTelemetry wrapper, parser and validator — stays in the unpacked `Lunate.Ai.Decisions`, which only `Lunate.Agent` ships; `Lunate.Extensibility.Abstractions` depends on the model package instead of packing the engine, so a contract consumer no longer sees the engine twice. The types keep the `Lunate.Ai.Decisions` namespace ([ADR-0045](adr/0045-decision-model-package.md), amending [ADR-0044](adr/0044-decision-model-ownership.md)) (#973).
 
 - **An extension carries no copy of the decision model.** Extensions and the authoring template
@@ -41,6 +70,15 @@ Notable changes to Lunate, one section per release. The format follows
   the decision ([ADR-0008](adr/0008-release-publish-flags.md)) (#993).
 
 ### Fixed
+
+- **A red run no longer files a second card for the `ci-ok` aggregate.** The red-run reporter now skips
+  the two jobs whose result is derived from the others' — the `ci-ok` aggregate and the reporter itself —
+  when the run also holds a red job that ran, files no card for them, and names the skipped job with the
+  run link in the run's own log; a run whose only red is the aggregate still files, because then nothing
+  else speaks for the gate. Run 45013417456 filed "CI failed: ci-ok" beside the card for
+  `verify-powershell (windows)`, which is all its failing step restated, and only on the runs where the
+  aggregate's record happened to conclude before the reporter read the jobs; the card set no longer depends
+  on that race (#1002).
 
 - **The setup wizard survives a model listing that offers several APIs.** A listing entry that
   declares more than one API family is now read through its `recommended_api` when that names a
