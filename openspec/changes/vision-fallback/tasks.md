@@ -17,5 +17,5 @@
 
 ## 4. Verification and archive
 
-- [ ] 4.1 Run CSharpier, the named tests, `openspec validate vision-fallback --type change --strict`, and the fast gate build.
-- [ ] 4.2 Sync the delta specs, archive the change as the last commit, and run `openspec validate --all --strict`.
+- [x] 4.1 Run CSharpier, the named tests, `openspec validate vision-fallback --type change --strict`, and the fast gate build.
+- [x] 4.2 Sync the delta specs, archive the change as the last commit, and run `openspec validate --all --strict`.
