@@ -16,7 +16,7 @@ public sealed class WebFetchToolTests
     public async Task A_page_returns_its_title_and_readable_text()
     {
         using var handler = StubHttpHandler.Html(WebTestSupport.Fixture("article.html"));
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -52,7 +52,7 @@ public sealed class WebFetchToolTests
                         )
                     )
         );
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args("""{"url":"https://example.test/start"}"""),
@@ -76,7 +76,7 @@ public sealed class WebFetchToolTests
         string body =
             $"<html><head><title>Long</title></head><body>{string.Concat(Enumerable.Repeat(paragraph, 40))}</body></html>";
         using var handler = StubHttpHandler.Html(body);
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -104,7 +104,7 @@ public sealed class WebFetchToolTests
             + tail
             + "</body></html>";
         using var handler = StubHttpHandler.Html(body);
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -120,7 +120,7 @@ public sealed class WebFetchToolTests
     public async Task A_text_response_is_returned_as_text()
     {
         using var handler = StubHttpHandler.Text("first line\nsecond line");
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -136,7 +136,7 @@ public sealed class WebFetchToolTests
     public async Task A_non_text_response_names_the_content_type()
     {
         using var handler = StubHttpHandler.Html("%PDF-1.7", contentType: "application/pdf");
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -157,7 +157,7 @@ public sealed class WebFetchToolTests
     public async Task Only_absolute_http_and_https_urls_are_fetched(string url, string expected)
     {
         using var handler = StubHttpHandler.Html("<html></html>");
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{url}}"}"""),
@@ -174,7 +174,7 @@ public sealed class WebFetchToolTests
     public async Task A_non_2xx_response_names_the_url_status_and_reason()
     {
         using var handler = StubHttpHandler.Html("missing", HttpStatusCode.NotFound);
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -192,7 +192,7 @@ public sealed class WebFetchToolTests
     public async Task A_redirect_loop_names_the_url_and_stops_following()
     {
         using var handler = StubHttpHandler.Redirect(PageUrl);
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -210,7 +210,7 @@ public sealed class WebFetchToolTests
     public async Task A_get_fetch_times_out_with_the_url_and_duration()
     {
         using var handler = StubHttpHandler.NeverCompletes();
-        var tool = new WebFetchTool(handler, TimeSpan.FromMilliseconds(50));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubExpiry);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -228,7 +228,7 @@ public sealed class WebFetchToolTests
     public async Task A_transport_failure_names_the_url_and_reason()
     {
         using var handler = StubHttpHandler.Throws(new HttpRequestException("connection refused"));
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),
@@ -246,7 +246,7 @@ public sealed class WebFetchToolTests
     public async Task A_get_fetch_request_carries_the_product_agent()
     {
         using var handler = StubHttpHandler.Html(WebTestSupport.Fixture("article.html"));
-        var tool = new WebFetchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
 
         await tool.ExecuteAsync(
             WebTestSupport.Args($$"""{"url":"{{PageUrl}}"}"""),

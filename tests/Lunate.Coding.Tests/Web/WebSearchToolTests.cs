@@ -14,7 +14,7 @@ public sealed class WebSearchToolTests
     public async Task Ranked_results_carry_title_url_and_snippet()
     {
         using var handler = StubHttpHandler.Html(WebTestSupport.Fixture("search-results.html"));
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args("""{"query":"dotnet html"}"""),
@@ -56,7 +56,7 @@ public sealed class WebSearchToolTests
     public async Task The_request_is_a_get_with_the_escaped_query_and_the_product_agent()
     {
         using var handler = StubHttpHandler.Html(WebTestSupport.Fixture("search-results.html"));
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         await tool.ExecuteAsync(
             WebTestSupport.Args("""{"query":"a & b"}"""),
@@ -74,7 +74,7 @@ public sealed class WebSearchToolTests
     public async Task The_result_count_is_capped_by_the_argument()
     {
         using var handler = StubHttpHandler.Html(WebTestSupport.Fixture("search-results.html"));
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args("""{"query":"x","max_results":2}"""),
@@ -99,7 +99,7 @@ public sealed class WebSearchToolTests
                 )
         );
         using var handler = StubHttpHandler.Html($"<html><body>{results}</body></html>");
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult defaults = await tool.ExecuteAsync(
             WebTestSupport.Args("""{"query":"x"}"""),
@@ -129,7 +129,7 @@ public sealed class WebSearchToolTests
                 )
         );
         using var handler = StubHttpHandler.Html($"<html><body>{results}</body></html>");
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args("""{"query":"x","max_results":10}"""),
@@ -151,7 +151,7 @@ public sealed class WebSearchToolTests
     public async Task No_matches_is_a_readable_result_not_an_error()
     {
         using var handler = StubHttpHandler.Html("<html><body>Nothing here.</body></html>");
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args("""{"query":"no such thing"}"""),
@@ -171,7 +171,7 @@ public sealed class WebSearchToolTests
     public async Task Bad_arguments_are_refused_without_a_request(string args, string expected)
     {
         using var handler = StubHttpHandler.Html("<html></html>");
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args(args),
@@ -188,7 +188,7 @@ public sealed class WebSearchToolTests
     public async Task An_http_failure_names_the_endpoint_and_the_status()
     {
         using var handler = StubHttpHandler.Html("unavailable", HttpStatusCode.ServiceUnavailable);
-        var tool = new WebSearchTool(handler, TimeSpan.FromSeconds(5));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
             WebTestSupport.Args("""{"query":"x"}"""),

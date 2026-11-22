@@ -24,7 +24,7 @@ public sealed class SystemPromptParityTests
         };
         string expected = SystemPrompt.Compose(
             new Workspace(root),
-            ["read", "write", "edit", "bash", "ask_user"],
+            ["read", "write", "edit", "bash", "web_search", "web_fetch", "ask_user"],
             launch
         );
 
