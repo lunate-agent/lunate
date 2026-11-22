@@ -1,6 +1,6 @@
 using Lunate.Agent;
 
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// The ACP server seam: one connection over an input/output stream pair, a fresh

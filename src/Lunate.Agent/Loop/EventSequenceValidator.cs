@@ -1,0 +1,291 @@
+namespace Lunate.Agent;
+
+internal enum EventSequenceViolationKind
+{
+    MissingRunStarted,
+    DuplicateRunStarted,
+    MissingTerminalEvent,
+    EventAfterTerminal,
+    UnbracketedTextMessage,
+    UnclosedTextMessage,
+    UnbracketedReasoningMessage,
+    UnclosedReasoningMessage,
+    InterleavedMessage,
+    ToolCallOutOfOrder,
+    IncompleteToolCall,
+    ForeignRunId,
+}
+
+internal sealed record EventSequenceViolation(
+    EventSequenceViolationKind Kind,
+    AgentEvent? Event,
+    string Message
+);
+
+/// <summary>
+/// Checks a run's event stream against the sequence rules. It reports violations instead of throwing
+/// so callers (loop tests, replay checks) decide severity.
+/// </summary>
+internal static class EventSequenceValidator
+{
+    public static IReadOnlyList<EventSequenceViolation> Validate(IEnumerable<AgentEvent> events)
+    {
+        AgentEvent[] sequence = [.. events];
+        List<EventSequenceViolation> violations = [];
+        if (sequence.Length == 0)
+        {
+            violations.Add(
+                new(
+                    EventSequenceViolationKind.MissingRunStarted,
+                    null,
+                    "A run must begin with RunStarted."
+                )
+            );
+            return violations;
+        }
+
+        if (sequence[0] is not RunStarted)
+        {
+            violations.Add(
+                new(
+                    EventSequenceViolationKind.MissingRunStarted,
+                    sequence[0],
+                    "A run must begin with RunStarted."
+                )
+            );
+        }
+
+        bool runStartedSeen = false;
+        bool terminalSeen = false;
+        string? runId = null;
+        HashSet<string> openTextMessages = [];
+        HashSet<string> openReasoningMessages = [];
+        Dictionary<string, ToolCallState> toolCalls = [];
+
+        foreach (AgentEvent agentEvent in sequence)
+        {
+            if (
+                runId is not null
+                && !string.Equals(agentEvent.RunId, runId, StringComparison.Ordinal)
+            )
+            {
+                violations.Add(
+                    new(
+                        EventSequenceViolationKind.ForeignRunId,
+                        agentEvent,
+                        $"Event '{agentEvent.Kind.Name}' carries run id '{agentEvent.RunId}' but the run's id is '{runId}'."
+                    )
+                );
+            }
+
+            if (terminalSeen)
+            {
+                violations.Add(
+                    new(
+                        EventSequenceViolationKind.EventAfterTerminal,
+                        agentEvent,
+                        "No event may follow the terminal event."
+                    )
+                );
+                continue;
+            }
+
+            switch (agentEvent)
+            {
+                case RunStarted start when runStartedSeen:
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.DuplicateRunStarted,
+                            start,
+                            "A run must have exactly one RunStarted."
+                        )
+                    );
+                    break;
+                case RunStarted start:
+                    runStartedSeen = true;
+                    runId = start.RunId;
+                    break;
+                case RunFinished or RunError:
+                    terminalSeen = true;
+                    break;
+                case TextMessageStart start when openReasoningMessages.Count > 0:
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.InterleavedMessage,
+                            start,
+                            $"TextMessageStart for message '{start.MessageId}' opened while a reasoning message is open."
+                        )
+                    );
+                    openTextMessages.Add(start.MessageId);
+                    break;
+                case TextMessageStart start when !openTextMessages.Add(start.MessageId):
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.UnbracketedTextMessage,
+                            start,
+                            $"TextMessageStart for message '{start.MessageId}' opened an already open message."
+                        )
+                    );
+                    break;
+                case TextMessageContent content when !openTextMessages.Contains(content.MessageId):
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.UnbracketedTextMessage,
+                            content,
+                            $"TextMessageContent for message '{content.MessageId}' is not bracketed by TextMessageStart/TextMessageEnd."
+                        )
+                    );
+                    break;
+                case TextMessageEnd end when !openTextMessages.Remove(end.MessageId):
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.UnbracketedTextMessage,
+                            end,
+                            $"TextMessageEnd for message '{end.MessageId}' has no matching TextMessageStart."
+                        )
+                    );
+                    break;
+                case ReasoningStart start when openTextMessages.Count > 0:
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.InterleavedMessage,
+                            start,
+                            $"ReasoningStart for message '{start.MessageId}' opened while a text message is open."
+                        )
+                    );
+                    openReasoningMessages.Add(start.MessageId);
+                    break;
+                case ReasoningStart start when !openReasoningMessages.Add(start.MessageId):
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.UnbracketedReasoningMessage,
+                            start,
+                            $"ReasoningStart for message '{start.MessageId}' opened an already open message."
+                        )
+                    );
+                    break;
+                case ReasoningMessageContent content
+                    when !openReasoningMessages.Contains(content.MessageId):
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.UnbracketedReasoningMessage,
+                            content,
+                            $"ReasoningMessageContent for message '{content.MessageId}' is not bracketed by ReasoningStart/ReasoningEnd."
+                        )
+                    );
+                    break;
+                case ReasoningEnd end when !openReasoningMessages.Remove(end.MessageId):
+                    violations.Add(
+                        new(
+                            EventSequenceViolationKind.UnbracketedReasoningMessage,
+                            end,
+                            $"ReasoningEnd for message '{end.MessageId}' has no matching ReasoningStart."
+                        )
+                    );
+                    break;
+                case ToolCallStart toolStart
+                    when !toolCalls.TryAdd(toolStart.CallId, ToolCallState.Started):
+                    violations.Add(
+                        ToolCallViolation(
+                            toolStart,
+                            $"Tool call '{toolStart.CallId}' was started twice."
+                        )
+                    );
+                    break;
+                case ToolCallArgs args
+                    when StateOf(toolCalls, args.CallId) != ToolCallState.Started:
+                    violations.Add(ToolCallViolation(args, WrongToolOrder(args.CallId)));
+                    break;
+                case ToolCallEnd end when StateOf(toolCalls, end.CallId) != ToolCallState.ArgsSeen:
+                    violations.Add(ToolCallViolation(end, WrongToolOrder(end.CallId)));
+                    break;
+                case ToolCallResult result
+                    when StateOf(toolCalls, result.CallId) != ToolCallState.Ended:
+                    violations.Add(ToolCallViolation(result, WrongToolOrder(result.CallId)));
+                    break;
+                case ToolCallArgs args:
+                    toolCalls[args.CallId] = ToolCallState.ArgsSeen;
+                    break;
+                case ToolCallEnd end:
+                    toolCalls[end.CallId] = ToolCallState.Ended;
+                    break;
+                case ToolCallResult result:
+                    toolCalls[result.CallId] = ToolCallState.Completed;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        AgentEvent last = sequence[^1];
+        foreach (string messageId in openTextMessages)
+        {
+            violations.Add(
+                new(
+                    EventSequenceViolationKind.UnclosedTextMessage,
+                    last,
+                    $"Text message '{messageId}' is still open when the run ended."
+                )
+            );
+        }
+
+        foreach (string messageId in openReasoningMessages)
+        {
+            violations.Add(
+                new(
+                    EventSequenceViolationKind.UnclosedReasoningMessage,
+                    last,
+                    $"Reasoning message '{messageId}' is still open when the run ended."
+                )
+            );
+        }
+
+        foreach ((string callId, ToolCallState state) in toolCalls)
+        {
+            if (state != ToolCallState.Completed)
+            {
+                violations.Add(
+                    new(
+                        EventSequenceViolationKind.IncompleteToolCall,
+                        last,
+                        $"Tool call '{callId}' never reached a result (state: {state})."
+                    )
+                );
+            }
+        }
+
+        if (!terminalSeen)
+        {
+            violations.Add(
+                new(
+                    EventSequenceViolationKind.MissingTerminalEvent,
+                    sequence[^1],
+                    "A run must end with a terminal event (RunFinished or RunError)."
+                )
+            );
+        }
+
+        return violations;
+    }
+
+    private static string WrongToolOrder(string callId) =>
+        $"Tool call '{callId}' must follow ToolCallStart -> ToolCallArgs -> ToolCallEnd -> ToolCallResult.";
+
+    private static EventSequenceViolation ToolCallViolation(
+        AgentEvent agentEvent,
+        string message
+    ) => new(EventSequenceViolationKind.ToolCallOutOfOrder, agentEvent, message);
+
+    private static ToolCallState? StateOf(
+        Dictionary<string, ToolCallState> toolCalls,
+        string callId
+    ) => toolCalls.TryGetValue(callId, out ToolCallState state) ? state : null;
+
+    private enum ToolCallState
+    {
+        Started,
+        ArgsSeen,
+        Ended,
+        Completed,
+    }
+}

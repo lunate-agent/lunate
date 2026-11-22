@@ -4,7 +4,7 @@ using Acp.JsonRpc;
 using Acp.Schema;
 using Lunate.Agent;
 
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// <see cref="ITextFileAccess"/> over the client's <c>fs/read_text_file</c> and

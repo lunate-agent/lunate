@@ -114,11 +114,11 @@ Layering is enforced, not just documented: an architecture test fails on any upw
 
 ## Tech stack
 
-Stick to .NET 10, Microsoft.Extensions.AI and a few well-known packages. No Native AOT: models and networks dominate latency, and JIT keeps runtime extensions, in-process Roslyn and every SDK available. Startup and memory are held by budgets instead.
+Stick to .NET 11, Microsoft.Extensions.AI and a few well-known packages. No Native AOT: models and networks dominate latency, and JIT keeps runtime extensions, in-process Roslyn and every SDK available. Startup and memory are held by budgets instead.
 
 | Concern | Choice | Project | Why |
 | --- | --- | --- | --- |
-| Runtime | .NET 10, C# 14, SDK pinned in `global.json` (the C# 15 inventory and target-framework recommendation are in [`csharp-15.md`](csharp-15.md)) | all | Current LTS |
+| Runtime | .NET 11, C# 15, SDK pinned in `global.json` (the decision is in [ADR-0041](../../adr/0041-net11-target-frameworks.md) and [`csharp-15.md`](csharp-15.md)) | all | Union and closed types need the `net11.0` BCL; everything targets `net11.0` and nothing multi-targets |
 | Release build | Self-contained single file, ReadyToRun, no single-file compression (ADR-0008); release archives are compressed, three targets | Lunate.Coding | One file, no runtime install, fast start |
 | Model access | `IChatClient`, `ChatMessage`, `ChatResponseUpdate` everywhere; no `FunctionInvokingChatClient` (the loop runs tools) | Lunate.Ai, Lunate.Agent | The .NET standard, maintained by Microsoft |
 | Providers | OpenAI-compatible via the Microsoft.Extensions.AI OpenAI adapter; Anthropic via the official `Anthropic` package and its first-party Microsoft.Extensions.AI adapter (`AsIChatClient`) | Lunate.Ai | One abstraction for every model |
@@ -288,7 +288,7 @@ MCP tools arrive from the SDK as functions and are wrapped as `ITool`s, so they 
 
 Events are our own type, named and sequenced like AG-UI's so that the TUI, ACP and a possible web frontend later are thin mappings. Lunate-specific events are marked as extensions; in AG-UI they would travel as custom events. Check the AG-UI and ACP names against the pinned spec versions when writing the mappers.
 
-**Union-ready:** `AgentEvent` stays a closed, sealed set — it is the designated candidate for the C# 15 `union` keyword. The C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt, what each needs from `net11.0`, and the target-framework split; step (c) of #192 applies it, internal code first and the public contract last.
+**Closed set:** `AgentEvent` and `ExtensionEvent` are C# 15 `union`s over the sealed event records, so no assembly outside the contract can declare a kind and a consumer's `switch` is checked for exhaustiveness; the seven hook-result families are unions for the same reason. The stamped session fields live on the `AgentEventBase` record the cases derive from, because a union declaration cannot carry state, and the event channel stamps through it and converts once ([ADR-0043](../../adr/0043-contract-unions.md), decided on #919). The retarget is applied (#902, [ADR-0041](../../adr/0041-net11-target-frameworks.md)); the C# 15 inventory in [`csharp-15.md`](csharp-15.md) records which features we adopt and what each needs.
 
 | Lunate event | AG-UI | ACP | TUI |
 | --- | --- | --- | --- |
@@ -465,7 +465,11 @@ adds `--max-cost`/`--max-time` per run. Also `projection.batchTurns` (default 4;
 `LUNATE_PROJECTION_BATCH_TURNS` overrides it) and the observation-mask windows
 `projection.maskTurns` (default 8) and `projection.maskErrorTurns` (default 32);
 `~/.lunate/providers.json` holds named provider instances; and `~/.lunate/auth.json` holds stored
-keys. Provider instances select one of the twelve built-in kinds as a template and may declare one
+keys. Each of the three is a read-modify-write under a cross-process claim (`settings.lock`,
+`providers.lock`, `auth.lock`) taken beside the file, so two Lunate processes merge instead of one
+replacing a document it read before the other wrote; a read takes no claim and creates no lock
+file, and a commit that replaces all three — the setup wizard's — takes all three claims before it
+seeds its staged bodies. Provider instances select one of the twelve built-in kinds as a template and may declare one
 base URL per API family. The five families are `openai-chat`, `openai-responses`,
 `anthropic-messages`, `google` and `systemone`; a model's family comes from a profile override, discovery, the
 catalog, or the provider's only family. Credentials are references (`auth:` or `env:`), never literal
@@ -702,7 +706,7 @@ Self-contained single-file builds with ReadyToRun — no single-file compression
 
 - GitHub Releases with one archive per target, plus `install.sh` (`curl … | sh`) and `install.ps1` (`irm … | iex`).
 - Homebrew tap for macOS and Linux; Scoop bucket and winget manifest for Windows.
-- Optionally a `dotnet tool` package; .NET 10 a framework-dependent package for people who already have the .NET SDK.
+- Optionally a `dotnet tool` package; since #902 it is a framework-dependent `net11.0` package and requires the .NET 11 runtime, for people who already have the .NET SDK.
 
 **CI matrix**
 

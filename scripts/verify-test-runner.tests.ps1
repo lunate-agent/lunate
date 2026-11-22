@@ -19,18 +19,20 @@ foreach ($name in $names) {
 }
 
 try {
+    # The failing line is colored the way the runner writes it on GitHub Actions (`GITHUB_ACTIONS=true`
+    # colors a redirected stream too), so the ledger's name pins the strip and not only the pattern (#954).
     @'
 $mode = $env:VERIFY_TEST_MODE
 $counter = $env:VERIFY_TEST_COUNTER
 $attempt = if (Test-Path $counter) { [int](Get-Content $counter -Raw) + 1 } else { 1 }
 Set-Content -Path $counter -Value $attempt -NoNewline
 if ($mode -eq 'retry' -and $attempt -eq 1) {
-    Write-Output 'failed Lunate.Coding.Tests.FakeFailure'
+    Write-Output "$([char]27)[31mfailed$([char]27)[m Lunate.Coding.Tests.FakeFailure"
     Write-Output 'total: 1'
     exit 1
 }
 if ($mode -eq 'always-fail') {
-    Write-Output 'failed Lunate.Coding.Tests.FakeFailure'
+    Write-Output "$([char]27)[31mfailed$([char]27)[m Lunate.Coding.Tests.FakeFailure"
     Write-Output 'total: 1'
     exit 1
 }

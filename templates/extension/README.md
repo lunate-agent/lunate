@@ -11,7 +11,8 @@ as the place where your extension's behavior is proven.
 
 The two project files are self-contained: they declare `TargetFramework`, `ImplicitUsings` and
 `Nullable` themselves, so a copy builds outside this repository, where the repository's
-`Directory.Build.props` does not follow.
+`Directory.Build.props` does not follow. Both target `net11.0`, like the host and the contract
+packages: the repository does not multi-target, so an extension for this host is `net11.0` as well.
 
 ## Layout
 
@@ -41,7 +42,9 @@ The manifest the host reads before loading anything. Every field matters:
 `TemplateExtensionFactory.Create` is the single entry point. From its `IExtensionContext` you can:
 
 - `context.Register(handler)` — register any `IHookHandler`. The template registers one
-  `IToolCallingHandler` that logs and proceeds; register the other hooks you need the same way.
+  `IToolCallingHandler` that logs and proceeds; register the other hooks you need the same way. The
+  handler matches the result with a `switch` over the union — cover every case you handle and keep a
+  `_` arm for the rest.
 - `context.RegisterService(name, service)` — register a named `IBackgroundService`. The host starts
   it once the session is live and stops it idempotently when the session ends.
 - `context.SubscribeFileChanged(handler, pattern)` — observe successful file mutations.

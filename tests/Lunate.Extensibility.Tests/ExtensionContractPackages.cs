@@ -25,6 +25,7 @@ public sealed class ExtensionContractPackages
     private static readonly string[] PublishedPackageAssemblies =
     [
         "Lunate.Contracts.dll",
+        "Lunate.Decisions.Model.dll",
         "Lunate.Extensibility.Abstractions.dll",
         "Lunate.Agent.dll",
     ];
@@ -36,7 +37,12 @@ public sealed class ExtensionContractPackages
         // published version is that plus the tag's prerelease suffix, so an RC tag publishes
         // 1.15.0-rc.1 and only a final tag publishes the stable 1.15.0.
         Assert.Equal(ExtensionApi.Current, ReleaseVersions.Api);
-        string[] stable = ["Lunate.Contracts", "Lunate.Extensibility.Abstractions"];
+        string[] stable =
+        [
+            "Lunate.Contracts",
+            "Lunate.Decisions.Model",
+            "Lunate.Extensibility.Abstractions",
+        ];
         foreach (string id in stable)
         {
             Assert.Equal(ReleaseVersions.Contract, VersionOf(id));
@@ -97,6 +103,10 @@ public sealed class ExtensionContractPackages
         XDocument agent = Load("Lunate.Agent");
         XElement ai = SingleReference(agent, "ProjectReference", "Lunate.Ai");
         Assert.Equal("All", (string?)ai.Attribute("PrivateAssets"));
+        XElement engine = SingleReference(agent, "ProjectReference", "Lunate.Ai.Decisions");
+        Assert.Equal("All", (string?)engine.Attribute("PrivateAssets"));
+        XElement model = SingleReference(agent, "ProjectReference", "Lunate.Decisions.Model");
+        Assert.Null(model.Attribute("PrivateAssets"));
 
         XDocument testing = Load("Lunate.Extensibility.Testing");
         string[] unpublishedEdges = ["Lunate.Ai", "Lunate.Coding", "Lunate.Extensibility.Remote"];
@@ -175,9 +185,83 @@ public sealed class ExtensionContractPackages
         }
     }
 
+    /// <summary>
+    /// The model's own package is only useful if the release ships it. The pack list, the release
+    /// workflow and the verify roundtrip each name the project, so a move or a rename fails here
+    /// instead of at tag time (ADR-0045).
+    /// </summary>
+    [Fact]
+    public void The_pack_list_names_the_decision_model_package()
+    {
+        string root = RepositoryRoot.Find();
+        string script = File.ReadAllText(Path.Combine(root, "scripts", "pack-dry-run.sh"));
+        string release = File.ReadAllText(
+            Path.Combine(root, ".github", "workflows", "release.yml")
+        );
+        string verify = File.ReadAllText(Path.Combine(root, "scripts", "verify.sh"));
+
+        foreach (string text in new[] { script, release, verify })
+        {
+            Assert.Contains(
+                "src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj",
+                text,
+                StringComparison.Ordinal
+            );
+        }
+
+        Assert.Contains(
+            "Lunate.Decisions.Model.${derived_CONTRACTS}.nupkg",
+            script,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "Lunate.Decisions.Model.${contract_version}.nupkg",
+            release,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "dist/Lunate.Decisions.Model.${CONTRACTS}.nupkg",
+            release,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "${contract_feed}/Lunate.Decisions.Model.${contract_version}.nupkg",
+            verify,
+            StringComparison.Ordinal
+        );
+    }
+
+    /// <summary>
+    /// The extension contract depends on the model package and ships no decision engine file; the
+    /// harness, which needs the engine, keeps it in its own lib (ADR-0045).
+    /// </summary>
+    [Fact]
+    public void The_extension_contract_does_not_pack_the_engine()
+    {
+        XDocument abstractions = Load("Lunate.Extensibility.Abstractions");
+        XElement model = SingleReference(
+            abstractions,
+            "ProjectReference",
+            "Lunate.Decisions.Model"
+        );
+
+        Assert.Null(model.Attribute("PrivateAssets"));
+        Assert.DoesNotContain(abstractions.Descendants("TfmSpecificPackageFile"), element =>
+            (string?)element.Attribute("Include") == "$(OutDir)Lunate.Ai.Decisions.dll"
+        );
+        Assert.DoesNotContain(abstractions.Descendants("ProjectReference"), element =>
+            string.Equals(
+                Path.GetFileName((string?)element.Attribute("Include")),
+                "Lunate.Ai.Decisions.csproj",
+                StringComparison.Ordinal
+            )
+        );
+    }
+
     private static readonly string[] AllIds =
     [
         "Lunate.Contracts",
+        "Lunate.Decisions.Model",
         "Lunate.Extensibility.Abstractions",
         "Lunate.Agent",
         "Lunate.Extensibility.Testing",

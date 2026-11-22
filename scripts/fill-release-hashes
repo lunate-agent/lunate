@@ -1,0 +1,306 @@
+#!/usr/bin/env python3
+"""Fill the channel manifests from a release's SHA256SUMS.
+
+After a tag the Homebrew formula, the Scoop manifest and the winget manifests carry that release's
+archive URLs and SHA-256 values. This command rewrites them from the release's checksum file, which
+is the only input it reads: no network, no release lookup, no README.
+
+Usage:
+    fill-release-hashes v<version> --sums <SHA256SUMS file>
+    fill-release-hashes v<version> --sums <file> --root DIR   # run against another tree
+
+A refused run names the asset or the manifest it could not use and writes nothing at all.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from collections.abc import Callable
+from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))  # `python3 -I` drops the script's directory from sys.path
+
+from published_release import SHA256, STABLE_TAG, ReleaseError, parse_sums, tag_version  # noqa: E402
+
+DOWNLOAD = "https://github.com/lunate-agent/lunate/releases/download"
+HOME_BREW = "packaging/homebrew/lunate.rb"
+SCOOP = "packaging/scoop/lunate.json"
+WINGET_VERSION = "packaging/winget/wdaniel1993.lunate.yaml"
+WINGET_INSTALLER = "packaging/winget/wdaniel1993.lunate.installer.yaml"
+WINGET_LOCALE = "packaging/winget/wdaniel1993.lunate.locale.en-US.yaml"
+WINGET = (WINGET_VERSION, WINGET_INSTALLER, WINGET_LOCALE)
+OSX_ASSET = "lunate-osx-arm64.tar.gz"
+LINUX_ASSET = "lunate-linux-x64.tar.gz"
+WIN_ASSET = "lunate-win-x64.zip"
+ASSETS = (OSX_ASSET, LINUX_ASSET, WIN_ASSET)
+
+VERSION_LINE = re.compile(
+    r"^(?P<prefix>[ \t]*PackageVersion:[ \t]*)(?P<value>[^ \t\n#]+)(?P<suffix>[ \t]*)$",
+    re.MULTILINE,
+)
+INSTALLER_URL = re.compile(
+    r"^(?P<prefix>[ \t]*InstallerUrl:[ \t]*)(?P<value>[^ \t\n#]+)(?P<suffix>[ \t]*)$",
+    re.MULTILINE,
+)
+INSTALLER_SHA256 = re.compile(
+    r"^(?P<prefix>[ \t]*InstallerSha256:[ \t]*)(?P<value>[0-9a-fA-F]{64})(?P<suffix>[ \t]*)$",
+    re.MULTILINE,
+)
+
+
+class DuplicateKey(ValueError):
+    """A JSON object carried the same member name twice."""
+
+    def __init__(self, key: str) -> None:
+        super().__init__(key)
+        self.key = key
+
+
+def no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Build a JSON object, refusing a member name that appears more than once."""
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise DuplicateKey(key)
+        result[key] = value
+    return result
+
+
+def write_text(path: Path, text: str) -> None:
+    """Write UTF-8 with LF on every platform; the bytes never depend on where they were written."""
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
+
+
+def release_url(tag: str, asset: str) -> str:
+    return f"{DOWNLOAD}/{tag}/{asset}"
+
+
+def homebrew_pattern(asset: str) -> re.Pattern[str]:
+    """A url line naming `asset`, immediately followed by its sha256 line."""
+    return re.compile(
+        r'(?P<before>^[ \t]*url[ \t]+")[^"\n]*/'
+        + re.escape(asset)
+        + r'(?P<middle>"[ \t]*\n[ \t]*sha256[ \t]+")'
+        + r'(?P<digest>[0-9a-fA-F]{64})(?P<after>"[ \t]*$)',
+        re.MULTILINE,
+    )
+
+
+def rewrite_once(
+    text: str,
+    pattern: re.Pattern[str],
+    where: str,
+    description: str,
+    replacement: Callable[[re.Match[str]], str],
+    validate: Callable[[re.Match[str]], str | None] | None = None,
+) -> tuple[str | None, list[str]]:
+    """Replace the single match of `pattern`, or return an error that names `where`."""
+    matches = list(pattern.finditer(text))
+    if len(matches) != 1:
+        return None, [f"{where}: expected exactly one {description}; found {len(matches)}"]
+    match = matches[0]
+    if validate is not None:
+        problem = validate(match)
+        if problem is not None:
+            return None, [f"{where}: {problem}"]
+    return text[: match.start()] + replacement(match) + text[match.end() :], []
+
+
+def fill_homebrew(text: str, tag: str, sums: dict[str, str]) -> tuple[str | None, list[str]]:
+    errors: list[str] = []
+    for asset in (OSX_ASSET, LINUX_ASSET):
+        text, asset_errors = rewrite_once(
+            text,
+            homebrew_pattern(asset),
+            HOME_BREW,
+            f'url "{asset}" followed by its sha256',
+            lambda match, asset=asset: (
+                f'{match.group("before")}{release_url(tag, asset)}'
+                f'{match.group("middle")}{sums[asset]}{match.group("after")}'
+            ),
+        )
+        errors.extend(asset_errors)
+        if asset_errors:
+            return None, errors
+    return text, errors
+
+
+def fill_scoop(text: str, tag: str, sums: dict[str, str]) -> tuple[str | None, list[str]]:
+    where = SCOOP
+    try:
+        data = json.loads(text, object_pairs_hook=no_duplicate_keys)
+    except DuplicateKey as error:
+        return None, [f'{where}: duplicate JSON key "{error.key}"; expected each key exactly once']
+    except json.JSONDecodeError as error:
+        return None, [f"{where}: invalid JSON: {error}"]
+    if not isinstance(data, dict):
+        return None, [f"{where}: expected a JSON object"]
+    if not isinstance(data.get("version"), str):
+        return None, [f'{where}: expected a "version" string']
+
+    architecture = data.get("architecture")
+    entry = architecture.get("64bit") if isinstance(architecture, dict) else None
+    if not isinstance(entry, dict):
+        return None, [f"{where}: expected architecture.64bit to carry the win-x64 download"]
+    url, digest = entry.get("url"), entry.get("hash")
+    if not isinstance(url, str) or not url.endswith(f"/{WIN_ASSET}"):
+        return None, [f"{where}: expected architecture.64bit.url to name {WIN_ASSET}"]
+    if not isinstance(digest, str) or SHA256.fullmatch(digest) is None:
+        return None, [f"{where}: expected architecture.64bit.hash to be a 64-character SHA-256"]
+
+    data["version"] = tag_version(tag)
+    entry["url"] = release_url(tag, WIN_ASSET)
+    entry["hash"] = sums[WIN_ASSET]
+    return json.dumps(data, indent=4, ensure_ascii=False) + "\n", []
+
+
+def fill_winget(
+    relative: str, text: str, tag: str, sums: dict[str, str]
+) -> tuple[str | None, list[str]]:
+    version = tag_version(tag)
+    text, errors = rewrite_once(
+        text,
+        VERSION_LINE,
+        relative,
+        "PackageVersion line",
+        lambda match: f'{match.group("prefix")}{version}{match.group("suffix")}',
+    )
+    if errors:
+        return None, errors
+    if relative != WINGET_INSTALLER:
+        return text, []
+
+    text, errors = rewrite_once(
+        text,
+        INSTALLER_URL,
+        relative,
+        "InstallerUrl line",
+        lambda match: (
+            f'{match.group("prefix")}{release_url(tag, WIN_ASSET)}{match.group("suffix")}'
+        ),
+        validate=lambda match: (
+            None
+            if match.group("value").endswith(f"/{WIN_ASSET}")
+            else f"expected InstallerUrl to name {WIN_ASSET}; found {match.group('value')}"
+        ),
+    )
+    if errors:
+        return None, errors
+    text, errors = rewrite_once(
+        text,
+        INSTALLER_SHA256,
+        relative,
+        "InstallerSha256 line",
+        lambda match: (
+            f'{match.group("prefix")}{sums[WIN_ASSET].upper()}{match.group("suffix")}'
+        ),
+    )
+    if errors:
+        return None, errors
+    return text, []
+
+
+def read_manifests(root: Path) -> tuple[dict[str, str], list[str]]:
+    texts: dict[str, str] = {}
+    errors: list[str] = []
+    for relative in (HOME_BREW, SCOOP, *WINGET):
+        try:
+            texts[relative] = (root / relative).read_text(encoding="utf-8")
+        except OSError as error:
+            errors.append(f"{relative}: cannot read: {error}")
+    return texts, errors
+
+
+def fill(root: Path, tag: str, sums: dict[str, str]) -> tuple[dict[str, str], list[str]]:
+    """Return (manifest path → new text, errors); no file is touched here."""
+    texts, errors = read_manifests(root)
+    if errors:
+        return {}, errors
+
+    homebrew, found = fill_homebrew(texts[HOME_BREW], tag, sums)
+    errors.extend(found)
+    scoop, found = fill_scoop(texts[SCOOP], tag, sums)
+    errors.extend(found)
+    winget: dict[str, str] = {}
+    for relative in WINGET:
+        text, found = fill_winget(relative, texts[relative], tag, sums)
+        errors.extend(found)
+        if text is not None:
+            winget[relative] = text
+    if errors:
+        return {}, errors
+    return {HOME_BREW: homebrew, SCOOP: scoop, **winget}, []
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Fill the channel manifests from a release's SHA256SUMS."
+    )
+    parser.add_argument("tag", help="the stable release tag, v<major>.<minor>.<patch>")
+    parser.add_argument("--sums", required=True, type=Path, help="the release's SHA256SUMS file")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent,
+        help="repository root (default: the script's parent directory)",
+    )
+    arguments = parser.parse_args()
+
+    if not arguments.tag.startswith("v") or STABLE_TAG.fullmatch(arguments.tag) is None:
+        parser.error(
+            f"{arguments.tag}: expected a stable release tag such as v0.4.0; "
+            "the channel manifests follow stable releases only"
+        )
+
+    try:
+        sums = parse_sums(arguments.sums.read_text(encoding="utf-8"))
+    except OSError as error:
+        print(f"fill-release-hashes: cannot read --sums {arguments.sums}: {error}", file=sys.stderr)
+        return 1
+    except ReleaseError as error:
+        print(f"fill-release-hashes: {arguments.sums}: {error}", file=sys.stderr)
+        return 1
+
+    missing = [asset for asset in ASSETS if asset not in sums]
+    if missing:
+        for asset in missing:
+            print(
+                f"fill-release-hashes: SHA256SUMS has no {asset}; "
+                "the release must attach every channel archive",
+                file=sys.stderr,
+            )
+        return 1
+
+    root = arguments.root.resolve()
+    filled, errors = fill(root, arguments.tag, sums)
+    if errors:
+        for error in errors:
+            print(f"fill-release-hashes: {error}", file=sys.stderr)
+        return 1
+
+    changed = []
+    for relative, text in filled.items():
+        path = root / relative
+        if path.read_text(encoding="utf-8") != text:
+            write_text(path, text)
+            changed.append(relative)
+    if changed:
+        print(
+            f"fill-release-hashes: {arguments.tag} filled {len(changed)} manifest(s): "
+            + ", ".join(changed)
+        )
+    else:
+        print(
+            f"fill-release-hashes: {arguments.tag} unchanged; "
+            "the manifests already carry these hashes"
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

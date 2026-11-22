@@ -9,16 +9,17 @@ How Lunate reaches users: what a release carries, how the one-command installers
 | `lunate-osx-arm64.tar.gz` | macOS Apple Silicon single-file binary (`lunate` at the archive root) |
 | `lunate-linux-x64.tar.gz` | Linux x86_64 binary |
 | `lunate-win-x64.zip` | Windows x64 binary (`lunate.exe`) |
-| `lunate.<version>.nupkg` | framework-dependent `dotnet tool` (package and command `lunate`) |
+| `lunate.<version>.nupkg` | framework-dependent `dotnet tool` (package and command `lunate`); its `net11.0` asset requires the .NET 11 runtime |
 | `Lunate.Extensions.Subagents.<version>.nupkg` | the reference subagents extension, installed with `lunate install Lunate.Extensions.Subagents` |
 | `Lunate.Contracts.<ExtensionApi.Current>[-rc.<n>].nupkg` | the message/tool contract half (versioned with `ExtensionApi`, not the tool; an RC tag publishes the `-rc.<n>` prerelease and only the final tag publishes the stable version) |
+| `Lunate.Decisions.Model.<ExtensionApi.Current>[-rc.<n>].nupkg` | the decision model and its two seams, versioned with the contract pair; the Abstractions package depends on it |
 | `Lunate.Extensibility.Abstractions.<ExtensionApi.Current>.nupkg` | the stable extension contract the template installs from NuGet |
 | `Lunate.Agent.<product version>.nupkg` | the embedded harness, preview — the product version while it is a prerelease (`0.2.0-rc.<n>`), `<version>-preview.<n>` on a final tag |
 | `Lunate.Extensibility.Testing.<product version>.nupkg` | the test kit, preview, versioned the same way |
 | `SHA256SUMS` | `<hash>  <filename>` lines covering every other asset |
 
 - Installers: [`install.sh`](../../install.sh) (`curl | sh`, macOS arm64 + Linux x64) and [`install.ps1`](../../install.ps1) (`irm | iex`, Windows x64). Both verify SHA-256 before installing, never need `sudo`/admin, and are served from the repository (`raw.githubusercontent.com/lunate-agent/lunate/main/...`), not from the release assets.
-- Channel artifacts live in [`packaging/`](../../packaging): Homebrew formula, Scoop manifest, winget manifests. Their `SHA256_PLACEHOLDER_*`/sha values are filled per release (step 4). The guard in [`scripts/check-channel-manifests.py`](../../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
+- Channel artifacts live in [`packaging/`](../../packaging): Homebrew formula, Scoop manifest, winget manifests. Their URLs and SHA-256 values are filled per release by [`scripts/fill-release-hashes`](../../scripts/fill-release-hashes) (step 4). The guard in [`scripts/check-channel-manifests.py`](../../scripts/check-channel-manifests.py) measures them against the newest *published* stable release — the newest stable tag whose release attached its `SHA256SUMS`, the same definition [`scripts/docs-sync`](../../scripts/docs-sync) uses for the README — so a tag whose release workflow failed before attaching assets is not current.
 - Every package version is derived from the tag in one place, [`scripts/release-versions.sh`](../../scripts/release-versions.sh): an RC tag publishes `-rc.<n>` for every package (the contracts too), and only a final tag publishes the stable API version and the `-preview.<n>` previews. [`scripts/pack-dry-run.sh`](../../scripts/pack-dry-run.sh) proves that derivation on every pull request, and the release workflow computes the same values from the tag before it packs or pushes anything.
 - The extension package is the distribution channel for extensions: the same tag that publishes the tool pushes it to nuget.org, so `lunate install <package-id>` installs the version the tag names. It is attached to the release as well, so a machine without feed access can point a `nuget.config` at the downloaded folder.
 - Release asset names, the installer platform map and the `LUNATE_INSTALL_*` environment seams are pinned in the distribution spec (`openspec/specs/distribution/spec.md` after archive).
@@ -66,19 +67,32 @@ gh run list --workflow release.yml --limit 1
 ### 1. Assemble the changelog (release pull request)
 
 Only the release pull request edits `CHANGELOG.md`. Cut it from `main` on `release/<version>` (or
-title it `chore(release): <version>`), then fold the fragments into the unreleased section:
+title it `chore(release): <version>`), then do the whole changelog edit in one run:
 
 ```sh
-python3 scripts/changelog-assemble --write
+python3 scripts/changelog-assemble --release <version>   # --date YYYY-MM-DD overrides today in UTC
 python3 scripts/changelog-assemble --check
 ```
 
-`--write` places every `changes/<pr-number>.md` under its heading in ascending pull-request order
-and leaves text written before the fragments existed where it is. Promote `## [Unreleased]` to
-`## [<version>] - <date>`, remove the generated `changelog-fragments` marker comments from the
-promoted section, leave a fresh empty `## [Unreleased]` above it, delete the consumed fragments, and
-commit the result. The Release workflow runs `--check` on the tag, so a fragment that merged after
-this pull request fails the tag by name instead of shipping unassembled notes.
+`--release` folds every `changes/<pr-number>.md` under its heading in ascending pull-request order,
+leaves text written before the fragments existed where it is, promotes `## [Unreleased]` to
+`## [<version>] - <date>` with the generated `changelog-fragments` marker comments removed, leaves a
+fresh empty `## [Unreleased]` above it, deletes the consumed fragments and sets `<Version>` in
+`Directory.Build.props`. `git status` then shows exactly three kinds of change: `CHANGELOG.md`,
+`Directory.Build.props` and the deleted `changes/<n>.md` files. It refuses, writing nothing and
+naming the reason, when the version is not newer than the current `<Version>`, when a
+`## [<version>]` section already exists, or when a fragment is invalid — so running it twice is
+refused and never promotes twice. It refuses the same way when `CHANGELOG.md` itself is a shape the
+assembler cannot read reliably — a `##` or `###` heading repeated within one version section, a
+non-blank line outside any `###` heading in the unreleased section, or a second `## [Unreleased]` —
+and prints the line that carries each one, because each of those loses or misplaces an entry. A
+fragment's relative link is rewritten for the root, because a fragment is written from `changes/`; a
+link that leaves the repository from there is refused, naming the fragment, the link and the path it
+resolves to. The Release workflow runs `--check --tag <tag>` on the tag, so a
+fragment that merged after this pull request fails the tag by name instead of shipping unassembled
+notes, and so does a `CHANGELOG.md` whose first heading below `## [Unreleased]` is not the tag's
+`## [<version>] - <YYYY-MM-DD>` or a `Directory.Build.props` whose `<Version>` is not the tag's
+version.
 
 The repository verifies the lane contract at the tag instead of trusting this runbook. A pull
 request on `release/<version>` or titled `chore(release): <version>` is exempt from the changelog
@@ -92,9 +106,9 @@ repos/lunate-agent/lunate/commits/<sha>/pulls`, and `gh release view <tag>`.
 
 ### 2. Tag the release
 
-The Release workflow fails the tag when it does not match `<Version>` in `Directory.Build.props`,
-when the tagged commit is not on `main`, or when that commit is not a merged release pull request;
-the release pull request must be merged first.
+The Release workflow fails the tag when `CHANGELOG.md`'s first release heading or `<Version>` in
+`Directory.Build.props` is not the tag's version, when the tagged commit is not on `main`, or when
+that commit is not a merged release pull request; the release pull request must be merged first.
 
 ```sh
 git switch main
@@ -114,25 +128,27 @@ cd /tmp/lunate-release
 sha256sum -c SHA256SUMS   # macOS: shasum -a 256 -c SHA256SUMS
 ```
 
-### 4. Fill the sha placeholders
+### 4. Fill the channel manifests
 
-Read the three archive hashes and replace the placeholders, then commit on `main`.
+Run the fill command on the release's `SHA256SUMS`, then let `docs-sync` write the README line, and
+commit on `main`.
 
 ```sh
-grep -E 'lunate-(osx-arm64|linux-x64|win-x64)' /tmp/lunate-release/SHA256SUMS
+scripts/fill-release-hashes v<version> --sums /tmp/lunate-release/SHA256SUMS
+scripts/docs-sync --write
 ```
 
-- `packaging/homebrew/lunate.rb`: `SHA256_PLACEHOLDER_OSX_ARM64`, `SHA256_PLACEHOLDER_LINUX_X64`
-- `packaging/scoop/lunate.json`: `SHA256_PLACEHOLDER_WIN_X64`
-- `packaging/winget/wdaniel1993.lunate.installer.yaml`: `InstallerSha256` (uppercase hex)
-- `PackageVersion` in all three winget manifests, set to the tag's version: `packaging/winget/wdaniel1993.lunate.yaml`,
-  `packaging/winget/wdaniel1993.lunate.installer.yaml` and `packaging/winget/wdaniel1993.lunate.locale.en-US.yaml`.
-  winget rejects a manifest set whose versions differ; the 0.4.0 locale file was left at 0.2.1 when
-  this list named only the installer.
+The command reads only the checksum file it is given. It rewrites the two Homebrew URLs and their
+`sha256` values, the Scoop `version`, `url` and `hash`, and `PackageVersion` in all three winget
+manifests plus `InstallerUrl` and the uppercase `InstallerSha256` in the installer manifest. It
+refuses, naming the missing archive or the manifest whose shape moved and writing nothing, when
+`SHA256SUMS` does not carry `lunate-osx-arm64.tar.gz`, `lunate-linux-x64.tar.gz` or
+`lunate-win-x64.zip`, or when a manifest no longer carries the lines it edits; a second run is a
+no-op. `scripts/check-channel-manifests.py` then measures the result against the same release.
 
 ```sh
-git add packaging
-git commit -m "chore: fill 0.1.0 release hashes"
+git add packaging README.md
+git commit -m "chore: fill <version> release hashes"
 git push
 ```
 
@@ -199,7 +215,7 @@ checked it. The tag
 does it, so the only manual step is proving the result:
 
 ```sh
-dotnet tool install --global lunate --version 0.1.0
+dotnet tool install --global lunate --version 0.1.0   # requires the .NET 11 runtime
 lunate --version
 lunate install Lunate.Extensions.Subagents@0.1.0 --dry-run
 ```
@@ -225,9 +241,9 @@ and a version number is never reused for different bytes.
 
 ## Later releases
 
-- Assemble the changelog in the release pull request (`scripts/changelog-assemble --write`), promote the unreleased section and delete the consumed fragments (step 1).
+- Assemble the changelog in the release pull request (`scripts/changelog-assemble --release <version>`) — step 1.
 - Tag the new version; the gate, publish, pack and attach jobs do the rest.
-- Fill the three sha values and the three winget `PackageVersion` lines again (step 4) and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
+- Fill the channel manifests from the new release's `SHA256SUMS` with `scripts/fill-release-hashes` (step 4), run `scripts/docs-sync --write`, and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
 - Run the release smoke against the tag (see *Release smoke*) before calling the release done.
 - The Scoop bucket autoupdates itself; winget needs a new `wingetcreate update wdaniel1993.lunate --version <v> --urls <zip-url>` submission.
-- Future work: automate the placeholder rewrite and the tap/bucket updates from the release workflow (a follow-up change); until then the steps above stay manual.
+- Future work: automate the tap/bucket updates from the release workflow (a follow-up change); until then the steps above stay manual.

@@ -1,6 +1,6 @@
 using System.Buffers.Binary;
 
-namespace Lunate.Tui.Platform;
+namespace Lunate.Tui;
 
 // Byte layout and flag values of `struct termios` for one Unix platform. The two
 // tables are pinned by UnixRawModeTests; the P/Invoke path itself can only run on a

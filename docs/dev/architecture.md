@@ -19,17 +19,55 @@ flowchart TD
     Coding -. "evaluates manifest rule" .-> ExtApi
     Protocols --> Agent
     Agent --> Ai["Lunate.Ai<br/>model pipeline, catalog"]
-    Agent --> Decisions["Lunate.Ai.Decisions<br/>decision engine, contracts"]
+    Agent --> Engine["Lunate.Ai.Decisions<br/>decision engine"]
+    Agent --> Model["Lunate.Decisions.Model<br/>decision model package"]
     Agent --> Contracts["Lunate.Contracts<br/>shared wire contracts"]
-    Coding --> Decisions
+    Engine --> Model
+    Model --> Contracts
+    ExtApi --> Model
+    Coding --> Engine
     Coding --> SystemOne["Lunate.Ai.SystemOne<br/>native System One transport"]
-    SystemOne --> Decisions
+    SystemOne --> Engine
     Ai --> Providers(["Provider APIs<br/>OpenAI-compatible, Anthropic, Google, System One"])
     Protocols -. "stdio / HTTP" .-> Mcp(["MCP servers<br/>separate process"])
     Protocols -. "ACP" .-> Editor(["Editor (ACP client)<br/>separate process"])
 ```
 
 Solid arrows are project references; dashed arrows are runtime composition or connections to separate processes. `Lunate.Tui` consumes the standalone `Mermaid.Terminal` renderer — a port of mermaid-ascii with no Lunate reference — as its Mermaid adapter ([ADR-0039](../../adr/0039-mermaid-terminal-library.md)). `Lunate.Coding` is the composition root. It supplies the Roslyn built-in descriptor to the extension host and runs the shared activation filter, which evaluates the manifest rule through the public abstractions API for chat, print, ACP, child runs and MCP. The adapter owns the typed factory and bridges the extension contract to `Lunate.Roslyn`. `Lunate.Coding` references the adapter only to provide the built-in factory list, and neither Roslyn project references upward into the host. The adapter and backend do not load Roslyn/MSBuild assemblies until the first C# tool call. See [ADR-0026](../../adr/0026-roslyn-built-in-boundary.md) and the [extensions spec](../../openspec/specs/extensions/spec.md).
+
+## Source layout
+
+Inside a project the folders group files by the feature they serve, and the namespace stays where the
+assembly put it — a move never renames a type or a namespace. `src/Lunate.Protocols` is the small
+example: `Mcp/Client/` holds the configured server, its options and its tool adapter, `Mcp/Server/`
+holds the stdio server and the tool it exposes, `Acp/` holds the editor server, and every file
+declares `namespace Lunate.Protocols;`.
+
+```text
+src/Lunate.Protocols/
+├── Acp/            ACP server: IAcpServer, LibAcpServer, session mapper
+├── Mcp/Client/     configured servers: McpServerHost, McpToolAdapter, config, elicitation
+├── Mcp/Server/     the stdio server: McpToolServer, McpServerToolAdapter
+└── PublicAPI.*.txt
+```
+
+`Lunate.Contracts` shows why the namespace does not follow the folder: it declares `Lunate.Agent` and
+`Lunate.Ai` types beside its own so its `TypeForwardedTo` entries keep a compiled consumer binding,
+and no folder may claim a namespace segment. The test projects mirror the folders they test — every
+source feature folder has a test folder and no test folder exists without one — with support files at
+the project root. `tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces both halves;
+the requirement lives in the [repo-quality spec](../../openspec/specs/repo-quality/spec.md) and the
+file-naming half in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+The decision model sits in `Lunate.Decisions.Model`, its own package, rather than in the contract or
+the engine: `Lunate.Contracts` keeps only the `DecisionProbability` record the `DecisionEvaluated`
+event publishes, and the edge runs `Lunate.Decisions.Model` → `Lunate.Contracts`, never back. The
+engine stays in `Lunate.Ai.Decisions`, references the model and `Lunate.Contracts`, and is unpacked;
+only `Lunate.Agent`, which needs it, carries it in `lib/`. `Lunate.Extensibility.Abstractions` types
+`IDecisionService` with the model and names `Lunate.Decisions.Model` as a package dependency, so the
+contract package does not carry the engine and the host owns the model at load. See
+[ADR-0045](../../adr/0045-decision-model-package.md), which amends
+[ADR-0044](../../adr/0044-decision-model-ownership.md).
 
 ## The model pipeline
 

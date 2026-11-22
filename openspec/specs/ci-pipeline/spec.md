@@ -35,19 +35,26 @@ CodeQL schedule SHALL keep analyzing `main`.
 The checks whose result does not depend on the operating system — formatting, the generated
 documentation regions, the documentation link, anchor, redirect and navigation check
 (`scripts/docs-check --check`), markdownlint, the public API, `openspec validate --all --strict`, the
-scratch-path and spec-archive checks, and the packaging-file assertion — SHALL run once in a single
+scratch-path and spec-archive checks, the docs-tree guard (`scripts/no-docs-references.sh`) and the
+packaging-file assertion — SHALL run once in a single
 Linux job that the aggregate gate requires; an OS leg SHALL NOT repeat them. Each OS leg SHALL keep
 the checks whose result is a property of that machine: build, test, publish, the startup budget and
 the artifact proofs.
 
 The tree checks — ADR numbering, the spec-archive rule, the generated documentation regions, the
-documentation link, anchor, redirect and navigation check, and markdownlint — SHALL run in one job on
+documentation link, anchor, redirect and navigation check, the docs-tree guard, and markdownlint —
+SHALL run in one job on
 a `merge_group` run, judged against the batch's base commit. The batch is the first tree on which two
 pull requests meet, and each pull request proved only its own tree against its own base, so only the
 queue can see a rule both of them break together. The same command list SHALL be what the push to
 `main` runs, so the two triggers cannot drift. The job SHALL need no build and no test, and it SHALL
 take the batch's full history and its release tags, because the spec-archive check diffs the batch's
 range and the version region is derived from the tags.
+
+Because a docs-only push skips the matrix and a code pull request never runs the documentation
+profile, the docs-tree guard SHALL be part of the platform checks **and** of the shared tree-check
+command list: a test that reads the docs tree is red on the pull request that adds it, and the push
+that lands it cannot carry the failure unseen.
 
 Pushes that touch only documentation MAY skip the matrix but SHALL still run the documentation lint
 and the documentation link, anchor, redirect and navigation check.
@@ -121,6 +128,12 @@ and the documentation link, anchor, redirect and navigation check.
 - **GIVEN** a pull request that selects the full gate
 - **WHEN** the run completes
 - **THEN** the formatting, docs, public-API and OpenSpec checks ran in exactly one job, and each OS leg ran them zero times
+
+#### Scenario: A test that reads the docs tree is red before review
+- **GIVEN** a pull request that adds a test which opens a file under `docs/`
+- **WHEN** the pull request's full gate runs
+- **THEN** the platform checks fail naming the test's line, so the read is caught before review and
+  again by the tree checks on the push to `main`
 
 #### Scenario: A broken documentation link cannot land
 
@@ -298,7 +311,15 @@ rule is live for every later pull request.
 
 ### Requirement: Changelog assembly
 
-A committed script, `scripts/changelog-assemble`, SHALL use only the Python 3 standard library and SHALL provide two modes: `--check` SHALL succeed only when the unreleased section of `CHANGELOG.md` carries the entries the fragments produce, and `--write` SHALL rewrite that section from the fragments. The generated entries SHALL live in a marker-delimited region under the `## [Unreleased]` section, one region per heading, so text a person wrote there stays where it is. Within a heading, entries SHALL be ordered by ascending pull-request number; headings SHALL appear in the order Added, Changed, Fixed. `--write` SHALL be idempotent: a second run SHALL produce the same bytes. Content outside the unreleased section SHALL NOT change.
+A committed script, `scripts/changelog-assemble`, SHALL use only the Python 3 standard library and SHALL provide three assembly modes: `--check` SHALL succeed only when the unreleased section of `CHANGELOG.md` carries the entries the fragments produce, `--write` SHALL rewrite that section from the fragments, and `--release <version>` SHALL perform the whole release pull request edit described by the *One-command release* requirement. The generated entries SHALL live in a marker-delimited region under the `## [Unreleased]` section, one region per heading, so text a person wrote there stays where it is. Within a heading, entries SHALL be ordered by ascending pull-request number; headings SHALL appear in the order Added, Changed, Fixed. `--write` SHALL be idempotent: a second run SHALL produce the same bytes. Content outside the unreleased section SHALL NOT change, except for the promotion `--release` makes.
+
+Every relative link destination in an entry SHALL be resolved against the fragment's own directory and emitted relative to the repository root, because a fragment is written from `changes/` and the assembled entry is read from the root: `../adr/x.md` in `changes/1234.md` SHALL be assembled as `adr/x.md`, and `README.md` in `changes/1234.md` as `changes/README.md`. An `#anchor`, a root path (`/adr/x.md`), a URL carrying a scheme (`https:`, `http:`, `mailto:`, `tel:`, `data:`) and a link written inside an inline code span SHALL be carried as written, because each already resolves from any directory. The same SHALL hold for a reference-style definition the entry carries. A destination that resolves outside the repository from `changes/` SHALL be refused when the fragment is read, naming the fragment, the link and the path it resolves to relative to the repository root, so that `--check`, `--write`, `--check --tag` and `--release` all refuse the tree and write nothing.
+
+Every mode that assembles SHALL first refuse a `CHANGELOG.md` whose shape the assembler cannot read reliably: within one version section a level-2 or level-3 heading SHALL appear at most once, in the unreleased section every non-blank line SHALL sit under a level-3 heading, and `## [Unreleased]` SHALL appear at most once in the file. Each finding SHALL name `CHANGELOG.md`, the line carrying it and what was found there, and a run SHALL report every finding before it writes anything. The assembly SHALL count the unreleased section's entries that the generated marker region does not own, before and after the rewrite, and SHALL refuse the write, naming both counts, when they differ, so a write never carries fewer entries than it read.
+
+`--check` SHALL accept an optional `--tag <tag>`, valid only with `--check`, which SHALL additionally require, for `<version>` being the tag with its leading `v` removed, that the first level-2 heading below `## [Unreleased]` in `CHANGELOG.md` is exactly `## [<version>] - <YYYY-MM-DD>` with an exactly dashed and calendar-valid date, and that `<Version>` in `Directory.Build.props` is `<version>`. A tag without its leading `v` SHALL be refused by name. Each failure SHALL print what the check expected and what it found, and one run SHALL report every failure it finds. The Release workflow SHALL run `scripts/changelog-assemble --check --tag <tag>` at the tag, before anything is published.
+
+The script SHALL provide a `--self-test` mode that reads no tree, exits non-zero when a case fails and names the failing case, and proves at least that a `../` link is rewritten for the root, that a link inside `changes/` is rewritten into `changes/`, that an anchor and a URL are carried as written, and that a link leaving the repository is refused with a message naming the fragment, the link and the resolved path.
 
 #### Scenario: A missing fragment fails the check
 
@@ -318,21 +339,123 @@ A committed script, `scripts/changelog-assemble`, SHALL use only the Python 3 st
 - **WHEN** `scripts/changelog-assemble --write` runs a second time
 - **THEN** the file's bytes are unchanged
 
+#### Scenario: A repeated heading in one version section fails by name
+
+- **GIVEN** a `CHANGELOG.md` whose unreleased section carries `### Added` twice
+- **WHEN** `scripts/changelog-assemble --check` runs
+- **THEN** it fails naming `CHANGELOG.md`, the line of the second heading and the heading found there
+
+#### Scenario: Text outside a heading in the unreleased section fails by name
+
+- **GIVEN** a `CHANGELOG.md` whose unreleased section carries a bullet above its first `###` heading
+- **WHEN** `scripts/changelog-assemble --check` and `--write` run
+- **THEN** both fail naming the line and the text found there, and `--write` leaves the file unchanged
+
+#### Scenario: A second unreleased section fails by name
+
+- **GIVEN** a `CHANGELOG.md` carrying `## [Unreleased]` twice
+- **WHEN** `scripts/changelog-assemble --check` runs
+- **THEN** it fails naming both lines that carry the heading
+
+#### Scenario: A clean changelog passes
+
+- **GIVEN** a `CHANGELOG.md` with one section per version, at most one of each heading per section, and every unreleased entry under a heading
+- **WHEN** `scripts/changelog-assemble --check` runs
+- **THEN** it passes
+
+#### Scenario: A write never carries fewer entries than it read
+
+- **GIVEN** an unreleased section whose assembly would keep fewer entries than the section carries
+- **WHEN** the assembly runs
+- **THEN** it refuses, naming the count it read and the count it would write, and nothing is written
+
 #### Scenario: Entries follow pull-request order under their heading
 
 - **GIVEN** fragments `changes/1200.md` (Fixed), `changes/1199.md` (Fixed) and `changes/1201.md` (Added)
 - **WHEN** the assembly writes the unreleased section
 - **THEN** Fixed lists 1199 before 1200, and Added precedes Fixed
 
+#### Scenario: Release leaves the check passing
+
+- **GIVEN** a tree released by `--release <version>`
+- **WHEN** `--check` runs
+- **THEN** it passes, because the promoted section is no longer part of the unreleased section
+
+#### Scenario: A correct tag passes the version heading check
+
+- **GIVEN** a tree whose first heading below `## [Unreleased]` is `## [0.4.0] - 2026-11-14` and whose `Directory.Build.props` carries `<Version>0.4.0</Version>`
+- **WHEN** `scripts/changelog-assemble --check --tag v0.4.0` runs
+- **THEN** it passes
+
+#### Scenario: A missing version heading fails by name
+
+- **GIVEN** a tree with no level-2 heading below `## [Unreleased]`
+- **WHEN** the tag check runs for `v0.4.0`
+- **THEN** it fails naming the tag, the absent heading and the expected `## [0.4.0] - <YYYY-MM-DD>`
+
+#### Scenario: A heading for another version fails by name
+
+- **GIVEN** a tree whose first heading below `## [Unreleased]` is `## [0.3.0] - 2026-11-09`
+- **WHEN** the tag check runs for `v0.4.0`
+- **THEN** it fails printing the heading it found and the heading it expected
+
+#### Scenario: A date the release process does not spell fails by name
+
+- **GIVEN** a tree whose first heading below `## [Unreleased]` is `## [0.4.0] - 2026-1-2`
+- **WHEN** the tag check runs for `v0.4.0`
+- **THEN** it fails naming the date it found and the expected `YYYY-MM-DD` spelling
+
+#### Scenario: A Directory.Build.props mismatch fails by name
+
+- **GIVEN** a correct `## [0.4.0] - 2026-11-14` heading and `<Version>0.3.0</Version>`
+- **WHEN** the tag check runs for `v0.4.0`
+- **THEN** it fails naming `Directory.Build.props`, the version it found and the tag's version
+
+#### Scenario: The tag check is a check-only option
+
+- **GIVEN** a tree with `--write` or `--release` and `--tag v0.4.0`
+- **WHEN** the script runs
+- **THEN** it exits with a usage error and writes nothing
+
+#### Scenario: A link out of the fragment's folder is rewritten for the root
+
+- **GIVEN** `changes/1234.md` whose entry links `[ADR-0043](../adr/0043-contract-unions.md)`
+- **WHEN** `scripts/changelog-assemble --write` assembles it into `CHANGELOG.md`
+- **THEN** the entry carries `[ADR-0043](adr/0043-contract-unions.md)`, and `scripts/docs-check` finds no link escaping the repository in the result
+
+#### Scenario: A link inside the fragment's folder is rewritten into it
+
+- **GIVEN** `changes/1234.md` whose entry links `[the fragment rules](README.md)`
+- **WHEN** the assembly writes the unreleased section
+- **THEN** the entry carries `[the fragment rules](changes/README.md)`
+
+#### Scenario: An anchor and a URL are carried as written
+
+- **GIVEN** `changes/1234.md` whose entry links `[the section](../docs/dev/README.md#documentation-map)` and `[the site](https://example.com/lunate)`
+- **WHEN** the assembly writes the unreleased section
+- **THEN** the entry carries `docs/dev/README.md#documentation-map` and the URL unchanged
+
+#### Scenario: A link that escapes the repository is refused by name
+
+- **GIVEN** `changes/1234.md` whose entry links `[the guide](../../docs/dev/guide.md)`
+- **WHEN** `scripts/changelog-assemble --check` runs
+- **THEN** it fails naming `changes/1234.md`, the link and the path it resolves to (`../docs/dev/guide.md`), and `--write` writes nothing
+
+#### Scenario: The self-test proves the rewrite and its refusal
+
+- **GIVEN** a tree the assembler has never read
+- **WHEN** `scripts/changelog-assemble --self-test` runs
+- **THEN** it exits 0, having proven the rewrite, the carried forms and the escaping-link refusal
+
 ### Requirement: The release pull request assembles the changelog
 
-A pull request whose branch is `release/<version>` or whose title starts `chore(release)` SHALL be treated as the release pull request: it MAY edit `CHANGELOG.md`, and it SHALL run `scripts/changelog-assemble --write` and commit the result. The changelog guard SHALL exempt exactly those two signals so the assembler is not blocked by the check it exists to satisfy. The first release after the fragments land SHALL consume the fragments and SHALL leave already-released history unchanged.
+A pull request whose branch is `release/<version>` or whose title starts `chore(release)` SHALL be treated as the release pull request: it MAY edit `CHANGELOG.md`, and it SHALL run `scripts/changelog-assemble --release <version>` and commit the result. The changelog guard SHALL exempt exactly those two signals so the assembler is not blocked by the check it exists to satisfy. The first release after the fragments land SHALL consume the fragments and SHALL leave already-released history unchanged.
 
 The Release workflow SHALL fail a tag whose commit is not on `main` or whose commit is not associated with a merged pull request carrying one of the two release signals, so a release cannot be cut from a release branch the lane has not merged. The lane's own release and merge execution SHALL be tracked in lunate-lane#21. After attaching the assets, the Release workflow SHALL read the published release back and SHALL fail unless it is not a draft and carries its `SHA256SUMS` asset. A committed script SHALL make both decisions and SHALL carry test cases for an unmerged release pull request, a tagged non-release pull request, a draft release and a release without `SHA256SUMS`. The release runbook SHALL name the same verification.
 
 #### Scenario: The release pull request may edit the changelog
 
-- **GIVEN** a pull request on branch `release/0.4.0` that runs `--write` and commits `CHANGELOG.md`
+- **GIVEN** a pull request on branch `release/0.4.0` that runs `--release 0.5.0` and commits `CHANGELOG.md`
 - **WHEN** the changelog guard runs
 - **THEN** it passes, and the release pull request may be released and merged
 
@@ -691,6 +814,35 @@ and the run link, or comment on the already-open issue for that job instead of f
 reporter SHALL key the duplicate check on the job's title, so a week of red runs for the same failing
 job is one open card. A green run SHALL file nothing.
 
+A job that never started is not a red job of the repository's build or tests: a job whose conclusion is
+`cancelled`, whose `runner_id` is `0` and whose `steps` list is present and empty was never acquired by a
+runner, so the reporter SHALL treat it as not red, file no card and post no comment for it on the
+strength of this requirement, and SHALL name it, with the run link, in the run's own log and job summary,
+so the red run is still visible even when another job of the same run files. All three conditions SHALL
+hold, because each alone is ambiguous: a job cancelled by a superseding run also has no steps, and a
+started job can still report `runner_id: 0`. The rule SHALL NOT cover a job that ran and did not pass: a
+`cancelled` job that reached at least one step, a `failure`, a `timed_out` and every other red conclusion
+SHALL still file, and a job whose `steps` list or `runner_id` is missing or unreadable SHALL be treated as
+red, so the rule fails closed instead of passing on a document it cannot read.
+
+A run whose red jobs never reached a machine SHALL be a capacity red, not a code red: GitHub cancels a
+job when it never acquires a hosted runner for it, so nothing the repository builds or tests has run and
+no step exists to triage. The two jobs whose result is derived from the others' — the `ci-ok` aggregate
+and this reporter — SHALL be allowed beside the abandoned jobs, because they fail exactly because a leg
+did not succeed; they SHALL NOT be named as abandoned jobs themselves, and no card and no comment SHALL
+be produced for them as part of a capacity red. One red job that ran and is neither of those SHALL make
+the run an ordinary red.
+
+The reporter SHALL NOT open a card for a capacity red, in any attempt: it SHALL record the abandoned jobs
+and what it saw in the run's job summary, SHALL fail while the retry budget is unspent, because the retry
+reruns only failed jobs and the reporter has to be one of them to observe the retry, and SHALL succeed at
+the budget with the summary naming the rerun as the remedy. The pipeline SHALL retry a capacity red's
+failed jobs once, from a workflow triggered when the run completes, because a run cannot rerun itself
+while it is in progress, and the retry SHALL be limited to a `push` to `main` and the nightly, the events
+that run the full matrix and that this requirement reports on. The budget SHALL be one retry: a run at
+its second attempt SHALL NOT be retried again, so a runner shortage costs one extra attempt rather than a
+loop. A red job that ran SHALL NEVER be retried this way, so no failure that executed is retried away.
+
 The issue SHALL be placed in the lowest-numbered open milestone whose title is a version
 (`MAJOR.MINOR.PATCH`), read from the GitHub API so the rule works on a GitHub runner from repository
 state alone. A release closes its milestone, so the next lowest open version becomes the target without
@@ -717,6 +869,66 @@ when it does not.
 - **GIVEN** a nightly run in which `verify (windows-latest, 2/4)` failed
 - **WHEN** the reporter runs
 - **THEN** it opens a `kind/bug` issue whose title names `verify (windows-latest, 2/4)` and whose body carries the run link
+
+#### Scenario: A job no runner ever acquired files nothing (#922)
+
+- **GIVEN** a `push` run on `main` whose `perf (macos-latest)` job concluded `cancelled` with `runner_id: 0` and an empty `steps` list, because the hosted runner was never acquired after multiple attempts
+- **WHEN** the reporter runs
+- **THEN** it files no card and posts no comment for that job, and the run's log names the job and the run link
+
+#### Scenario: A run whose only red jobs never started files nothing
+
+- **GIVEN** a push run in which every red job concluded `cancelled` with `runner_id: 0` and an empty `steps` list
+- **WHEN** the reporter runs
+- **THEN** it creates and comments on no issue, and the run's log says the jobs never got a runner and that a rerun is the remedy
+
+#### Scenario: A cancellation that started stays red
+
+- **GIVEN** a nightly run whose `verify (macos-latest, 2/2)` job concluded `cancelled` after reaching its first step, and a push run whose `perf (macos-latest)` job concluded `cancelled` with no `steps` field at all
+- **WHEN** the reporter runs on each
+- **THEN** both file a card, because neither is evidence of a job that never started
+
+#### Scenario: A cancellation that held a runner stays red
+
+- **GIVEN** a job concluded `cancelled` with an empty `steps` list and `runner_id: 7`, as a superseding run leaves it, and a job concluded `cancelled` with an empty `steps` list and no `runner_id` at all
+- **WHEN** the reporter runs on each
+- **THEN** both file a card, because an empty step list alone is not evidence that no runner was acquired
+
+#### Scenario: A real failure beside an unstarted job still files
+
+- **GIVEN** a push run in which `verify (macos-latest, 1/2)` concluded `cancelled` with `runner_id: 0` and an empty `steps` list and `verify (windows-latest, 2/4)` failed
+- **WHEN** the reporter runs
+- **THEN** it files exactly one card, naming `verify (windows-latest, 2/4)`, and the run's log names `verify (macos-latest, 1/2)` together with the run link
+
+#### Scenario: A leg that never acquired a runner is retried, not reported
+
+- **GIVEN** a `push` run on `main` in which `verify (macos-latest, 1/2)` and `perf (macos-latest)` were cancelled before any step started, and every job that ran succeeded
+- **WHEN** the reporter runs at the run's first attempt
+- **THEN** it opens no card, names the abandoned legs in the run's job summary, and the run's failed jobs are retried once
+
+#### Scenario: A capacity red that survives the retry names the rerun and files nothing
+
+- **GIVEN** the retry of that run in which the same legs were cancelled before any step started
+- **WHEN** the reporter runs at the second attempt
+- **THEN** it opens and comments on no card, and the run's job summary says the retry is spent and that a rerun is the remedy
+
+#### Scenario: The derived jobs are never named as abandoned legs
+
+- **GIVEN** a capacity red in which `ci-ok` and `red-main-issue` are red because the abandoned legs did not succeed
+- **WHEN** the reporter runs
+- **THEN** the run's job summary names neither job, and neither `CI failed: ci-ok` nor `CI failed: red-main-issue` is filed
+
+#### Scenario: A leg that never started is named beside the card a run files
+
+- **GIVEN** a red run in which `verify (macos-latest, 1/2)` was cancelled before any step started and `verify (ubuntu-latest, 2/4)` started a step and failed
+- **WHEN** the reporter runs
+- **THEN** it files the card for `verify (ubuntu-latest, 2/4)` and the run's job summary names `verify (macos-latest, 1/2)` with the run link
+
+#### Scenario: A job that ran is never retried away
+
+- **GIVEN** a red run in which at least one red job started a step and failed
+- **WHEN** the reporter and the retry decision run
+- **THEN** the run is not retried and that job's card is filed as before
 
 #### Scenario: The card takes the lowest open version milestone
 
@@ -791,3 +1003,144 @@ SHALL be produced by one helper, so they cannot drift apart.
 - **WHEN** either writes its `NuGet.config`
 - **THEN** both texts come from the same helper, name no network source, and name the same fallback
   folder
+
+### Requirement: Docs-tree guard
+
+`scripts/no-docs-references.sh` SHALL fail when the docs tree becomes a build input or a test's
+subject: a project, props, targets or solution item that names a docs path; a test that resolves the
+repository root and names a docs path; or a `File`/`Directory` call on a docs path. It SHALL accept a
+docs reference that a test names without reading it — a value the test compares with or excludes from
+a scan — only through a committed allowance that names the file and the exact reference, and it SHALL
+print every allowance it applies, so an exception is never silent. Any other docs reference in that
+file, and any read call on the allowed line, SHALL still fail. It SHALL also accept an in-memory
+fixture path or a rendered value, printing that allowance, and SHALL fail when it scanned no test
+source at all, because a scan that finds nothing cannot fail.
+
+#### Scenario: A named but unread docs path is not a read
+- **GIVEN** a test that resolves the repository root and names `docs/dev/spikes` only as a directory its scan excludes
+- **WHEN** `scripts/no-docs-references.sh` runs
+- **THEN** it prints the allowance and passes, because the reference is never opened
+
+#### Scenario: A second docs path in the allowed file still fails
+- **GIVEN** the same test file also names another docs path
+- **WHEN** the guard runs
+- **THEN** it fails naming that line, so the allowance cannot hide a read
+
+#### Scenario: A read of the allowed reference fails
+- **GIVEN** a file in which the allowed reference appears inside a `File` or `Directory` call
+- **WHEN** the guard runs
+- **THEN** it fails with the read message, because a read is a read whatever the allowance names
+
+#### Scenario: The guard runs in the docs profile and the full gate
+- **GIVEN** the repository verification gate runs with `--profile docs`, `--profile full` or `--profile platform`
+- **WHEN** the gate reaches its docs checks
+- **THEN** `scripts/no-docs-references.sh` runs and a read it reports turns the run red
+
+### Requirement: One-command release
+
+`scripts/changelog-assemble` SHALL provide a release mode,
+`--release <version> [--date YYYY-MM-DD]`, that performs the whole release pull request edit in one
+run against the repository root: it SHALL assemble the fragments into the unreleased section as
+`--write` does, SHALL promote that section to `## [<version>] - <date>` with the generated marker
+comments removed, SHALL leave a fresh empty `## [Unreleased]` section above the promoted one, SHALL
+delete every fragment it consumed, and SHALL set `<Version>` in `Directory.Build.props` to the
+released version. `--date` SHALL default to the current date in UTC and SHALL be spelled exactly
+`YYYY-MM-DD`; a value in any other form SHALL be refused as a usage error before anything is written.
+A successful run SHALL leave `--check` passing and SHALL change exactly three kinds of
+path: `CHANGELOG.md`, `Directory.Build.props` and the deleted `changes/<n>.md` fragments.
+
+The mode SHALL refuse, naming the reason and writing nothing at all, when the requested version is
+not newer than the current `<Version>` (compared by semantic-version precedence, so a prerelease
+precedes the release it belongs to), when `CHANGELOG.md` already carries a `## [<version>]` heading,
+when `CHANGELOG.md` carries no `## [Unreleased]` section, or when any fragment is invalid. Running
+the same release twice SHALL therefore be refused the second time and SHALL NOT promote twice. A
+tree with no fragments left SHALL still release: the empty unreleased section is promoted and the
+version is bumped.
+
+The release runbook (`docs/dev/distribution.md`, step 1) and `changes/README.md` SHALL name this
+command instead of the manual promote, strip, delete and bump steps.
+
+#### Scenario: A normal release does the whole edit
+
+- **GIVEN** a tree whose `Directory.Build.props` carries `<Version>0.4.0</Version>` and whose `changes/` holds fragments
+- **WHEN** `scripts/changelog-assemble --release 0.5.0 --date 2026-12-01` runs
+- **THEN** `CHANGELOG.md` carries `## [0.5.0] - 2026-12-01` with the fragments' entries and no `changelog-fragments` markers, a fresh empty `## [Unreleased]` sits above it, the consumed fragments are deleted, `<Version>` reads `0.5.0`, and `--check` passes
+
+#### Scenario: A prerelease releases
+
+- **GIVEN** the same tree
+- **WHEN** `scripts/changelog-assemble --release 0.5.0-rc.1 --date 2026-12-01` runs
+- **THEN** the promoted heading is `## [0.5.0-rc.1] - 2026-12-01` and `<Version>` reads `0.5.0-rc.1`
+
+#### Scenario: The date defaults to today in UTC
+
+- **GIVEN** a tree with fragments
+- **WHEN** `scripts/changelog-assemble --release 0.5.0` runs without `--date`
+- **THEN** the promoted heading carries the current UTC date, and a second run is refused
+
+#### Scenario: A date not spelled YYYY-MM-DD is refused
+
+- **GIVEN** a tree with fragments
+- **WHEN** `--release 0.5.0 --date 20261201` or `--date 2026-W49-1` runs
+- **THEN** it fails as a usage error naming `YYYY-MM-DD`, and nothing is written
+
+#### Scenario: A version that is not newer is refused
+
+- **GIVEN** a tree at `<Version>0.4.0</Version>`
+- **WHEN** `--release 0.4.0` or `--release 0.3.9` runs
+- **THEN** it fails naming the requested version and the current one, and `CHANGELOG.md`, `Directory.Build.props` and `changes/` are unchanged
+
+#### Scenario: An existing release heading is refused
+
+- **GIVEN** a `CHANGELOG.md` that already carries `## [0.5.0] - 2026-11-01`
+- **WHEN** `--release 0.5.0` runs
+- **THEN** it fails naming the existing heading, and nothing is written
+
+#### Scenario: An invalid fragment is refused
+
+- **GIVEN** a tree with `changes/1234.md` whose heading is `### Improved`
+- **WHEN** `--release 0.5.0` runs
+- **THEN** it fails naming `changes/1234.md` and the rule it broke, and nothing is written
+
+#### Scenario: A second run is refused
+
+- **GIVEN** a tree released to `0.5.0` by a first run
+- **WHEN** `--release 0.5.0` runs again
+- **THEN** it is refused, `CHANGELOG.md` still carries exactly one `## [0.5.0]` heading, and nothing is written
+
+#### Scenario: A release with no fragments left still releases
+
+- **GIVEN** a tree with no `changes/*.md` fragment and a `Directory.Build.props` at `0.4.0`
+- **WHEN** `--release 0.5.0 --date 2026-12-01` runs
+- **THEN** `CHANGELOG.md` carries an empty `## [0.5.0] - 2026-12-01` section under a fresh `## [Unreleased]`, `<Version>` reads `0.5.0`, and `--check` passes
+
+### Requirement: The release packs the decision model package
+
+The release and the pack dry run SHALL pack `src/Lunate.Decisions.Model` beside the stable contract
+pair. Its package id SHALL be `Lunate.Decisions.Model`, it SHALL carry the contract API version plus
+the tag's prerelease suffix, and it SHALL appear in the pack list's expected file names and metadata
+checks, so a release cannot publish `Lunate.Extensibility.Abstractions` whose declared dependency the
+feed does not carry. The verify gate's contract-package roundtrip SHALL pack it into the feed the
+template restores from, so a template built against packages proves the dependency resolves.
+
+#### Scenario: A tag publishes the model package
+
+- **GIVEN** a `v*` tag that passes the gate
+- **WHEN** the release packs its packages
+- **THEN** `Lunate.Decisions.Model.<contract-version>.nupkg` is built, metadata-checked and pushed
+  to nuget.org before `Lunate.Extensibility.Abstractions`
+
+#### Scenario: A pull request proves the pack list
+
+- **GIVEN** a pull request that changes the release package set
+- **WHEN** the pack dry run executes
+- **THEN** it packs and metadata-checks `Lunate.Decisions.Model` and fails when the expected package
+  file is missing
+
+#### Scenario: The template restores the model from the feed
+
+- **GIVEN** the verify gate's contract-package feed
+- **WHEN** the packaged-extension template restores against it
+- **THEN** the template's own `Lunate.Decisions.Model` reference and the dependent
+  `Lunate.Extensibility.Abstractions` both resolve from the freshly packed feed, not from a released
+  copy

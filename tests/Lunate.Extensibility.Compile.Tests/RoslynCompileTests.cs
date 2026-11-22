@@ -40,13 +40,14 @@ public sealed class RoslynCompileTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public void Compile_references_use_only_the_extension_contract_and_shared_meai()
+    public void Compile_references_use_only_the_host_contract_assemblies()
     {
         Assert.Equal(
             new[]
             {
                 "Lunate.Contracts",
                 "Lunate.Extensibility.Abstractions",
+                "Lunate.Decisions.Model",
                 "Microsoft.Extensions.AI.Abstractions",
             },
             HostContractReferences.ContractNames

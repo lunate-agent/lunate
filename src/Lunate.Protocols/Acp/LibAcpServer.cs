@@ -6,7 +6,7 @@ using Acp.Schema;
 using Acp.Streaming;
 using Lunate.Agent;
 
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// The <see cref="IAcpServer"/> adapter on LibAcp: initialize (protocol v1, honest text-only
@@ -272,7 +272,7 @@ internal sealed class LibAcpServer(Action<string>? log = null) : IAcpServer
         {
             if (AcpEventMapper.Map(agentEvent) is not { } update)
             {
-                Log($"session/prompt: not sent ({agentEvent.GetType().Name})");
+                Log($"session/prompt: not sent ({agentEvent.Kind.Name})");
                 return;
             }
 

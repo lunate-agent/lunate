@@ -31,6 +31,35 @@ the spec wins.
 | [Reference extensions](../../samples/extensions/) | The fitness suite that runs in CI |
 | [Supported extensions](../../extensions/) | The first-party tier users install and rely on |
 
+## Contract version notes
+
+What an extension compiles against is versioned under `ExtensionApi`, and a contract change that an
+author can feel gets a note here. The notes are additive: the version a note names is the one an
+extension declares in its manifest's `apiVersion`.
+
+### 1.16.0 — the event and hook-result families are unions
+
+The contract's closed sets are C# 15 `union` types ([ADR-0043](../../adr/0043-contract-unions.md)):
+`AgentEvent` and `ExtensionEvent`, and the seven hook-result families `ProjectTrustResult`,
+`InputReceivedResult`, `RunStartingResult`, `MessageCompletedResult`, `ToolCallingResult`,
+`TurnEndedResult` and `CompactingResult`. Each union is declared over its cases, so the set of kinds
+and outcomes is a compile-time fact. ADR-0043 supersedes
+[ADR-0042](../../adr/0042-contract-closed-sets.md), which had chosen `closed` hierarchies.
+
+- **What stays:** every type name, case name and constructor, and the `IHookResult` / `IHookPayload`
+  markers. `new ToolCallingResult.Block("held")` converts to the family, `result is
+  ToolCallingResult.Block block` and `result switch { ToolCallingResult.Block block => …, … }` match,
+  and the hook wire and the `--json` event stream are unchanged.
+- **What you gain:** a `switch` over the union is checked for exhaustiveness. Cover every declared
+  case, or keep a `_` arm for the ones you ignore — an arm you forget is a build error in this
+  repository and a compiler warning in yours, never a silent fall-through. `@event.Value` is the
+  concrete event record when you need its type; `events.OfType<ToolCallResult>()` keeps working.
+- **What you lose:** a union has no base to derive from, so you cannot declare your own subclass of
+  `AgentEvent`, `ExtensionEvent` or a hook-result family, and `AgentEvent` is now a struct: compare
+  events by value (`==`), and use `Kind` where you used `GetType()`.
+- **If a case is added:** it is a breaking contract change, it moves the API version and it gets a
+  note here. Your exhaustive `switch` is why that is announced rather than shipped quietly.
+
 ## Quickstart
 
 ### 1. Create the project
@@ -43,17 +72,26 @@ cannot drift from the file:
 <!-- snippet: templates/extension/TemplateExtension/TemplateExtension.csproj -->
 ```xml
 <!--
-    The host owns Lunate.Contracts and Lunate.Extensibility.Abstractions and loads them once;
-    every extension binds to those copies so their types keep one identity. They are NuGet
-    packages pinned to the stable contract version (1.15.0, the number the manifest's
-    apiVersion is judged against), and each reference is compile-only: PrivateAssets="all"
-    keeps them from flowing to consumers of a packaged extension, ExcludeAssets="runtime"
-    keeps them out of the deps file and the output directory — a copy there is ignored at
-    load, with one warning saying so.
+    The host owns Lunate.Contracts, Lunate.Decisions.Model and
+    Lunate.Extensibility.Abstractions and loads them once; every extension binds to those
+    copies so their types keep one identity. They are NuGet packages pinned to the stable
+    contract version (1.15.0, the number the manifest's apiVersion is judged against), and
+    each reference is compile-only: PrivateAssets="all" keeps them from flowing to consumers
+    of a packaged extension, ExcludeAssets="runtime" keeps them out of the deps file and the
+    output directory — a copy there is ignored at load, with one warning saying so. The
+    model needs its own reference because the Abstractions dependency would otherwise bring
+    a copy into the extension's output.
 -->
 <PackageReference
     Condition="'$(LunateUseNuGetContracts)' == 'true'"
     Include="Lunate.Contracts"
+    Version="$(LunateContractsVersion)"
+    PrivateAssets="all"
+    ExcludeAssets="runtime"
+/>
+<PackageReference
+    Condition="'$(LunateUseNuGetContracts)' == 'true'"
+    Include="Lunate.Decisions.Model"
     Version="$(LunateContractsVersion)"
     PrivateAssets="all"
     ExcludeAssets="runtime"
@@ -67,17 +105,21 @@ cannot drift from the file:
 />
 ```
 
-The contract packages are pinned to `ExtensionApi.Current` (currently `1.15.0`); their READMEs
-carry the versioning and deprecation policy. Inside this repository the same template binds the
+The contract packages are pinned to `ExtensionApi.Current`; their READMEs carry the versioning and
+deprecation policy. Inside this repository the same template binds the
 contract as project references instead — the packages a feed serves may not exist before the
 release that publishes them, so the template switches on its own: a copy outside this
 repository gets the packages, a copy inside gets the projects, and `LunateUseNuGetContracts=true`
 forces the package shape (the verify gate does, against a feed of freshly packed packages). The
-template inherits its target framework, nullability and implicit usings from the repository's
-`Directory.Build.props`, so a project of your own declares those itself.
+template declares its target framework, nullability and implicit usings itself, so a project of
+your own declares those too. Both its projects target `net11.0`, like the host and the contract
+packages: the repository does not multi-target ([ADR-0041](../../adr/0041-net11-target-frameworks.md)),
+so an extension for this host is `net11.0` as well.
 
-The host owns `Lunate.Contracts` and `Lunate.Extensibility.Abstractions` — and `Lunate.Agent`,
-which ships as a preview package — and loads them once, so every extension binds to those copies.
+The host owns `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Decisions.Model` and
+`Lunate.Agent`, which ships as a preview package, and loads them once, so every extension binds to
+those copies. The model needs a reference of its own — the Abstractions dependency would otherwise
+bring a copy into your output, where the host ignores it and warns.
 `ExcludeAssets="runtime"` keeps the contract assemblies out of your output directory and deps
 file, while they still compile against. A copy in the output is ignored at load, with one line
 saying which copy and who shipped it — so keep these references as they are. `PrivateAssets="all"`
@@ -148,15 +190,16 @@ resources belong in a registered background service or start on first use — se
 ```bash
 dotnet build -c Release
 mkdir -p ~/.lunate/extensions/hello
-cp bin/Release/net10.0/HelloExtension.dll \
-   bin/Release/net10.0/extension.json \
+cp bin/Release/net11.0/HelloExtension.dll \
+   bin/Release/net11.0/extension.json \
    ~/.lunate/extensions/hello/
 ```
 
 Copy any further dependencies next to the assembly. `Lunate.Contracts`,
-`Lunate.Extensibility.Abstractions`, `Lunate.Agent`, `Microsoft.Extensions.AI.Abstractions` and
-`System.Text.Json` are shared from the host and are never loaded from the extension folder: a copy
-shipped there anyway is ignored, and `/extensions` and the log say so once, naming what was dropped.
+`Lunate.Extensibility.Abstractions`, `Lunate.Decisions.Model`, `Lunate.Agent`,
+`Microsoft.Extensions.AI.Abstractions` and `System.Text.Json` are shared from the host and are never
+loaded from the extension folder: a copy shipped there anyway is ignored, and `/extensions` and the
+log say so once, naming what was dropped.
 
 There are two installation scopes:
 

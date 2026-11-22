@@ -17,9 +17,9 @@
         <IsPackable>true</IsPackable>
         <Description>
             The extension contract of Lunate: IExtension, IExtensionFactory, the hook catalogue,
-            workspace and settings surfaces and ExtensionApi — the version number an extension's
-            apiVersion is judged against at load. The host loads this assembly once and every
-            extension binds to that copy, so a copy an extension ships is ignored at load.
+            workspace and settings surfaces, IDecisionService and ExtensionApi — the version number
+            an extension's apiVersion is judged against at load. The host loads this assembly once
+            and every extension binds to that copy, so a copy an extension ships is ignored at load.
         </Description>
         <PackageTags>lunate;extensibility;extension-api</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -42,6 +42,12 @@
 
     <ItemGroup>
         <ProjectReference Include="../Lunate.Contracts/Lunate.Contracts.csproj" />
+        <!--
+            IDecisionService is typed with the decision model, which has its own published package
+            (ADR-0045): the edge runs model -> contract, and this package names the model as a
+            nuspec dependency instead of packing the engine beside the contract.
+        -->
+        <ProjectReference Include="../Lunate.Decisions.Model/Lunate.Decisions.Model.csproj" />
     </ItemGroup>
 
     <ItemGroup>

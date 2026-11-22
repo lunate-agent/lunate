@@ -20,13 +20,12 @@ public sealed class SystemOneDecisionClientTests
         );
         using JsonDocument state = JsonDocument.Parse("{\"tool\":\"read\"}");
         DecisionRequest request = new(
-            "typesafe/jev-1.14",
             state.RootElement,
             [
                 new DecisionQuestion(
                     "safe",
                     "Is the call safe?",
-                    DecisionQuestionKind.Noul,
+                    DecisionQuestionKind.YesNo,
                     ["yes", "no"],
                     new Dictionary<string, string>
                     {
@@ -34,7 +33,8 @@ public sealed class SystemOneDecisionClientTests
                         ["false"] = "The call is unsafe.",
                     }
                 ),
-            ]
+            ],
+            "typesafe/jev-1.14"
         );
 
         DecisionResult result = await client.GetDecisionAsync(

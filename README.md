@@ -46,7 +46,7 @@ agent and at home in polyglot repositories.
 **1. Install.**
 
 <!-- docs-sync: version -->
-The current stable release is [**0.4.0**](https://github.com/lunate-agent/lunate/releases/tag/v0.4.0).
+The current stable release is [**0.5.0**](https://github.com/lunate-agent/lunate/releases/tag/v0.5.0).
 <!-- /docs-sync: version -->
 
 ```bash
@@ -61,7 +61,8 @@ irm https://raw.githubusercontent.com/lunate-agent/lunate/main/install.ps1 -OutF
 ```
 
 Or through Homebrew (`brew tap lunate-agent/tap`, `brew install lunate`), Scoop, or as a .NET tool
-(`dotnet tool install --global lunate`). Winget follows once its manifest is accepted.
+(`dotnet tool install --global lunate`, which requires the .NET 11 runtime). Winget follows once its
+manifest is accepted.
 
 **2. Run `lunate` in a repository.** On a fresh install the first prompt opens the setup wizard: it
 walks provider, credential, connection test, model, chat profile and an optional decisions layer,

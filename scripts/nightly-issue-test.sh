@@ -8,7 +8,17 @@
 # failing test's project (`area/tui` for the theme-file failure that lived in the coding test project,
 # `area/core` for a coding test with no TUI in its source, none for a job that does not decide it, and
 # none when any failing test is outside the classified projects), an open card is commented on instead
-# of duplicated, and a green run calls nothing at all.
+# of duplicated, a job no runner ever acquired files nothing and is named with the run link, and a
+# green run calls nothing at all.
+#
+# The capacity cases (#923) cover the red the gate cannot report: a run whose red jobs were cancelled
+# before a single step started, because GitHub never acquired a hosted runner for them. A leg that never
+# started is never filed and never commented on -- the remedy is a rerun (#922) -- so attempt one names
+# the abandoned legs in the run summary and defers to the retry
+# (`.github/workflows/ci-capacity-retry.yml`), and the attempt the retry budget does not cover says the
+# rerun is the remedy and exits clean. The aggregate `ci-ok` and this reporter are derived results and
+# are never named as abandoned legs. A job that ran keeps the ordinary path, so no executed failure is
+# ever retried away.
 
 set -euo pipefail
 
@@ -127,6 +137,22 @@ cat >"$tmp/logs/32.log" <<'LOG'
   failed Lunate.Coding.Tests.CanonicalJsonTests.A_canonical_form_is_stable (3ms)
   failed Lunate.Agent.Tests.FakeFailure.Case (1ms)
 LOG
+cat >"$tmp/logs/33.log" <<'LOG'
+  failed Lunate.Agent.Tests.Truncation.Test1 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test2 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test3 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test4 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test5 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test6 (1ms)
+  failed Lunate.Agent.Tests.Truncation.Test7 (1ms)
+LOG
+# A job on GitHub Actions logs the runner's colored output -- `GITHUB_ACTIONS=true` colors a redirected
+# stream too -- so `failed` arrives wrapped in SGR sequences. The card for `verify (macos-latest, 2/2)` of
+# run 44722124911 carried neither a test nor an area label because this reader matched only the plain
+# line; the reader strips the escapes the way the gate's own readers do (#954).
+printf '\033[31mfailed\033[m Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave \033[90m(8ms)\033[m\n' \
+    >"$tmp/logs/34.log"
+printf '\033[31m  posix_openpt failed\n' >>"$tmp/logs/34.log"
 
 CASE_EVENT="schedule"
 CASE_MILESTONES="$tmp/milestones.json"
@@ -145,6 +171,7 @@ _run() {
     printf '%s\n' "$jobs" >"$tmp/jobs.json"
     : >"$tmp/gh.log"
     : >"$tmp/err.log"
+    : >"$tmp/summary.md"
     local status=0
     PATH="$tmp/bin:${PATH}" \
         FAKE_GH_LOG="$tmp/gh.log" \
@@ -152,8 +179,10 @@ _run() {
         FAKE_GH_MILESTONES="$CASE_MILESTONES" \
         FAKE_GH_LOGS="$CASE_LOGS" \
         FAKE_GH_LABELS="$CASE_LABELS" \
+        GITHUB_STEP_SUMMARY="$tmp/summary.md" \
         bash "$REPORTER" --jobs-json "$tmp/jobs.json" --repo lunate-agent/lunate \
             --run-url https://example.test/runs/1 --commit abc123 --event "$CASE_EVENT" \
+            --attempt "${CASE_ATTEMPT:-1}" \
             >/dev/null 2>"$tmp/err.log" || status=$?
     CASES=$((CASES + 1))
     if [ "$status" -ne "$expected_exit" ]; then
@@ -193,6 +222,36 @@ _expect_stderr() {
     fi
 }
 
+_expect_no_stderr() {
+    local name="$1" pattern="$2"
+    CASES=$((CASES + 1))
+    if grep -Fq -- "$pattern" "$tmp/err.log"; then
+        echo "self-test: FAIL: ${name}: stderr unexpectedly says '${pattern}'" >&2
+        sed 's/^/    /' "$tmp/err.log" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
+_expect_summary() {
+    local name="$1" pattern="$2"
+    CASES=$((CASES + 1))
+    if ! grep -Fq -- "$pattern" "$tmp/summary.md"; then
+        echo "self-test: FAIL: ${name}: the job summary does not say '${pattern}'" >&2
+        sed 's/^/    /' "$tmp/summary.md" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
+_expect_no_summary() {
+    local name="$1" pattern="$2"
+    CASES=$((CASES + 1))
+    if grep -Fq -- "$pattern" "$tmp/summary.md"; then
+        echo "self-test: FAIL: ${name}: the job summary says '${pattern}'" >&2
+        sed 's/^/    /' "$tmp/summary.md" >&2
+        FAILURES=$((FAILURES + 1))
+    fi
+}
+
 _defaults
 _run "a red nightly job creates one card" 0 \
     '{"jobs":[{"id":11,"name":"verify (windows-latest, 2/4)","conclusion":"failure"},{"id":12,"name":"plan","conclusion":"success"},{"id":13,"name":"perf (macos-latest)","conclusion":"skipped"}]}'
@@ -213,6 +272,44 @@ _expect_gh "the push card carries the run link" "https://example.test/runs/1"
 _expect_gh "the push card names the event" "The push to main \`ci.yml\` run failed"
 _expect_gh "the push card takes the milestone" "--milestone 0.5.0"
 _expect_gh "the theme-file failure is area/tui" "--label area/tui"
+
+# A card has to say what to triage. Run 44052312654's `verify (macos-latest, 2/2)` card named neither the
+# step that failed nor a test, so a session began with an API round trip through the run's jobs before it
+# could look at anything. Both facts are in documents the reporter already holds: the step is in the jobs
+# document, and the failing tests are in the log it downloads for the area label.
+_defaults
+CASE_EVENT="push"
+_run "a card names the failing step and the failing tests" 0 \
+    '{"jobs":[{"id":27,"name":"verify (macos-latest, 2/2)","conclusion":"failure","runner_id":1000009875,"steps":[{"name":"Checkout","conclusion":"success"},{"name":"Verify (bash)","conclusion":"failure"},{"name":"Upload shard timing","conclusion":"success"}]}]}'
+_expect_gh "the card names the step that failed" 'The failing step is **`Verify (bash)`**.'
+_expect_gh "the card names the test the log names" '`Lunate.Coding.Tests.InteractiveSessionThemeFileTests.An_unknown_token_warns_and_the_built_in_theme_stands`'
+_expect_no_gh "a step that succeeded is not named" 'The failing step is **`Checkout`**'
+
+# The reporter writes what it read and never a guess: a document without a failed step and a log without a
+# failing test (a build or a format leg) file the card with the paragraph it has always carried.
+_defaults
+_run "a card without a failed step or a failing test writes neither line" 0 \
+    '{"jobs":[{"id":29,"name":"verify (ubuntu-latest, 4/4)","conclusion":"failure"}]}'
+_expect_gh "the card is still filed" "CI failed: verify (ubuntu-latest, 4/4)"
+_expect_no_gh "no step was read, so no step is named" "The failing step is"
+_expect_no_gh "no failing test was read, so none is named" "The log names"
+
+# A red leg that fails many tests still files a readable card: five names, and how many the log names.
+_defaults
+_run "the card caps the test list and says how many the log names" 0 \
+    '{"jobs":[{"id":33,"name":"verify (ubuntu-latest, 1/4)","conclusion":"failure","steps":[{"name":"Verify (bash)","conclusion":"failure"}]}]}'
+_expect_gh "the card names the fifth test" '`Lunate.Agent.Tests.Truncation.Test5`'
+_expect_no_gh "the sixth test is not named" 'Test6'
+_expect_gh "the card says how many the log names" 'The log names these failing tests: `Lunate.Agent.Tests.Truncation.Test1`, `Lunate.Agent.Tests.Truncation.Test2`, `Lunate.Agent.Tests.Truncation.Test3`, `Lunate.Agent.Tests.Truncation.Test4`, `Lunate.Agent.Tests.Truncation.Test5` (7 in all).'
+
+# The runner colors its output on GitHub Actions, and a card that did not strip the escapes named neither
+# the test nor its area (#954).
+_defaults
+CASE_EVENT="push"
+_run "the card names a failing test the log colors" 0 \
+    '{"jobs":[{"id":34,"name":"verify (macos-latest, 2/2)","conclusion":"failure"}]}'
+_expect_gh "the colored failing test is named" '`Lunate.Tui.Tests.UnixRawModeTests.Enter_restores_a_pty_slave`'
+_expect_gh "the colored test still decides the area" "--label area/tui"
 
 _defaults
 CASE_EVENT="push"
@@ -295,6 +392,137 @@ _defaults
 _run "a cancelled job is red" 0 \
     '{"jobs":[{"id":16,"name":"red-main-issue","conclusion":"cancelled"}]}'
 _expect_gh "a cancelled job is reported" "CI failed: red-main-issue"
+
+# A job GitHub never gave a runner is not a red job (#922): it concluded `cancelled`, holds no runner and
+# its `steps` list is present and empty. A missing list is not evidence of anything, so the cancelled case
+# above stays red. The leg is never filed beside a red that ran, and the run's summary names it with the
+# run link anyway: the card for the job that ran does not speak for the leg that never started.
+_defaults
+CASE_ATTEMPT=1
+_run "a leg that never started is not filed beside a red that ran" 0 \
+    '{"jobs":[{"id":"301","name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"302","name":"verify (ubuntu-latest, 2/4)","conclusion":"failure","runner_id":1000009117,"steps":[{"name":"Verify (bash)","conclusion":"failure"}]},{"id":"303","name":"ci-ok","conclusion":"failure","runner_id":1000009118,"steps":[{"name":"Every required job succeeded","conclusion":"failure"}]}]}'
+_expect_gh "a run with a red leg that ran still files its cards" "CI failed: verify (ubuntu-latest, 2/4)"
+_expect_no_gh "the abandoned leg is not filed beside the red that ran" "CI failed: verify (macos-latest, 1/2)"
+_expect_stderr "the run names the leg that never started" "verify (macos-latest, 1/2): never started"
+_expect_summary "the summary names the leg that never started beside the card that ran" "verify (macos-latest, 1/2)"
+_expect_summary "the summary carries the run link" "Run: https://example.test/runs/1"
+_expect_no_summary "the leg that ran is not named as an abandoned leg" "verify (ubuntu-latest, 2/4)"
+_expect_no_summary "the aggregate is not named as an abandoned leg" "ci-ok"
+_expect_no_summary "an ordinary red is not retried" "retried once"
+_expect_no_stderr "a run with a red leg that ran is not deferred" "deferring to the capacity retry"
+
+# The run 43904858046 shape (#923): two legs GitHub never gave a runner, the aggregate that failed
+# because they did not succeed, the reporter that deferred them, and everything that ran green.
+CAPACITY_JOBS='{"jobs":[{"id":"101","name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"102","name":"perf (macos-latest)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"103","name":"verify (macos-latest, 2/2)","conclusion":"success","runner_id":1000009114,"steps":[{"name":"Verify (bash)","conclusion":"success"}]},{"id":"104","name":"ci-ok","conclusion":"failure","runner_id":1000009115,"steps":[{"name":"Every required job succeeded","conclusion":"failure"}]},{"id":"105","name":"red-main-issue","conclusion":"failure","runner_id":1000009116,"steps":[{"name":"File one card per failing job","conclusion":"failure"}]}]}'
+
+_defaults
+CASE_ATTEMPT=1
+_run "a capacity red is named in the run summary, not filed" 1 "$CAPACITY_JOBS"
+CASES=$((CASES + 1))
+if [ -s "$tmp/gh.log" ]; then
+    echo "self-test: FAIL: a capacity red called gh" >&2
+    sed 's/^/    /' "$tmp/gh.log" >&2
+    FAILURES=$((FAILURES + 1))
+fi
+_expect_no_gh "a capacity red opens no card" "issue create"
+_expect_no_gh "a capacity red comments on nothing" "issue comment"
+_expect_stderr "the run says no hosted runner was acquired" "no hosted runner was acquired"
+_expect_stderr "the run defers to the capacity retry" "deferring to the capacity retry"
+_expect_summary "the summary names the first abandoned leg" "verify (macos-latest, 1/2)"
+_expect_summary "the summary names the perf leg" "perf (macos-latest)"
+_expect_summary "the summary says the run is retried" "retried once"
+# The aggregate and the reporter failed because a leg did not succeed; neither is an abandoned leg.
+_expect_no_summary "the aggregate is not named as an abandoned leg" "ci-ok"
+_expect_no_summary "the reporter is not named as an abandoned leg" "red-main-issue"
+_expect_no_summary "a green leg is not named in the summary" "verify (macos-latest, 2/2)"
+
+# An open card for such a leg gets no comment either: a leg that never started is not an event a card
+# reports on, and the retry is already the answer (#922).
+_defaults
+CASE_ATTEMPT=1
+_run "a capacity red comments on no open card" 1 "$CAPACITY_JOBS" "42"
+_expect_no_gh "an open card is not commented on for a leg that never started" "issue comment"
+_expect_no_gh "an open card is not duplicated" "issue create"
+
+# The attempt the retry budget does not cover: the run says the retry is spent and names the rerun, and
+# still files nothing, because a runner shortage is not a code failure to triage.
+_defaults
+CASE_ATTEMPT=2
+_run "a capacity red that survives the retry names the rerun and files nothing" 0 "$CAPACITY_JOBS"
+_expect_no_gh "the spent retry files no card" "issue create"
+_expect_no_gh "the spent retry comments on nothing" "issue comment"
+_expect_stderr "the run says the retry is spent" "the capacity retry is spent"
+_expect_summary "the summary names the abandoned leg" "verify (macos-latest, 1/2)"
+_expect_summary "the summary says the retry is spent" "The retry is spent"
+_expect_no_summary "the aggregate is not named at the budget" "ci-ok"
+
+# The aggregate and the reporter can be the run's only red jobs when every leg that ran was green and
+# nothing else was requested: they are still derived, so no card names them.
+_defaults
+CASE_ATTEMPT=1
+_run "a run whose only abandoned job is the aggregate still defers" 1 \
+    '{"jobs":[{"id":"401","name":"ci-ok","conclusion":"cancelled","runner_id":0,"steps":[]}]}'
+_expect_no_gh "the aggregate is never filed as an abandoned leg" "issue create"
+_expect_summary "the summary says the reds only restate the others" "only restates the other jobs"
+
+_defaults
+CASE_ATTEMPT=1
+_run "a job that ran is never a capacity red" 0 \
+    '{"jobs":[{"id":"201","name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":1000009114,"steps":[{"name":"Verify (bash)","conclusion":"cancelled"}]},{"id":"202","name":"perf (macos-latest)","conclusion":"cancelled","runner_id":0,"steps":[]}]}'
+_expect_gh "a started job is filed, not deferred" "CI failed: verify (macos-latest, 1/2)"
+_expect_no_gh "the leg that never started is not filed" "CI failed: perf (macos-latest)"
+_expect_no_stderr "a started job is never deferred" "deferring to the capacity retry"
+
+# A single leg GitHub never gave a runner is the same red one level down: in the union it is a capacity
+# red, so the run names it with the run link and defers, and no card is filed for it (#922).
+_defaults
+CASE_EVENT="push"
+CASE_ATTEMPT=1
+_run "a job no runner ever acquired files nothing" 1 \
+    '{"jobs":[{"id":20,"name":"perf (macos-latest)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":21,"name":"verify (macos-latest, 2/2)","conclusion":"success","runner_id":3,"steps":[{"name":"Set up job","conclusion":"success"}]}]}'
+CASES=$((CASES + 1))
+if [ -s "$tmp/gh.log" ]; then
+    echo "self-test: FAIL: an unstarted job called gh" >&2
+    sed 's/^/    /' "$tmp/gh.log" >&2
+    FAILURES=$((FAILURES + 1))
+fi
+_expect_no_gh "the unstarted job opens no card" "issue create"
+_expect_stderr "the run names the job that never started" "perf (macos-latest): no hosted runner was acquired"
+_expect_stderr "the run links the job that never started" "perf (macos-latest): no hosted runner was acquired; no card is filed for it; run https://example.test/runs/1"
+_expect_summary "the summary names the unstarted job" "perf (macos-latest)"
+_expect_no_summary "the green leg is not named in the summary" "verify (macos-latest, 2/2)"
+
+# A cancellation that reached a step is a job that ran and did not pass, so it still files.
+_defaults
+_run "a cancelled job that started is red" 0 \
+    '{"jobs":[{"id":16,"name":"red-main-issue","conclusion":"cancelled","runner_id":7,"steps":[{"name":"Set up job","conclusion":"cancelled"}]}]}'
+_expect_gh "a started cancellation is reported" "CI failed: red-main-issue"
+_expect_no_stderr "a started cancellation is not called unstarted" "never started"
+
+# No steps is not enough on its own: a job cancelled by a superseding run also has an empty step list,
+# and it held a runner, so it is red and still files.
+_defaults
+_run "a cancellation by a superseding run is red" 0 \
+    '{"jobs":[{"id":23,"name":"verify (macos-latest, 2/2)","conclusion":"cancelled","runner_id":5,"steps":[]}]}'
+_expect_gh "the superseded cancellation is reported" "CI failed: verify (macos-latest, 2/2)"
+_expect_no_stderr "the superseded cancellation is not called unstarted" "never started"
+
+# The rule fails closed: without a runner id the document is not evidence that no runner was acquired.
+_defaults
+_run "a cancelled job with no runner_id stays red" 0 \
+    '{"jobs":[{"id":24,"name":"verify (ubuntu-latest, 4/4)","conclusion":"cancelled","steps":[]}]}'
+_expect_gh "a missing runner_id files a card" "CI failed: verify (ubuntu-latest, 4/4)"
+
+# The rule never swallows a real failure beside an unstarted job, and the mixed run's log still links
+# the abandoned leg so the red run is visible without a card.
+_defaults
+CASE_EVENT="push"
+_run "a real failure beside an unstarted job files exactly one card" 0 \
+    '{"jobs":[{"id":22,"name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":11,"name":"verify (windows-latest, 2/4)","conclusion":"failure","runner_id":4,"steps":[{"name":"Run the gate","conclusion":"failure"}]}]}'
+_expect_gh "the real failure is filed" "CI failed: verify (windows-latest, 2/4)"
+_expect_no_gh "the unstarted job is not filed" "CI failed: verify (macos-latest, 1/2)"
+_expect_stderr "the mixed run links the unstarted job" "verify (macos-latest, 1/2): never started (no runner was acquired); no card is filed for it; rerun https://example.test/runs/1"
+
 
 if [ "$FAILURES" -ne 0 ]; then
     echo "self-test: FAIL: ${FAILURES} of ${CASES} checks failed" >&2

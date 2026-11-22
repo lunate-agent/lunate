@@ -135,6 +135,13 @@ Stored keys live in `~/.lunate/auth.json` under `keys`, schema 1, with owner-onl
 the platform has file modes. `providers.json` and `settings.json` contain only provider/profile
 configuration and credential references, never resolved secret values.
 
+A save is a read-modify-write with a cross-process claim: it takes the owner-only `auth.lock` beside
+the file, re-reads the document under it and merges in the keys it set or removed, so a key another
+Lunate process saved meanwhile is kept instead of dropped. The setup wizard's commit takes the same
+claim beside the settings and provider-store claims, so a wizard commit and an `auth login` in
+another process serialize. A read takes no claim and creates no lock file. A save that cannot take
+the claim within its bounded wait refuses, naming `auth.json` and `auth.lock`, and changes nothing.
+
 Every preset also has a provider environment variable — `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
 `GROQ_API_KEY` and so on; Google also accepts `GEMINI_API_KEY`. When that variable is set it wins
 over the key stored in the file. `lunate auth list` shows which source is in use, and

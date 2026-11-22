@@ -1,6 +1,6 @@
 using Lunate.Agent;
 
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// What the ACP adapter knows about one session when it builds the harness: the session's working

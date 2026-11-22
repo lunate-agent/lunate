@@ -8,10 +8,28 @@
         <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.10.1" />
     </ItemGroup>
 
+    <!--
+        The model has its own package (ADR-0045); this project keeps the engine and is not packed.
+        Lunate.Agent carries its file in lib/, the one package that needs the engine, so this edge
+        stops at the harness instead of becoming extension contract.
+    -->
+    <ItemGroup>
+        <ProjectReference Include="../Lunate.Decisions.Model/Lunate.Decisions.Model.csproj" />
+        <!--
+            The engine's parser reads the event contract's DecisionProbability directly, and the
+            model package reads it too; the edge runs down to the contract and never back.
+        -->
+        <ProjectReference
+            Include="../Lunate.Contracts/Lunate.Contracts.csproj"
+            PrivateAssets="All"
+        />
+    </ItemGroup>
+
     <ItemGroup>
         <InternalsVisibleTo Include="Lunate.Agent" />
         <InternalsVisibleTo Include="Lunate.Agent.Tests" />
         <InternalsVisibleTo Include="Lunate.Ai.SystemOne" />
+        <InternalsVisibleTo Include="Lunate.Coding.Tests" />
         <InternalsVisibleTo Include="lunate" />
     </ItemGroup>
 </Project>

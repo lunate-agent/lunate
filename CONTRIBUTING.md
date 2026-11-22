@@ -37,12 +37,12 @@ metadata (licence, readme, repository) inside the `.nupkg` itself, formats (CSha
 change is not done until it is green — on the CI matrix, all three operating systems count.
 
 Prerequisite: the [.NET 11 SDK](https://dotnet.microsoft.com/download), pinned in
-[`global.json`](global.json) at 11.0.100 — exactly, as above. The product targets `net10.0`; the SDK
-pinned to build it is the newer one, and it needs the .NET 10 targeting packs, which the SDK fetches
-from a feed in a normal build. Running the built binary on a machine with no tool installed yet:
+[`global.json`](global.json) at 11.0.100 — exactly, as above. Everything targets `net11.0`; nothing
+in the repository multi-targets ([ADR-0041](adr/0041-net11-target-frameworks.md)). Running the built
+binary on a machine with no tool installed yet:
 
 ```bash
-src/Lunate.Coding/bin/Release/net10.0/lunate --version   # lunate.exe on Windows
+src/Lunate.Coding/bin/Release/net11.0/lunate --version   # lunate.exe on Windows
 ```
 
 The release archives are self-contained single files; publish one the same way (Windows: `win-x64`,
@@ -65,7 +65,9 @@ markdownlint, `openspec validate --all --strict`, `scripts/docs-sync --check`,
 `docs/` becomes a build input or a test's subject). `scripts/ci-plan.sh` picks the profile from the
 PR's changed paths, deny-by-default: only `docs/`, `adr/`, `openspec/`, root-level `*.md` and
 `changes/*.md` qualify, and a change to the workflows, a rename out of those trees or anything else
-means the full gate. The default `--profile full` is the whole gate above, unchanged.
+means the full gate. The default `--profile full` is the whole gate above, unchanged — and its
+platform checks run `scripts/no-docs-references.sh` too, so a test that starts reading `docs/` is red
+on the pull request that adds it, not only on a prose one.
 
 Useful narrower commands while working:
 
@@ -84,7 +86,7 @@ condition that was polled, how many times it was observed and the longest gap be
 the thread pool's state, the test process's process tree (with `/proc` descriptors on Linux) and the
 session state the condition reads. Many polls with no long gap is a hang; few polls with long gaps is
 a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis` and lives in
-`tests/Lunate.Coding.Tests/WaitDiagnosis.cs` and `ProcessTable.cs`.
+`tests/Lunate.Coding.Tests/Process/WaitDiagnosis.cs` and `ProcessTable.cs`.
 
 ## Repository map
 
@@ -111,8 +113,20 @@ a starved runner. Collecting that diagnosis is bounded by `WaitBudgets.Diagnosis
 A source file is named after a type it declares: the text before the first dot of its base name is a
 type the file declares (a partial-class file such as `AgentHarness.Retries.cs`), or it names no type
 at all (an aggregate file such as `HookPayloads.cs`). A file named after a type another file owns
-resolves to the wrong file — `tests/Lunate.Agent.Tests/SourceFileNameTests.cs` enforces the rule and
+resolves to the wrong file — `tests/Lunate.Agent.Tests/Loop/SourceFileNameTests.cs` enforces the rule and
 names both files when it fails. The requirement lives in the `repo-quality` spec.
+
+A folder groups files by the feature they serve — `Sessions/`, `Tools/`, `Mcp/Client/` — and a
+folder never changes a file's namespace: every file in a project keeps the namespace its assembly
+established, so `src/Lunate.Coding/Tools/ReadTool.cs` still declares `namespace Lunate.Coding;`.
+A namespace records compatibility, not location: `src/Lunate.Contracts` deliberately declares
+`Lunate.Agent` and `Lunate.Ai` types beside its own, so its `TypeForwardedTo` entries keep a
+compiled consumer binding after the assemblies were split. Tests mirror `src` in both directions: a
+feature folder has a folder of the same relative path under its test project, no test folder exists
+without one, and a test file sits in the folder of the feature it exercises. Support files (a
+`TempDirectory`, a scripted client, a collection definition) stay at the test project root.
+`tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces all of it, and a folder that tries to become a
+namespace fails it by name.
 
 ## Documentation
 
@@ -189,7 +203,8 @@ A pull request that changes only prose — `docs/`, `adr/`, `openspec/`, or a ro
 file — runs the docs profile: markdownlint, the generated-region check, the link/navigation check,
 the "no test reads `docs/`" guard and `openspec validate --all --strict`, in seconds. Anything that
 touches source, tests, templates or workflows runs the fast gate: `plan`, the changed-path decision,
-the changelog guard, the platform checks and build plus tests on `ubuntu-latest` only. The decision
+the changelog guard, the platform checks — which run that guard too, so a test that reads a docs file
+cannot land on a code pull request — and build plus tests on `ubuntu-latest` only. The decision
 lives in `scripts/ci-plan.sh` and is deny-by-default, so a path nobody thought about runs the full
 gate rather than the cheap one. The single required `ci-ok` check judges the live head's newest
 attempt of each required job, not the run's trigger payload: rerunning an older or draft run reports
@@ -207,16 +222,60 @@ carries a duplicate is ejected instead of merged. The full matrix — Ubuntu, Wi
 every shard, the PowerShell twin and the dedicated perf measurement — runs on a push to `main` and the
 nightly; CodeQL runs on a push to `main` and its weekly schedule, not on a pull request. A red push
 to `main` and a red nightly each file one `kind/bug` card per failing job, naming the job and the run
-link, and comment on the open card for that job instead of filing a duplicate. The card takes the
-lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its milestone, so the
-next version becomes the target), read from the GitHub API, and an `area/tui` or `area/core` label only
-when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a `Lunate.Coding` test is
-`area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a job that fails without
-a failing test in those projects carries no area label.
+link, and comment on the open card for that job instead of filing a duplicate. A job that never started
+is not a failing job: GitHub concludes a job it never acquired a hosted runner for as `cancelled` with
+`runner_id: 0` and an empty step list, and because no change in this repository can fix that — the remedy
+is a rerun — the reporter files no card for it and names it, together with the run link, in the run's own
+log and job summary instead, also when the run's other red job that ran is filed as its own card, so a
+hosted-runner shortage no longer produces an unactionable card (#922). The rule fails closed: a job
+cancelled after reaching a step, and a document whose step list or runner id is missing, still files. The
+card takes the lowest open version milestone (`0.5.0` rather than `backlog`; a release closes its
+milestone, so the next version becomes the target), read from the GitHub API, and an `area/tui` or
+`area/core` label only when the failing test's project decides it: a `Lunate.Tui` test is `area/tui`, a
+`Lunate.Coding` test is `area/tui` when its own source names `Lunate.Tui` and `area/core` otherwise, and a
+job that fails without a failing test in those projects carries no area label. A card that names the job
+still needs the step inside it, and a job's log on a public run needs an account while its check run's
+annotations do not: `scripts/verify.sh` reports the step it stopped in, with its exit status and
+duration, as an `::error::` annotation and in the job summary, so a red leg can be triaged from the run
+instead of from a log nobody without a session can open (#942). A test step that failed also names the
+tests it failed on, up to five of them, in the same annotations and summary, because naming only the
+step still leaves the red to the log: `verify (macos-latest, 2/2)` of run 44189133429 could be located
+and not attributed (#948). A pass that failed without naming a test at all — an aborted session, a
+crashed host, a module that never started — names the modules that failed, with their passed, failed and
+aborted counters, and the verdict the run ended with, for the same reason: the de-AT pass of that leg in
+run 44466042157 failed twice and its annotation said only that the step had failed (#951). The runner
+colors its output when it runs on GitHub Actions, and `GITHUB_ACTIONS=true` colors a redirected stream
+too, so every reader strips the escape sequences before it matches a failing line: the check run's
+annotations, the flake ledger and the card's own failing-test line read a colored log the way they read a
+plain one, which they did not for the de-AT pass of run 44722124911 (#954). The `perf`
+job's startup step reports the measurement it failed on the same way: its floor, median and budget,
+plus the first attempt's floor when the noise policy retried, because the shared macOS runner's
+300-330 ms floor and a doubled startup look alike from the run alone (#950).
+
+A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
+legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore
+the extension template against the feed the step has just packed, so a single fix lands for all three
+while each leg keeps a card of its own. The card for a leg whose fix landed while its run was still
+in flight is a duplicate from the start. Triage therefore begins at the head of `main`: when the most
+recent push run of the same job is green and a sibling card from the same run was closed by the merge
+that fixed it, no change is left to make here — close the card as a duplicate and name the sibling,
+rather than open a pull request against a green tree (#944).
+
+A run whose legs never acquired a hosted runner is a runner-capacity red, and it is retried instead of
+reported: GitHub cancels a job when no macOS arm64 runner is free, before its first step starts, so nothing
+the repository builds or tests ran. The reporter writes the abandoned legs into the run summary and fails,
+`ci-capacity-retry.yml` reruns that run's failed jobs once when it completes, and the attempt the retry
+budget does not cover says in the same summary that the retry is spent and that a rerun is the remedy. No
+card is ever filed for such a leg, and the summary names it even when another red job that ran is filed as
+its own card. The derived `ci-ok` aggregate and the reporter itself are never named
+as abandoned legs, because they failed only because a leg did not succeed. A red job that ran is never
+retried that way, so an executed failure is never retried away, and `ci-ok` still fails closed on an
+abandoned leg in every attempt (#923).
 
 Once a pull request lands, the same cheap checks that need no build run again on the push to `main`:
 `tree-checks.yml` runs ADR numbering, the spec-archive rule, the generated docs regions, the
-link/navigation check and the docs lint in one job of a few seconds. Both triggers call
+link/navigation check, the "no test reads `docs/`" guard and the docs lint in one job of a few
+seconds. Both triggers call
 `scripts/tree-checks.sh`, so the push to `main` and the queue run one command list. A docs-only push
 skips the matrix, so without that job a check that fails on `main` stays invisible until the first
 pull request that touches documentation — which is how `#738` (`check-adr-numbers.py` failing on
@@ -232,10 +291,13 @@ test means the session format changed: stop and report instead of editing the go
 Every pull request that has a release-note line writes it in `changes/<pr-number>.md` and never edits
 `CHANGELOG.md`: put the line under `### Added`, `### Changed` or `### Fixed`, as a bullet ending with
 one or more references, `(#<pr-number>)` or `(#681, #682)`. A fragment is prose, so such a pull request
-gets the docs profile. The release
+gets the docs profile. A link in a fragment is written from `changes/`,
+`[ADR-0043](../adr/0043-contract-unions.md)`; the assembler rewrites it relative to the repository
+root when it folds the entry into `CHANGELOG.md` and refuses one that leaves the repository. The release
 pull request — branch `release/<version>` or a title starting `chore(release)` — is the only one
-that edits the changelog: it runs `scripts/changelog-assemble --write`, commits the result and
-deletes the consumed fragments. `ci-ok` fails any other pull request that edits `CHANGELOG.md` and
+that edits the changelog: it runs `scripts/changelog-assemble --release <version>`, commits the result
+(`CHANGELOG.md`, `Directory.Build.props` and the deleted fragments) and never promotes twice. `ci-ok`
+fails any other pull request that edits `CHANGELOG.md` and
 names the fragment path to use.
 
 ## Trust in scripted runs

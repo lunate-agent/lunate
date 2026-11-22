@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # The cheap repository-wide checks: ADR numbering, the spec-archive rule, the generated docs regions,
-# the docs link and navigation check, and the docs lint. They need no build and no test -- seconds of
-# wall clock -- and they run from two triggers: a push to `main` (`.github/workflows/tree-checks.yml`)
-# and the merge queue (`.github/workflows/ci.yml`'s `tree-checks` job, which `ci-ok` requires).
+# the docs link and navigation check, the guard that no build input or test reads the docs tree, and
+# the docs lint. They need no build and no test -- seconds of wall clock -- and they run from two
+# triggers: a push to `main` (`.github/workflows/tree-checks.yml`) and the merge queue
+# (`.github/workflows/ci.yml`'s `tree-checks` job, which `ci-ok` requires).
 #
 # One command list, two triggers. The queue is the first tree on which two pull requests meet: each
 # pull request proved only its own tree against its own base, so a rule both of them break together --
@@ -58,6 +59,9 @@ python3 scripts/docs-sync --check
 
 step "docs links and navigation"
 python3 scripts/docs-check --check
+
+step "docs are not build inputs"
+bash scripts/no-docs-references.sh
 
 step "docs lint"
 npx --yes markdownlint-cli2@0.23.3

@@ -13,7 +13,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="${LUNATE_BIN:-$REPO/src/Lunate.Coding/bin/Release/net10.0/lunate}"
+BIN="${LUNATE_BIN:-$REPO/src/Lunate.Coding/bin/Release/net11.0/lunate}"
 # The tape types this port into the custom endpoint field, so the stub and the recording must agree
 # on it. It is fixed rather than overridable on purpose: an override would only move the stub and
 # leave the tape pointing at the old port.

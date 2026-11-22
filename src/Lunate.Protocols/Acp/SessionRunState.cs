@@ -1,4 +1,4 @@
-namespace Lunate.Protocols.Acp;
+namespace Lunate.Protocols;
 
 /// <summary>
 /// The run state of one ACP session: the active run's cancellation source, the dispatched prompt

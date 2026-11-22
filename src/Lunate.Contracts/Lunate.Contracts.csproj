@@ -17,9 +17,9 @@
         <IsPackable>true</IsPackable>
         <Description>
             The message and tool contract every Lunate extension and host shares: ITool,
-            ToolContext and ToolResult, the complete AgentEvent hierarchy and the decision
-            request/result types. The host loads this assembly once and every extension binds to
-            that copy, so a copy an extension ships is ignored at load.
+            ToolContext and ToolResult, and the complete AgentEvent hierarchy with the
+            DecisionProbability a decision event publishes. The host loads this assembly once and
+            every extension binds to that copy, so a copy an extension ships is ignored at load.
         </Description>
         <PackageTags>lunate;contracts;agent</PackageTags>
         <!--

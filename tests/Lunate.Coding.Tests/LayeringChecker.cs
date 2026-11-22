@@ -7,6 +7,15 @@ internal static class LayeringChecker
         {
             ("Lunate.Agent", "Lunate.Ai"),
             ("Lunate.Agent", "Lunate.Ai.Decisions"),
+            // The model has its own package: IDecisionService is typed with it, the engine builds on
+            // it, and both read the event contract's DecisionProbability, so the edges run down to
+            // the contract and never back (ADR-0045).
+            ("Lunate.Agent", "Lunate.Decisions.Model"),
+            ("Lunate.Decisions.Model", "Lunate.Contracts"),
+            ("Lunate.Ai.Decisions", "Lunate.Decisions.Model"),
+            ("Lunate.Ai.Decisions", "Lunate.Contracts"),
+            ("Lunate.Extensibility.Abstractions", "Lunate.Decisions.Model"),
+            ("Lunate.Extensibility", "Lunate.Decisions.Model"),
             ("Lunate.Coding", "Lunate.Ai.Decisions"),
             ("Lunate.Coding", "Lunate.Ai.SystemOne"),
             ("Lunate.Ai.SystemOne", "Lunate.Ai.Decisions"),
@@ -128,6 +137,9 @@ internal static class LayeringChecker
             ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility"),
             ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility.Testing"),
             ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility.Abstractions"),
+            // The wire-schema test generates the schema from the remote DTOs, so the kit's test
+            // project reads the same codec the published schema describes.
+            ("Lunate.Extensibility.Testing.Tests", "Lunate.Extensibility.Remote"),
             ("Lunate.Extensibility.Testing.Tests", "HelloExtension"),
             ("Lunate.Extensibility.Testing.Tests", "McpExtension"),
             ("Lunate.Extensibility.Testing.Tests", "ToolExtension"),
@@ -211,12 +223,19 @@ internal static class LayeringChecker
         };
 
     /// <summary>
-    /// The assemblies the host loads once and every extension binds to: the contract, and the host
-    /// types its signatures expose (<c>ToolContext</c>, <c>ToolResult</c>, the provider surface).
-    /// An extension may reference them — compile-only, never copied — and nothing else of the host.
+    /// The assemblies the host loads once and every extension binds to: the contract, the decision
+    /// model package <c>IDecisionService</c> is typed with, and the host types its signatures expose
+    /// (<c>ToolContext</c>, <c>ToolResult</c>, the provider surface). An extension may reference
+    /// them — compile-only, never copied — and nothing else of the host. The engine is not one of
+    /// them (ADR-0045).
     /// </summary>
     public static IReadOnlySet<string> ExtensionHostAssemblies { get; } =
-        new HashSet<string> { "Lunate.Extensibility.Abstractions", "Lunate.Contracts" };
+        new HashSet<string>
+        {
+            "Lunate.Extensibility.Abstractions",
+            "Lunate.Contracts",
+            "Lunate.Decisions.Model",
+        };
 
     /// <summary>
     /// An extension is a project outside the host's own <c>Lunate.*</c> set — a sample, the template,

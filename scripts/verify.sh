@@ -137,11 +137,17 @@ step() {
 # One retry, recorded — the flake budget. A test that fails once and passes on the immediate retry
 # does not block the merge; it is written to the ledger (the weekly flake batch fixes them, worst
 # first). A failure that repeats is a real failure and fails the gate as before.
+#
+# The ledger reads the pass's own output through strip_ansi, for the same reason the check run does: on
+# GitHub Actions the runner colors the failing line, and a ledger that named "unknown" for every CI flake
+# is a batch nobody can fix (#954).
 record_flake() {
   local label="$1" output="$2"
   local ledger="${LUNATE_FLAKE_LEDGER:-${GITHUB_WORKSPACE:-$PWD}/.artifacts/flake-ledger.jsonl}"
   local first
-  first="$(grep -m1 -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])' "$output" | sed -e 's/^[[:space:]]*//' -e 's/^failed[[:space:]]*//' || true)"
+  first="$(strip_ansi < "$output" |
+    grep -m1 -E '^[[:space:]]*(failed|xunit\.v3[^ ]* failed|\[FAIL\])' |
+    sed -e 's/^[[:space:]]*//' -e 's/^failed[[:space:]]*//' || true)"
   mkdir -p "$(dirname "$ledger")"
   python3 - "$ledger" "$label" "$first" <<'PY'
 import datetime, json, platform, sys
@@ -184,11 +190,19 @@ run_tests() {
       continue
     fi
     cat "$output"
-    rm -f "$output"
     if [ "$status" -ne 0 ]; then
+      # The names go out before the exit, so the run's check run carries the test the leg failed on and
+      # not only the step (see report_failed_tests in lib.sh). #942's step report is already in the EXIT
+      # trap by then; this is the other half of the same triage. The first attempt's output goes with the
+      # final one -- a first attempt that failed on a test and a retry that printed none still names the
+      # test -- and the pass's own exit status goes with them: a pass that named no test at all is
+      # attributed by its modules and its verdict, not by the gate's exit 1 (#951).
+      report_failed_tests "$label" "$status" "$output" "$first_output"
+      rm -f "$output"
       echo "verify: ${label} failed twice in a row (exit ${status}) — not a flake" >&2
       exit 1
     fi
+    rm -f "$output"
     echo "verify: ${label} executed zero tests — test discovery regression?" >&2
     exit 1
   done
@@ -233,6 +247,32 @@ native_path() {
   fi
 }
 
+# A feed path is written into an XML attribute of the nuget.config files the roundtrips hand
+# `dotnet restore`, and a temp path may carry `&` (Windows allows it in a profile path) or `<`
+# (valid on Unix): raw, the file is malformed XML and the restore fails before it can prove
+# anything (#936). This is XML attribute encoding of the five characters an attribute may not
+# carry raw, `&` first so the entities the others write survive. Character by character rather
+# than a pattern substitution, because bash 5.2 expands an unquoted `&` in a replacement and bash
+# 3.2 (macOS) does not. Parity with ConvertTo-XmlAttribute in scripts/verify.ps1.
+xml_attribute() {
+  local value="$1"
+  local escaped=""
+  local character
+  local index
+  for ((index = 0; index < ${#value}; index++)); do
+    character="${value:index:1}"
+    case "$character" in
+      '&') escaped+='&amp;' ;;
+      '<') escaped+='&lt;' ;;
+      '>') escaped+='&gt;' ;;
+      '"') escaped+='&quot;' ;;
+      "'") escaped+='&apos;' ;;
+      *) escaped+="$character" ;;
+    esac
+  done
+  printf '%s' "$escaped"
+}
+
 verify_cleanup() {
   if [ -n "$VERIFY_TMP_ROOT" ] && [ -d "$VERIFY_TMP_ROOT" ]; then
     rm -rf "$VERIFY_TMP_ROOT"
@@ -260,6 +300,9 @@ record_wall_time() {
 
 verify_exit() {
   local status=$?
+  # First, because the rest of this handler is bookkeeping: a red leg must name the step it stopped
+  # in before anything that could fail or be slow runs (see report_failed_step in lib.sh).
+  report_failed_step "$STEP_NAME" "$status" "$(( $(date +%s) - STEP_START ))"
   record_wall_time "$status"
   verify_cleanup
   return "$status"
@@ -323,6 +366,7 @@ docs_profile() {
 
   step "changelog fragments"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
+  python3 "${SCRIPT_DIR}/changelog-assemble" --self-test
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
@@ -332,7 +376,14 @@ docs_profile() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
 
+  # A run whose red jobs never acquired a runner is retried once instead of being filed as a code
+  # failure: the workflow wiring and the reporter's deferral decision (#923).
+  step "the runner-capacity retry"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_ci_capacity_retry.py"
+  bash "${SCRIPT_DIR}/nightly-issue.sh" --self-test
+
   step "docs are not build inputs"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_no_docs_references.py"
   bash "${SCRIPT_DIR}/no-docs-references.sh"
 
   step "docs lint"
@@ -366,7 +417,8 @@ sha256_file() {
 }
 
 # The steps that do not depend on the operating system: packaging files, formatting, the generated
-# docs regions, the link/navigation check, markdownlint, the two agent-hygiene checks, the public
+# docs regions, the link/navigation check, the guard that the docs tree is not a build input or a
+# test's subject, markdownlint, the two agent-hygiene checks, the public
 # API and — when the caller installed it — the OpenSpec tree. CI runs them once in the `platform`
 # job; an OS leg skips them
 # (VERIFY_SKIP_PLATFORM_CHECKS=1) because a second copy on every runner is cost, not depth. A local
@@ -398,6 +450,7 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/check-channel-manifests.py" --self-test
 
   step "channel manifests"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_fill_release_hashes.py"
   python3 "${SCRIPT_DIR}/check-channel-manifests.py" --root "$PWD"
 
   step "published channel version guard"
@@ -415,6 +468,12 @@ platform_checks() {
   step "docs links and navigation"
   python3 "${SCRIPT_DIR}/docs-check" --self-test
   python3 "${SCRIPT_DIR}/docs-check" --check
+
+  # A code pull request never runs the docs profile, and the docs tree becoming a test's subject came
+  # from exactly such a pull request (#929), so the platform checks run the guard too.
+  step "docs are not build inputs"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_no_docs_references.py"
+  bash "${SCRIPT_DIR}/no-docs-references.sh"
 
   step "docs lint"
   if ! command -v node >/dev/null 2>&1; then
@@ -444,14 +503,38 @@ platform_checks() {
 
   step "changelog fragments"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_assemble.py"
+  python3 "${SCRIPT_DIR}/changelog-assemble" --self-test
   python3 "${SCRIPT_DIR}/../tests/scripts/test_changelog_guard.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_workflow.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_release_contract.py"
+
+  # The wiring test for .github/workflows/ci-capacity-retry.yml and the reporter's deferral: a run whose
+  # legs never acquired a runner is retried once instead of being filed as a code failure (#923).
+  step "the runner-capacity retry"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_ci_capacity_retry.py"
+  bash "${SCRIPT_DIR}/nightly-issue.sh" --self-test
 
   step "swebench adapter"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
+
+  # The template roundtrip restores into a packages folder of its own, and this pins that plus the
+  # restore behaviour it exists for (#932). It runs here rather than in the docs profile because it
+  # restores a real package: the platform job is the one that has the SDK.
+  step "the template roundtrip's packages folder"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_contract_roundtrip.py"
+
+  # A red leg names the step it failed in (#942): the job's log needs an account, the check run's
+  # annotations do not, and a card that says only "Process completed with exit code 1" cannot be
+  # triaged. The gate's own output is the only place that knows which step was running.
+  step "a red leg names its failing step"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_step_report.py"
+
+  # The same reader for the startup budget: a red `perf (macos-latest)` named only the step, while the
+  # floor, median and budget it failed on were in the log (#950).
+  step "a red startup budget names its measurement"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_perf_report.py"
 
   step "public API"
   if ! check_shipped_api_unchanged; then
@@ -511,7 +594,7 @@ verify_primary_before_tests() {
   # Providers are compile-private to Lunate.Ai, but their runtime assets must reach
   # the app output or provider construction fails at run time.
   for assembly in Anthropic OpenAI Microsoft.Extensions.AI; do
-    if [ ! -f "src/Lunate.Coding/bin/${CONFIGURATION}/net10.0/${assembly}.dll" ]; then
+    if [ ! -f "src/Lunate.Coding/bin/${CONFIGURATION}/net11.0/${assembly}.dll" ]; then
       echo "verify: ${assembly}.dll is missing from the Lunate.Coding build output" >&2
       exit 1
     fi
@@ -531,7 +614,9 @@ verify_primary_before_tests() {
     --nologo
 
   step "startup budget"
-  if ! BUDGET_MS="$BUDGET_MS" "${SCRIPT_DIR}/perf.sh" "$BINARY"; then
+  # The budget is passed through with whether this leg enforces it: perf.sh annotates a breach only
+  # when the breach fails the step, and a measuring-but-not-enforcing leg must stay annotation-free.
+  if ! BUDGET_MS="$BUDGET_MS" STARTUP_BUDGET_ENFORCE="$STARTUP_BUDGET_ENFORCE" "${SCRIPT_DIR}/perf.sh" "$BINARY"; then
     if [ "$STARTUP_BUDGET_ENFORCE" = "1" ]; then
       exit 1
     fi
@@ -585,7 +670,7 @@ verify_test_phase() {
   else
     test_missing=""
     while IFS= read -r project; do
-      assembly="${project%/*}/bin/${CONFIGURATION}/net10.0/$(basename "$project" .csproj).dll"
+      assembly="${project%/*}/bin/${CONFIGURATION}/net11.0/$(basename "$project" .csproj).dll"
       if [ ! -f "$assembly" ]; then
         test_missing="${test_missing} ${assembly}"
       fi
@@ -809,6 +894,9 @@ SHIM
   # Pack also gets the native feed, so bash and the CLI agree on one directory.
   feed="$(native_path "${package_tmp}/feed")"
   store="$(native_path "${package_tmp}/home")"
+  # Both land in XML attributes of the configuration below, so both are attribute-escaped first.
+  feed_xml="$(xml_attribute "${feed}")"
+  packages_xml="$(xml_attribute "$(native_path "${package_tmp}/packages")")"
   dotnet pack extensions/subagents/SubagentsExtension/SubagentsExtension.csproj \
     -c "$CONFIGURATION" -o "$feed" --nologo
   # The extension's feed page is part of the release too, and its metadata must survive changes to
@@ -821,10 +909,10 @@ SHIM
 <configuration>
   <packageSources>
     <clear />
-    <add key="local" value="${feed}" />
+    <add key="local" value="${feed_xml}" />
   </packageSources>
   <config>
-    <add key="globalPackagesFolder" value="$(native_path "${package_tmp}/packages")" />
+    <add key="globalPackagesFolder" value="${packages_xml}" />
   </config>
 </configuration>
 XML
@@ -844,7 +932,7 @@ XML
   cd "$repo_root"
 
   step "contract package roundtrip"
-  # The extension contract ships beside the tool (#237), on the same tag and no looser: the four SDK
+  # The extension contract ships beside the tool (#237), on the same tag and no looser: the five SDK
   # packages are checked by the same metadata script (the preview pair under --prerelease), and the
   # template's NuGet shape is proven against this feed — the packages nuget.org serves after the
   # next tag, exercised on every commit where they exist only in dist/.
@@ -852,13 +940,14 @@ XML
   contract_feed="$(native_path "${contract_tmp}/feed")"
   for contract_project in \
     src/Lunate.Contracts/Lunate.Contracts.csproj \
+    src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj \
     src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj \
     src/Lunate.Agent/Lunate.Agent.csproj \
     src/Lunate.Extensibility.Testing/Lunate.Extensibility.Testing.csproj
   do
     dotnet pack "$contract_project" -c "$CONFIGURATION" -o "$contract_feed" --nologo -nodeReuse:false
   done
-  # The contract pair carries the API version plus the tag's prerelease suffix, the preview pair the
+  # The contract trio carries the API version plus the tag's prerelease suffix, the preview pair the
   # product version while it is a prerelease and <version>-preview.1 otherwise — never a constant,
   # and never readable from the csproj, where these are $(ContractVersion) and $(PreviewVersion).
   # One derivation (`scripts/release-versions.sh`) decides both here and in the pack-only job.
@@ -870,6 +959,8 @@ XML
   "${SCRIPT_DIR}/check-package-metadata.sh" \
     "${contract_feed}/Lunate.Contracts.${contract_version}.nupkg" --id Lunate.Contracts
   "${SCRIPT_DIR}/check-package-metadata.sh" \
+    "${contract_feed}/Lunate.Decisions.Model.${contract_version}.nupkg" --id Lunate.Decisions.Model
+  "${SCRIPT_DIR}/check-package-metadata.sh" \
     "${contract_feed}/Lunate.Extensibility.Abstractions.${contract_version}.nupkg" --id Lunate.Extensibility.Abstractions
   "${SCRIPT_DIR}/check-package-metadata.sh" \
     "${contract_feed}/Lunate.Agent.${preview_version}.nupkg" --id Lunate.Agent --prerelease
@@ -880,17 +971,63 @@ XML
   # extension the consumer way (it carries the switch to its child itself). Restore the child as well
   # as the test project: the test's after-build target invokes a second project, whose assets file
   # would otherwise still describe the earlier in-repository ProjectReference shape.
+  #
+  # The packages carry the version the release publishes, and a feed serves that version from the
+  # moment the release is out — so a machine's global packages folder can already hold a copy of the
+  # same id and version whose content is an earlier commit's, and NuGet binds an installed copy
+  # before it asks any source. The macOS leg of run 44012040507 did exactly that (#932): the template
+  # built against the published 1.16.0 contract instead of this checkout's union and failed on the
+  # switch the union closes (CS8509). So the roundtrip restores into a packages folder of its own
+  # for this run; what is proven here is this checkout's shape, never a cache's.
+  #
+  # The sources are a configuration file of the roundtrip's own rather than `--source` flags, because
+  # a release also serves the contract on nuget.org under the same id and version, and "the packed
+  # feed is asked first" is an ordering rule, not a guarantee: the source that answers is the source
+  # that provides the package, and on a runner whose own NuGet cache is warm that can be the released
+  # copy. `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` of run
+  # 44033633019 did exactly that (#937, #936). `packageSourceMapping` makes the packed feed the only
+  # source `Lunate.*` may come from, so ordering, the HTTP cache and the machine's own NuGet
+  # configuration cannot decide which shape the gate proved. nuget.org stays, for the test SDK the
+  # template's test project needs. `--configfile` also keeps the machine's configuration out of the
+  # run, and `--no-restore` on the builds keeps the assets file the restores wrote.
+  template_packages="$(native_path "${contract_tmp}/packages")"
+  contract_config="$(native_path "${contract_tmp}/nuget.config")"
+  # The feed path becomes an XML attribute below: a temp directory may hold `&` or `<`, and the raw
+  # path makes the configuration malformed XML, which fails the restore before it proves anything.
+  # The raw path stays for pack and the metadata checks (#936).
+  contract_feed_xml="$(xml_attribute "${contract_feed}")"
+  cat >"$contract_config" <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="packed" value="${contract_feed_xml}" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="packed">
+      <package pattern="Lunate.*" />
+    </packageSource>
+    <packageSource key="nuget.org">
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
+</configuration>
+XML
   dotnet restore templates/extension/TemplateExtension/TemplateExtension.csproj \
     -p:LunateUseNuGetContracts=true \
-    -p:RestoreAdditionalProjectSources="$contract_feed" --nologo -nodeReuse:false
+    --configfile "$contract_config" \
+    --packages "$template_packages" --nologo -nodeReuse:false
   dotnet build templates/extension/TemplateExtension/TemplateExtension.csproj \
-    -c "$CONFIGURATION" -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
+    -c "$CONFIGURATION" -p:LunateUseNuGetContracts=true \
+    --no-restore --nologo -nodeReuse:false
   dotnet restore templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj \
     -p:LunateUseNuGetContracts=true \
-    -p:RestoreAdditionalProjectSources="$contract_feed" --nologo -nodeReuse:false
+    --configfile "$contract_config" \
+    --packages "$template_packages" --nologo -nodeReuse:false
   dotnet build templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj \
     -c "$CONFIGURATION" \
-    -p:LunateUseNuGetContracts=true --nologo -nodeReuse:false
+    -p:LunateUseNuGetContracts=true --no-restore --nologo -nodeReuse:false
 
   # The platform-independent half of the gate is owned by the `platform` job in CI. A local run
   # (no environment flag) still executes it here, once, so `verify.sh` alone remains the gate.

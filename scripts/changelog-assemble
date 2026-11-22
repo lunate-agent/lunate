@@ -2,19 +2,31 @@
 """Assemble the unreleased section of CHANGELOG.md from changes/<pull-request>.md fragments.
 
 A pull request writes its release-note line in its own fragment and never edits the changelog; the
-release pull request runs this script's --write and commits the result. The generated entries live
+release pull request runs this script's --release and commits the result. The generated entries live
 inside a marker pair at the top of their heading, so text a person wrote in the same section keeps
 its place and is never rewritten.
 
 Usage:
-    changelog-assemble --check      # fail when CHANGELOG.md is not what the fragments produce
+    changelog-assemble --check [--tag <tag>]
+                                    # fail when CHANGELOG.md is not what the fragments produce;
+                                    # with --tag, also prove the tag's release heading and version
     changelog-assemble --write      # rewrite the unreleased section from the fragments
+    changelog-assemble --release <version> [--date YYYY-MM-DD]
+                                    # do the whole release pull request edit in one run
+    changelog-assemble --self-test   # prove the fragment link rewrite, reading no tree
     changelog-assemble --root DIR   # run against another tree (the tests use this)
+
+A fragment is written from `changes/` and the entry it produces is read from the repository root, so
+an entry's relative link is resolved against the fragment's directory and written relative to the
+root. A link that leaves the repository from `changes/` is refused, naming the fragment, the link and
+the path it resolves to, so the fragment's author learns it in their own pull request.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
+import posixpath
 import re
 import sys
 from pathlib import Path
@@ -23,10 +35,41 @@ HEADINGS = ("### Added", "### Changed", "### Fixed")
 START = "<!-- changelog-fragments:start -->"
 END = "<!-- changelog-fragments:end -->"
 UNRELEASED = "## [Unreleased]"
+# A level-2 line opens a version section, a level-3 line a block inside it; both are read by prefix
+# because that is how the assembly splits the section back out.
+LEVEL_TWO = "## "
+LEVEL_THREE = "### "
 FRAGMENT_NAME = re.compile(r"^([0-9]+)\.md$")
+# The exact spelling a release heading carries; `date.fromisoformat` alone also accepts compact and
+# week forms such as 20261201 or 2026-W49-1, which are not the contract.
+RELEASE_DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+PROPS = "Directory.Build.props"
+VERSION_ELEMENT = re.compile(r"^([ \t]*)<Version>([^<]*)</Version>", re.MULTILINE)
+TAG = re.compile(r"^v(.+)$")
+RELEASE_HEADING = re.compile(r"^## \[([^\]]*)\] - (.*)$")
+SEMVER = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 # A bullet ends with one or more pull-request references, the changelog's own shape:
 # `(#1234).` for one pull request, `(#681, #682).` for a change that landed under several.
 REFERENCE = re.compile(r"\(#[0-9]+(?:, #[0-9]+)*\)\.?$")
+# What an entry may carry as a link, in the grammar `scripts/docs_check` reads too, so the assembler
+# and the documentation check agree about what a link is.
+MARKDOWN_LINK = re.compile(
+    r"!?\[[^\]]*\]\(\s*(<[^>\n]*>|[^)\s]+)(?:\s+(?:\"[^\"]*\"|'[^']*'|\([^)]*\)))?\s*\)"
+)
+REFERENCE_DEFINITION = re.compile(r"^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)", re.MULTILINE)
+INLINE_CODE = re.compile(r"`[^`\n]*`")
+# A destination that names its own scheme already resolves from any directory.
+SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")
+
+
+def write_text(path: Path, text: str) -> None:
+    """Write UTF-8 with LF on every platform; the bytes never depend on where they were written."""
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
 
 
 def display(path: Path, root: Path) -> str:
@@ -34,6 +77,49 @@ def display(path: Path, root: Path) -> str:
         return path.relative_to(root).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def rewrite_destination(target: str, directory: str, where: str) -> tuple[str | None, str | None]:
+    """Return (the destination rewritten for the root | None to keep it, an error | None).
+
+    `directory` is the directory the link was written in, relative to the root. A destination that
+    leaves the repository cannot be repaired at the root, so it is refused here, where the fragment's
+    own pull request sees it, instead of becoming a broken link in `CHANGELOG.md`.
+    """
+    path_part, hash_sign, anchor = target.partition("#")
+    if not path_part or path_part.startswith("/") or SCHEME.match(path_part):
+        return None, None
+    resolved = posixpath.normpath(posixpath.join(directory, path_part))
+    if posixpath.isabs(resolved) or resolved == ".." or resolved.startswith("../"):
+        return None, (
+            f"{where}: the link '{target}' resolves to '{resolved}' relative to the repository "
+            "root, outside it; a fragment may only link to a path inside the repository"
+        )
+    return f"{resolved}{hash_sign}{anchor}", None
+
+
+def rewrite_links(entry: str, where: str, directory: str) -> tuple[str, list[str]]:
+    """Return (the entry with its relative links rewritten for the root, errors)."""
+    errors: list[str] = []
+    code_spans = [match.span() for match in INLINE_CODE.finditer(entry)]
+    edits: list[tuple[int, int, str]] = []
+    for pattern in (MARKDOWN_LINK, REFERENCE_DEFINITION):
+        for match in pattern.finditer(entry):
+            start, end = match.span(1)
+            if any(code_start <= start < code_end for code_start, code_end in code_spans):
+                continue
+            written = match.group(1)
+            rewritten, error = rewrite_destination(written.strip("<>"), directory, where)
+            if error is not None:
+                errors.append(error)
+            if rewritten is None:
+                continue
+            if written.startswith("<"):
+                rewritten = f"<{rewritten}>"
+            edits.append((start, end, rewritten))
+    for start, end, rewritten in sorted(edits, reverse=True):
+        entry = f"{entry[:start]}{rewritten}{entry[end:]}"
+    return entry, errors
 
 
 def parse_fragment(path: Path, number: int, root: Path) -> tuple[str | None, list[str], list[str]]:
@@ -68,6 +154,14 @@ def parse_fragment(path: Path, number: int, root: Path) -> tuple[str | None, lis
             entries[-1] = "\n".join(current)
             continue
         errors.append(f"{where}: text outside the heading and its bullets: '{line.strip()}'")
+
+    directory = path.parent.relative_to(root).as_posix()
+    rewritten_entries: list[str] = []
+    for entry in entries:
+        rewritten, link_errors = rewrite_links(entry, where, directory)
+        rewritten_entries.append(rewritten)
+        errors.extend(link_errors)
+    entries = rewritten_entries
 
     if not entries:
         errors.append(f"{where}: no bullet; expected '- description (#{number}).'")
@@ -147,12 +241,17 @@ def strip_markers(body: list[str], where: str, errors: list[str]) -> list[str]:
     return kept
 
 
+def drop_marker_lines(body: list[str]) -> list[str]:
+    """Return `body` without the generated marker comments; the entries between them stay."""
+    return [line for line in body if line.strip() not in (START, END)]
+
+
 def split_blocks(body: list[str]) -> tuple[list[str], list[list[str]]]:
     """Split the section body into preamble lines and [heading, body lines] blocks."""
     preamble: list[str] = []
     blocks: list[list[str]] = []
     for line in body:
-        if line.startswith("### "):
+        if line.startswith(LEVEL_THREE):
             blocks.append([line.rstrip(), []])
         elif blocks:
             blocks[-1][1].append(line)
@@ -161,19 +260,117 @@ def split_blocks(body: list[str]) -> tuple[list[str], list[list[str]]]:
     return trim(preamble), blocks
 
 
+def shape_errors(lines: list[str]) -> list[str]:
+    """Return a diagnostic per shape of `CHANGELOG.md` the assembler cannot read reliably.
+
+    A repeated heading makes `split_blocks`' last block win over the earlier one, text above the
+    first heading of the unreleased section belongs to no heading, and a second unreleased section
+    lies past the end of the section the assembler reads, so each one loses or misplaces entries
+    without a word.
+    """
+    errors: list[str] = []
+    sections: dict[str, int] = {}
+    section: str | None = None
+    headings: dict[str, int] = {}
+    for index, raw in enumerate(lines):
+        number = index + 1
+        line = raw.rstrip()
+        if line.startswith(LEVEL_TWO):
+            if line in sections:
+                if line == UNRELEASED:
+                    errors.append(
+                        f"CHANGELOG.md:{number}: '{UNRELEASED}' already appeared at line "
+                        f"{sections[line]}; only the first unreleased section is assembled, so "
+                        "every entry under the second is never released"
+                    )
+                else:
+                    errors.append(
+                        f"CHANGELOG.md:{number}: the heading '{line}' already appeared at line "
+                        f"{sections[line]}; a version section appears once"
+                    )
+            else:
+                sections[line] = number
+            section = line
+            headings = {}
+            continue
+        if line.startswith(LEVEL_THREE):
+            if line in headings:
+                where = f"in '{section}'" if section else "before any '##' heading"
+                errors.append(
+                    f"CHANGELOG.md:{number}: the heading '{line}' already appeared at line "
+                    f"{headings[line]} {where}; one section carries each heading once"
+                )
+            else:
+                headings[line] = number
+            continue
+        if line.strip() and section == UNRELEASED and not headings:
+            errors.append(
+                f"CHANGELOG.md:{number}: text outside any '###' heading in '{UNRELEASED}': "
+                f"'{line.strip()}'; put it under {', '.join(HEADINGS)}"
+            )
+    return errors
+
+
+def kept_entries(text: str) -> int:
+    """Count the unreleased section's top-level bullets outside the generated marker region.
+
+    Those are the entries a person wrote: the ones between the markers are the fragments' and are
+    replaced on every write, so a consumed fragment may legitimately disappear from the section.
+    """
+    lines = text.splitlines()
+    unreleased = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
+    )
+    if unreleased is None:
+        return 0
+    end = len(lines)
+    for index in range(unreleased + 1, len(lines)):
+        if lines[index].startswith(LEVEL_TWO):
+            end = index
+            break
+    outside: list[str] = []
+    inside = False
+    for line in lines[unreleased + 1 : end]:
+        if line.strip() == START:
+            inside = True
+        elif line.strip() == END:
+            inside = False
+        elif not inside:
+            outside.append(line)
+    return sum(1 for line in outside if line.startswith("- "))
+
+
+def counted(count: int) -> str:
+    return f"{count} entry" if count == 1 else f"{count} entries"
+
+
+def entry_count_errors(before: int, after: int) -> list[str]:
+    """Return the refusal when the rewrite would carry a different number of kept entries."""
+    if before == after:
+        return []
+    return [
+        f"CHANGELOG.md: the assembled section would carry {counted(after)} outside the generated "
+        f"region but the current one carries {counted(before)}; refusing to write a different "
+        "number of entries"
+    ]
+
+
 def assemble(text: str, fragments: list[tuple[int, str, list[str]]]) -> tuple[str, list[str]]:
     """Return (rewritten changelog, errors)."""
-    errors: list[str] = []
     lines = text.splitlines()
+    errors: list[str] = shape_errors(lines)
     unreleased = next(
         (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
     )
     if unreleased is None:
         if fragments:
             return text, [
-                f"CHANGELOG.md: no '{UNRELEASED}' section to assemble the fragments into"
+                *errors,
+                f"CHANGELOG.md: no '{UNRELEASED}' section to assemble the fragments into",
             ]
-        return text, []
+        return text, errors
+    if errors:
+        return text, errors
 
     end = len(lines)
     for index in range(unreleased + 1, len(lines)):
@@ -244,7 +441,303 @@ def assemble(text: str, fragments: list[tuple[int, str, list[str]]]) -> tuple[st
     tail = lines[end:]
     if tail:
         rebuilt += [""] + tail
+    assembled = "\n".join(rebuilt) + "\n"
+    count_errors = entry_count_errors(kept_entries(text), kept_entries(assembled))
+    if count_errors:
+        return text, count_errors
+    return assembled, []
+
+
+def parse_version(text: str) -> tuple[int, int, int, list[tuple[int, object]] | None] | None:
+    """Return (major, minor, patch, prerelease), or None when `text` is not a semantic version."""
+    match = SEMVER.match(text)
+    if match is None:
+        return None
+    major, minor, patch = (int(match.group(index)) for index in (1, 2, 3))
+    prerelease: list[tuple[int, object]] | None = None
+    if match.group(4) is not None:
+        prerelease = []
+        for identifier in match.group(4).split("."):
+            if identifier.isdigit():
+                if len(identifier) > 1 and identifier.startswith("0"):
+                    return None
+                prerelease.append((0, int(identifier)))
+            else:
+                prerelease.append((1, identifier))
+    return major, minor, patch, prerelease
+
+
+def is_newer(requested: tuple, current: tuple) -> bool:
+    """Return whether `requested` has a higher semantic-version precedence than `current`."""
+    if requested[:3] != current[:3]:
+        return requested[:3] > current[:3]
+    mine, theirs = requested[3], current[3]
+    if mine is None:
+        return theirs is not None
+    if theirs is None:
+        return False
+    for left, right in zip(mine, theirs):
+        if left != right:
+            return left > right
+    return len(mine) > len(theirs)
+
+
+def promote(assembled: str, version: str, date: str) -> tuple[str | None, list[str]]:
+    """Return (the changelog with its unreleased section promoted, errors)."""
+    errors: list[str] = []
+    lines = assembled.splitlines()
+    heading = f"## [{version}]"
+    if any(line.startswith(f"{heading} ") or line.rstrip() == heading for line in lines):
+        errors.append(
+            f"CHANGELOG.md: a '{heading}' section already exists; "
+            "a release promotes once and never twice"
+        )
+    unreleased = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
+    )
+    if unreleased is None:
+        errors.append(f"CHANGELOG.md: no '{UNRELEASED}' section to promote")
+    if errors:
+        return None, errors
+
+    end = len(lines)
+    for index in range(unreleased + 1, len(lines)):
+        if lines[index].startswith("## "):
+            end = index
+            break
+    body = trim(drop_marker_lines(lines[unreleased + 1 : end]))
+
+    rebuilt = lines[:unreleased] + [UNRELEASED, "", f"{heading} - {date}"]
+    if body:
+        rebuilt += [""] + body
+    tail = lines[end:]
+    if tail:
+        rebuilt += [""] + tail
     return "\n".join(rebuilt) + "\n", []
+
+
+def release(
+    root: Path, current: str, fragments: list[tuple[int, str, list[str]]], version: str, date: str
+) -> tuple[str | None, str | None, list[int], list[str]]:
+    """Return (promoted changelog, new props text, consumed fragment numbers, errors).
+
+    Every refusal is collected before the caller writes anything, so a refused run leaves the tree
+    byte-identical.
+    """
+    errors: list[str] = []
+    requested = parse_version(version)
+    if requested is None:
+        errors.append(
+            f"--release {version}: not a semantic version; expected MAJOR.MINOR.PATCH "
+            "such as 0.5.0 or 0.5.0-rc.1"
+        )
+
+    props = root / PROPS
+    props_text = props.read_text(encoding="utf-8") if props.is_file() else None
+    bumped = None
+    if props_text is None:
+        errors.append(f"{PROPS}: does not exist; the release sets its <Version>")
+    else:
+        match = VERSION_ELEMENT.search(props_text)
+        if match is None:
+            errors.append(f"{PROPS}: no <Version> element to set")
+        else:
+            existing = match.group(2).strip()
+            current_version = parse_version(existing)
+            if current_version is None:
+                errors.append(f"{PROPS}: <Version> is '{existing}', not a semantic version")
+            elif requested is not None and not is_newer(requested, current_version):
+                errors.append(
+                    f"--release {version} is not newer than the current <Version> {existing} "
+                    f"in {PROPS}"
+                )
+            if requested is not None:
+                bumped = props_text[: match.start(2)] + version + props_text[match.end(2) :]
+
+    assembled, assembly_errors = assemble(current, fragments)
+    errors.extend(assembly_errors)
+    if errors:
+        return None, None, [], errors
+
+    promoted, promote_errors = promote(assembled, version, date)
+    errors.extend(promote_errors)
+    if errors:
+        return None, None, [], errors
+    return promoted, bumped, [number for number, _, _ in fragments], []
+
+
+def valid_date(text: str) -> bool:
+    """Whether `text` is a date the release process spells: exactly YYYY-MM-DD and a real day."""
+    if RELEASE_DATE.match(text) is None:
+        return False
+    try:
+        datetime.date.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
+def check_tag(root: Path, text: str, tag: str) -> list[str]:
+    """Return the failures that keep `tag` from naming CHANGELOG.md's release heading and version."""
+    match = TAG.match(tag)
+    if match is None:
+        return [f"--tag '{tag}': expected a release tag such as v0.4.0"]
+    version = match.group(1)
+    expected = f"## [{version}] - YYYY-MM-DD"
+    errors: list[str] = []
+
+    lines = text.splitlines()
+    unreleased = next(
+        (index for index, line in enumerate(lines) if line.rstrip() == UNRELEASED), None
+    )
+    if unreleased is None:
+        errors.append(
+            f"CHANGELOG.md: no '{UNRELEASED}' section; expected '{expected}' as the first "
+            f"heading below it for tag {tag}"
+        )
+    else:
+        heading = next(
+            (line.rstrip() for line in lines[unreleased + 1 :] if line.startswith("## ")), None
+        )
+        if heading is None:
+            errors.append(
+                f"CHANGELOG.md: no '## ' heading below '{UNRELEASED}'; expected '{expected}' "
+                f"for tag {tag}"
+            )
+        else:
+            release_heading = RELEASE_HEADING.match(heading)
+            if release_heading is None or release_heading.group(1) != version:
+                errors.append(
+                    f"CHANGELOG.md: the first heading below '{UNRELEASED}' is '{heading}'; "
+                    f"expected '{expected}' for tag {tag}"
+                )
+            elif not valid_date(release_heading.group(2).strip()):
+                errors.append(
+                    f"CHANGELOG.md: '{heading}' has the date "
+                    f"'{release_heading.group(2).strip()}'; expected '{expected}' for tag {tag}"
+                )
+
+    props = root / PROPS
+    try:
+        props_text = props.read_text(encoding="utf-8")
+    except OSError as error:
+        errors.append(
+            f"{PROPS}: cannot be read ({error}); expected <Version>{version}</Version> "
+            f"for tag {tag}"
+        )
+        return errors
+    element = VERSION_ELEMENT.search(props_text)
+    if element is None:
+        errors.append(
+            f"{PROPS}: no <Version> element; expected '{version}', the version in tag {tag}"
+        )
+    elif element.group(2).strip() != version:
+        errors.append(
+            f"{PROPS}: <Version> is '{element.group(2).strip()}'; expected '{version}', "
+            f"the version in tag {tag}"
+        )
+    return errors
+
+
+def consume(root: Path, numbers: list[int]) -> int:
+    """Delete the fragments whose pull-request number is in `numbers`; return how many."""
+    removed = 0
+    for path in sorted((root / "changes").glob("*.md")):
+        match = FRAGMENT_NAME.match(path.name)
+        if match is not None and int(match.group(1)) in numbers:
+            path.unlink()
+            removed += 1
+    return removed
+
+
+def check_cases(cases: list[tuple[str, str, str | None, str | None]]) -> int:
+    """Run the self-test's cases, printing each failure by name; return how many failed.
+
+    A case is (name, entry, text the rewritten entry must carry, text the refusal must carry). A case
+    with no expected text proves the entry is carried unchanged; a case with no expected refusal
+    proves nothing was refused. Every case is one entry of `changes/1234.md`.
+    """
+    where = "changes/1234.md"
+    failures = 0
+    for name, entry, expected_text, expected_refusal in cases:
+        rewritten, errors = rewrite_links(entry, where, "changes")
+        refusal = " ".join(errors)
+        if expected_text is None and rewritten != entry:
+            print(f"self-test: FAIL: {name}: the entry changed to '{rewritten}'", file=sys.stderr)
+        elif expected_text is not None and expected_text not in rewritten:
+            print(
+                f"self-test: FAIL: {name}: '{expected_text}' is not in '{rewritten}'",
+                file=sys.stderr,
+            )
+        elif expected_refusal is None and errors:
+            print(f"self-test: FAIL: {name}: refused with '{refusal}'", file=sys.stderr)
+        elif expected_refusal is not None and expected_refusal not in refusal:
+            print(
+                f"self-test: FAIL: {name}: expected a refusal naming '{expected_refusal}', "
+                f"got '{refusal}'",
+                file=sys.stderr,
+            )
+        else:
+            continue
+        failures += 1
+    return failures
+
+
+def self_test() -> int:
+    """Prove the fragment link rewrite and its refusal on cases that need no tree."""
+    cases = [
+        (
+            "a link out of changes/ is rewritten for the root",
+            "- The closed sets ([ADR-0043](../adr/0043-contract-unions.md), superseding "
+            "[ADR-0042](../adr/0042-contract-closed-sets.md)) hold (#919).",
+            "[ADR-0043](adr/0043-contract-unions.md), superseding "
+            "[ADR-0042](adr/0042-contract-closed-sets.md)",
+            None,
+        ),
+        (
+            "a link inside changes/ is rewritten into changes/",
+            "- The rule ([the fragment rules](README.md)) (#1234).",
+            "[the fragment rules](changes/README.md)",
+            None,
+        ),
+        (
+            "an anchor survives the rewrite",
+            "- The map ([the map](../docs/dev/README.md#documentation-map)) (#1234).",
+            "[the map](docs/dev/README.md#documentation-map)",
+            None,
+        ),
+        (
+            "an image is rewritten like a link",
+            "- The tape (![the tape](../media/tape.png)) (#1234).",
+            "![the tape](media/tape.png)",
+            None,
+        ),
+        (
+            "a reference-style definition is rewritten",
+            "- The rules [as a reference][rules] (#1234).\n  [rules]: ../changes/README.md",
+            "[rules]: changes/README.md",
+            None,
+        ),
+        (
+            "a root path, a URL and an inline code span are carried as written",
+            "- [root](/adr/x.md), [site](https://example.com/x.md), `[x](../adr/y.md)` (#1234).",
+            None,
+            None,
+        ),
+        (
+            "a link that leaves the repository is refused by name",
+            "- The guide ([the guide](../../docs/dev/guide.md)) (#1234).",
+            None,
+            "changes/1234.md: the link '../../docs/dev/guide.md' resolves to "
+            "'../docs/dev/guide.md' relative to the repository root, outside it",
+        ),
+    ]
+    failures = check_cases(cases)
+    if failures:
+        print(f"self-test: FAIL: {failures} of {len(cases)} cases failed", file=sys.stderr)
+        return 1
+    print(f"changelog-assemble: self-test OK ({len(cases)} cases)")
+    return 0
 
 
 def main() -> int:
@@ -254,6 +747,24 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true", help="fail when the changelog is stale")
     mode.add_argument("--write", action="store_true", help="rewrite the unreleased section")
+    mode.add_argument(
+        "--release",
+        metavar="VERSION",
+        help="do the whole release pull request edit for VERSION in one run",
+    )
+    mode.add_argument(
+        "--self-test",
+        action="store_true",
+        help="prove the fragment link rewrite and its refusal, reading no tree",
+    )
+    parser.add_argument(
+        "--tag",
+        help="the release tag, e.g. v0.4.0; only with --check",
+    )
+    parser.add_argument(
+        "--date",
+        help="the release date, YYYY-MM-DD (default: today in UTC); only with --release",
+    )
     parser.add_argument(
         "--root",
         type=Path,
@@ -261,6 +772,22 @@ def main() -> int:
         help="repository root (default: the script's parent directory)",
     )
     arguments = parser.parse_args()
+
+    if arguments.self_test:
+        return self_test()
+
+    date = arguments.date
+    if arguments.release is None:
+        if date is not None:
+            parser.error("--date is only valid with --release")
+    else:
+        date = date or datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+        if not valid_date(date):
+            parser.error(f"--date {date}: expected YYYY-MM-DD")
+
+    if arguments.tag is not None and not arguments.check:
+        parser.error("--tag is only valid with --check")
+
     root = arguments.root.resolve()
     changelog = root / "CHANGELOG.md"
     if not changelog.is_file():
@@ -269,22 +796,49 @@ def main() -> int:
 
     fragments, errors = load_fragments(root)
     current = changelog.read_text(encoding="utf-8")
-    expected, assembly_errors = assemble(current, fragments)
-    errors.extend(assembly_errors)
+    if arguments.tag is not None:
+        errors.extend(check_tag(root, current, arguments.tag))
+    promoted: str | None = None
+    bumped: str | None = None
+    consumed: list[int] = []
+    if arguments.release is not None:
+        promoted, bumped, consumed, release_errors = release(
+            root, current, fragments, arguments.release, date
+        )
+        errors.extend(release_errors)
+    else:
+        expected, assembly_errors = assemble(current, fragments)
+        errors.extend(assembly_errors)
     if errors:
         for error in errors:
             print(f"changelog-assemble: {error}", file=sys.stderr)
         return 1
 
+    if arguments.release is not None:
+        write_text(changelog, promoted)
+        write_text(root / PROPS, bumped)
+        removed = consume(root, consumed)
+        fragments_word = "fragment" if removed == 1 else "fragments"
+        print(
+            f"changelog-assemble: released {arguments.release} ({date}) from {removed} "
+            f"{fragments_word}; {PROPS} <Version> is {arguments.release}"
+        )
+        return 0
+
     if arguments.write:
         if expected != current:
-            with open(changelog, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(expected)
+            write_text(changelog, expected)
         print("changelog-assemble: wrote CHANGELOG.md")
         return 0
 
     if expected == current:
-        print("changelog-assemble: up to date")
+        if arguments.tag is None:
+            print("changelog-assemble: up to date")
+        else:
+            print(
+                f"changelog-assemble: up to date; CHANGELOG.md carries {arguments.tag}'s "
+                f"heading and {PROPS} its version"
+            )
         return 0
 
     for number, _, entries in fragments:

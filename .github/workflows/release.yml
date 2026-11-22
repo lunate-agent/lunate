@@ -59,18 +59,6 @@ jobs:
             /usr/local/bin/hyperfine
           hyperfine --version
 
-      - name: Check tag against version
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props)"
-          tag="${GITHUB_REF_NAME#v}"
-          if [ -z "$version" ] || [ "$tag" != "$version" ]; then
-            echo "release: tag ${GITHUB_REF_NAME} does not match <Version>${version}</Version> in Directory.Build.props" >&2
-            exit 1
-          fi
-
       - name: The release pull request is merged into main
         # The release pull request assembles the changelog and is merged before the tag; a tag on a
         # commit outside main would publish notes from an unmerged release branch. The lane's own
@@ -102,13 +90,14 @@ jobs:
           gh api "repos/${GH_REPO}/commits/${sha}/pulls" > associated-pulls.json
           python3 scripts/release-contract --tag "${GITHUB_REF_NAME}" --pulls-file associated-pulls.json
 
-      - name: Changelog is assembled from the fragments
-        # The release pull request runs --write; this is the tag-time proof that no fragment merged
-        # after it was cut, so a release never ships notes that disagree with its own fragments. A
-        # manual dispatch is a dry run from a normal branch, where fragments are expected to be open.
+      - name: The changelog carries the tag's version heading
+        # The release pull request runs --release; this is the tag-time proof that no fragment merged
+        # after it was cut, and that CHANGELOG.md's first release heading and Directory.Build.props'
+        # <Version> are the tag's own version — so a release never ships notes under another heading.
+        # A manual dispatch is a dry run from a normal branch, where fragments are expected to be open.
         if: startsWith(github.ref, 'refs/tags/')
         shell: bash
-        run: python3 scripts/changelog-assemble --check
+        run: python3 scripts/changelog-assemble --check --tag "${GITHUB_REF_NAME}"
 
       - name: Verify
         env:
@@ -221,6 +210,7 @@ jobs:
         run: |
           set -euo pipefail
           dotnet pack src/Lunate.Contracts/Lunate.Contracts.csproj -c Release -o dist --nologo
+          dotnet pack src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj -c Release -o dist --nologo
           dotnet pack src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj -c Release -o dist --nologo
           dotnet pack src/Lunate.Agent/Lunate.Agent.csproj -c Release -o dist --nologo
           dotnet pack src/Lunate.Extensibility.Testing/Lunate.Extensibility.Testing.csproj -c Release -o dist --nologo
@@ -258,6 +248,8 @@ jobs:
             --id Lunate.Extensions.Subagents
           bash scripts/check-package-metadata.sh "dist/Lunate.Contracts.${contract_version}.nupkg" --id Lunate.Contracts
           bash scripts/check-package-metadata.sh \
+            "dist/Lunate.Decisions.Model.${contract_version}.nupkg" --id Lunate.Decisions.Model
+          bash scripts/check-package-metadata.sh \
             "dist/Lunate.Extensibility.Abstractions.${contract_version}.nupkg" --id Lunate.Extensibility.Abstractions
           bash scripts/check-package-metadata.sh \
             "dist/Lunate.Agent.${preview_version}.nupkg" --id Lunate.Agent --prerelease
@@ -272,9 +264,10 @@ jobs:
         with:
           user: wdaniel1993
 
-      # Contracts first: Lunate.Extensibility.Abstractions declares a dependency on Lunate.Contracts,
-      # so the feed must already carry the package its nuspec names before the dependent one lands.
-      # Named files, not a glob — the seven packages are the release, in the order the ADR describes.
+      # Contracts and the decision model first: Lunate.Extensibility.Abstractions declares a
+      # dependency on both, so the feed must already carry the packages its nuspec names before the
+      # dependent one lands. Named files, not a glob — the eight packages are the release, in the
+      # order the ADR describes.
       - name: Push the packages to nuget.org
         if: github.event_name == 'push'
         env:
@@ -286,6 +279,7 @@ jobs:
               --source https://www.nuget.org/api/v2/package --skip-duplicate
           }
           push "dist/Lunate.Contracts.${CONTRACTS}.nupkg"
+          push "dist/Lunate.Decisions.Model.${CONTRACTS}.nupkg"
           push "dist/Lunate.Extensibility.Abstractions.${CONTRACTS}.nupkg"
           push "dist/Lunate.Agent.${PREVIEW}.nupkg"
           push "dist/Lunate.Extensibility.Testing.${PREVIEW}.nupkg"
@@ -336,7 +330,7 @@ jobs:
       - name: Write checksums
         run: |
           set -euo pipefail
-          # Every attached asset is covered: the three archives and both packages.
+          # Every attached asset is covered: the three archives and every package.
           (cd dist && sha256sum lunate-* *.nupkg > SHA256SUMS && cat SHA256SUMS)
 
       - name: Attach archives to the GitHub release

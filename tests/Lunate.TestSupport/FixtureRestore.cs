@@ -57,8 +57,8 @@ public static class FixtureRestore
 
     /// <summary>The offline configuration every fixture restore uses: no package sources at all.</summary>
     /// <remarks>
-    /// An SDK bundles targeting packs only for its own framework. A fixture that targets the product's
-    /// <c>net10.0</c> under a newer SDK therefore asks a feed for <c>Microsoft.NETCore.App.Ref</c> —
+    /// An SDK bundles targeting packs only for its own framework. A fixture pinned to a framework
+    /// the installed SDK does not bundle therefore asks a feed for <c>Microsoft.NETCore.App.Ref</c> —
     /// plus the AspNetCore ref and apphost packs — at the version that SDK pins, and with the source
     /// list cleared that request has nowhere to go: that is the <c>NU1101</c> which turned the SDK 11
     /// bump red on macOS and Windows while Ubuntu stayed green (#895). The packages the SDK asks for

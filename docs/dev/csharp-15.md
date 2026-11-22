@@ -2,12 +2,12 @@
 
 Four C# 15 features pay for themselves in first-party code: union types, closed hierarchies,
 collection-expression arguments and labeled `break`/`continue`. The first two need `net11.0` to
-compile and run; the last two need only the SDK 11 compiler. Our recommendation is therefore to move
-the self-contained tool and app to `net11.0`, and to multi-target the extension-facing packages
-`net10.0;net11.0` so an extension built against the previous LTS keeps working.
+compile and run; the last two need only the SDK 11 compiler. Everything in the repository therefore
+targets `net11.0`, with no multi-targeting.
 
-This is the inventory for step (a) of #192. It records what we want and what it costs; the
-target-framework change itself is step (b), and the refactor slices are step (c).
+This is the inventory for step (a) of #192: it records what we want and what it costs. Step (b), the
+target-framework change, is applied by #902 ([ADR-0041](../../adr/0041-net11-target-frameworks.md));
+the refactor slices are step (c).
 
 ## How this was checked
 
@@ -36,19 +36,26 @@ property and conversions.
 
 **Two real examples.**
 
-- [`LiveArea.cs`](../../src/Lunate.Tui/LiveArea.cs) — `LiveArea.LiveAreaInput` is a private abstract
+- [`LiveArea.cs`](../../src/Lunate.Tui/Rendering/LiveArea.cs) — `LiveArea.LiveAreaInput` is a private abstract
   record with more than a dozen sealed cases (`KeyInput`, `ResizeInput`, `SpinnerTick`,
   `ApprovalInput`, …). A union removes the abstract base and the private-constructor ceremony, and the
   one dispatch method becomes an exhaustive match over the cases.
-- [`SequenceParser.cs`](../../src/Mermaid.Terminal/SequenceParser.cs) — `SequenceStatement` is an
+- [`SequenceParser.cs`](../../src/Mermaid.Terminal/Sequence/SequenceParser.cs) — `SequenceStatement` is an
   internal abstract record with `SequenceMessage` and `SequenceNote`; `SequenceDraw` pattern-matches
   it. A union makes the two variants closed and deletes the base record.
 
-The motivating case is [`AgentEvent.cs`](../../src/Lunate.Contracts/AgentEvent.cs)
-(`AgentEvent`/`ExtensionEvent`, explicitly documented as union-ready). It is deliberately not in the
-two examples: it lives in the contract package, so it follows the public-contract slice and the
-target-framework decision, not the internal refactor. The same holds for the hook result families in
-[`HookResults.cs`](../../src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs).
+The contract's closed sets were the case this inventory deferred, and #919 decided them as
+[ADR-0043](../../adr/0043-contract-unions.md) (superseding
+[ADR-0042](../../adr/0042-contract-closed-sets.md)): `AgentEvent`/`ExtensionEvent`
+([`AgentEvent.cs`](../../src/Lunate.Contracts/Events/AgentEvent.cs)) and the seven hook-result families
+([`HookResults.cs`](../../src/Lunate.Extensibility.Abstractions/Hooks/HookResults.cs)) are unions over
+their case records. Two union facts shape that code, both measured: a union declaration may not carry
+instance fields or auto-properties (CS9373), so the stamped `SessionId`/`ParentRunId`/`Source` stay on
+the `AgentEventBase` record and the channel stamps through it before converting once; and a union's
+`Value` is `object`, so `Enumerable.OfType<T>` over it never matches — the contract ships an
+`OfType<T>` overload and a `Kind` property so the existing consumer idiom keeps working. The wire is
+projected from the case by both protocols, never serialized as a union, so no JSON classifier exists
+and no fixture moved.
 
 **Runtime / BCL.** Needs `net11.0`. The compiler requires the `net11.0` BCL types
 `System.Runtime.CompilerServices.IUnion` and `UnionAttribute`; a `net10.0` target fails with CS0518
@@ -73,7 +80,7 @@ would change an API or where the base class carries behaviour.
   the base of the committed transcript entries. The renderer switches over it in
   `TranscriptViewerRenderer.EntryLines`, and the picker switches over it in `TranscriptViewer.Matches`;
   `closed` makes both switches exhaustive.
-- [`RenderResult.cs`](../../src/Mermaid.Terminal/RenderResult.cs) — `MermaidRenderResult` is the
+- [`RenderResult.cs`](../../src/Mermaid.Terminal/Rendering/RenderResult.cs) — `MermaidRenderResult` is the
   public result base with `MermaidDiagramResult` and `MermaidFallbackResult`. It has a
   `private protected` constructor and real properties, so a union wrapper is the wrong shape; `closed`
   gives the hosts exhaustive matching while keeping the class contract.
@@ -99,7 +106,7 @@ constructor, while keeping the element list in one expression.
 - [`OutputExcerpt.cs`](../../src/Lunate.Tui/ToolBlocks/OutputExcerpt.cs) — `OutputExcerpt.Whole`
   creates `new List<OutputExcerptLine>(lines.Length)` and adds one mapped element per source line.
   It becomes `[with(capacity: lines.Length), .. lines.Select(static line => new OutputExcerptLine(line, false))]`.
-- [`McpServerHost.cs`](../../src/Lunate.Protocols/McpServerHost.cs) — `McpServerHost.ListToolsAsync`
+- [`McpServerHost.cs`](../../src/Lunate.Protocols/Mcp/Client/McpServerHost.cs) — `McpServerHost.ListToolsAsync`
   builds `new HashSet<string>(overrides.Keys, StringComparer.Ordinal)`. It becomes
   `[with(StringComparer.Ordinal), .. overrides.Keys]`.
 
@@ -119,11 +126,11 @@ flag-and-`goto` workarounds the language used to require.
 
 **Two real examples.**
 
-- [`EditMatcher.cs`](../../src/Lunate.Coding/EditMatcher.cs) — `EditMatcher.FindMatches` sets
+- [`EditMatcher.cs`](../../src/Lunate.Coding/Tools/EditMatcher.cs) — `EditMatcher.FindMatches` sets
   `matched = false; break;` inside the pattern loop and then tests `matched` after it. The inner
   mismatch becomes `continue outer;` on the outer window loop, deleting the flag and the inner
   `break`.
-- [`SkillScanner.cs`](../../src/Lunate.Coding/SkillScanner.cs) — `SkillScanner.ScanState.Roots`
+- [`SkillScanner.cs`](../../src/Lunate.Coding/Skills/SkillScanner.cs) — `SkillScanner.ScanState.Roots`
   sets `truncated = true; break;` in the directory loop and then repeats `if (truncated) break;`
   after it. The second test becomes `break roots;`; the flag stays only because the method still uses
   it after the loop to add the warning.
@@ -141,40 +148,39 @@ These features are real C# 15 work, but they have no two real call sites in this
 
 | Feature | Why not | What would reopen it |
 | --- | --- | --- |
-| Extension indexers | Every indexed access in `src/` already goes through an array, list or dictionary indexer. The repository declares only two extension methods, both `StringBuilder.Line` helpers ([`DiagnosticBundle.cs`](../../src/Lunate.Coding/DiagnosticBundle.cs), [`SessionHtmlWriter.cs`](../../src/Lunate.Coding/SessionHtmlWriter.cs)), and neither is index-like. | An extension surface or package adapter grows a real index-like extension method. |
-| Non-virtual static interface members on older runtimes | No interface in `src/` declares a static member, and every first-party target already runs on `net10.0` or later, whose runtime supports the existing default-interface implementation rules. The feature only relaxes an older-runtime check. | A contract package starts targeting `netstandard2.0` or another runtime without default interface implementations. |
-| Memory-safety preview | It is preview, needs `LangVersion=preview`, `AllowUnsafeBlocks` and the `updated-memory-safety-rules` feature flag. The native code here is P/Invoke and marshalling ([`UnixChildProcess.cs`](../../src/Lunate.Coding/UnixChildProcess.cs), [`SystemConsoleIO.cs`](../../src/Lunate.Tui/SystemConsoleIO.cs)), not pointer-access code with an `unsafe` block to audit. | The feature stabilises, or the native layer starts doing pointer access that needs the new `unsafe`/`safe` contracts. |
+| Extension indexers | Every indexed access in `src/` already goes through an array, list or dictionary indexer. The repository declares only two extension methods, both `StringBuilder.Line` helpers ([`DiagnosticBundle.cs`](../../src/Lunate.Coding/Diagnostics/DiagnosticBundle.cs), [`SessionHtmlWriter.cs`](../../src/Lunate.Coding/Export/SessionHtmlWriter.cs)), and neither is index-like. | An extension surface or package adapter grows a real index-like extension method. |
+| Non-virtual static interface members on older runtimes | No interface in `src/` declares a static member, and every first-party target already runs on `net11.0`, whose runtime supports the existing default-interface implementation rules. The feature only relaxes an older-runtime check. | A contract package starts targeting `netstandard2.0` or another runtime without default interface implementations. |
+| Memory-safety preview | It is preview, needs `LangVersion=preview`, `AllowUnsafeBlocks` and the `updated-memory-safety-rules` feature flag. The native code here is P/Invoke and marshalling ([`UnixChildProcess.cs`](../../src/Lunate.Coding/Process/UnixChildProcess.cs), [`SystemConsoleIO.cs`](../../src/Lunate.Tui/Console/SystemConsoleIO.cs)), not pointer-access code with an `unsafe` block to audit. | The feature stabilises, or the native layer starts doing pointer access that needs the new `unsafe`/`safe` contracts. |
 
 ## Target frameworks
 
-**Tool and app: `net11.0`.** Union types and closed hierarchies — two of the four features we want —
-cannot compile for `net10.0`; they need the `net11.0` BCL. The self-contained release binaries are
-the natural place to pay that: they carry their runtime, so the user installs nothing. The startup
-and memory budgets must be re-measured on the new runtime in step (b), not assumed from the .NET 10
-numbers. The first-party projects that use the features (`Lunate.Tui`, `Mermaid.Terminal`,
-`Lunate.Coding`, and whatever else adopts them) move with the app.
+The recommendation above is applied by #902; read [ADR-0041](../../adr/0041-net11-target-frameworks.md)
+for the durable decision and [`guide.md`](guide.md) for the current runtime table.
 
-**The `dotnet tool` package is the exception to the binary story.** It is framework-dependent, so a
-`net11.0` tool asset requires the .NET 11 runtime. `PackAsTool` can carry both `tools/net10.0` and
-`tools/net11.0` (verified with a throwaway pack), which is the shape that keeps
-`dotnet tool install -g lunate` working for people on .NET 10. If the tool's project graph adopts
-union/closed unconditionally, the net10 asset cannot build; step (b) must then either keep the
-net11-only code behind `#if`/outside the tool closure or accept a .NET 11 requirement for the tool
-package and say so in the release note. The self-contained installers are unaffected either way.
+**Everything targets `net11.0`.** Union types and closed hierarchies — two of the four features we
+want — cannot compile for `net10.0`; they need the `net11.0` BCL. `Directory.Build.props` sets
+`net11.0` and no project overrides it with `TargetFrameworks`: the tool, the app, the self-contained
+release binaries (they carry their runtime, so the user still installs nothing), `Lunate.Tui`,
+`Mermaid.Terminal`, every internal and test project, the extension template and every published
+package — `Lunate.Contracts`, `Lunate.Decisions.Model`, `Lunate.Extensibility.Abstractions`,
+`Lunate.Agent`, `Lunate.Extensibility.Testing` and the `Lunate.Ai` assemblies the harness carries.
 
-**Extension contract packages: multi-target `net10.0;net11.0`.** `Lunate.Contracts`,
-`Lunate.Extensibility.Abstractions`, and the published harness packages `Lunate.Agent` and the
-`Lunate.Ai` assemblies it carries should keep a `net10.0` asset as the compatibility floor. Existing
-extensions built against net10 keep compiling and loading on the net11 host; new extensions can
-target net11 if they want the newer compiler. The public API stays identical between the two assets:
-do not put union or closed types on the contract surface while net10 remains a target. The
-motivating `AgentEvent`/hook-result unions are therefore the last slice, after a deliberate
-`ExtensionApi` decision; the internal `Lunate.Tui`/`Mermaid.Terminal` types go first.
+**The `dotnet tool` package requires .NET 11.** It is framework-dependent, so its one asset is
+`tools/net11.0`. `PackAsTool` can carry both `tools/net10.0` and `tools/net11.0` (verified with a
+throwaway pack), but #192 chose the simpler shape: the tool graph is `net11.0` only and the release
+note states the runtime requirement. The self-contained installers are unaffected.
 
-Dropping `net10.0` from a published contract package is a breaking change for every existing
-extension: it needs an ADR entry and a deprecation window, never a silent target-framework bump. The
-extension template and the samples compile against both assets; that is the proof the net10 floor
-still works.
+**The public contract has no `net10.0` floor.** There are no external extension authors and one user,
+so the `net10.0` asset the first decision kept bought nothing and cost the rule that no union or
+closed type may appear on the contract surface. The contract's closed sets are now unions
+(#919, [ADR-0043](../../adr/0043-contract-unions.md)); the `Lunate.Tui`/`Mermaid.Terminal`
+refactor slices stay their own work. Reintroducing multi-targeting before the first external release
+or the first published library version is a deliberate, breaking decision with its own ADR, never a
+silent addition inside a feature card.
+
+The startup and memory budgets are re-measured on .NET 11 after the merge (ADR-0005, ADR-0009), as a
+maintainer step: the pull request only moves the runtime, and the per-runner CI values come from the
+post-merge and nightly runs.
 
 ## Tooling steps before the first syntax commit
 
@@ -187,8 +193,8 @@ still works.
    new public shape. Update `PublicAPI.Unshipped.txt` in the same change as the type.
 3. **`dotnet format`.** SDK 11's formatter ships the C# 15 Roslyn. It could not be exercised in the
    worker sandbox: the MSBuild build host cannot create its named pipe there (`SocketException 13`),
-   which is an environment limit, not a syntax failure. Run `dotnet format style` and
-   `dotnet format analyzers` on a normal runner as part of step (b)'s gate.
+   which is an environment limit, not a syntax failure. #902 ran it on a normal machine as part of
+   step (b)'s gate; the analyzer and style checks stay in the verify gate for step (c).
 
 ## Related
 

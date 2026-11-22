@@ -1,0 +1,264 @@
+using Lunate.Ai;
+using Lunate.Ai.Decisions;
+using Lunate.Contracts;
+
+namespace Lunate.Agent.Tests;
+
+public sealed class ContractsAssemblyTests
+{
+    [Fact]
+    public void Tool_context_signature_types_are_defined_in_contracts()
+    {
+        Type[] contractTypes =
+        [
+            typeof(ITool),
+            typeof(ToolContext),
+            typeof(ToolResult),
+            typeof(ToolStub),
+            typeof(ToolStubParameter),
+            typeof(ToolAnnotations),
+            typeof(ToolExposure),
+            typeof(ToolRisk),
+            typeof(ToolConcurrency),
+            typeof(ToolNamespace),
+            typeof(ImageAttachment),
+            typeof(IAgentEvents),
+            typeof(GitIdentity),
+            typeof(IFileChangeSink),
+            typeof(IFileMutationQueue),
+            typeof(ISubagentRunner),
+            typeof(IModelAccess),
+            typeof(ModelInfo),
+            typeof(ModelPricing),
+            typeof(ModelCapabilityDescriptor),
+        ];
+
+        Assert.All(contractTypes, type =>
+            Assert.Equal("Lunate.Contracts", type.Assembly.GetName().Name)
+        );
+
+        Type[] contextSignatureTypes = typeof(ToolContext)
+            .GetMembers(
+                System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.DeclaredOnly
+            )
+            .SelectMany(MemberSignatureTypes)
+            .SelectMany(ExpandType)
+            .Where(type => !IsAllowedContractSignatureType(type))
+            .Distinct()
+            .ToArray();
+
+        Assert.Empty(contextSignatureTypes);
+    }
+
+    [Fact]
+    public void Tool_context_exposes_output_limits_with_contract_defaults()
+    {
+        var context = new ToolContext("/work", new AgentEventChannel());
+
+        Assert.Equal(30_000, context.ToolOutputLimit);
+        Assert.Equal(2_000, context.SpillThresholdTokens);
+
+        ToolContext configured = context with { ToolOutputLimit = 123, SpillThresholdTokens = 456 };
+
+        Assert.Equal(123, configured.ToolOutputLimit);
+        Assert.Equal(456, configured.SpillThresholdTokens);
+    }
+
+    [Fact]
+    public void Tool_context_keeps_agent_execution_state_out_of_its_public_contract()
+    {
+        string[] publicPropertyNames = typeof(ToolContext)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.DoesNotContain("Session", publicPropertyNames);
+        Assert.DoesNotContain("Reads", publicPropertyNames);
+        Assert.DoesNotContain("AgentState", publicPropertyNames);
+        Assert.False(typeof(AgentToolContextState).IsPublic);
+    }
+
+    [Fact]
+    public void Contracts_public_signature_closure_has_no_agent_or_other_lunate_dependencies()
+    {
+        Type[] unsupportedTypes = typeof(ToolContext)
+            .Assembly.GetExportedTypes()
+            .SelectMany(type =>
+                type.GetMembers(
+                    System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.Instance
+                        | System.Reflection.BindingFlags.Static
+                        | System.Reflection.BindingFlags.DeclaredOnly
+                )
+            )
+            .SelectMany(MemberSignatureTypes)
+            .SelectMany(ExpandType)
+            .Where(type => !IsAllowedContractSignatureType(type))
+            .Distinct()
+            .ToArray();
+
+        Assert.Empty(unsupportedTypes);
+    }
+
+    [Fact]
+    public void The_decision_model_lives_in_its_own_package()
+    {
+        // One model, one home, and its own package (ADR-0045): the request/result records and the
+        // seams belong to Lunate.Decisions.Model, the engine stays in Lunate.Ai.Decisions, and the
+        // contract keeps only the event distribution it publishes.
+        System.Reflection.Assembly model = typeof(DecisionRequest).Assembly;
+
+        Assert.Equal("Lunate.Decisions.Model", model.GetName().Name);
+        Assert.Equal(model, typeof(DecisionQuestion).Assembly);
+        Assert.Equal(model, typeof(DecisionAnswer).Assembly);
+        Assert.Equal(model, typeof(DecisionBox).Assembly);
+        Assert.Equal(model, typeof(DecisionResult).Assembly);
+        Assert.Equal(model, typeof(DecisionUsage).Assembly);
+        Assert.Equal(model, typeof(INativeDecisionClient).Assembly);
+        Assert.Equal(model, typeof(IAgentDecisionService).Assembly);
+        Assert.Equal(typeof(DecisionEvaluated).Assembly, typeof(DecisionProbability).Assembly);
+        Assert.NotEqual(typeof(DecisionEvaluated).Assembly, model);
+        Assert.Equal(0, (int)DecisionQuestionKind.YesNo);
+        Assert.Equal(1, (int)DecisionQuestionKind.Choice);
+        Assert.Equal(2, (int)DecisionQuestionKind.Score);
+        Assert.Equal(3, (int)DecisionQuestionKind.Box);
+    }
+
+    [Fact]
+    public void The_decision_model_package_exports_only_the_accepted_inventory()
+    {
+        // The model package holds the model and the seams, nothing else (ADR-0045). Transport
+        // bookkeeping such as the OpenCode usage sidecar is internal to the model so it cannot
+        // appear in the package's PublicAPI inventory by accident.
+        string[] exported = typeof(DecisionRequest)
+            .Assembly.GetExportedTypes()
+            .Select(type => type.FullName!)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        string[] expected =
+        [
+            "Lunate.Ai.Decisions.DecisionAnswer",
+            "Lunate.Ai.Decisions.DecisionBox",
+            "Lunate.Ai.Decisions.DecisionQuestion",
+            "Lunate.Ai.Decisions.DecisionQuestionKind",
+            "Lunate.Ai.Decisions.DecisionRequest",
+            "Lunate.Ai.Decisions.DecisionResult",
+            "Lunate.Ai.Decisions.DecisionUsage",
+            "Lunate.Ai.Decisions.IAgentDecisionService",
+            "Lunate.Ai.Decisions.INativeDecisionClient",
+        ];
+
+        Assert.Equal(expected, exported);
+    }
+
+    [Fact]
+    public void The_decision_engine_types_stay_internal_to_the_engine()
+    {
+        // The model package is the extension surface; the engine is not (ADR-0045). A new engine type
+        // that is public would become contract by accident again, so the gate names each one.
+        Type[] engineTypes =
+        [
+            typeof(DecisionClientBuilder),
+            typeof(DecisionResponseParser),
+            typeof(DecisionResultValidator),
+            typeof(DecisionOptions),
+        ];
+
+        Assert.All(engineTypes, type =>
+        {
+            Assert.Equal("Lunate.Ai.Decisions", type.Assembly.GetName().Name);
+            Assert.False(type.IsPublic, $"{type.Name} must stay internal to the engine.");
+            Assert.False(type.IsNestedPublic, $"{type.Name} must stay internal to the engine.");
+        });
+    }
+
+    [Fact]
+    public void The_former_agent_assembly_forwards_every_contract_type_in_its_namespace()
+    {
+        Type[] contractTypes = TypesInNamespace(typeof(ToolContext).Assembly, "Lunate.Agent");
+        Type[] forwardedTypes = TypesInNamespace(
+            typeof(AgentHarness).Assembly.GetForwardedTypes(),
+            "Lunate.Agent"
+        );
+
+        Assert.Equal(contractTypes, forwardedTypes);
+    }
+
+    [Fact]
+    public void The_former_ai_assembly_forwards_every_contract_type_in_its_namespace()
+    {
+        Type[] contractTypes = TypesInNamespace(typeof(ModelInfo).Assembly, "Lunate.Ai");
+        Type[] forwardedTypes = TypesInNamespace(
+            System.Reflection.Assembly.Load("Lunate.Ai").GetForwardedTypes(),
+            "Lunate.Ai"
+        );
+
+        Assert.Equal(contractTypes, forwardedTypes);
+    }
+
+    [Fact]
+    public void Old_assembly_qualified_contract_names_resolve_to_the_contract_copy()
+    {
+        Assert.Same(typeof(ToolContext), Type.GetType("Lunate.Agent.ToolContext, Lunate.Agent"));
+        Assert.Same(typeof(ModelInfo), Type.GetType("Lunate.Ai.ModelInfo, Lunate.Ai"));
+        Assert.Same(
+            typeof(Lunate.Extensibility.Abstractions.ToolResultView),
+            Type.GetType(
+                "Lunate.Extensibility.Abstractions.ToolResultView, Lunate.Extensibility.Abstractions"
+            )
+        );
+    }
+
+    private static Type[] TypesInNamespace(
+        System.Reflection.Assembly assembly,
+        string @namespace
+    ) => TypesInNamespace(assembly.GetExportedTypes(), @namespace);
+
+    private static Type[] TypesInNamespace(IEnumerable<Type> types, string @namespace) =>
+        types
+            .Where(type => type.Namespace == @namespace)
+            .OrderBy(type => type.FullName, StringComparer.Ordinal)
+            .ToArray();
+
+    private static IEnumerable<Type> MemberSignatureTypes(System.Reflection.MemberInfo member) =>
+        member switch
+        {
+            System.Reflection.PropertyInfo property => [property.PropertyType],
+            System.Reflection.MethodInfo method =>
+            [
+                method.ReturnType,
+                .. method.GetParameters().Select(parameter => parameter.ParameterType),
+            ],
+            System.Reflection.ConstructorInfo constructor => constructor
+                .GetParameters()
+                .Select(parameter => parameter.ParameterType),
+            _ => [],
+        };
+
+    private static IEnumerable<Type> ExpandType(Type type)
+    {
+        if (type.HasElementType)
+        {
+            return [type, .. ExpandType(type.GetElementType()!)];
+        }
+
+        if (type.IsGenericType)
+        {
+            return [type, .. type.GetGenericArguments().SelectMany(ExpandType)];
+        }
+
+        return [type];
+    }
+
+    private static bool IsAllowedContractSignatureType(Type type)
+    {
+        string? assemblyName = type.Assembly.GetName().Name;
+        return type.Assembly == typeof(ToolContext).Assembly
+            || type.Assembly == typeof(object).Assembly
+            || assemblyName?.StartsWith("System.", StringComparison.Ordinal) == true
+            || assemblyName == "Microsoft.Extensions.AI.Abstractions";
+    }
+}

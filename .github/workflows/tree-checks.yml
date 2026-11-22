@@ -1,7 +1,8 @@
 name: Tree checks
 
 # The cheap repository-wide checks -- ADR numbering, the spec-archive rule, the generated docs
-# regions, the docs link/navigation check and the docs lint -- used to run only where a pull
+# regions, the docs link/navigation check, the guard that no build input or test reads the docs tree
+# and the docs lint -- used to run only where a pull
 # request asked for them: `verify-docs` when the change was prose, the always-on `Process` job for
 # the region check. A docs-only push to main skips `ci.yml` entirely (its `paths-ignore`), and
 # `verify-docs` is selected only for a docs *pull request*, so a defect in one of them stayed
