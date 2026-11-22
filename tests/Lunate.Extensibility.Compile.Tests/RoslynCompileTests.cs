@@ -47,7 +47,7 @@ public sealed class RoslynCompileTests
             {
                 "Lunate.Contracts",
                 "Lunate.Extensibility.Abstractions",
-                "Lunate.Ai.Decisions",
+                "Lunate.Decisions.Model",
                 "Microsoft.Extensions.AI.Abstractions",
             },
             HostContractReferences.ContractNames

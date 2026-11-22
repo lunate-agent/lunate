@@ -53,36 +53,44 @@ internal sealed class SetupWizardTransaction : IDisposable
     }
 
     /// <summary>
-    /// Claims the stores a commit replaces — the settings file and the provider store — before
-    /// anything is seeded or staged (spec: Cross-process settings writes, Cross-process
-    /// provider-store writes). The seed then reads what another process has already written, and
-    /// the claim is still held when the staged body replaces the target, so two processes merge
-    /// instead of the later one winning from a stale read. Settings is claimed before the provider
-    /// store so two commits in two processes cannot deadlock on each other.
+    /// Claims the stores a commit replaces — the settings file, the provider store and the auth
+    /// file — before anything is seeded or staged (spec: Cross-process settings writes,
+    /// Cross-process provider-store writes, Cross-process auth-store writes). The seeds then read
+    /// what another process has already written, and the claims are still held when the staged
+    /// bodies replace the targets, so two processes merge instead of the later one winning from a
+    /// stale read. Settings is claimed before the provider store, which is claimed before the auth
+    /// file, so two commits in two processes cannot deadlock on each other.
     /// <para>
-    /// Nothing is written before both claims are held: a claim that cannot be taken refuses with
-    /// the store's own error and the commit has touched no target. The bounded wait is the store's;
-    /// the commit itself holds the claims for one non-interactive pass.
+    /// Nothing is written before all three claims are held: a claim that cannot be taken refuses
+    /// with the store's own error and the commit has touched no target. The bounded wait is the
+    /// store's; the commit itself holds the claims for one non-interactive pass. The staged writers
+    /// run on paths inside the staging directory, so their own claims are different files.
     /// </para>
     /// </summary>
     public static IDisposable ClaimTargets(
         string settingsPath,
         string providerStorePath,
+        string authPath,
         TimeSpan? claimTimeout = null
     )
     {
         FileLock settings = claimTimeout is { } settingsWait
             ? SettingsStore.AcquireWriteLock(settingsPath, settingsWait)
             : SettingsStore.AcquireWriteLock(settingsPath);
+        FileLock? providers = null;
         try
         {
-            FileLock providers = claimTimeout is { } providerWait
+            providers = claimTimeout is { } providerWait
                 ? ProviderStore.AcquireLock(providerStorePath, providerWait)
                 : ProviderStore.AcquireLock(providerStorePath);
-            return new TargetClaims([settings, providers]);
+            FileLock auth = claimTimeout is { } authWait
+                ? AuthStore.AcquireLock(authPath, authWait)
+                : AuthStore.AcquireLock(authPath);
+            return new TargetClaims([settings, providers, auth]);
         }
         catch
         {
+            providers?.Dispose();
             settings.Dispose();
             throw;
         }

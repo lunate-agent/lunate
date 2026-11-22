@@ -10,9 +10,10 @@ catalogue, workspace and settings surfaces, and `ExtensionApi` — the version n
 dotnet add package Lunate.Extensibility.Abstractions --version 1.15.0
 ```
 
-Depends on [`Lunate.Contracts`](https://www.nuget.org/packages/Lunate.Contracts) (same version) and
-`Microsoft.Extensions.AI.Abstractions`, and carries `Lunate.Ai.Decisions` in `lib/` because
-`IDecisionService` is typed with the decision model (ADR-0044); nothing else — `Lunate.Roslyn` and `Lunate.Roslyn.BuiltIn`
+Depends on [`Lunate.Contracts`](https://www.nuget.org/packages/Lunate.Contracts) and
+[`Lunate.Decisions.Model`](https://www.nuget.org/packages/Lunate.Decisions.Model) (same version) plus
+`Microsoft.Extensions.AI.Abstractions`; `IDecisionService` is typed with the decision model, which
+travels as a package dependency instead of a copy in `lib/` (ADR-0045). Nothing else — `Lunate.Roslyn` and `Lunate.Roslyn.BuiltIn`
 reference exactly this assembly plus the BCL, which keeps the contract installable from the feed
 alone (ADR-0026): the packaged-extension template and a single-file extension install it from
 NuGet instead of referencing the repository.

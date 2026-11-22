@@ -467,7 +467,11 @@ adds `--max-cost`/`--max-time` per run. Also `projection.batchTurns` (default 4;
 `LUNATE_PROJECTION_BATCH_TURNS` overrides it) and the observation-mask windows
 `projection.maskTurns` (default 8) and `projection.maskErrorTurns` (default 32);
 `~/.lunate/providers.json` holds named provider instances; and `~/.lunate/auth.json` holds stored
-keys. Provider instances select one of the twelve built-in kinds as a template and may declare one
+keys. Each of the three is a read-modify-write under a cross-process claim (`settings.lock`,
+`providers.lock`, `auth.lock`) taken beside the file, so two Lunate processes merge instead of one
+replacing a document it read before the other wrote; a read takes no claim and creates no lock
+file, and a commit that replaces all three — the setup wizard's — takes all three claims before it
+seeds its staged bodies. Provider instances select one of the twelve built-in kinds as a template and may declare one
 base URL per API family. The five families are `openai-chat`, `openai-responses`,
 `anthropic-messages`, `google` and `systemone`; a model's family comes from a profile override, discovery, the
 catalog, or the provider's only family. Credentials are references (`auth:` or `env:`), never literal

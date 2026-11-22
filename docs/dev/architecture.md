@@ -19,12 +19,15 @@ flowchart TD
     Coding -. "evaluates manifest rule" .-> ExtApi
     Protocols --> Agent
     Agent --> Ai["Lunate.Ai<br/>model pipeline, catalog"]
-    Agent --> Decisions["Lunate.Ai.Decisions<br/>decision engine and its model"]
+    Agent --> Engine["Lunate.Ai.Decisions<br/>decision engine"]
+    Agent --> Model["Lunate.Decisions.Model<br/>decision model package"]
     Agent --> Contracts["Lunate.Contracts<br/>shared wire contracts"]
-    Decisions --> Contracts
-    Coding --> Decisions
+    Engine --> Model
+    Model --> Contracts
+    ExtApi --> Model
+    Coding --> Engine
     Coding --> SystemOne["Lunate.Ai.SystemOne<br/>native System One transport"]
-    SystemOne --> Decisions
+    SystemOne --> Engine
     Ai --> Providers(["Provider APIs<br/>OpenAI-compatible, Anthropic, Google, System One"])
     Protocols -. "stdio / HTTP" .-> Mcp(["MCP servers<br/>separate process"])
     Protocols -. "ACP" .-> Editor(["Editor (ACP client)<br/>separate process"])
@@ -56,11 +59,15 @@ the project root. `tests/Lunate.Coding.Tests/LayoutRuleTests.cs` enforces both h
 the requirement lives in the [repo-quality spec](../../openspec/specs/repo-quality/spec.md) and the
 file-naming half in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
-The decision model sits in `Lunate.Ai.Decisions` rather than in the contract: `Lunate.Contracts` keeps
-only the `DecisionProbability` record the `DecisionEvaluated` event publishes, and the edge runs
-`Lunate.Ai.Decisions` → `Lunate.Contracts`, never back. `Lunate.Extensibility.Abstractions` types
-`IDecisionService` with that model, so the contract package carries the decision assembly in `lib/` and
-the host owns it at load. See [ADR-0044](../../adr/0044-decision-model-ownership.md).
+The decision model sits in `Lunate.Decisions.Model`, its own package, rather than in the contract or
+the engine: `Lunate.Contracts` keeps only the `DecisionProbability` record the `DecisionEvaluated`
+event publishes, and the edge runs `Lunate.Decisions.Model` → `Lunate.Contracts`, never back. The
+engine stays in `Lunate.Ai.Decisions`, references the model and `Lunate.Contracts`, and is unpacked;
+only `Lunate.Agent`, which needs it, carries it in `lib/`. `Lunate.Extensibility.Abstractions` types
+`IDecisionService` with the model and names `Lunate.Decisions.Model` as a package dependency, so the
+contract package does not carry the engine and the host owns the model at load. See
+[ADR-0045](../../adr/0045-decision-model-package.md), which amends
+[ADR-0044](../../adr/0044-decision-model-ownership.md).
 
 ## The model pipeline
 

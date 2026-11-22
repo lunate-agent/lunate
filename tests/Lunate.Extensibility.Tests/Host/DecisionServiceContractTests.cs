@@ -18,9 +18,9 @@ public sealed class DecisionServiceContractTests
             .Where(name => name.StartsWith("Lunate.", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal)
             .ToArray();
-        // The decision model lives in Lunate.Ai.Decisions and the edge runs down from it to the
-        // contract (ADR-0044); the extension contract never reaches up into the loop.
-        Assert.Equal(["Lunate.Ai.Decisions", "Lunate.Contracts"], lunate);
+        // The decision model has its own package and the edge runs down from it to the contract
+        // (ADR-0045); the extension contract never reaches up into the loop or the engine.
+        Assert.Equal(["Lunate.Contracts", "Lunate.Decisions.Model"], lunate);
         Assert.All(
             typeof(IDecisionService)
                 .GetMethods()

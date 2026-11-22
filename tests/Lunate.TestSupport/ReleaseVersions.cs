@@ -39,7 +39,10 @@ public static class ReleaseVersions
         }
     }
 
-    /// <summary>The version of <c>Lunate.Contracts</c> and <c>Lunate.Extensibility.Abstractions</c>.</summary>
+    /// <summary>
+    /// The version of <c>Lunate.Contracts</c>, <c>Lunate.Decisions.Model</c> and
+    /// <c>Lunate.Extensibility.Abstractions</c>.
+    /// </summary>
     public static string Contract => Api + Suffix;
 
     /// <summary>The version of <c>Lunate.Agent</c> and <c>Lunate.Extensibility.Testing</c>.</summary>

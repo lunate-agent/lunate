@@ -74,17 +74,26 @@ cannot drift from the file:
 <!-- snippet: templates/extension/TemplateExtension/TemplateExtension.csproj -->
 ```xml
 <!--
-    The host owns Lunate.Contracts and Lunate.Extensibility.Abstractions and loads them once;
-    every extension binds to those copies so their types keep one identity. They are NuGet
-    packages pinned to the stable contract version (1.15.0, the number the manifest's
-    apiVersion is judged against), and each reference is compile-only: PrivateAssets="all"
-    keeps them from flowing to consumers of a packaged extension, ExcludeAssets="runtime"
-    keeps them out of the deps file and the output directory — a copy there is ignored at
-    load, with one warning saying so.
+    The host owns Lunate.Contracts, Lunate.Decisions.Model and
+    Lunate.Extensibility.Abstractions and loads them once; every extension binds to those
+    copies so their types keep one identity. They are NuGet packages pinned to the stable
+    contract version (1.15.0, the number the manifest's apiVersion is judged against), and
+    each reference is compile-only: PrivateAssets="all" keeps them from flowing to consumers
+    of a packaged extension, ExcludeAssets="runtime" keeps them out of the deps file and the
+    output directory — a copy there is ignored at load, with one warning saying so. The
+    model needs its own reference because the Abstractions dependency would otherwise bring
+    a copy into the extension's output.
 -->
 <PackageReference
     Condition="'$(LunateUseNuGetContracts)' == 'true'"
     Include="Lunate.Contracts"
+    Version="$(LunateContractsVersion)"
+    PrivateAssets="all"
+    ExcludeAssets="runtime"
+/>
+<PackageReference
+    Condition="'$(LunateUseNuGetContracts)' == 'true'"
+    Include="Lunate.Decisions.Model"
     Version="$(LunateContractsVersion)"
     PrivateAssets="all"
     ExcludeAssets="runtime"
@@ -109,8 +118,10 @@ your own declares those too. Both its projects target `net11.0`, like the host a
 packages: the repository does not multi-target ([ADR-0041](../../adr/0041-net11-target-frameworks.md)),
 so an extension for this host is `net11.0` as well.
 
-The host owns `Lunate.Contracts` and `Lunate.Extensibility.Abstractions` — and `Lunate.Agent`,
-which ships as a preview package — and loads them once, so every extension binds to those copies.
+The host owns `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Decisions.Model` and
+`Lunate.Agent`, which ships as a preview package, and loads them once, so every extension binds to
+those copies. The model needs a reference of its own — the Abstractions dependency would otherwise
+bring a copy into your output, where the host ignores it and warns.
 `ExcludeAssets="runtime"` keeps the contract assemblies out of your output directory and deps
 file, while they still compile against. A copy in the output is ignored at load, with one line
 saying which copy and who shipped it — so keep these references as they are. `PrivateAssets="all"`
@@ -187,9 +198,10 @@ cp bin/Release/net11.0/HelloExtension.dll \
 ```
 
 Copy any further dependencies next to the assembly. `Lunate.Contracts`,
-`Lunate.Extensibility.Abstractions`, `Lunate.Agent`, `Microsoft.Extensions.AI.Abstractions` and
-`System.Text.Json` are shared from the host and are never loaded from the extension folder: a copy
-shipped there anyway is ignored, and `/extensions` and the log say so once, naming what was dropped.
+`Lunate.Extensibility.Abstractions`, `Lunate.Decisions.Model`, `Lunate.Agent`,
+`Microsoft.Extensions.AI.Abstractions` and `System.Text.Json` are shared from the host and are never
+loaded from the extension folder: a copy shipped there anyway is ignored, and `/extensions` and the
+log say so once, naming what was dropped.
 
 There are two installation scopes:
 

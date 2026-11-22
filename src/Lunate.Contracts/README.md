@@ -4,8 +4,8 @@ The message and tool contract every Lunate extension and host shares: the `ITool
 (`ToolContext`, `ToolResult`, declarations and annotations) and the complete closed set of
 `AgentEvent` records, including the `DecisionProbability` a decision event publishes. `Lunate.Agent`
 implements the contract; `Lunate.Extensibility.Abstractions` and every extension build on it. The
-decision request/result model is not part of the contract: it lives in `Lunate.Ai.Decisions`
-(ADR-0044).
+decision request/result model is not part of the contract: it lives in `Lunate.Decisions.Model`
+(ADR-0045).
 
 ## Installation
 

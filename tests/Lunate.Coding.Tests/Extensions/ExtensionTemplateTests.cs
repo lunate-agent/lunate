@@ -5,7 +5,7 @@ namespace Lunate.Coding.Tests;
 
 /// <summary>
 /// The template is the place an extension author copies from, and the rule it carries is not
-/// cosmetic: the host owns <c>Lunate.Contracts</c> and
+/// cosmetic: the host owns <c>Lunate.Contracts</c>, <c>Lunate.Decisions.Model</c> and
 /// <c>Lunate.Extensibility.Abstractions</c>, so references use <c>PrivateAssets="all"</c>,
 /// <c>Private="false"</c> and <c>ExcludeAssets="runtime"</c> to keep the host assemblies out of the
 /// extension's runtime assets while allowing it to compile against them.
@@ -20,6 +20,7 @@ public sealed class ExtensionTemplateTests
     private static readonly string[] HostOwned =
     [
         "Lunate.Contracts",
+        "Lunate.Decisions.Model",
         "Lunate.Extensibility.Abstractions",
     ];
 

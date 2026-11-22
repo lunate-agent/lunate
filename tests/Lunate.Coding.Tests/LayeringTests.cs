@@ -121,6 +121,12 @@ public sealed class LayeringTests
         var references = ReadProjectReferences().ToHashSet();
 
         Assert.Contains(("Lunate.Agent", "Lunate.Ai.Decisions"), references);
+        Assert.Contains(("Lunate.Agent", "Lunate.Decisions.Model"), references);
+        Assert.Contains(("Lunate.Ai.Decisions", "Lunate.Decisions.Model"), references);
+        Assert.Contains(
+            ("Lunate.Extensibility.Abstractions", "Lunate.Decisions.Model"),
+            references
+        );
         Assert.Contains(("Lunate.Ai.SystemOne", "Lunate.Ai.Decisions"), references);
         Assert.Contains(("Lunate.Coding", "Lunate.Ai.SystemOne"), references);
         Assert.DoesNotContain(("Lunate.Agent", "Lunate.Ai.SystemOne"), references);
@@ -134,7 +140,10 @@ public sealed class LayeringTests
 
         Assert.DoesNotContain(references, reference =>
             reference.From is "Lunate.Contracts"
-            && reference.To is "Lunate.Ai.Decisions" or "Lunate.Ai.SystemOne"
+            && reference.To
+                is "Lunate.Ai.Decisions"
+                    or "Lunate.Decisions.Model"
+                    or "Lunate.Ai.SystemOne"
         );
     }
 
@@ -145,6 +154,9 @@ public sealed class LayeringTests
         string source = RepositoryRoot.Find();
         XDocument decisions = XDocument.Load(
             Path.Combine(source, "src", "Lunate.Ai.Decisions", "Lunate.Ai.Decisions.csproj")
+        );
+        XDocument model = XDocument.Load(
+            Path.Combine(source, "src", "Lunate.Decisions.Model", "Lunate.Decisions.Model.csproj")
         );
         XDocument systemOne = XDocument.Load(
             Path.Combine(source, "src", "Lunate.Ai.SystemOne", "Lunate.Ai.SystemOne.csproj")
@@ -160,6 +172,7 @@ public sealed class LayeringTests
         );
         Assert.Empty(systemOne.Descendants("PackageReference"));
         Assert.Equal("false", decisions.Descendants("IsPackable").Single().Value);
+        Assert.Equal("true", model.Descendants("IsPackable").Single().Value);
         Assert.Equal("false", systemOne.Descendants("IsPackable").Single().Value);
     }
 

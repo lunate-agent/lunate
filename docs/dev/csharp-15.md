@@ -162,8 +162,8 @@ want — cannot compile for `net10.0`; they need the `net11.0` BCL. `Directory.B
 `net11.0` and no project overrides it with `TargetFrameworks`: the tool, the app, the self-contained
 release binaries (they carry their runtime, so the user still installs nothing), `Lunate.Tui`,
 `Mermaid.Terminal`, every internal and test project, the extension template and every published
-package — `Lunate.Contracts`, `Lunate.Extensibility.Abstractions`, `Lunate.Agent`,
-`Lunate.Extensibility.Testing` and the `Lunate.Ai` assemblies the harness carries.
+package — `Lunate.Contracts`, `Lunate.Decisions.Model`, `Lunate.Extensibility.Abstractions`,
+`Lunate.Agent`, `Lunate.Extensibility.Testing` and the `Lunate.Ai` assemblies the harness carries.
 
 **The `dotnet tool` package requires .NET 11.** It is framework-dependent, so its one asset is
 `tools/net11.0`. `PackAsTool` can carry both `tools/net10.0` and `tools/net11.0` (verified with a

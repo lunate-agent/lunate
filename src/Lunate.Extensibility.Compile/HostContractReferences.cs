@@ -17,7 +17,7 @@ internal static class HostContractReferences
 
     /// <summary>
     /// The shared compile-time contract assemblies, in the order they are offered to the compiler:
-    /// the tool and event contracts, the extension contract, the decision model its
+    /// the tool and event contracts, the extension contract, the decision model package its
     /// <c>IDecisionService</c> is typed with, then the MEAI abstractions tools are expressed in.
     /// <c>Lunate.Agent</c> and <c>Lunate.Ai</c> remain host-owned at load for runtime compatibility,
     /// but extensions do not compile directly against them. <c>System.Text.Json</c> is host-owned at
@@ -27,7 +27,7 @@ internal static class HostContractReferences
     [
         "Lunate.Contracts",
         "Lunate.Extensibility.Abstractions",
-        "Lunate.Ai.Decisions",
+        "Lunate.Decisions.Model",
         "Microsoft.Extensions.AI.Abstractions",
     ];
 
