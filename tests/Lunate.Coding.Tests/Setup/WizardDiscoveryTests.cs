@@ -185,6 +185,30 @@ public sealed class WizardDiscoveryTests
     }
 
     [Fact]
+    public async Task An_unreadable_listing_entry_is_undecipherable_with_its_message_redacted()
+    {
+        RecordingHandler transport = new(
+            (_, _) =>
+                Task.FromResult(
+                    Response(200, File.ReadAllText(Fixture("undecipherable-models.json")))
+                )
+        );
+
+        WizardDiscoveryResult result = await WizardDiscovery.RunAsync(
+            Preset,
+            new WizardCredentialChoice("openai", Key: "model-step-test-key"),
+            EmptyEnvironment,
+            handler: transport,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(WizardFailureKind.Undecipherable, result.FailureKind);
+        Assert.Contains("invalid API base_url", result.Error, StringComparison.Ordinal);
+        Assert.Contains("[redacted]", result.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("model-step-test-key", result.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Another_status_is_rejected_with_it_named()
     {
         RecordingHandler transport = new((_, _) => Task.FromResult(Response(500, "{}")));
@@ -236,4 +260,7 @@ public sealed class WizardDiscoveryTests
         {
             Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json"),
         };
+
+    private static string Fixture(string name) =>
+        Path.Combine(RepositoryRoot.Find(), "tests", "fixtures", "discovery", name);
 }

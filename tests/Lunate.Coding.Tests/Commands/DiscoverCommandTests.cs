@@ -886,10 +886,6 @@ public sealed class DiscoverCommandTests
                 "anthropic-messages",
                 "https://opencode.ai/inference/go/anthropic/v1"
             ),
-            ["opencode-go/gemini-4-argon"] = (
-                "google",
-                "https://opencode.ai/inference/go/google/v1beta"
-            ),
         };
         foreach ((string id, (string family, string endpoint)) in expected)
         {
@@ -898,7 +894,61 @@ public sealed class DiscoverCommandTests
             Assert.Equal(endpoint, model.GetProperty("endpoint").GetString());
         }
 
-        Assert.Equal(29, models.Count);
+        // The live Gemini entry now recommends the unsupported `interactions` API beside
+        // `generate-content`; it is skipped rather than failing every other model.
+        Assert.DoesNotContain("opencode-go/gemini-4-argon", models.Keys, StringComparer.Ordinal);
+        Assert.Equal(28, models.Count);
+    }
+
+    [Fact]
+    [Trait("Discovery", "ProviderApi")]
+    public async Task OpenCode_Go_multi_api_entries_take_their_recommendation_or_are_skipped()
+    {
+        using var temp = new TempDirectory();
+        string response = File.ReadAllText(Fixture("opencode-go-multi-api-models.json"));
+        using var handler = new FakeHandler(_ => Json(HttpStatusCode.OK, response));
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "opencode-go",
+            Catalog(temp),
+            handler,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.Succeeded, result.Error);
+        using JsonDocument draft = JsonDocument.Parse(result.Draft);
+        JsonElement[] models = [.. draft.RootElement.GetProperty("models").EnumerateArray()];
+        Assert.Equal(
+            ["opencode-go/recommended-supported", "opencode-go/ordinary-entry"],
+            models.Select(model => model.GetProperty("id").GetString())
+        );
+        JsonElement supported = models[0];
+        Assert.Equal("google", supported.GetProperty("apiFamily").GetString());
+        Assert.Equal(
+            "https://opencode.ai/inference/go/google/v1beta",
+            supported.GetProperty("endpoint").GetString()
+        );
+        Assert.Equal(1_048_576, supported.GetProperty("contextWindow").GetInt32());
+    }
+
+    [Fact]
+    public async Task An_unreadable_listing_entry_fails_discovery_with_its_parser_message()
+    {
+        using var temp = new TempDirectory();
+        string response = File.ReadAllText(Fixture("undecipherable-models.json"));
+        using var handler = new FakeHandler(_ => Json(HttpStatusCode.OK, response));
+
+        DiscoverResult result = await DiscoverCommand.RunAsync(
+            "opencode-go",
+            Catalog(temp),
+            handler,
+            environment: _ => null,
+            ct: TestContext.Current.CancellationToken
+        );
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("invalid API base_url", result.Error, StringComparison.Ordinal);
     }
 
     [Fact]
