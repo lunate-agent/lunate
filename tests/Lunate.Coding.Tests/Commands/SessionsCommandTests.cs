@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Lunate.Agent;
 using Lunate.TestSupport;
 
 namespace Lunate.Coding.Tests;
@@ -50,7 +51,8 @@ public sealed class SessionsCommandTests
         (int exit, string output, string errors) = Run("search", "retry budget", "--json");
 
         Assert.Equal(SessionsCommand.ExitOk, exit);
-        Assert.Empty(errors);
+        Assert.Contains("2 matches", errors, StringComparison.Ordinal);
+        Assert.Contains("bound 200 sessions", errors, StringComparison.Ordinal);
         JsonArray matches = JsonNode.Parse(output.Trim())!.AsArray();
         Assert.Equal(2, matches.Count);
         JsonNode row = Assert.Single(matches, match =>
@@ -66,6 +68,35 @@ public sealed class SessionsCommandTests
             StringComparison.OrdinalIgnoreCase
         );
         Assert.EndsWith("a1b2.jsonl", row["path"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Json_states_the_bound_and_a_stopped_scan_on_stderr()
+    {
+        using var temp = new TempDirectory();
+        for (var index = 0; index <= Session.SearchSessionLimit; index++)
+        {
+            Session.Create(temp.File($"s_{index}.jsonl"), "/work");
+        }
+
+        using var output = new StringWriter();
+        using var errors = new StringWriter();
+        int exit = SessionsCommand.Run(
+            ["search", "nothing matches this", "--json"],
+            temp.Root,
+            output,
+            errors
+        );
+
+        Assert.Equal(SessionsCommand.ExitOk, exit);
+        Assert.Empty(JsonNode.Parse(output.ToString().Trim())!.AsArray());
+        Assert.Contains(
+            "no match for 'nothing matches this'",
+            errors.ToString(),
+            StringComparison.Ordinal
+        );
+        Assert.Contains("bound 200 sessions", errors.ToString(), StringComparison.Ordinal);
+        Assert.Contains("stopped at the bound", errors.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

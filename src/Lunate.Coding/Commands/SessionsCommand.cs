@@ -44,7 +44,10 @@ internal static class SessionsCommand
             );
             if (json)
             {
+                // stdout stays one JSON array; the bound and the stopped state belong to the
+                // summary, which every search prints, so it goes to stderr for the JSON form.
                 output.WriteLine(ToJson(result));
+                errors.WriteLine(Summary(result, query));
             }
             else
             {
@@ -72,11 +75,17 @@ internal static class SessionsCommand
             output.WriteLine($"    {match.Path} (entry {match.EntryId})");
         }
 
+        output.WriteLine(Summary(result, query));
+    }
+
+    /// <summary>The one summary line both surfaces print: the count, the scan and its bound.</summary>
+    private static string Summary(SessionSearchResult result, string query)
+    {
         string head =
             result.Matches.Count == 0
                 ? $"sessions: no match for '{query}'"
                 : FormattableString.Invariant($"sessions: {result.Matches.Count} matches");
-        output.WriteLine(head + " — " + ScanLine(result));
+        return head + " — " + ScanLine(result);
     }
 
     /// <summary>What the scan covered and what the bound was, in one invariant line.</summary>

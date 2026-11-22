@@ -23,9 +23,11 @@ listing skips it. Searching SHALL NOT create, append to or rewrite any file; the
 writer claim SHALL NOT run for a search.
 
 `lunate sessions search` SHALL print each row's session id, timestamp, `cwd`, snippet and session
-path to stdout, and with `--json` the same rows as a JSON array; it SHALL exit 0 with no match,
-printing that nothing matched plus the bound, and exit 2 on a missing query or an unknown argument.
-A timestamp SHALL be formatted culture-invariantly. The snippet SHALL be a single line: the message
+path to stdout, and with `--json` the same rows as a JSON array on stdout. The summary line that
+states the bound and whether the scan stopped SHALL print with every search; with `--json` that
+summary SHALL go to stderr so stdout stays one JSON array. It SHALL exit 0 with no match, printing
+that nothing matched plus the bound, and exit 2 on a missing query or an unknown argument. A
+timestamp SHALL be formatted culture-invariantly. The snippet SHALL be a single line: the message
 text around the first match, whitespace collapsed, bounded with `…` when text was cut.
 
 #### Scenario: A query returns the matching turn with its session facts
@@ -46,6 +48,13 @@ text around the first match, whitespace collapsed, bounded with `…` when text 
 - **GIVEN** a session file with a matching turn and one line that is not valid JSON
 - **WHEN** the phrase is searched
 - **THEN** the matching turn still returns and the result reports the skipped line
+
+#### Scenario: The JSON form keeps stdout one array and states its bound
+
+- **GIVEN** a search run with `--json`
+- **WHEN** it completes
+- **THEN** stdout parses as one JSON array of rows and stderr names the bound and whether the scan
+  stopped there
 
 #### Scenario: The bound is stated and enforced
 
