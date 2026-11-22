@@ -21,7 +21,7 @@ public sealed class TodoReplayTests
         AppendCall(session, "call_2", """[{"text":"second","status":"in_progress"}]""");
 
         Session loaded = Session.Load(path);
-        IReadOnlyList<TodoItem>? items = TodoReplay.FromHistory(loaded.ToHistory());
+        IReadOnlyList<TodoItem>? items = TodoReplay.FromSession(loaded);
 
         Assert.Equal([new TodoItem("second", TodoItemStatus.InProgress)], items);
     }
@@ -41,9 +41,31 @@ public sealed class TodoReplayTests
         );
 
         Session loaded = Session.Load(path);
-        IReadOnlyList<TodoItem>? items = TodoReplay.FromHistory(loaded.ToHistory());
+        IReadOnlyList<TodoItem>? items = TodoReplay.FromSession(loaded);
 
         Assert.Equal([new TodoItem("keep", TodoItemStatus.Done)], items);
+    }
+
+    [Fact]
+    public void A_compaction_does_not_erase_the_replayed_list()
+    {
+        using var temp = new TempDirectory();
+        string path = temp.File("session.jsonl");
+        Session session = Session.Create(path, temp.Root);
+        session.AppendMessage(new ChatMessage(ChatRole.User, "plan it"));
+        AppendCall(session, "call_1", """[{"text":"keep","status":"done"}]""");
+        session.AppendCompaction("summary", ["e_01", "e_02", "e_03"]);
+
+        Session loaded = Session.Load(path);
+
+        Assert.DoesNotContain(
+            loaded.ToHistory(),
+            message => message.Contents.OfType<FunctionCallContent>().Any()
+        );
+        Assert.Equal(
+            [new TodoItem("keep", TodoItemStatus.Done)],
+            TodoReplay.FromSession(loaded)
+        );
     }
 
     [Fact]
@@ -56,7 +78,7 @@ public sealed class TodoReplayTests
 
         Session loaded = Session.Load(path);
 
-        Assert.Null(TodoReplay.FromHistory(loaded.ToHistory()));
+        Assert.Null(TodoReplay.FromSession(loaded));
     }
 
     [Fact]

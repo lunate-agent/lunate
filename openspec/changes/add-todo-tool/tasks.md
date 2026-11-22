@@ -14,7 +14,7 @@
 ## 3. Session replay
 
 - [x] 3.1 Add red tests in `tests/Lunate.Coding.Tests/Sessions` that a loaded session reconstructs the last valid todo call on the active path, skips an invalid later call, and reconstructs nothing without a call; confirm they fail.
-- [x] 3.2 Implement the replay from `Session.ToHistory()` through the same validator and wire it into the resume path.
+- [x] 3.2 Implement the replay from the session's active-path message entries through the same validator and wire it into the resume path.
 
 ## 4. TUI
 

@@ -44,7 +44,7 @@ The TUI keeps its own small value type; `Lunate.Tui` references no other Lunate 
 
 ### Resume replays from the existing tool messages; JSON projects from the event
 
-The current list is reconstructed by scanning `Session.ToHistory()` for the last `todo` call on the active path and parsing its arguments through the same validator. A call whose arguments do not validate is skipped. No entry is appended and no format changes, so golden sessions stay byte-identical and a session without a call replays nothing.
+The current list is reconstructed by walking the active path's message entries for the last `todo` call and parsing its arguments through the same validator. That reads the session entries rather than the projected request history, so a compaction cannot erase the list. A call whose arguments do not validate is skipped. No entry is appended and no format changes, so golden sessions stay byte-identical and a session without a call replays nothing.
 
 `PrintEventJson` maps the event to `{"type":"todo_updated", …, "items":[{"text":…,"status":"pending"|"in_progress"|"done"}]}`. Non-JSON print output stays the final answer. The same projection is the ACP/consumer fallback: an existing switch with a `_` arm ignores the kind, which the closed-set spec already permits.
 

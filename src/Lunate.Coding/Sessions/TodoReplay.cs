@@ -12,7 +12,19 @@ namespace Lunate.Coding;
 /// </summary>
 internal static class TodoReplay
 {
-    /// <summary>The last valid todo list on the path, or null when it has none.</summary>
+    /// <summary>The last valid todo list on the session's active path, or null when it has none.</summary>
+    internal static IReadOnlyList<TodoItem>? FromSession(Session session)
+    {
+        IReadOnlyList<SessionEntry> path = SessionTree.Path(
+            session.Entries,
+            session.ActiveLeafId
+        );
+        return FromHistory(
+            path.OfType<SessionMessageEntry>().Select(entry => entry.Message)
+        );
+    }
+
+    /// <summary>The last valid todo list in the given messages, or null when they have none.</summary>
     internal static IReadOnlyList<TodoItem>? FromHistory(IEnumerable<ChatMessage> history)
     {
         IReadOnlyList<TodoItem>? current = null;

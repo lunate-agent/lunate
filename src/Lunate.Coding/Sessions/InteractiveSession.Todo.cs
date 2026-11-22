@@ -13,7 +13,7 @@ internal sealed partial class InteractiveSession
     {
         IReadOnlyList<TodoItem>? items = _session is null
             ? null
-            : TodoReplay.FromHistory(_session.ToHistory());
+            : TodoReplay.FromSession(_session);
         _live.SetTodo(items is null ? null : TodoReplay.ToView(items));
     }
 }
