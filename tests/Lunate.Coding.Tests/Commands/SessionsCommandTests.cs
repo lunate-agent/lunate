@@ -30,7 +30,7 @@ public sealed class SessionsCommandTests
         Assert.Contains("a1b2.jsonl", output, StringComparison.Ordinal);
         Assert.Contains("2 matches", output, StringComparison.Ordinal);
         Assert.Contains("bound 200 sessions", output, StringComparison.Ordinal);
-        Assert.Contains("1 malformed line", output, StringComparison.Ordinal);
+        Assert.Contains("skipped 1 malformed line", output, StringComparison.Ordinal);
     }
 
     [Fact]

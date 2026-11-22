@@ -86,17 +86,25 @@ internal static class SessionsCommand
             $"bound {Session.SearchSessionLimit} sessions, {Bytes(Session.SearchTextBytesLimit)} of text and {Session.SearchMatchLimit} matches"
         );
         string line = FormattableString.Invariant(
-            $"searched {result.SessionsScanned} sessions ({Bytes(result.TextBytes)} of text); {bound}"
+            $"searched {Sessions(result.SessionsScanned)} ({Bytes(result.TextBytes)} of text); {bound}"
         );
         if (result.MalformedLines > 0)
         {
-            line += FormattableString.Invariant(
-                $"; skipped {result.MalformedLines} malformed lines"
-            );
+            line += "; " + Skipped(result.MalformedLines);
         }
 
         return result.StoppedAtBound ? line + "; stopped at the bound" : line;
     }
+
+    /// <summary>"1 session" and "2 sessions": the scan line reads as English either way.</summary>
+    private static string Sessions(int count) =>
+        count == 1 ? "1 session" : FormattableString.Invariant($"{count} sessions");
+
+    /// <summary>"1 malformed line" and "2 malformed lines", the same way.</summary>
+    private static string Skipped(int count) =>
+        count == 1
+            ? "skipped 1 malformed line"
+            : FormattableString.Invariant($"skipped {count} malformed lines");
 
     private static string Timestamp(DateTimeOffset timestamp) =>
         timestamp
