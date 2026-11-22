@@ -57,6 +57,49 @@ public sealed class DesktopNotificationTests
     }
 
     [Fact]
+    public void The_helper_keeps_the_desktop_session_and_not_the_credentials()
+    {
+        NotificationCommand command = Assert.IsType<NotificationCommand>(
+            DesktopNotificationCommand.For(NotificationPlatform.Linux, Message)
+        );
+
+        IReadOnlyDictionary<string, string> environment =
+            DesktopNotificationSender.ChildEnvironment(
+                command,
+                [
+                    new("DISPLAY", ":0"),
+                    new("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus"),
+                    new("XAUTHORITY", "/run/user/1000/gdm/Xauthority"),
+                    new("OPENAI_API_KEY", "sk-live"),
+                    new("GITHUB_TOKEN", "ghp-live"),
+                ]
+            );
+
+        // Without DISPLAY and the message bus address, notify-send cannot reach the user's session.
+        Assert.Equal(":0", environment["DISPLAY"]);
+        Assert.Equal("unix:path=/run/user/1000/bus", environment["DBUS_SESSION_BUS_ADDRESS"]);
+        Assert.Equal("/run/user/1000/gdm/Xauthority", environment["XAUTHORITY"]);
+
+        // The helper reads nothing of Lunate's; a notification is not a reason to hand a key over.
+        Assert.DoesNotContain("OPENAI_API_KEY", environment.Keys);
+        Assert.DoesNotContain("GITHUB_TOKEN", environment.Keys);
+    }
+
+    [Fact]
+    public void The_helper_receives_the_message_in_the_declared_variables()
+    {
+        NotificationCommand command = Assert.IsType<NotificationCommand>(
+            DesktopNotificationCommand.For(NotificationPlatform.MacOs, Message)
+        );
+
+        IReadOnlyDictionary<string, string> environment =
+            DesktopNotificationSender.ChildEnvironment(command, []);
+
+        Assert.Equal("release prep", environment[DesktopNotificationCommand.TitleVariable]);
+        Assert.Equal("finished", environment[DesktopNotificationCommand.BodyVariable]);
+    }
+
+    [Fact]
     public void A_throwing_process_start_is_swallowed()
     {
         var sender = new DesktopNotificationSender(

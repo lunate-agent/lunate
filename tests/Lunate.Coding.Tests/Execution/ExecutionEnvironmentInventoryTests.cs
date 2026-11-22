@@ -14,13 +14,14 @@ public sealed class ExecutionEnvironmentInventoryTests
     /// <summary>
     /// Direct host/local process starts. Each is deliberately outside the tool-command seam: the
     /// platform batch spawn and interactive session (the local implementation), the process-table
-    /// read behind the local tree kill, and the editor, clipboard and guard helper processes. The
-    /// list names files, not paths: a feature folder moves a file without changing its classification
-    /// (#695), and a name that is no longer unique fails at the read.
+    /// read behind the local tree kill, and the editor, clipboard, notification and guard helper
+    /// processes. The list names files, not paths: a feature folder moves a file without changing
+    /// its classification (#695), and a name that is no longer unique fails at the read.
     /// </summary>
     private static readonly string[] HostSupportStarts =
     [
         "ClipboardWriter.cs",
+        "DesktopNotificationSender.cs",
         "DraftEditor.cs",
         "GuardProbe.cs",
         "LocalExecutionEnvironment.Session.cs",
