@@ -33,5 +33,5 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run `dotnet csharpier format .`, the touched Release builds and focused test classes, and `openspec validate add-todo-tool --type change --strict`; fix failures.
-- [ ] 7.2 Run `openspec validate --all --strict`, then sync and archive the change as the branch's last commit.
+- [x] 7.1 Run `dotnet csharpier format .`, the touched Release builds and focused test classes, and `openspec validate add-todo-tool --type change --strict`; fix failures.
+- [x] 7.2 Run `openspec validate --all --strict`, then sync and archive the change as the branch's last commit.

@@ -11,9 +11,7 @@ internal sealed partial class InteractiveSession
     /// </summary>
     private void ApplyTodoReplay()
     {
-        IReadOnlyList<TodoItem>? items = _session is null
-            ? null
-            : TodoReplay.FromSession(_session);
+        IReadOnlyList<TodoItem>? items = _session is null ? null : TodoReplay.FromSession(_session);
         _live.SetTodo(items is null ? null : TodoReplay.ToView(items));
     }
 }

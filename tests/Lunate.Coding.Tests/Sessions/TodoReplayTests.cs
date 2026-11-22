@@ -58,14 +58,10 @@ public sealed class TodoReplayTests
 
         Session loaded = Session.Load(path);
 
-        Assert.DoesNotContain(
-            loaded.ToHistory(),
-            message => message.Contents.OfType<FunctionCallContent>().Any()
+        Assert.DoesNotContain(loaded.ToHistory(), message =>
+            message.Contents.OfType<FunctionCallContent>().Any()
         );
-        Assert.Equal(
-            [new TodoItem("keep", TodoItemStatus.Done)],
-            TodoReplay.FromSession(loaded)
-        );
+        Assert.Equal([new TodoItem("keep", TodoItemStatus.Done)], TodoReplay.FromSession(loaded));
     }
 
     [Fact]
