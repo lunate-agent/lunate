@@ -37,6 +37,70 @@ public sealed class PrintModeTests
     }
 
     [Fact]
+    public async Task Json_emits_one_todo_update_line_per_successful_call()
+    {
+        using var temp = new TempDirectory();
+        var client = new ScriptedChatClient()
+            .Enqueue(
+                Scripts.Call(
+                    "call-1",
+                    "todo",
+                    Scripts.Args(
+                        ("items", new[] { Item("read the card", "done"), Item("write", "pending") })
+                    )
+                ),
+                Scripts.ToolCalls()
+            )
+            .Enqueue(
+                Scripts.Call(
+                    "call-2",
+                    "todo",
+                    Scripts.Args(
+                        ("items", new[] { Item("write", "in_progress"), Item("commit", "pending") })
+                    )
+                ),
+                Scripts.ToolCalls()
+            )
+            .Enqueue(Scripts.Text("done"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+            Json = true,
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(errors);
+        List<JsonElement> lines = PrintModeTestSupport.ParseLines(output);
+        List<JsonElement> updates =
+        [
+            .. lines.Where(line => PrintModeTestSupport.TypeOf(line) == "todo_updated"),
+        ];
+        Assert.Equal(2, updates.Count);
+        Assert.Equal(
+            ["read the card", "write"],
+            updates[0]
+                .GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("text").GetString())
+        );
+        Assert.Equal(
+            ["in_progress", "pending"],
+            updates[1]
+                .GetProperty("items")
+                .EnumerateArray()
+                .Select(item => item.GetProperty("status").GetString())
+        );
+    }
+
+    private static Dictionary<string, object?> Item(string text, string status) =>
+        Scripts.Args(("text", text), ("status", status));
+
+    [Fact]
     public async Task A_bang_prefixed_prompt_stays_a_prompt()
     {
         using var temp = new TempDirectory();

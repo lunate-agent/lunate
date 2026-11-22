@@ -219,6 +219,13 @@ internal sealed partial class InteractiveSession
             case ToolOutputSpillFailed failed:
                 Notify(failed.Message, NoticeLevel.Warning);
                 break;
+            case TodoUpdated todo:
+                if (!child)
+                {
+                    _live.SetTodo(TodoReplay.ToView(todo.Items));
+                }
+
+                break;
         }
     }
 

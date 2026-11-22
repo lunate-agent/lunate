@@ -68,6 +68,7 @@ internal static class HarnessFactory
                 environment
             )
         );
+        tools.Add(new TodoTool());
         AddOptionalTools(tools, workspace, extraTools);
         return tools;
     }

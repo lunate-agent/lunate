@@ -114,6 +114,9 @@ internal sealed partial class LiveArea : IDisposable
 
     public void SetTail(string text) => Post(new TailSetInput(text));
 
+    /// <summary>Sets the todo list; null or empty clears the block.</summary>
+    public void SetTodo(IReadOnlyList<TodoItemView>? items) => Post(new TodoInput(items ?? []));
+
     /// <summary>Sets the live thinking block's text; null clears the block.</summary>
     public void SetThinking(string? text) => Post(new ThinkingInput(text, _scheduler.Now));
 
@@ -469,6 +472,7 @@ internal sealed partial class LiveArea : IDisposable
             },
             TailInput tail => state with { TailText = state.TailText + tail.Text },
             TailSetInput tail => state with { TailText = tail.Text },
+            TodoInput todo => state with { TodoItems = todo.Items },
             ThinkingInput { Text: null } => state with { Thinking = null },
             ThinkingInput { Text: { } text, At: var at } => state with
             {
@@ -578,6 +582,7 @@ internal sealed partial class LiveArea : IDisposable
         SpinnerTick,
         TailInput,
         TailSetInput,
+        TodoInput,
         ThinkingInput,
         NoticeInput,
         SecretPromptInput,
@@ -612,6 +617,8 @@ internal sealed partial class LiveArea : IDisposable
     private sealed record TailInput(string Text);
 
     private sealed record TailSetInput(string Text);
+
+    private sealed record TodoInput(IReadOnlyList<TodoItemView> Items);
 
     private sealed record ThinkingInput(string? Text, DateTimeOffset At);
 

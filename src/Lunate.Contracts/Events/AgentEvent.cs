@@ -223,6 +223,24 @@ public sealed record ToolProgressUpdate(string RunId, string CallId, string Mess
 public sealed record ToolOutputSpillFailed(string RunId, string Message)
     : ExtensionEventBase(RunId);
 
+/// <summary>The status of one todo item; the set is closed so a consumer can render every case.</summary>
+public enum TodoItemStatus
+{
+    Pending,
+    InProgress,
+    Done,
+}
+
+/// <summary>One item of the session's todo list: its model-written text and its status.</summary>
+public sealed record TodoItem(string Text, TodoItemStatus Status);
+
+/// <summary>
+/// The complete todo list after one successful <c>todo</c> call; a later event replaces the whole
+/// list, so a consumer never has to replay earlier updates.
+/// </summary>
+public sealed record TodoUpdated(string RunId, IReadOnlyList<TodoItem> Items)
+    : ExtensionEventBase(RunId);
+
 /// <summary>
 /// One event in a run's stream. The type is a C# 15 union over the event records, so the set of
 /// kinds is fixed at compile time: no assembly outside this contract can add one, a consumer's
@@ -257,7 +275,8 @@ public union AgentEvent(
     TimeLimitReached,
     SteeringInjected,
     ToolProgressUpdate,
-    ToolOutputSpillFailed
+    ToolOutputSpillFailed,
+    TodoUpdated
 )
 {
     /// <summary>The run the event belongs to.</summary>
@@ -320,6 +339,7 @@ public union AgentEvent(
             SteeringInjected e => new AgentEvent(e),
             ToolProgressUpdate e => new AgentEvent(e),
             ToolOutputSpillFailed e => new AgentEvent(e),
+            TodoUpdated e => new AgentEvent(e),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(value),
                 $"'{value.GetType().Name}' is not a declared event kind."
@@ -345,7 +365,8 @@ public union ExtensionEvent(
     TimeLimitReached,
     SteeringInjected,
     ToolProgressUpdate,
-    ToolOutputSpillFailed
+    ToolOutputSpillFailed,
+    TodoUpdated
 )
 {
     /// <summary>The run the event belongs to.</summary>
@@ -393,6 +414,7 @@ public union ExtensionEvent(
             SteeringInjected e => new ExtensionEvent(e),
             ToolProgressUpdate e => new ExtensionEvent(e),
             ToolOutputSpillFailed e => new ExtensionEvent(e),
+            TodoUpdated e => new ExtensionEvent(e),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(value),
                 $"'{value.GetType().Name}' is not a declared extension event kind."
