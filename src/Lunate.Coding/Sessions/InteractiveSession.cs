@@ -730,7 +730,8 @@ internal sealed partial class InteractiveSession : IDisposable
         new(
             _workspace.WorktreeRoot,
             model,
-            _options.Clipboard ?? new PlatformClipboardImageSource()
+            _options.Clipboard ?? new PlatformClipboardImageSource(),
+            VisionFallback.TryResolveProfile(_settings, _providerEntries, _catalog) is not null
         );
 
     /// <summary>

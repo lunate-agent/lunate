@@ -60,18 +60,21 @@ internal sealed class ImageInputResolver
     private readonly string _workingDirectory;
     private readonly ModelInfo? _model;
     private readonly IClipboardImageSource? _clipboard;
+    private readonly bool _allowVisionFallback;
     private bool _clipboardUnavailableNotified;
 
     public ImageInputResolver(
         string workingDirectory,
         ModelInfo? model,
-        IClipboardImageSource? clipboard = null
+        IClipboardImageSource? clipboard = null,
+        bool allowVisionFallback = false
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
         _workingDirectory = Path.GetFullPath(workingDirectory);
         _model = model;
         _clipboard = clipboard;
+        _allowVisionFallback = allowVisionFallback;
     }
 
     /// <summary>
@@ -280,6 +283,7 @@ internal sealed class ImageInputResolver
 
         if (
             attachments.Count > 0
+            && !_allowVisionFallback
             && _model?.Capabilities?.InputModalities is { } modalities
             && !modalities.Contains("image")
         )
