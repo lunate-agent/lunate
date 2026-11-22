@@ -14,13 +14,14 @@ metrics exporter or UI cannot be written at all.
   answers a version below 3 still loads; if the manifest declares `events`, the handshake refuses
   it with a message naming protocol 3 — never a silent ignore.
 - **`event/<kind>` notifications, host → child.** Each notification's params are the same JSON
-  object one `--json` line carries (`type`, `runId`, `sessionId`, `parentRunId`, `source` and the
-  event's own fields). Never awaited, never answered: an event has no result and no place on the
-  run's path, exactly as in-process.
+  object one `--json` line carries (`type`, `runId`, `sessionId`, `parentRunId`, `source`, the
+  event's own fields and the catalog's optional `costUsd` on `usage_updated`). Never awaited, never
+  answered: an event has no result and no place on the run's path, exactly as in-process.
 - **One projection, no second event model.** The `--json` projection moves from `Lunate.Coding`
   into the wire package and `--json` calls it, so the stream, the wire and the documented kind
   vocabulary cannot drift. The wire is the projection filtered by the manifest's declaration; the
-  in-process surface stays unfiltered.
+  in-process surface stays unfiltered. `costUsd` is priced where the catalog lives and handed to
+  both prints as one delegate, so the two lines carry the same bytes.
 - **Bounded, isolated delivery.** The host drains the subscription through one pump with a bounded
   queue (256, the in-process capacity); overflow drops the oldest event, counts it and warns once
   naming the extension. An event line over the wire's line cap is dropped with one warning, not a
@@ -56,7 +57,8 @@ _None._
   pump, the moved event projection.
 - `Lunate.Extensibility`: the loader starts an `events`-only remote extension at session start and
   drops the "not yet" warning; the stream itself is unchanged.
-- `Lunate.Coding`: `--json` delegates to the moved projection, so behaviour and bytes stay put.
+- `Lunate.Coding`: `--json` delegates to the moved projection, so behaviour and bytes stay put;
+  the composition hands the host the catalog-priced `costUsd` seam the wire cannot compute.
 - `Lunate.Extensibility.Testing`: the event conformance inventory and the runner's
   `event notification` step.
 - `samples/extensions/node-remote`: protocol 3, `events: ["*"]`, the `observed` command and the
@@ -78,9 +80,12 @@ specs and the code.
   the watch list (ADR-0040: "a remote filter needs a declaration"); the host sends only the
   manifest's kinds the child accepts. A child accepting more than the manifest never sees them, and
   that is not a refusal.
-- **Where does the projection live?** In the wire package, with `--json` delegating to it: one
-  switch, one vocabulary, no second event model. The wire carries no `costUsd` because pricing is a
-  `--json` presentation concern the child cannot compute.
+- **Where does the projection live, and who prices `costUsd`?** In the wire package, with `--json`
+  delegating to it: one switch, one vocabulary, no second event model. The wire package sits below
+  the catalog and cannot price, but the host process holds it, so the composition passes an optional
+  pricing delegate down: a `usage_updated` line carries the same `costUsd` the `--json` line
+  carries (and omits it for an unpriced record), instead of the wire dropping a field the
+  documented stream has.
 - **Does the wire add a second queue?** One pump with the same bounded capacity as the in-process
   subscription, because the child's stdin can block and the run must not wait on it.
 - **When does an observer-only remote extension start?** At session start, the same point commands

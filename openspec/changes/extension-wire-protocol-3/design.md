@@ -53,8 +53,8 @@ sequenceDiagram
 - No change to the hook catalogue, the command wire, the service wire or the contract API version.
 - No second JSON schema for each event kind: the event line is documented by its one source
   (`docs/json-events.md`) and the schema names the kind enum and the stamped fields.
-- Not changing the `--json` line: pricing (`costUsd`) stays a `--json` concern and is absent on the
-  wire.
+- Not dropping a field the `--json` line has: `costUsd` is on the wire line too, priced by the host
+  from the same catalog estimate the print stream uses.
 
 ## Decisions
 
@@ -86,16 +86,23 @@ list — rejected, it would refuse the ordinary `["*"]` child for a narrow manif
 
 The event → JSON switch moves from `Lunate.Coding/Print/PrintEventJson.cs` into
 `Lunate.Extensibility.Remote/Wire/RemoteEventJson.cs` as the wire's projection (`Serialize`,
-`Describe`, `Kinds`, `HandledEventTypes`). `PrintEventJson` stays in `Lunate.Coding` as a thin
-adapter that computes the optional `costUsd` from the catalog and delegates, so `--json`'s bytes and
-its reflection test are unchanged. The wire calls `RemoteEventJson.Serialize(event)` (no catalog →
-no `costUsd`).
+`Describe`, `Kinds`, `HandledEventTypes`). Pricing is the one part of the line the wire package
+cannot compute: `costUsd` needs the session catalog, and the wire package references only
+`Lunate.Extensibility.Abstractions`. So `Serialize` takes an optional `Func<UsageUpdated,
+decimal?>?`: `PrintEventJson` in `Lunate.Coding` passes the estimate `UsageCost` gives for the
+catalog and the run's model, and the remote host passes the same estimate through
+`ExtensionHostOptions.CostUsd` → `RemoteExtensionOptions.CostUsd`, which the composition sets from
+`ExtensionWireCost.For(catalog)`. Both lines then carry the same fields and bytes, an unpriced
+record omits `costUsd` on both, and `--json`'s reflection test is unchanged.
 
 Alternatives: duplicating the switch in the wire package (rejected — "there is no second event
 model"); moving it into `Lunate.Contracts` (rejected — a new public contract type and version bump
 for a presentation concern, and the pricing logic does not belong there); injecting a
 `Func<AgentEvent, string>` from the composition (rejected — a host that forgets it silently stops
-projecting, and the type would still need a home for the conformance inventory).
+projecting, and the type would still need a home for the conformance inventory); leaving `costUsd`
+off the wire (rejected — the params would not be the `--json` line ADR-0040 binds, and a child could
+not tell a priced line from an unpriced one); making the wire package reference `Lunate.Ai`
+(rejected — the wire stays a lean contract package and the catalog owner already sits above it).
 
 ### 4. The subscription belongs to the started child, drained by its own pump
 

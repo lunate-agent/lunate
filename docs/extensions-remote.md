@@ -46,7 +46,9 @@ Exactly one of `entryAssembly` (in-process) or `runtime` (out-of-process) is req
   inherited; Lunate's provider keys never leak.
 - `callTimeout` — the per-call timeout in seconds for host → child requests (default 60).
 - `startup` — `background` starts the process after the interactive UI is ready; omitted starts it
-  lazily on the extension's first use (a forwarded hook or a service call).
+  lazily on the extension's first use (a forwarded hook or a service call). A manifest that
+  declares `events` is the one exception: it starts at session start, `background` or not, so its
+  projection is live before the first run.
 - `hooks` / `services` — declaration names (kebab-case, e.g. `tool-calling`); the host builds
   proxies from them without starting anything. The `initialize` result must match: a hook or
   service the child implements but the manifest does not declare refuses the extension;
@@ -62,7 +64,9 @@ Exactly one of `entryAssembly` (in-process) or `runtime` (out-of-process) is req
   Only the declared kinds are projected to the child, and only those it accepts. A child that
   answers a protocol version below 3 is refused when the manifest declares `events`, naming the
   version it needs; an extension that declares only `events` starts at session start, so an
-  observer needs no hook, service or command to be alive when the first run emits.
+  observer needs no hook, service or command to be alive when the first run emits. Declaring
+  `events` also starts a `background` child at session start; `background` still sets when the
+  deferred `session-started` is delivered.
 
 The trust prompt states that the extension runs with the user's privileges; the trust digest hashes
 the manifest together with the extension directory contents, so changing `index.js` after trust
@@ -198,7 +202,10 @@ params are exactly the JSON object one `--json` line carries, with `<kind>` nami
 
 The shape is the one [`docs/json-events.md`](json-events.md) documents — there is no second event
 model and no per-kind wire DTO. `type` and `runId` are always present; `sessionId` when the run has
-a session, `parentRunId` on a child run's events, `source` when it is not `core`.
+a session, `parentRunId` on a child run's events, `source` when it is not `core`. The host prices a
+`usage_updated` record from the session catalog, so `event/usage_updated` carries the same numeric
+`costUsd` the `--json` line carries (and omits it for an unpriced record); the child never has to
+compute a price, and the wire package never needs the catalog.
 
 Delivery mirrors the in-process stream. One subscription is live per started child, filtered by the
 manifest's `events` declaration; each child has one bounded queue (256 events) drained by one pump,

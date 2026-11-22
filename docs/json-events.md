@@ -112,7 +112,9 @@ The model is resolved in the scope of the provider the run selected, so the wire
 on the record (`deepseek-v4.1-flash` for `opencode-go/deepseek-v4.1-flash`) prices as that provider's
 entry even when another preset serves the same wire id; `modelId` on the line stays what the
 provider reported. An id that still names no entry, or that stays ambiguous outside the selected
-provider, keeps the field absent rather than guessing an entry.
+provider, keeps the field absent rather than guessing an entry. The extension wire carries the same
+number: the host prices the record from the session catalog before it sends `event/usage_updated`, so
+an observer's params are this line.
 
 ## Related
 

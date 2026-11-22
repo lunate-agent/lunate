@@ -60,3 +60,16 @@
       changelog.
 - [x] 5.4 `openspec validate extension-wire-protocol-3 --strict`, `dotnet csharpier format .`,
       Release build and the named test classes green; archive as the last commit.
+
+## 6. Rework: the priced line and the startup reconciliation
+
+- [x] 6.1 Red: a priced `usage_updated` reaches the child with the same `costUsd` the `--json` line
+      carries, and an unpriced record omits it on both; the wire takes the price from the
+      composition's catalog seam (`ExtensionWireCost` → `ExtensionHostOptions.CostUsd` →
+      `RemoteExtensionOptions.CostUsd`), so the wire package still references only the contracts.
+- [x] 6.2 Red through the loader: a host composed with the `CostUsd` seam sends the priced line to
+      the observer.
+- [x] 6.3 The delta spec documents the priced line and MODIFIES *Out-of-process extension host*, so
+      the lazy-start rule and the `events` session start no longer read as incompatible; the
+      untouched scenario for `background` names that it declares no `events`.
+- [x] 6.4 Re-archive as the last commit after `openspec validate --all --strict`.

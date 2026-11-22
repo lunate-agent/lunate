@@ -98,6 +98,8 @@ JSON object `--json` writes; see [the remote wire](../../extensions-remote.md#ev
   accepts, or `["*"]`. Only the manifest's kinds the child accepts are sent.
 - **Never awaited.** Notifications have no reply and no failure policy; the host drops the oldest
   event (counted, warned once) rather than making the run wait for the child.
+- **Priced like `--json`.** The host prices a `usage_updated` record from the session catalog, so
+  `event/usage_updated` carries the same optional `costUsd` the print line carries.
 - **Protocol version 3.** A child below 3 still loads when the manifest declares no `events`; with
   `events` declared the handshake refuses it, naming version 3.
 - **An observer-only extension starts at session start**, so it is live before the first run even

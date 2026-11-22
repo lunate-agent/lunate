@@ -55,8 +55,9 @@ subscription receives every event whatever the list says, and nothing is gated b
 `/extensions` and in the interactive trust question. For a remote extension it is the wire's
 projection filter: the host sends only these kinds, and only those the child accepts over protocol
 version 3, so an out-of-process manifest that declares it against a child below version 3 is refused
-at the handshake naming the version it needs. See
-[event stream](contributions/event-stream.md).
+at the handshake naming the version it needs. A remote manifest that declares `events` starts its
+child at session start — `startup: "background"` or not — so the projection is live before the first
+run emits. See [event stream](contributions/event-stream.md).
 
 ### `toolAliases`
 
