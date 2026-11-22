@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
@@ -170,8 +169,7 @@ public sealed partial class AgentHarness
                 }
                 else
                 {
-                    entry.Result =
-                        outcome.Result
+                    entry.Result = outcome.Result
                         ?? new ToolResult(
                             $"Tool '{entry.ToolName}' returned no result. Fix the call or try a different approach.",
                             IsError: true
@@ -297,7 +295,14 @@ public sealed partial class AgentHarness
             session.AppendNestedCalls(entry.CallId, nestedCalls);
         }
 
-        string output = AdmitToolOutput(runId, entry.CallId, entry.ToolName, entry.Args, result, channel);
+        string output = AdmitToolOutput(
+            runId,
+            entry.CallId,
+            entry.ToolName,
+            entry.Args,
+            result,
+            channel
+        );
         channel.Emit(
             new ToolCallResult(runId, entry.CallId, output, result.IsError, result.Details)
             {
@@ -344,8 +349,7 @@ public sealed partial class AgentHarness
             else if (entry.Body is { } body && body.IsCompletedSuccessfully)
             {
                 ParallelBodyOutcome outcome = await body;
-                result =
-                    outcome.Result
+                result = outcome.Result
                     ?? new ToolResult(SyntheticOutput(entry.Call, cancelled: true), IsError: true);
             }
             else
@@ -362,7 +366,10 @@ public sealed partial class AgentHarness
                     }
                 }
 
-                result = new ToolResult(SyntheticOutput(entry.Call, cancelled: true), IsError: true);
+                result = new ToolResult(
+                    SyntheticOutput(entry.Call, cancelled: true),
+                    IsError: true
+                );
             }
 
             await CompleteBatchCallAsync(runId, entry, result, channel);
@@ -375,7 +382,10 @@ public sealed partial class AgentHarness
             $"{AgentTelemetry.ExecuteToolOperation} {toolName}",
             ActivityKind.Internal
         );
-        activity?.SetTag(AgentTelemetry.OperationNameAttribute, AgentTelemetry.ExecuteToolOperation);
+        activity?.SetTag(
+            AgentTelemetry.OperationNameAttribute,
+            AgentTelemetry.ExecuteToolOperation
+        );
         activity?.SetTag(AgentTelemetry.ToolNameAttribute, toolName);
         activity?.SetTag(AgentTelemetry.ToolCallIdAttribute, callId);
         return activity;

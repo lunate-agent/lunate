@@ -42,7 +42,9 @@ public sealed class AgentParallelToolTests
         string[] paths = ["a.txt", "b.txt", "c.txt", "d.txt"];
         var client = ClientFor(paths);
 
-        List<AgentEvent> first = await Run(new AgentHarness(client, Registry(ReadTool("contents"))));
+        List<AgentEvent> first = await Run(
+            new AgentHarness(client, Registry(ReadTool("contents")))
+        );
         List<AgentEvent> second = await Run(
             new AgentHarness(ClientFor(paths), Registry(ReadTool("contents")))
         );
@@ -150,10 +152,7 @@ public sealed class AgentParallelToolTests
                 probe.Exit();
             }
         };
-        var harness = new AgentHarness(
-            ClientFor(queries, toolName: "web_search"),
-            Registry(web)
-        );
+        var harness = new AgentHarness(ClientFor(queries, toolName: "web_search"), Registry(web));
 
         List<AgentEvent> events = await Run(harness);
 

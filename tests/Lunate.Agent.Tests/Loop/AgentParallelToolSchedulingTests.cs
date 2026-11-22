@@ -118,9 +118,8 @@ public sealed class AgentParallelToolSchedulingTests
 
         Assert.Empty(EventSequenceValidator.Validate(events));
         Assert.Equal(2, events.OfType<ToolCallResult>().Count(result => result.IsError));
-        Assert.All(
-            events.OfType<ToolCallResult>(),
-            result => Assert.Contains("cancelled by the user", result.Output)
+        Assert.All(events.OfType<ToolCallResult>(), result =>
+            Assert.Contains("cancelled by the user", result.Output)
         );
         Assert.Equal(
             StopReasons.Cancelled,
@@ -132,11 +131,14 @@ public sealed class AgentParallelToolSchedulingTests
         Assert.Empty(EventSequenceValidator.Validate(next));
         Assert.Equal(
             2,
-            client.Requests[^1].Messages.Count(message =>
-                message.Role == ChatRole.Tool
-                && message.Contents.OfType<FunctionResultContent>()
-                    .Any(result => result.Result!.ToString()!.Contains("cancelled by the user"))
-            )
+            client
+                .Requests[^1]
+                .Messages.Count(message =>
+                    message.Role == ChatRole.Tool
+                    && message
+                        .Contents.OfType<FunctionResultContent>()
+                        .Any(result => result.Result!.ToString()!.Contains("cancelled by the user"))
+                )
         );
     }
 

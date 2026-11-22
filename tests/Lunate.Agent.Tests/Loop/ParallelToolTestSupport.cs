@@ -11,18 +11,16 @@ internal static class ParallelToolTestSupport
     ) =>
         new ScriptedChatClient()
             .Enqueue(
-                LoopScripts.Calls(
-                    [
-                        .. paths.Select(
-                            (path, index) =>
-                                new FunctionCallContent(
-                                    $"call_{index + 1}",
-                                    toolName,
-                                    LoopScripts.Args(("path", path))
-                                )
-                        ),
-                    ]
-                ),
+                LoopScripts.Calls([
+                    .. paths.Select(
+                        (path, index) =>
+                            new FunctionCallContent(
+                                $"call_{index + 1}",
+                                toolName,
+                                LoopScripts.Args(("path", path))
+                            )
+                    ),
+                ]),
                 LoopScripts.ToolCalls()
             )
             .Enqueue(LoopScripts.Text("Done"), LoopScripts.Stop());
