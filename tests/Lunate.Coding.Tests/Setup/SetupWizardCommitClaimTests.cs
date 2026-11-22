@@ -26,6 +26,7 @@ public sealed class SetupWizardCommitClaimTests
 
     private const string SettingsChild = nameof(A_wizard_commit_waits_for_the_settings_claim);
     private const string ProviderChild = nameof(A_wizard_commit_waits_for_the_provider_claim);
+    private const string AuthChild = nameof(A_wizard_commit_waits_for_the_auth_claim);
     private const string NormalWriterChild = nameof(
         A_provider_entry_saved_by_a_normal_writer_during_the_walk_survives_the_commit
     );
@@ -183,6 +184,73 @@ public sealed class SetupWizardCommitClaimTests
         Assert.Contains("openai", names);
         Assert.Contains("parent", names);
         Assert.Contains("seed", names);
+        Assert.True(
+            SettingsStore.Resolve(path, _ => null).Profiles.ContainsKey("chat-main"),
+            "the wizard's profile did not land"
+        );
+    }
+
+    [Fact]
+    public async Task A_wizard_commit_waits_for_the_auth_claim()
+    {
+        string? settingsPath = Environment.GetEnvironmentVariable(SettingsPathVariable);
+        if (TestChildProcess.IsChild(AuthChild))
+        {
+            File.WriteAllText(Environment.GetEnvironmentVariable(ReadyPathVariable)!, "ready");
+            Commit(
+                settingsPath!,
+                Environment.GetEnvironmentVariable(ProviderPathVariable)!,
+                Environment.GetEnvironmentVariable(AuthPathVariable)!
+            );
+            return;
+        }
+
+        using var temp = new TempDirectory();
+        string path = temp.File("settings.json");
+        string providerPath = temp.File("providers.json");
+        string authPath = temp.File("auth.json");
+        string ready = temp.File("wizard.ready");
+
+        using FileLock held = FileLock.Acquire(
+            Path.ChangeExtension(authPath, ".lock"),
+            WaitBudgets.StoreClaimHold
+        );
+        Task<(int ExitCode, string Output)> child = Spawn(
+            AuthChild,
+            path,
+            providerPath,
+            authPath,
+            ready
+        );
+
+        await WaitForReadyAsync(ready);
+        await Task.Delay(WaitBudgets.StoreClaimContention, TestContext.Current.CancellationToken);
+        Assert.False(
+            child.IsCompleted,
+            "the wizard committed while another process held the auth claim"
+        );
+        Assert.False(File.Exists(path), "the wizard wrote the settings while waiting");
+        Assert.False(
+            File.Exists(providerPath),
+            "the wizard wrote the provider store while waiting"
+        );
+        Assert.False(File.Exists(authPath), "the wizard wrote the credential while waiting");
+
+        // A key another process saves while the child waits must survive the commit: the commit
+        // seeds its staged auth body from the file it reads under the claim, not from a pre-walk
+        // reading.
+        File.WriteAllText(
+            authPath,
+            """{ "schemaVersion": 1, "keys": { "parent": "parent-secret" } }"""
+        );
+
+        held.Dispose();
+        (int exitCode, string output) = await child;
+        Assert.True(exitCode == 0, $"the child process failed:\n{output}");
+
+        AuthStore auth = AuthStore.Load(authPath);
+        Assert.Equal("child-secret", auth.TryGet("openai"));
+        Assert.Equal("parent-secret", auth.TryGet("parent"));
         Assert.True(
             SettingsStore.Resolve(path, _ => null).Profiles.ContainsKey("chat-main"),
             "the wizard's profile did not land"

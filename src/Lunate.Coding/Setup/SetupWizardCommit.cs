@@ -24,8 +24,9 @@ namespace Lunate.Coding;
 /// staged bodies start from the bytes the targets hold once the claims are held, and the replace
 /// lands while they are still held. A change another process lands while this commit waits is
 /// therefore merged, not dropped (spec: Cross-process settings writes, Cross-process
-/// provider-store writes). The walk itself — the interactive part — happens before this call, so
-/// the claims are held for one short pass, never while a person answers a step.
+/// provider-store writes, Cross-process auth-store writes). The walk itself — the interactive
+/// part — happens before this call, so the claims are held for one short pass, never while a
+/// person answers a step.
 /// </para>
 /// </summary>
 internal static class SetupWizardCommit
@@ -68,10 +69,11 @@ internal static class SetupWizardCommit
 
         // The claims come before the seed: the seed's read is the read-modify-write base, so what
         // another process wrote while this commit waited for the claim is merged rather than
-        // replaced. Both claims are held until the last replace; nothing before them is written.
+        // replaced. All three claims are held until the last replace; nothing before them is written.
         using IDisposable claims = SetupWizardTransaction.ClaimTargets(
             paths.SettingsPath,
             paths.ProviderStorePath,
+            live.FilePath,
             claimTimeout
         );
         using SetupWizardTransaction transaction = SetupWizardTransaction.Create(
