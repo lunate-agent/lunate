@@ -48,14 +48,6 @@ Notable changes to Lunate, one section per release. The format follows
 
 ### Changed
 
-- **The red `verify-powershell (windows)` on `main` was a card about a run that predates its fix, and
-  this pull request records the triage instead of a second change.** Run `45016780346` ran commit
-  `e28e95fd`, whose `scripts/verify.ps1` still packed the four SDK packages from before
-  `Lunate.Decisions.Model` became one, so the contract roundtrip's template restore failed with
-  `NU1101` on the package the feed the step had just packed did not hold — the failure `#1000` named.
-  `#1001` packs and metadata-checks the fifth package, and its own run `45019942790` is green in that
-  step, which is the state `main` carries, so nothing in the tree needs to change (#1005).
-
 - **The decision model is its own package.** `DecisionRequest`, `DecisionQuestion` and its kinds, `DecisionAnswer`, `DecisionBox`, `DecisionResult`, `DecisionUsage` and the two seams `INativeDecisionClient` and `IAgentDecisionService` move to `Lunate.Decisions.Model`, with `PublicAPI` files and the contract pair's version. The engine — the chat adapter, builder, OpenTelemetry wrapper, parser and validator — stays in the unpacked `Lunate.Ai.Decisions`, which only `Lunate.Agent` ships; `Lunate.Extensibility.Abstractions` depends on the model package instead of packing the engine, so a contract consumer no longer sees the engine twice. The types keep the `Lunate.Ai.Decisions` namespace ([ADR-0045](adr/0045-decision-model-package.md), amending [ADR-0044](adr/0044-decision-model-ownership.md)) (#973).
 
 - **An extension carries no copy of the decision model.** Extensions and the authoring template
