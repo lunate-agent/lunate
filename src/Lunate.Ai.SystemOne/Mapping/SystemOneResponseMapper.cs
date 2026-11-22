@@ -178,20 +178,22 @@ internal static class SystemOneResponseMapper
             && double.IsFinite(parsedCost)
                 ? parsedCost
                 : null;
+        (string? billingSource, double? listCost) = OpencodeBlock(usage);
         return new DecisionUsage(input, output, cost, IsProviderReported: cost.HasValue)
         {
-            Opencode = OpencodeBlock(usage),
+            OpencodeBillingSource = billingSource,
+            OpencodeListCost = listCost,
         };
     }
 
-    private static DecisionUsage.OpencodeUsage? OpencodeBlock(JsonElement usage)
+    private static (string? BillingSource, double? ListCost) OpencodeBlock(JsonElement usage)
     {
         if (
             !usage.TryGetProperty("opencode", out JsonElement opencode)
             || opencode.ValueKind != JsonValueKind.Object
         )
         {
-            return null;
+            return (null, null);
         }
 
         string? billingSource =
@@ -205,9 +207,7 @@ internal static class SystemOneResponseMapper
             && double.IsFinite(parsedListCost)
                 ? parsedListCost
                 : null;
-        return billingSource is null && listCost is null
-            ? null
-            : new DecisionUsage.OpencodeUsage(billingSource, listCost);
+        return (billingSource, listCost);
     }
 
     private static long? OptionalInt64(JsonElement element, string property) =>

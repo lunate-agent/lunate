@@ -60,11 +60,13 @@ public sealed record DecisionUsage(
 {
     /// <summary>
     /// The provider's own usage sidecar when one adds cost detail: OpenCode reports its billing
-    /// source (its own balance or a marketplace) and list cost in <c>usage.opencode</c>.
+    /// source (its own balance or a marketplace) and list cost in <c>usage.opencode</c>. These are
+    /// transport bookkeeping, not model contract: the System One mapper fills them, so they stay
+    /// internal and add no type to the package's accepted inventory.
     /// </summary>
-    internal OpencodeUsage? Opencode { get; init; }
+    internal string? OpencodeBillingSource { get; init; }
 
-    internal sealed record OpencodeUsage(string? BillingSource, double? ListCost);
+    internal double? OpencodeListCost { get; init; }
 }
 
 /// <summary>Validated answers keyed by question id, with what the exchange cost.</summary>
