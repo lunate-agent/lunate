@@ -8,6 +8,62 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-22
+
+### Added
+
+- **A budget-tier write-up says where Lunate's 50 steps go.** The analysis replays the five budget
+  arm trajectories of `rerun-624-bosgame-2` and finds the ceiling is not tool errors: three of the
+  four failures never edit source at all, spending 26–32 steps downloading and comparing upstream
+  releases, the fourth fixes the bug at step 12 and spends the remaining 38 debugging a regression
+  test it wrote itself, and the one success spends 26 of its 32 steps reading. It then assesses every
+  mini-swe-agent design choice the card names and gives each step-cutting one its own proposal — a
+  task-shaped benchmark prompt, a `submit` tool, a bash-only arm, a read-once ledger and offline runs
+  — with its expected saving and risk; each is a follow-up card, so this pull request changes no
+  behaviour ([docs/dev/eval/swebench-budget-tier-steps.md](docs/dev/eval/swebench-budget-tier-steps.md))
+  (#995).
+
+- **`lunate doctor` prints the facts a bug report needs.** One offline command reports the version, OS and architecture, install channel (`dotnet tool`, `self-contained`, `Homebrew` or `Scoop`), config and state paths with whether each exists, the resolved provider and model, credential presence — never a value — container-engine availability, terminal capabilities and the last update-check result. `--json` prints one pasteable object; a missing required path or an unreadable settings file exits 1, and the command never makes a network request (#997).
+
+### Changed
+
+- **The decision model is its own package.** `DecisionRequest`, `DecisionQuestion` and its kinds, `DecisionAnswer`, `DecisionBox`, `DecisionResult`, `DecisionUsage` and the two seams `INativeDecisionClient` and `IAgentDecisionService` move to `Lunate.Decisions.Model`, with `PublicAPI` files and the contract pair's version. The engine — the chat adapter, builder, OpenTelemetry wrapper, parser and validator — stays in the unpacked `Lunate.Ai.Decisions`, which only `Lunate.Agent` ships; `Lunate.Extensibility.Abstractions` depends on the model package instead of packing the engine, so a contract consumer no longer sees the engine twice. The types keep the `Lunate.Ai.Decisions` namespace ([ADR-0045](adr/0045-decision-model-package.md), amending [ADR-0044](adr/0044-decision-model-ownership.md)) (#973).
+
+- **An extension carries no copy of the decision model.** Extensions and the authoring template
+  reference `Lunate.Decisions.Model` compile-only beside the contract pair, so an extension's output
+  — and an installed extension package — no longer carries an assembly the host ignores, and a load
+  no longer logs the ignored-copy warning for it (#973).
+
+- Release artifacts: what the single-file publish's size and startup pay for is now measured per
+  component and recorded in the distribution runbook — ReadyToRun is 2.7× the download and, on
+  `osx-arm64`, about 100 ms of startup, while single-file compression buys 3.5% of the archive for
+  about 720 ms on every launch, so `EnableCompressionInSingleFile` stays off with the numbers beside
+  the decision ([ADR-0008](adr/0008-release-publish-flags.md)) (#993).
+
+### Fixed
+
+- **The setup wizard survives a model listing that offers several APIs.** A listing entry that
+  declares more than one API family is now read through its `recommended_api` when that names a
+  supported family, and skipped otherwise, instead of failing the whole listing; the OpenCode Go
+  Gemini entry no longer breaks every other model. A listing that cannot be parsed is reported as an
+  undecipherable response rather than a network failure, and the connection-test notice includes the
+  underlying message with the credential redacted (#990).
+
+- **The auth store merges concurrent writes instead of dropping a key.** `auth.json` now takes the
+  owner-only `auth.lock` claim for its whole read-modify-write and re-reads the document under it, so
+  an `auth login`, the TUI's auth picker and the setup wizard's commit in another process no longer
+  replace a key another process saved from an earlier read. The wizard's commit takes the auth claim
+  beside the settings and provider-store claims before it seeds, a save that changed no key writes
+  nothing, and a save that cannot take the claim refuses naming the file and the lock (#991).
+
+- **The Windows PowerShell gate packs the decision model its template binds.** `scripts/verify.ps1`'s
+  contract roundtrip still packed the four SDK packages from before `Lunate.Decisions.Model` became
+  one, so the template's restore asked the feed the step had just packed — the only source a
+  `Lunate.*` package may come from — for a package it did not hold, and `verify-powershell (windows)`
+  failed with `NU1101` on every run since while the bash gate stayed green. The twin now packs and
+  metadata-checks the same five packages as `scripts/verify.sh`, and the roundtrip's wiring test pins
+  the two lists against each other and against the packages the template binds (#1000).
+
 ## [0.5.0] - 2026-11-21
 
 ### Added
