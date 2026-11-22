@@ -25,8 +25,8 @@ reporter — SHALL NOT be opened as a card or commented on when the run also hol
 neither of those, because that job's card already names the failure the derived job restates; the reporter
 SHALL name the derived red it did not file, with the run link, in the run's own log instead. When the run's
 only red jobs that ran are the derived ones, the aggregate's card SHALL still be filed, because then
-nothing else in the run speaks for the gate. A derived job that never started keeps the abandoned-job rule
-below: it is named, not filed, like any other abandoned job.
+nothing else in the run speaks for the gate. A derived job that never started keeps the never-started rule
+above: it is named, not filed, like any other abandoned job.
 
 A run whose red jobs never reached a machine SHALL be a capacity red, not a code red: GitHub cancels a
 job when it never acquires a hosted runner for it, so nothing the repository builds or tests has run and

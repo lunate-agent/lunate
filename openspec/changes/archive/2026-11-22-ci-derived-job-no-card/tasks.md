@@ -19,5 +19,5 @@
 
 ## 3. Archive
 
-- [ ] 3.1 Sync the `ci-pipeline` delta and run `openspec validate --all --strict`.
-- [ ] 3.2 Archive the change as the branch's last commit.
+- [x] 3.1 Sync the `ci-pipeline` delta and run `openspec validate --all --strict`.
+- [x] 3.2 Archive the change as the branch's last commit.
