@@ -82,6 +82,17 @@ internal static class CliHelp
         output.WriteLine(
             "                                 remove extension builds nothing declares any more"
         );
+        output.WriteLine("  lunate doctor [--json]");
+        output.WriteLine(
+            "                                 print version, OS, install channel, paths,"
+        );
+        output.WriteLine(
+            "                                 provider and model, engines, terminal and the"
+        );
+        output.WriteLine(
+            "                                 last update check for a bug report; --json is"
+        );
+        output.WriteLine("                                 pasteable and no secret is printed");
         output.WriteLine("  lunate trust [--yes [--digest <sha>]] [--json] [--clear]");
         output.WriteLine(
             "                                 show this repository's trust records and pending"
