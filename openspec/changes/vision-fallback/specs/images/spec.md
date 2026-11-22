@@ -6,13 +6,13 @@ An image SHALL be sent only when the active chat model declares image input. Whe
 
 The description SHALL be sent to the chat model as text together with the image's exact `[image <width>x<height>]` placeholder. The transcript SHALL show the description and the profile that produced it. When the vision profile fails, the turn SHALL fail with an error naming both the chat model's image refusal and the vision profile's error.
 
-#### Scenario: A text-only model refuses when no vision profile is configured
+#### Scenario: A text-only model refuses the submission
 
 - **GIVEN** a chat model whose known capabilities have no image input and no configured vision profile
 - **WHEN** the user submits `@diagram.png`
 - **THEN** no run starts, the notice names the chat model id, and no request is sent
 
-#### Scenario: A vision model receives the image directly
+#### Scenario: A vision model receives the image
 
 - **GIVEN** a chat model whose catalog entry declares `supportsVision: true`
 - **WHEN** the user submits `@diagram.png`

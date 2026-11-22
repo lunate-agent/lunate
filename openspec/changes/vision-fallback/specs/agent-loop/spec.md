@@ -18,7 +18,7 @@ When the chat model's known capabilities say it accepts no images, the harness S
 - **WHEN** the session is resumed and a request is built on a vision model
 - **THEN** the request carries the image bytes as `DataContent` and the session file still carries only the reference
 
-#### Scenario: Resume on a text-only model without a vision profile fails
+#### Scenario: Resume on a text-only model fails
 
 - **GIVEN** a schema 3 session referencing a stored blob, a model without image input, and no vision-capable `fast` profile
 - **WHEN** the session is resumed and a request is built
