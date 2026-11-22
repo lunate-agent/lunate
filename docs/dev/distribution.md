@@ -43,8 +43,9 @@ the gate measures it (hyperfine, fastest of 20 runs, ADR-0005):
 What the numbers say, and what the next person to touch the publish step should keep in mind:
 
 - **ReadyToRun is the size.** It is +318.5 MB of the binary and 2.7× the download (139.0 → 51.2 MB);
-  the same delta appears on `linux-x64` (149.7 → 53.4 MB). The Roslyn ring is the largest component of
-  the payload (24.0 MB of the 150.0 MB loose publish, 16%) but it is not what makes the asset large.
+  the same delta appears on `linux-x64` (149.7 → 53.4 MB) and `win-x64` (148.5 → 53.9 MB). The Roslyn
+  ring is the largest component of the payload (24.0 MB of the 150.0 MB loose publish, 16%) but it is
+  not what makes the asset large.
 - **Single-file compression barely touches the download**, because the archive is `gzip` already: it
   halves the binary (440.6 → 137.2 MiB) for 3.5% of the asset, and 0.1% without ReadyToRun. It is not
   the flag to reach for when the asset feels big.

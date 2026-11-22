@@ -13,6 +13,10 @@ single file + compression, no ReadyToRun raw     57609543  gzip -9     51083408 
 single file + ReadyToRun (release) raw    401239053  gzip -9    149245907  tar.gz    149713701
 single file, no ReadyToRun         raw    136631653  gzip -9     53260713  tar.gz     53438670
 
+== win-x64 (cross-published from macOS; the release asset is a .zip, not a .tar.gz) ==
+single file + ReadyToRun (release) raw    400143390  gzip -9    148213451  zip       148539230
+single file, no ReadyToRun         raw    139224566  gzip -9     53834641  zip        53918260
+
 == per component, osx-arm64, published loose (PublishSingleFile=false) ==
 Loose output shows what the bundle is made of; the bundle's own bytes follow above.
 R2R columns are the same publish with PublishReadyToRun=true.

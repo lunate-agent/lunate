@@ -10,8 +10,9 @@
   `gzip -9` of the binary, the `tar -czf` archive the release attaches — and benchmarked with the
   gate's own startup measurement (hyperfine, 3 warmup + 20 runs, the floor is the number, ADR-0005)
   on five offline workloads. The payload is then attributed per component by publishing the same tree
-  loose (`PublishSingleFile=false`), where every assembly is a file. A 100-start probe checks the
-  compressed shapes against the crash in ADR-0008.
+  loose (`PublishSingleFile=false`), where every assembly is a file. The same two shapes were
+  cross-published for `linux-x64` and `win-x64`, to check that the size delta is not a macOS effect.
+  A 100-start probe checks the compressed shapes against the crash in ADR-0008.
 - Outcome: **the artifact is ReadyToRun, not the Roslyn ring.** R2R is +318.5 MB of the 462.0 MB
   binary and 2.7× the download (139.0 MB → 51.2 MB `tar.gz`); compression halves the binary but not
   the download (−3.5%) and costs ~720 ms of every start. On this RID R2R also *costs* startup rather
@@ -30,18 +31,22 @@
 | Single file, no ReadyToRun | 143,522,759 (136.9 MiB) | 50,962,898 | 51,157,999 | 38–66 ms |
 | Single file + compression, no ReadyToRun | 57,609,543 (54.9 MiB) | 51,083,408 | 51,090,384 | 92–334 ms |
 
-`linux-x64`, cross-published from the same commit (sizes only; nothing on that RID can run here):
+The other two RIDs, cross-published from the same commit (sizes only — nothing on them can run here;
+`win-x64` ships a `.zip`):
 
-| Publish shape | Binary | `gzip -9` | `tar.gz` |
-| --- | --- | --- | --- |
-| Single file + ReadyToRun | 401,239,053 | 149,245,907 | 149,713,701 |
-| Single file, no ReadyToRun | 136,631,653 | 53,260,713 | 53,438,670 |
+| RID | Publish shape | Binary | `gzip -9` | Archive |
+| --- | --- | --- | --- | --- |
+| `linux-x64` | Single file + ReadyToRun | 401,239,053 | 149,245,907 | 149,713,701 |
+| `linux-x64` | Single file, no ReadyToRun | 136,631,653 | 53,260,713 | 53,438,670 |
+| `win-x64` | Single file + ReadyToRun | 400,143,390 | 148,213,451 | 148,539,230 |
+| `win-x64` | Single file, no ReadyToRun | 139,224,566 | 53,834,641 | 53,918,260 |
 
 Three numbers decide the question:
 
 1. **R2R is the size.** Turning it off takes the `osx-arm64` binary from 440.6 MiB to 136.9 MiB and
-   the download from 139.0 MB to 51.2 MB — the same 2.8× on `linux-x64` (149.7 → 53.4 MB). Nothing
-   else in the table moves the download by more than 4%.
+   the download from 139.0 MB to 51.2 MB — and the same 2.8× on the other two RIDs (`linux-x64`
+   149.7 → 53.4 MB, `win-x64` 148.5 → 53.9 MB). Nothing else in the table moves the download by more
+   than 4%.
 2. **Single-file compression barely touches the download.** It halves the binary (440.6 → 137.2 MiB)
    and the archive falls 139.0 → 134.2 MB, because the archive is `gzip` either way: compressing inside
    the binary and then again at the distribution layer buys 3.5%. Without R2R it buys 0.1%
@@ -114,9 +119,9 @@ not "fixed". Compression stays off for the startup cost above, which needs no cr
 
 ## Limits
 
-- One RID was measured for time (`osx-arm64`); `linux-x64` was cross-published for size only, and
-  `win-x64` was not published. A startup floor from `ci.yml`'s verify matrix on each runner is the
-  evidence the follow-up needs.
+- One RID was measured for time (`osx-arm64`); `linux-x64` and `win-x64` were cross-published for size
+  only, because a binary for another OS cannot run here. A startup floor from `ci.yml`'s verify matrix
+  on each runner is the evidence the follow-up needs.
 - The interactive first frame is not measured. It needs a terminal and a configured model, so it is
   not observable on a published binary from a script; `--acp` is the deepest offline path that is.
 - The floor is a floor: in two of four measurements the shipped shape's `--version` floor sat above
