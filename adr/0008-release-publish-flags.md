@@ -44,6 +44,18 @@ compress the binary at the distribution layer, so users still download a
   `docs/spikes/S-6/evidence/startup-crashes.txt`). Stacks that share only the
   runtime/thread-pool path exhibit it, strengthening the runtime hypothesis;
   isolation stays open.
+- **Follow-up (2026-11-22, re-measured for #654):** the decision stands, now
+  with numbers beside it (`docs/dev/spikes/S-9/report.md`). On `osx-arm64`
+  the shipped shape is a 440.6 MiB binary and a 139.0 MB archive at a 139–177
+  ms startup floor; compression gives a 137.2 MiB binary and a 134.2 MB
+  archive at 860–910 ms, i.e. 3.5% of the download for about 720 ms on every
+  launch, so the flag stays out — for the startup cost, not only for the
+  crash, which did not reproduce in 100 starts on .NET 11. The same
+  measurement shows ReadyToRun is the size (+318.5 MB of the binary, 2.7× the
+  download) *and*, on this RID, a startup cost of ~100 ms — the opposite of
+  the disk-for-startup trade this ADR assumed. Turning it off is left open
+  deliberately: it revises this record and needs the `linux-x64` and `win-x64`
+  startup floors from CI before anyone decides it.
 
 ## Alternatives considered
 
