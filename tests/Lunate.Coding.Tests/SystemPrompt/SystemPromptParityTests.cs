@@ -22,9 +22,11 @@ public sealed class SystemPromptParityTests
             AppendSystemPrompt = "shared appendix",
             Model = "gpt-4o-mini",
         };
+        // The expected list mirrors what the frontends register by default: the core tools in
+        // registration order, then the question tool each frontend adds.
         string expected = SystemPrompt.Compose(
             new Workspace(root),
-            ["read", "write", "edit", "bash", "ask_user"],
+            ["read", "write", "edit", "bash", "todo", "ask_user"],
             launch
         );
 

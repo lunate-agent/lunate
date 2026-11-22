@@ -35,6 +35,7 @@ public sealed class AgentEventTests
             new TimeLimitReached(RunId, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)),
             new ToolProgressUpdate(RunId, "call_1", "half way"),
             new ToolOutputSpillFailed(RunId, "could not spill"),
+            new TodoUpdated(RunId, [new TodoItem("write tests", TodoItemStatus.InProgress)]),
         };
 
     public static TheoryData<AgentEvent> ExtensionEvents() =>
@@ -49,6 +50,7 @@ public sealed class AgentEventTests
             new CostLimitReached(RunId, 1m, 1m),
             new TimeLimitReached(RunId, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)),
             new ToolOutputSpillFailed(RunId, "could not spill"),
+            new TodoUpdated(RunId, [new TodoItem("write tests", TodoItemStatus.Pending)]),
         };
 
     [Theory]
@@ -81,7 +83,7 @@ public sealed class AgentEventTests
                 .Where(type => typeof(AgentEventBase).IsAssignableFrom(type) && !type.IsAbstract),
         ];
 
-        Assert.Equal(27, concreteTypes.Length);
+        Assert.Equal(28, concreteTypes.Length);
         Assert.All(concreteTypes, type =>
             Assert.True(type.IsSealed, $"{type.Name} must be sealed")
         );

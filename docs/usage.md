@@ -58,6 +58,14 @@ diff, scrolls with the arrows and PageUp/PageDown, and closes on `q` or `Esc`.
 
 ![Compact tool blocks and the Ctrl+O transcript viewer](media/features/tools.gif)
 
+## The plan stays on screen
+
+The model can keep a short todo list with the `todo` tool. Each call sends the whole list, with every
+item `pending`, `in_progress` or `done`, and at most one item in progress. The live area shows the list
+above the input box as up to five lines — the rest collapses to `… N more` — so it never pushes the
+prompt off screen. An empty list, or a session that never calls the tool, renders no plan. The list is
+part of the session's tool calls, so a resumed session shows the same plan it had before the restart.
+
 ## C# the compiler agrees with
 
 In a C# workspace the model can ask `cs_diagnostics` for compiler errors and warnings — a compile

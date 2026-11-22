@@ -1143,6 +1143,7 @@ internal sealed partial class InteractiveSession : IDisposable
         IChatClient client = _extensionModelId is { } extensionModelId
             ? _extensions!.ModelRegistry.Resolve(extensionModelId)
             : chatModel?.Client ?? CreateSessionClient(model);
+        ApplyTodoReplay();
         return new AgentHarness(client, _tools, harnessOptions);
     }
 
