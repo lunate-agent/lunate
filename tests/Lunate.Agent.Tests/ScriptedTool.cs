@@ -21,6 +21,8 @@ internal sealed class ScriptedTool(
 
     public ToolExposure Exposure { get; init; } = ToolExposure.Direct;
 
+    public ToolConcurrency Concurrency { get; set; } = ToolConcurrency.Parallel;
+
     public ToolAnnotations? Annotations { get; init; }
 
     public JsonElement? OutputSchema { get; init; }
