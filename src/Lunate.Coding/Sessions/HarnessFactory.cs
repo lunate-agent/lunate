@@ -68,6 +68,8 @@ internal static class HarnessFactory
                 environment
             )
         );
+        tools.Add(new WebSearchTool());
+        tools.Add(new WebFetchTool());
         AddOptionalTools(tools, workspace, extraTools);
         return tools;
     }

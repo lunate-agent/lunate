@@ -84,6 +84,30 @@ public sealed class SettingsStoreExtraToolsTests
         Assert.Contains("'grep', 'find' or 'ls'", exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("web_search")]
+    [InlineData("web_fetch")]
+    public void A_web_tool_name_is_rejected_as_a_core_tool(string name)
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            $$"""
+            {
+              "schemaVersion": 2,
+              "tools": { "extra": ["{{name}}"] }
+            }
+            """
+        );
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            SettingsStore.Resolve(temp.File("settings.json"), _ => null)
+        );
+
+        Assert.Contains($"core tool '{name}'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'grep', 'find' or 'ls'", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void The_environment_overrides_the_file()
     {
