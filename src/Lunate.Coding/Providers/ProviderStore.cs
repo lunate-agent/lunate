@@ -78,6 +78,26 @@ internal sealed class ProviderStore
         }
     }
 
+    /// <summary>
+    /// The same in-memory resolution as <see cref="Load"/> without persisting a migration, for a
+    /// read-only inspector. The returned entries include the migration's preset and custom rows.
+    /// </summary>
+    internal static ProviderStore LoadReadOnly(
+        string filePath,
+        AuthStore auth,
+        IReadOnlyList<CustomProvider> legacyProviders
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentNullException.ThrowIfNull(auth);
+        ArgumentNullException.ThrowIfNull(legacyProviders);
+
+        lock (Gate)
+        {
+            return LoadOnce(filePath, auth, legacyProviders).Store;
+        }
+    }
+
     public static ProviderStore Load(
         string filePath,
         AuthStore auth,
