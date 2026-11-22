@@ -130,6 +130,25 @@ public sealed class LoaderRemoteTests
     }
 
     [Fact]
+    public async Task An_events_declaration_starts_a_background_child_at_session_start()
+    {
+        // `background` moves the deferred session-started to the post-ready point, but an observer
+        // that waited for it would miss the first run: the events declaration starts the child at
+        // session start even in background mode (the one startup-path exception).
+        using var workspace = new RemoteTestWorkspace(events: ["*"], startup: "background");
+        ExtensionLoader loader = workspace.CreateLoader();
+
+        await workspace.LoadAsync(loader);
+
+        Assert.Equal(1, workspace.Child.StartCount);
+        loader.EventStream.Publish(new RunStarted("run_1"));
+        await WaitAsync(
+            () => workspace.Child.ObservedEventKinds().Contains("run_started"),
+            "the projected event"
+        );
+    }
+
+    [Fact]
     public async Task Background_mode_starts_after_the_explicit_trigger_only()
     {
         using var workspace = new RemoteTestWorkspace(startup: "background");

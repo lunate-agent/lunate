@@ -72,4 +72,6 @@
 - [x] 6.3 The delta spec documents the priced line and MODIFIES *Out-of-process extension host*, so
       the lazy-start rule and the `events` session start no longer read as incompatible; the
       untouched scenario for `background` names that it declares no `events`.
-- [x] 6.4 Re-archive as the last commit after `openspec validate --all --strict`.
+- [x] 6.4 Red: an `events` declaration starts a `background` child at session start, pinning the
+      exception the reconciled requirement states.
+- [x] 6.5 Re-archive as the last commit after `openspec validate --all --strict`.
