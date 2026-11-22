@@ -189,6 +189,48 @@ public sealed class WebFetchToolTests
     }
 
     [Fact]
+    public void The_production_transport_leaves_redirects_to_the_tool()
+    {
+        using HttpClientHandler transport = WebFetchTool.CreateTransport();
+
+        Assert.False(transport.AllowAutoRedirect);
+    }
+
+    [Fact]
+    public async Task A_relative_link_uses_the_url_the_transport_reports()
+    {
+        using var handler = new StubHttpHandler(
+            (request, _) =>
+            {
+                HttpResponseMessage response = StubHttpHandler.Response(
+                    HttpStatusCode.OK,
+                    """<html><body><a href="next">next page</a></body></html>""",
+                    "text/html; charset=utf-8"
+                );
+                response.RequestMessage = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    "https://example.test/docs/page"
+                );
+                return Task.FromResult(response);
+            }
+        );
+        var tool = new WebFetchTool(handler, WaitBudgets.WebStubRequest);
+
+        ToolResult result = await tool.ExecuteAsync(
+            WebTestSupport.Args("""{"url":"https://example.test/start"}"""),
+            WebTestSupport.Context(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.False(result.IsError);
+        Assert.Contains(
+            "[next page](https://example.test/docs/next)",
+            result.Output,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task A_redirect_loop_names_the_url_and_stops_following()
     {
         using var handler = StubHttpHandler.Redirect(PageUrl);

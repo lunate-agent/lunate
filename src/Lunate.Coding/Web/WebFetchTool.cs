@@ -190,7 +190,10 @@ public sealed class WebFetchTool : ITool
                 .ReadCappedAsync(stream, MaxSourceBytes, timeoutToken)
                 .ConfigureAwait(false);
             string body = WebText.Decode(source);
-            return Result(Render(body, contentType, current));
+            // The transport reports where a followed chain actually ended; fall back to the URL
+            // this loop tracked when the handler leaves RequestMessage unset.
+            Uri page = response.RequestMessage?.RequestUri ?? current;
+            return Result(Render(body, contentType, page));
         }
     }
 
@@ -217,11 +220,17 @@ public sealed class WebFetchTool : ITool
     private HttpClient CreateClient()
     {
         HttpClient client = _handler is null
-            ? new HttpClient()
+            ? new HttpClient(CreateTransport(), disposeHandler: true)
             : new HttpClient(_handler, disposeHandler: false);
         client.Timeout = Timeout.InfiniteTimeSpan;
         return client;
     }
+
+    /// <summary>
+    /// The production transport hands every 3xx back to <see cref="FetchAsync"/>, so the manual
+    /// loop is the only place that follows a redirect and the 10-hop and loop limits hold.
+    /// </summary>
+    internal static HttpClientHandler CreateTransport() => new() { AllowAutoRedirect = false };
 
     private static Uri? Resolve(Uri current, Uri location)
     {
