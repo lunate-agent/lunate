@@ -79,19 +79,25 @@ internal sealed partial class PickerOwner
     }
 
     /// <summary>Whether the open picker filters as text is typed: the model pickers always (their
-    /// listing can be long and the search is their documented affordance), the other wizard pickers
-    /// only when the list exceeds <see cref="FilterThreshold"/> rows — a short list keeps bare
-    /// <c>b</c> and <c>f</c> free for the wizard's back and forward verbs (spec: The walk is
-    /// navigable).</summary>
+    /// listing can be long and the search is their documented affordance), the session picker when it
+    /// carries the store's turn search, the other wizard pickers only when the list exceeds
+    /// <see cref="FilterThreshold"/> rows — a short list keeps bare <c>b</c> and <c>f</c> free for the
+    /// wizard's back and forward verbs (spec: The walk is navigable).</summary>
     private bool FiltersOn() =>
         _kind is PickerKind.Model or PickerKind.WizardModel
+        || (_kind is PickerKind.Session && _search is not null)
         || (
             _kind is PickerKind.WizardProvider or PickerKind.WizardChoice
             && _labels.Count > FilterThreshold
         );
 
+    /// <summary>
+    /// Label filtering. A search delegate already answered the query, so its rows are never filtered
+    /// again by their label: a hit whose snippet was cut must survive.
+    /// </summary>
     private bool Matches(string label) =>
-        !FiltersOn()
+        _search is not null
+        || !FiltersOn()
         || _filter.Length == 0
         || label.Contains(_filter, StringComparison.OrdinalIgnoreCase);
 
@@ -103,11 +109,21 @@ internal sealed partial class PickerOwner
             : _labels[index];
 
     /// <summary>
-    /// The title. The session picker keeps its plain title; the model picker appends the
-    /// invariant position and visible count and, while filtering, the filter text.
+    /// The title. The unfiltered session picker keeps its plain title (its render is pinned by a
+    /// golden); the model picker appends the invariant position and visible count and, while
+    /// filtering, the filter text; a filtering session picker names its hit count and query.
     /// </summary>
     private string Title(int selected, int count)
     {
+        if (_kind is PickerKind.Session)
+        {
+            return _filter.Length == 0
+                ? _titlePrefix
+                : FormattableString.Invariant(
+                    $"{_titlePrefix} — {count} matches — search: {_filter}"
+                );
+        }
+
         if (_kind is not PickerKind.Model)
         {
             return _titlePrefix;

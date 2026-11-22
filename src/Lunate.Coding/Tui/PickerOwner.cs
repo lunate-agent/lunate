@@ -49,7 +49,10 @@ internal sealed partial class PickerOwner
     private PickerKind _kind;
     private List<string> _labels = [];
     private List<string> _values = [];
+    private List<string> _baseLabels = [];
+    private List<string> _baseValues = [];
     private List<string> _visibleValues = [];
+    private Func<string, (List<string> Labels, List<string> Values)>? _search;
     private string _titlePrefix = string.Empty;
     private string _filter = string.Empty;
     private bool _menu;
@@ -136,6 +139,9 @@ internal sealed partial class PickerOwner
         _titlePrefix = request.TitlePrefix;
         _labels = request.Labels;
         _values = request.Values;
+        _baseLabels = request.Labels;
+        _baseValues = request.Values;
+        _search = request.Search;
         _filter = string.Empty;
         _menu = request.Menu;
         _pick = request.Pick;
@@ -161,17 +167,19 @@ internal sealed partial class PickerOwner
         }
 
         _filter += request.Text;
+        RefreshRows();
         Show(SelectedValue(), fallback: 0);
     }
 
     private void BackspaceFilter(Request request)
     {
-        if (!IsCurrent(request.Expected) || _kind is not PickerKind.Model || _filter.Length == 0)
+        if (!IsCurrent(request.Expected) || !FiltersOn() || _filter.Length == 0)
         {
             return;
         }
 
         _filter = _filter[..^1];
+        RefreshRows();
         Show(SelectedValue(), fallback: 0);
     }
 
@@ -183,6 +191,7 @@ internal sealed partial class PickerOwner
         }
 
         _filter = string.Empty;
+        RefreshRows();
         Show(SelectedValue(), fallback: 0);
     }
 
@@ -227,6 +236,22 @@ internal sealed partial class PickerOwner
         return new PickerConfirmation(kind, value);
     }
 
+    /// <summary>
+    /// Sets the rows a query stands for: a session picker with a search delegate asks it for the
+    /// matching turns, an empty query and every other picker keep the rows the picker opened with.
+    /// </summary>
+    private void RefreshRows()
+    {
+        if (_search is not null && _filter.Length > 0)
+        {
+            (_labels, _values) = _search(_filter);
+        }
+        else if (_search is not null)
+        {
+            (_labels, _values) = (_baseLabels, _baseValues);
+        }
+    }
+
     private bool IsCurrent(SelectListModel? expected) =>
         _picker is not null && (expected is null || ReferenceEquals(_picker, expected));
 
@@ -237,7 +262,10 @@ internal sealed partial class PickerOwner
         _titlePrefix = string.Empty;
         _labels = [];
         _values = [];
+        _baseLabels = [];
+        _baseValues = [];
         _visibleValues = [];
+        _search = null;
         _filter = string.Empty;
         _menu = false;
         _pick = null;

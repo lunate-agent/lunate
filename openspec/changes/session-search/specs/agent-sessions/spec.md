@@ -9,8 +9,9 @@ and return one row per matching turn carrying the session id, the turn's timesta
 `cwd`, the surrounding message text and the session file path. Matching SHALL be a case-insensitive
 ordinary substring test over the text of `user` and `assistant` message entries — never over tool
 results, compaction summaries, extension entries or image blobs — and a query SHALL be used verbatim
-(no regex, no token splitting). Rows SHALL be ordered newest session first by the listing's
-comparison (last-modified, then created, then id, all descending) and in file order within a session.
+(no regex, no token splitting). Session files SHALL be considered newest last write first, capped
+before any line is read, with equal write times ordering by path so the choice is deterministic;
+rows SHALL keep file order within one session.
 
 The scan SHALL state and enforce its bound: at most 200 session files and 8 MiB of message text per
 invocation, and at most 20 matches. It SHALL NOT build or keep an index, a cache or a second store.

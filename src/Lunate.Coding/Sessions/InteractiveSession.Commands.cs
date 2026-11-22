@@ -833,7 +833,10 @@ internal sealed partial class InteractiveSession
 
     private static string Label(ModelInfo model) => $"{model.Id} ({model.Provider})";
 
-    /// <summary>Opens the session picker: the directory listing, newest first, the current one selected.</summary>
+    /// <summary>
+    /// Opens the session picker: the directory listing, newest first, the current one selected, and
+    /// its search field — a query is answered by the store's turn search over the same directory.
+    /// </summary>
     private async ValueTask OpenSessionPicker()
     {
         List<string> labels = [];
@@ -852,8 +855,38 @@ internal sealed partial class InteractiveSession
             }
         }
 
-        await OpenPicker(PickerKind.Session, "Select session", labels, values, current)
+        await OpenPicker(
+                PickerKind.Session,
+                "Select session",
+                labels,
+                values,
+                current,
+                search: SearchSessionTurns
+            )
             .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The session picker's search field: one row per matching past turn, labelled with its
+    /// timestamp, session id and snippet and valued with the file plus the entry to open at. The
+    /// scan is the store's own bounded one over the directory the listing lists, so searching never
+    /// opens or writes a session.
+    /// </summary>
+    private (List<string> Labels, List<string> Values) SearchSessionTurns(string query)
+    {
+        List<string> labels = [];
+        List<string> values = [];
+        foreach (SessionSearchMatch match in Session.Search(_sessionDirectory, query).Matches)
+        {
+            labels.Add(
+                FormattableString.Invariant(
+                    $"{match.Timestamp.ToUniversalTime():yyyy-MM-dd HH:mm} {match.SessionId} — {match.Snippet}"
+                )
+            );
+            values.Add(new SessionPickValue(match.Path, match.EntryId).ToString());
+        }
+
+        return (labels, values);
     }
 
     private ValueTask OpenPicker(
@@ -863,8 +896,9 @@ internal sealed partial class InteractiveSession
         List<string> values,
         int selected,
         bool menu = false,
-        TaskCompletionSource<string?>? pick = null
-    ) => _pickerOwner.OpenAsync(kind, titlePrefix, labels, values, selected, menu, pick);
+        TaskCompletionSource<string?>? pick = null,
+        Func<string, (List<string> Labels, List<string> Values)>? search = null
+    ) => _pickerOwner.OpenAsync(kind, titlePrefix, labels, values, selected, menu, pick, search);
 
     /// <summary>
     /// Picker keys are routed at the picker they were read against: Up/Down move clamped, Enter
@@ -1003,16 +1037,32 @@ internal sealed partial class InteractiveSession
         }
     }
 
-    /// <summary>Resumes a session file; the conversation continues on the current model.</summary>
-    private void ResumeSession(string path)
+    /// <summary>
+    /// Resumes a session file; the conversation continues on the current model. A picker row from
+    /// the search field also names an entry: the matching turn becomes the active leaf (one
+    /// append-only move record, as <c>/rewind</c> writes), so the conversation continues from it and
+    /// the rest of the file stays recoverable in <c>/tree</c>.
+    /// </summary>
+    private void ResumeSession(string value)
     {
+        SessionPickValue pick = SessionPickValue.Parse(value);
         Session resumed;
         try
         {
-            resumed = WithRedaction(Session.Load(path));
+            resumed = WithRedaction(Session.Load(pick.Path));
+            if (pick.EntryId is { } entryId)
+            {
+                resumed.MoveLeaf(entryId);
+            }
         }
         catch (Exception exception)
-            when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+            when (exception
+                    is IOException
+                        or InvalidDataException
+                        or UnauthorizedAccessException
+                        or ArgumentException
+                        or InvalidOperationException
+            )
         {
             Notify("could not resume: " + exception.Message, NoticeLevel.Error);
             return;
@@ -1023,20 +1073,24 @@ internal sealed partial class InteractiveSession
         _deferFreshSession = false;
         ResetAlwaysApproved();
         _turnActive = true;
-        _run = ResumeCompositionAsync(resumed);
+        _run = ResumeCompositionAsync(resumed, pick.EntryId);
     }
 
     /// <summary>
     /// The resume half that composes outside the key pump (a changed-skills trust question must
     /// stay answerable); the conversation continues on the current model.
     /// </summary>
-    private async Task ResumeCompositionAsync(Session resumed)
+    private async Task ResumeCompositionAsync(Session resumed, string? entryId = null)
     {
         try
         {
             await ComposeSkillsAsync(_lifetime.Token).ConfigureAwait(false);
             _harness = BuildHarness(_model);
-            Notify("resumed " + resumed.SessionId);
+            Notify(
+                entryId is null
+                    ? "resumed " + resumed.SessionId
+                    : FormattableString.Invariant($"resumed {resumed.SessionId} at {entryId}")
+            );
             foreach (
                 SessionChildSessionEntry link in resumed.Entries.OfType<SessionChildSessionEntry>()
             )

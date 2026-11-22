@@ -31,6 +31,10 @@ internal sealed partial class PickerOwner
         public string Text { get; init; } = string.Empty;
         public string Value { get; init; } = string.Empty;
 
+        /// <summary>The session picker's turn search: the rows a query matches, or null for a picker
+        /// that filters the labels it was opened with (the model and wizard pickers).</summary>
+        public Func<string, (List<string> Labels, List<string> Values)>? Search { get; init; }
+
         public TaskCompletionSource<PickerConfirmation?> Done { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
@@ -44,7 +48,8 @@ internal sealed partial class PickerOwner
         List<string> values,
         int selected,
         bool menu,
-        TaskCompletionSource<string?>? pick = null
+        TaskCompletionSource<string?>? pick = null,
+        Func<string, (List<string> Labels, List<string> Values)>? search = null
     ) =>
         SendAsync(
             new Request
@@ -57,6 +62,7 @@ internal sealed partial class PickerOwner
                 Selected = selected,
                 Menu = menu,
                 Pick = pick,
+                Search = search,
             }
         );
 

@@ -27,7 +27,9 @@ internal static class Cli
         // The setup command's paths, transport and client factory; null uses the production defaults.
         SetupCommandSeams? setupSeams = null,
         string? hardlinkScanRoot = null,
-        IHardlinkScanFileSystem? hardlinkScanFileSystem = null
+        IHardlinkScanFileSystem? hardlinkScanFileSystem = null,
+        // The sessions search root; null reads the store's own sessions directory.
+        string? sessionsRoot = null
     )
     {
         var noExtensions = false;
@@ -124,6 +126,11 @@ internal static class Cli
         if (args.Length > 0 && args[0] == "cache")
         {
             return CacheCommand.Run(args[1..], workingDirectory, output, errors, extensions);
+        }
+
+        if (args.Length > 0 && args[0] == "sessions")
+        {
+            return SessionsCommand.Run(args[1..], sessionsRoot, output, errors);
         }
 
         if (args.Length > 0 && args[0] == "packages")

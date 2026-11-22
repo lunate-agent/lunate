@@ -584,6 +584,78 @@ public sealed class InteractiveSessionPickerTests
         await run;
     }
 
+    [Fact]
+    public async Task The_search_field_resumes_at_the_matching_turn()
+    {
+        using var host = new InteractiveSessionHost();
+        Session seeded = SeedSession(
+            host.Temp.File("sessions"),
+            new Workspace(host.Temp.Root).WorktreeRoot,
+            "settle the retry budget"
+        );
+        seeded.AppendMessage(new ChatMessage(ChatRole.Assistant, "three attempts, then stop"));
+        host.Client.Enqueue(Scripts.Text("answer"), Scripts.Stop());
+        Task run = host.RunAsync();
+
+        host.Console.SendText("/resume");
+        host.Console.SendEnter();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "Select session");
+
+        // Typed text is the picker's search field, answered by the store's turn search.
+        host.Console.SendText("retry budget");
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "1 matches");
+        Assert.Contains(seeded.SessionId, host.LastFrame, StringComparison.Ordinal);
+        Assert.Contains("settle the retry budget", host.LastFrame, StringComparison.Ordinal);
+        Assert.DoesNotContain("filter:", host.LastFrame, StringComparison.Ordinal);
+
+        // Confirming a hit opens the session at the matching turn, not at its latest leaf.
+        host.Console.SendEnter();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(
+            host,
+            "resumed " + seeded.SessionId + " at e_01"
+        );
+
+        host.Console.SendText("next question");
+        host.Console.SendEnter();
+        await host.Client.WaitForCallAsync(1);
+        Assert.Equal(["settle the retry budget", "next question"], RequestTexts(host, 0));
+
+        host.Console.Complete();
+        await run;
+    }
+
+    [Fact]
+    public async Task Esc_clears_the_search_field_before_it_dismisses_the_picker()
+    {
+        using var host = new InteractiveSessionHost();
+        SeedSession(
+            host.Temp.File("sessions"),
+            new Workspace(host.Temp.Root).WorktreeRoot,
+            "settle the retry budget"
+        );
+        Task run = host.RunAsync();
+
+        host.Console.SendText("/resume");
+        host.Console.SendEnter();
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "Select session");
+
+        host.Console.SendText("retry budget");
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "1 matches");
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() =>
+        {
+            host.Advance(33);
+            return host.LastFrame.Contains("Select session", StringComparison.Ordinal)
+                && !host.LastFrame.Contains("matches", StringComparison.Ordinal);
+        });
+
+        host.Console.SendEscape();
+        await InteractiveSessionCommandTests.WaitForFrameGoneAsync(host, "Select session");
+
+        host.Console.Complete();
+        await run;
+    }
+
     private static void SeedFavourites(InteractiveSessionHost host, params string[] favourites) =>
         SettingsStore.WriteFavorites(favourites, host.Temp.File("settings.json"));
 
