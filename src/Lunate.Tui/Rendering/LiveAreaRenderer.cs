@@ -20,6 +20,9 @@ internal static class LiveAreaRenderer
     /// <summary>The thinking window: the activity line plus the newest reasoning text lines.</summary>
     internal const int MaxThinkingLines = 12;
 
+    /// <summary>The todo block's line cap, including its overflow line.</summary>
+    internal const int MaxTodoLines = 5;
+
     internal const string Placeholder = "Ask anything, / for commands";
 
     private const char UnicodeRule = '─';
@@ -71,6 +74,7 @@ internal static class LiveAreaRenderer
             : KeyHelpRenderer.PlainLines(state.KeyHelp, Math.Max(6, state.Size.Rows - 8));
         IReadOnlyList<string> autocompleteLines = AutocompleteRenderer.Lines(state, width);
         IReadOnlyList<string> thinkingLines = ThinkingLines(state, width);
+        IReadOnlyList<string> todoLines = TodoLines(state, width);
         var footerLine =
             state.Loading is { Length: > 0 } loading ? loading
             : state.Footer is null ? null
@@ -84,7 +88,8 @@ internal static class LiveAreaRenderer
         // The box always closes: the lower rule is part of the fixed chrome at every width.
         const int lowerRuleLines = 1;
         int preInputLines =
-            thinkingLines.Count
+            todoLines.Count
+            + thinkingLines.Count
             + (activityLine is null ? 0 : 1)
             + (subagentLine is null ? 0 : 1)
             + noticeLines.Count
@@ -119,6 +124,7 @@ internal static class LiveAreaRenderer
 
         var lines = new List<string>();
         lines.AddRange(tail);
+        lines.AddRange(todoLines);
         if (activityLine is not null)
         {
             lines.Add(activityLine);
@@ -372,6 +378,56 @@ internal static class LiveAreaRenderer
         }
 
         return text + " · esc to interrupt";
+    }
+
+    /// <summary>
+    /// The todo block: one line per item up to the cap, with a final line naming how many were
+    /// not shown. The glyph carries the status, so NO_COLOR loses no meaning; the list shares the
+    /// live area's budget, so it can never push the input box out of the frame.
+    /// </summary>
+    private static IReadOnlyList<string> TodoLines(LiveAreaState state, int width)
+    {
+        if (state.TodoItems.Count == 0)
+        {
+            return [];
+        }
+
+        bool overflow = state.TodoItems.Count > MaxTodoLines;
+        int shown = overflow ? MaxTodoLines - 1 : state.TodoItems.Count;
+        var lines = new List<string>(MaxTodoLines);
+        for (var index = 0; index < shown; index++)
+        {
+            TodoItemView item = state.TodoItems[index];
+            string marker = item.Status switch
+            {
+                TodoItemState.InProgress => "[>] ",
+                TodoItemState.Done => "[x] ",
+                _ => "[ ] ",
+            };
+            string text = CellText.Clip(marker + CellText.SingleLine(item.Text), width);
+            lines.Add(
+                item.Status switch
+                {
+                    TodoItemState.InProgress => state.Theme.Wrap(
+                        ThemeToken.Accent,
+                        text,
+                        state.Color
+                    ),
+                    TodoItemState.Done => state.Theme.Wrap(ThemeToken.Muted, text, state.Color),
+                    _ => text,
+                }
+            );
+        }
+
+        if (overflow)
+        {
+            int hidden = state.TodoItems.Count - shown;
+            string marker = state.Unicode ? "\u2026" : "...";
+            string more = FormattableString.Invariant($"    {marker} {hidden} more");
+            lines.Add(state.Theme.Wrap(ThemeToken.Muted, CellText.Clip(more, width), state.Color));
+        }
+
+        return lines;
     }
 
     /// <summary>

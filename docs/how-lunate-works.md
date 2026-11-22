@@ -16,8 +16,9 @@ A tool that fails reports what failed and what to do next back to the model as t
 
 ## The tools are the only way it acts
 
-Four built-in tools do the work: `read`, `write`, `edit` and `bash`. In a C# workspace the model can
-also call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and
+Five built-in tools do the work: `read`, `write`, `edit`, `bash` and `todo`. The model uses `todo`
+to keep one short plan — each item is `pending`, `in_progress` or `done` — and the live area shows it
+above the prompt, bounded to a few lines. In a C# workspace the model can also call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and
 `cs_outline` — which load on the first C# call rather than at startup. Extensions, MCP servers and
 skills add tools of their own, and they go through the same approval policy as the built-ins.
 

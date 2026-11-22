@@ -37,7 +37,7 @@ What an extension compiles against is versioned under `ExtensionApi`, and a cont
 author can feel gets a note here. The notes are additive: the version a note names is the one an
 extension declares in its manifest's `apiVersion`.
 
-### 1.17.0 — the observable event stream
+### 1.18.0 — the observable event stream
 
 `IExtensionContext.Events` is the observing half of the extension surface
 ([ADR-0040](../../adr/0040-hook-based-extensibility-on-observables.md)): an `IObservable<AgentEvent>`
@@ -45,6 +45,11 @@ that carries every run event of the session and can change nothing. The manifest
 `--json` kind vocabulary, or `["*"]` — shown by `/extensions` and carried in the trust prompt as
 information. The intercepting hook catalogue is unchanged; [event-stream.md](contributions/event-stream.md)
 says which surface to use.
+
+### 1.17.0 — the todo event
+
+`TodoUpdated` joins `AgentEvent` and `ExtensionEvent`, carrying the complete todo list after each
+successful `todo` tool call. Handle it, or leave it to your `_` arm.
 
 ### 1.16.0 — the event and hook-result families are unions
 

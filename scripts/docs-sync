@@ -31,6 +31,7 @@ Three mechanisms, all driven by markers in a Markdown file:
 
 Usage:
   scripts/docs-sync            # write the regions
+  scripts/docs-sync --write    # the same, said explicitly (the release runbook and the lane use it)
   scripts/docs-sync --check    # write nothing; exit 1 when a region is stale
   scripts/docs-sync --self-test
 
@@ -800,9 +801,14 @@ def self_test():
 def main(arguments):
     root = pathlib.Path(__file__).resolve().parent.parent
     write = True
+    if "--check" in arguments and "--write" in arguments:
+        print("docs-sync: --check and --write are opposites; pass one", file=sys.stderr)
+        return 2
     for argument in arguments:
         if argument == "--check":
             write = False
+        elif argument == "--write":
+            write = True
         elif argument == "--self-test":
             return self_test()
         elif argument in ("--help", "-h"):

@@ -411,6 +411,30 @@ _expect_no_summary "the aggregate is not named as an abandoned leg" "ci-ok"
 _expect_no_summary "an ordinary red is not retried" "retried once"
 _expect_no_stderr "a run with a red leg that ran is not deferred" "deferring to the capacity retry"
 
+# The aggregate and the reporter restate the other jobs' results (#1002): `ci-ok` fails because a required
+# leg did not succeed, so the leg's card is the finding and a second card for the aggregate would name no
+# failure of its own. Run 45013417456 filed exactly that card because its `ci-ok` record concluded before
+# the reporter read the jobs; the rule must not depend on that race.
+_defaults
+CASE_EVENT="push"
+CASE_ATTEMPT=1
+_run "an aggregate beside a red leg that ran is not filed" 0 \
+    '{"jobs":[{"id":"601","name":"verify-powershell (windows)","conclusion":"failure","runner_id":1000009121,"steps":[{"name":"Verify (PowerShell)","conclusion":"failure"}]},{"id":"602","name":"ci-ok","conclusion":"failure","runner_id":1000009122,"steps":[{"name":"Every required job succeeded","conclusion":"failure"}]}]}'
+_expect_gh "the leg that failed is filed" "CI failed: verify-powershell (windows)"
+_expect_no_gh "the aggregate is not filed beside the leg it restates" "CI failed: ci-ok"
+_expect_stderr "the run names the aggregate it did not file" "ci-ok: only restates"
+_expect_stderr "the aggregate line carries the run link" "ci-ok: only restates the jobs that ran; no card is filed for it; run https://example.test/runs/1"
+
+# The other half of the rule: when nothing else in the run explains the gate's red, the aggregate's card is
+# the whole finding and must still be filed.
+_defaults
+CASE_EVENT="push"
+CASE_ATTEMPT=1
+_run "an aggregate that is the run's only red still files" 0 \
+    '{"jobs":[{"id":"701","name":"verify (ubuntu-latest, 1/4)","conclusion":"success","runner_id":1000009123,"steps":[{"name":"Verify (bash)","conclusion":"success"}]},{"id":"702","name":"ci-ok","conclusion":"failure","runner_id":1000009124,"steps":[{"name":"Every required job succeeded","conclusion":"failure"}]}]}'
+_expect_gh "the aggregate is filed when nothing else explains the red" "CI failed: ci-ok"
+_expect_no_stderr "a filed aggregate is not named as unfiled" "ci-ok: only restates"
+
 # The run 43904858046 shape (#923): two legs GitHub never gave a runner, the aggregate that failed
 # because they did not succeed, the reporter that deferred them, and everything that ran green.
 CAPACITY_JOBS='{"jobs":[{"id":"101","name":"verify (macos-latest, 1/2)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"102","name":"perf (macos-latest)","conclusion":"cancelled","runner_id":0,"steps":[]},{"id":"103","name":"verify (macos-latest, 2/2)","conclusion":"success","runner_id":1000009114,"steps":[{"name":"Verify (bash)","conclusion":"success"}]},{"id":"104","name":"ci-ok","conclusion":"failure","runner_id":1000009115,"steps":[{"name":"Every required job succeeded","conclusion":"failure"}]},{"id":"105","name":"red-main-issue","conclusion":"failure","runner_id":1000009116,"steps":[{"name":"File one card per failing job","conclusion":"failure"}]}]}'

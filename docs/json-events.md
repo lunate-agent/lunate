@@ -69,10 +69,13 @@ arrival order, like every other event.
 | `tool_call_result` | `callId`, `output`, `isError`, optional `details`, optional `parentToolCallId` |
 | `tool_progress_update` | `callId`, `message` |
 | `tool_output_spill_failed` | `message` |
+| `todo_updated` | `items` (each with `text` and `status`: `pending`, `in_progress` or `done`) |
 
 `tool_call_result` carries the tool's detail record as a JSON element in `details` — for an edit, the
 path, the line range, the match tier and the diff. A nested call id reads `<parent>/<n>`, so a
-subagent's tool calls are distinguishable from the parent's.
+subagent's tool calls are distinguishable from the parent's. `todo_updated` carries the complete list
+after each successful `todo` call, not a diff: a consumer can render it without replaying earlier
+updates.
 
 ### Approvals and decisions
 

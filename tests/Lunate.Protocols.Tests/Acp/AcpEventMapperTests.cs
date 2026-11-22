@@ -100,6 +100,7 @@ public sealed class AcpEventMapperTests
             new SteeringInjected("run_1", "entry_2"),
             new ApprovalRequested("run_1", "call_1", "echo", "{}"),
             new ToolProgressUpdate("run_1", "call_1", "working"),
+            new TodoUpdated("run_1", [new TodoItem("plan", TodoItemStatus.Pending)]),
         ];
 
         foreach (AgentEvent agentEvent in unmapped)

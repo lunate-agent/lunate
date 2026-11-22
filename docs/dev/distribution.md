@@ -279,9 +279,35 @@ and a version number is never reused for different bytes.
 
 ## Later releases
 
-- Assemble the changelog in the release pull request (`scripts/changelog-assemble --release <version>`) — step 1.
-- Tag the new version; the gate, publish, pack and attach jobs do the rest.
-- Fill the channel manifests from the new release's `SHA256SUMS` with `scripts/fill-release-hashes` (step 4), run `scripts/docs-sync --write`, and update the tap copy (step 5); the tag pushes both `.nupkg` files itself (step 8).
-- Run the release smoke against the tag (see *Release smoke*) before calling the release done.
-- The Scoop bucket autoupdates itself; winget needs a new `wingetcreate update wdaniel1993.lunate --version <v> --urls <zip-url>` submission.
-- Future work: automate the tap/bucket updates from the release workflow (a follow-up change); until then the steps above stay manual.
+Every release after the first runs through the lane (`lane.py release`, lunate-lane#21) as a train:
+**weekly** from the lane's cron (`lane.py release --train`: the milestone the lane works, when at least one
+changelog fragment has merged since the last tag), or **on the maintainer's word** (`lane.py release <version>`).
+Whatever has merged since the last tag ships. Open cards never hold a release: they move to the next milestone at
+the cut. The one human step is approving the release pull request. The lane's steps, in order, with the step of
+this runbook each one performs:
+
+1. **preflight**: `main`'s `ci-ok` is green, the version is newer than `<Version>` in `Directory.Build.props`,
+   `scripts/changelog-assemble` has `--release`, and every script the release runs passes a `--help` self-test
+   under `python3 -I` in the lane's sandbox.
+2. **pr**: `release/<version>`, titled `chore(release): <version>`, opened by `lunate-worker`, ready and not
+   armed. This is step 1 (`changelog-assemble --release <version>`, then `--check`).
+3. **merge**: the maintainer runs the *Pre-release checks*, reads the changelog as it ships in the pull request
+   body, and approves the release pull request at its head. The lane then enqueues it.
+4. **tag**: `v<version>` on the merged commit, as `lunate-worker`. This is step 2; the Release workflow publishes it.
+5. **forward**: the cut. Every open issue and pull request of the released milestone moves to the next minor
+   milestone, created if missing, and the lane works that milestone from here on. A card in rework moves with its
+   pull request.
+6. **published**: the tag's Release workflow succeeded, and the release reads back published with its six assets
+   and `SHA256SUMS`. This is step 3.
+7. **channels**: `chore/<version>-channels`, filled by `scripts/fill-release-hashes` and `scripts/docs-sync` in
+   the sandbox. This is step 4. The reviewer identity approves it once it is green and touches only the channel
+   manifests and the README, and the lane enqueues it. When `main` already carries them, there is nothing to do.
+8. **mirror**: `main`'s formula and Scoop manifest are copied to `lunate-agent/homebrew-tap` and
+   `lunate-agent/scoop-bucket` as `lunate-worker`. This is the copy in steps 5 and 6; creating those repositories
+   was first-release only.
+9. **smoke**: `smoke.yml` on the tag, dispatched once and waited for (see *Release smoke*).
+10. **close**: anything opened in the released milestone since the cut moves forward too. Then the milestone is
+    closed and reads back with no open item, so its counts are what shipped.
+
+Still manual: a winget submission (`wingetcreate update wdaniel1993.lunate --version <v> --urls <zip-url>`). NuGet
+needs nothing: the tag pushes both `.nupkg` files (step 8), and the smoke installs them.

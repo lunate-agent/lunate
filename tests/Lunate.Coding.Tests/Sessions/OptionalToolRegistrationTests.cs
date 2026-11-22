@@ -16,7 +16,7 @@ public sealed class OptionalToolRegistrationTests
 
         ToolRegistry tools = HarnessFactory.CreateTools(new Workspace(temp.Root));
 
-        Assert.Equal(["read", "write", "edit", "bash"], Names(tools));
+        Assert.Equal(["read", "write", "edit", "bash", "todo"], Names(tools));
     }
 
     [Theory]
@@ -32,7 +32,7 @@ public sealed class OptionalToolRegistrationTests
             extraTools: [name]
         );
 
-        Assert.Equal(["read", "write", "edit", "bash", name], Names(tools));
+        Assert.Equal(["read", "write", "edit", "bash", "todo", name], Names(tools));
         Assert.Equal(ToolRisk.ReadOnly, tools.Find(name)!.Risk);
     }
 
@@ -46,7 +46,7 @@ public sealed class OptionalToolRegistrationTests
             extraTools: ["grep", "ls"]
         );
 
-        Assert.Equal(["read", "write", "edit", "bash", "grep", "ls"], Names(tools));
+        Assert.Equal(["read", "write", "edit", "bash", "todo", "grep", "ls"], Names(tools));
         Assert.Null(tools.Find("find"));
     }
 
@@ -66,6 +66,14 @@ public sealed class OptionalToolRegistrationTests
     }
 
     [Fact]
+    public void The_todo_tool_is_a_core_name_and_cannot_be_an_extra()
+    {
+        string error = OptionalTools.Error("--extra-tools", "todo");
+
+        Assert.Contains("core tool 'todo'", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void An_unknown_name_is_not_registered()
     {
         using var temp = new TempDirectory();
@@ -75,7 +83,7 @@ public sealed class OptionalToolRegistrationTests
             extraTools: ["wat"]
         );
 
-        Assert.Equal(["read", "write", "edit", "bash"], Names(tools));
+        Assert.Equal(["read", "write", "edit", "bash", "todo"], Names(tools));
     }
 
     [Fact]
