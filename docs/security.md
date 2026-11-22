@@ -9,8 +9,8 @@ level — it is not a sandbox. To report a vulnerability, use the [security poli
 Lunate runs with your user privileges, and its security posture is deliberately that of a
 single-user CLI tool, not a sandbox. The boundaries are worth knowing about.
 
-**Approval prompts.** The `read`, `write`, `edit`, `bash`, `web_search` and `web_fetch` tools all
-run as you, on model-chosen arguments. `bash_output` is read-only and reads only the session's own
+**Approval prompts.** The `read`, `write`, `edit`, `bash`, `remember`, `web_search` and `web_fetch`
+tools all run as you, on model-chosen arguments. `bash_output` is read-only and reads only the session's own
 jobs; `bash_kill` is `Execute` risk because it ends processes, so it takes the same approval path as
 `bash`. Every write, edit, command, kill and web call is shown as a prompt
 — `Allow edit src/Order.cs?  [y]es  [n]o  [a]lways this session` — before it runs, and the
@@ -29,7 +29,8 @@ no request.
 anything outside the working directory, so a model mistake cannot read or write next to your home
 directory by accident ([ADR-0016](../adr/0016-workspace-boundary.md)). This is a guard rail, not an
 isolation boundary: `bash` is intentionally not boundary-checked — the approval policy is its guard
-— and time-of-check/time-of-use races are accepted.
+— and time-of-check/time-of-use races are accepted. `remember` has no path argument: it targets only
+the repository root's `LUNATE.md`, and refuses a symlink whose real target leaves that root.
 
 **The OS-level guard.** Beyond the approval policy, `bash` is not path-confined, but on macOS and
 Linux it runs under an OS-level guard ([ADR-0024](../adr/0024-bash-guard.md)) that refuses writes under

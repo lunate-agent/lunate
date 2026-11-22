@@ -35,7 +35,7 @@ Alternative considered: reuse `AGENTS.md` itself. Rejected: it is the human-owne
 
 ### The prompt carries notes after the `AGENTS.md` chain
 
-`ProjectNotes` reads `LUNATE.md` and returns one block headed `### Project notes (LUNATE.md)` with a sentence that facts here are subordinate to the `AGENTS.md` rules. `SystemPrompt` substitutes it through a new `{notes}` token placed after `{agents}` in the embedded template; an empty result leaves the prompt bytes unchanged apart from the trim `SystemPrompt` already performs.
+`ProjectNotes` reads `LUNATE.md` and returns one block headed `### Project notes (LUNATE.md)` with a sentence that facts here are subordinate to the `AGENTS.md` rules. `SystemPrompt` appends that block to the `AGENTS.md` blocks and substitutes the combined value through the existing `{agents}` token, so neither user text is rescanned for tokens; the template prose introduces the notes when they exist, and an empty result leaves the prompt bytes unchanged apart from the trim `SystemPrompt` already performs.
 
 The block is present only when the file exists, so a session without notes composes exactly as today. The notes are user content like `AGENTS.md`: they are excluded from the under-1,000-token core-prompt assertion, and a resumed session gets the current file because the prompt is composed when the harness is built.
 

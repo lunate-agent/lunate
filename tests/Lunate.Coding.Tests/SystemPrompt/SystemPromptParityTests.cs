@@ -34,6 +34,7 @@ public sealed class SystemPromptParityTests
                 "bash_output",
                 "bash_kill",
                 "todo",
+                "remember",
                 "web_search",
                 "web_fetch",
                 "ask_user",

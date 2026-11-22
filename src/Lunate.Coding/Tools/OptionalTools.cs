@@ -20,6 +20,7 @@ internal static class OptionalTools
         "bash_output",
         "bash_kill",
         "todo",
+        "remember",
         "web_search",
         "web_fetch",
     ];
