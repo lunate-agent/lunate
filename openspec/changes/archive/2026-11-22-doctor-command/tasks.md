@@ -20,4 +20,4 @@
 
 - [x] 4.1 Run CSharpier, the touched build and the named tests.
 - [x] 4.2 Run `openspec validate doctor-command --type change --strict`.
-- [ ] 4.3 Sync specs and archive with `openspec archive doctor-command --yes` as the last commit.
+- [x] 4.3 Sync specs and archive with `openspec archive doctor-command --yes` as the last commit.

@@ -1,3 +1,7 @@
+## Purpose
+
+The `lunate doctor` command: one offline report of the install channel, config and state paths, resolved provider and credential, container engines, terminal capabilities and last update-check result that a bug report needs, with a pasteable JSON form and no secret values.
+
 ## ADDED Requirements
 
 ### Requirement: The doctor report
