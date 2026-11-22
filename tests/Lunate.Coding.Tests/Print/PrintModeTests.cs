@@ -97,6 +97,35 @@ public sealed class PrintModeTests
         );
     }
 
+    [Fact]
+    public async Task A_todo_call_leaves_the_default_print_output_as_the_answer()
+    {
+        using var temp = new TempDirectory();
+        var client = new ScriptedChatClient()
+            .Enqueue(
+                Scripts.Call(
+                    "call-1",
+                    "todo",
+                    Scripts.Args(("items", new[] { Item("read the card", "done") }))
+                ),
+                Scripts.ToolCalls()
+            )
+            .Enqueue(Scripts.Text("the answer"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+        };
+
+        (int exitCode, string output, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("the answer", output);
+        Assert.Empty(errors);
+    }
+
     private static Dictionary<string, object?> Item(string text, string status) =>
         Scripts.Args(("text", text), ("status", status));
 
