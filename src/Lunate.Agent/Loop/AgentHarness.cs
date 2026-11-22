@@ -22,6 +22,8 @@ namespace Lunate.Agent;
 public sealed partial class AgentHarness
 {
     private const string CacheCreationInputTokensKey = "CacheCreationInputTokens";
+    private const string VisionDescriptionPrompt =
+        "Describe this image for another model that cannot see it. Cover the visible content, any text, and details relevant to a coding task. Return only the description.";
 
     private readonly IChatClient _client;
     private readonly ToolRegistry _tools;
@@ -29,6 +31,7 @@ public sealed partial class AgentHarness
     private readonly SessionImages _images;
     private readonly ReadLedger _reads = new();
     private readonly List<ChatMessage> _history = [];
+    private readonly Dictionary<string, string> _visionTexts = new(StringComparer.Ordinal);
     private readonly List<FunctionCallContent> _danglingCalls = [];
     private readonly ConcurrentDictionary<string, int> _spillSequenceByCallId = new(
         StringComparer.Ordinal
@@ -970,7 +973,7 @@ public sealed partial class AgentHarness
 
         try
         {
-            request = BuildRequest(sections);
+            request = await BuildRequestAsync(runId, channel, sections, ct);
             requestUtf8 = _historyUtf8 + SystemPromptUtf8(sections);
             if (_options.Hooks is { } hookPoints)
             {
@@ -1482,11 +1485,20 @@ public sealed partial class AgentHarness
         );
     }
 
-    private List<ChatMessage> BuildRequest(IReadOnlyList<AgentPromptSection> sections)
+    private async Task<List<ChatMessage>> BuildRequestAsync(
+        string runId,
+        AgentEventChannel channel,
+        IReadOnlyList<AgentPromptSection> sections,
+        CancellationToken ct
+    )
     {
         ApplyProjectionBatchIfDue();
         EnsureUsageCapabilities();
-        EnsureImagesSupported();
+        bool described = await DescribeImagesIfNeededAsync(runId, channel, ct);
+        if (!described)
+        {
+            EnsureImagesSupported();
+        }
 
         List<ChatMessage> request = [];
         if (sections.Count > 0)
@@ -1508,18 +1520,18 @@ public sealed partial class AgentHarness
                 message = WithoutReasoning(message);
             }
 
-            request.Add(HydrateImages(message));
+            request.Add(HydrateImages(message, described));
         }
 
         return request;
     }
 
     /// <summary>
-    /// The request copy of a message with every image reference replaced by its bytes; the stored
-    /// message (and the session entry) keeps the reference. Messages without images are returned
-    /// as they are.
+    /// The request copy of a message with every image reference replaced by its bytes, or — on a
+    /// text-only chat model with a configured fast vision profile — by the description and the
+    /// placeholder. The stored message (and the session entry) keeps the reference.
     /// </summary>
-    private ChatMessage HydrateImages(ChatMessage message)
+    private ChatMessage HydrateImages(ChatMessage message, bool described)
     {
         if (!message.Contents.OfType<ImageContentReference>().Any())
         {
@@ -1530,11 +1542,134 @@ public sealed partial class AgentHarness
         copy.Contents =
         [
             .. copy.Contents.Select(content =>
-                content is ImageContentReference reference ? ReadImage(reference) : content
+                content is not ImageContentReference reference ? content
+                : described ? new TextContent(VisionText(reference))
+                : ReadImage(reference)
             ),
         ];
         return copy;
     }
+
+    /// <summary>
+    /// Replaces each request image with a description when the chat model is known not to accept
+    /// images and the configured fast profile can see them. Returns false so the ordinary
+    /// capability check can reject the request when no such profile is configured.
+    /// </summary>
+    private async Task<bool> DescribeImagesIfNeededAsync(
+        string runId,
+        AgentEventChannel channel,
+        CancellationToken ct
+    )
+    {
+        ModelInfo? model = DeclaredModel();
+        if (
+            model is null
+            || !IsKnownNoImage(model)
+            || ImageReferences(_history).FirstOrDefault() is null
+        )
+        {
+            return false;
+        }
+
+        UsageModelClient? vision = ResolveUsageModel("fast");
+        if (vision is null || !SupportsImageInput(vision.Model))
+        {
+            return false;
+        }
+
+        foreach (
+            ImageContentReference reference in ImageReferences(_history)
+                .DistinctBy(reference => reference.Digest, StringComparer.Ordinal)
+                .Where(reference => !_visionTexts.ContainsKey(reference.Digest))
+        )
+        {
+            string description = await DescribeImageAsync(
+                runId,
+                channel,
+                vision,
+                model,
+                reference,
+                ct
+            );
+            _visionTexts[reference.Digest] = string.Create(
+                CultureInfo.InvariantCulture,
+                $"[image {reference.Width}x{reference.Height}] described by profile '{vision.ProfileName}' ({vision.Model.Id}): {description}"
+            );
+            channel.Emit(
+                new SteeringInjected(runId, EntryId: null, Text: _visionTexts[reference.Digest])
+            );
+        }
+
+        return true;
+    }
+
+    private async Task<string> DescribeImageAsync(
+        string runId,
+        AgentEventChannel channel,
+        UsageModelClient vision,
+        ModelInfo chatModel,
+        ImageContentReference reference,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            DataContent image = ReadImage(reference);
+            ChatResponse response = await vision.Client.GetResponseAsync(
+                [new ChatMessage(ChatRole.User, [new TextContent(VisionDescriptionPrompt), image])],
+                options: null,
+                ct
+            );
+            string description = string.Concat(
+                response
+                    .Messages.SelectMany(message => message.Contents)
+                    .OfType<TextContent>()
+                    .Select(content => content.Text)
+            );
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                throw new InvalidOperationException("the vision profile returned no description.");
+            }
+
+            if (response.Usage is { } usage)
+            {
+                AccumulateUsage(
+                    runId,
+                    channel,
+                    usage,
+                    response.ModelId ?? vision.Model.Id,
+                    UsageAttribution("fast", vision)
+                );
+            }
+
+            return description.Trim();
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            string id = KnownModelId(chatModel.Id) ?? "unknown";
+            throw new InvalidDataException(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"model {id} doesn't accept images; switch profile or remove the image. The vision profile '{vision.ProfileName}' could not describe [image {reference.Width}x{reference.Height}]: {exception.Message}"
+                ),
+                exception
+            );
+        }
+    }
+
+    private string VisionText(ImageContentReference reference) =>
+        _visionTexts.TryGetValue(reference.Digest, out string? text)
+            ? text
+            : throw new InvalidDataException(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"image {reference.Width}x{reference.Height} was not described by the vision profile; the request cannot drop it."
+                )
+            );
 
     /// <summary>
     /// One reference's bytes as provider content. A reference without bytes fails the request

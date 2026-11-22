@@ -67,6 +67,16 @@ public sealed partial class AgentHarness
     private static bool HasUnknownImageSupport(ModelInfo? model) =>
         model is not null && !model.SupportsVision && model.Capabilities?.InputModalities is null;
 
+    /// <summary>Whether the model's known facts rule out image input.</summary>
+    private static bool IsKnownNoImage(ModelInfo model) =>
+        model.Capabilities?.InputModalities is { } modalities && !modalities.Contains("image");
+
+    /// <summary>Whether the model's facts declare image input; unknown support is not a yes.</summary>
+    private static bool SupportsImageInput(ModelInfo model) =>
+        model.Capabilities?.InputModalities is { } modalities
+            ? modalities.Contains("image")
+            : model.SupportsVision;
+
     private static bool IsImageInputRejection(Exception exception)
     {
         for (Exception? current = exception; current is not null; current = current.InnerException)
