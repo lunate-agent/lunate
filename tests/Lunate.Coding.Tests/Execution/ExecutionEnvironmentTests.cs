@@ -192,6 +192,33 @@ public sealed class ExecutionEnvironmentTests
             );
         }
 
+        public Task<StartedBackgroundProcess> StartBackgroundAsync(
+            ProcessRunRequest request,
+            CancellationToken cancellationToken
+        )
+        {
+            ExecutionCommand mapped = Map(
+                new ExecutionCommand(
+                    request.FileName,
+                    request.Arguments,
+                    request.WorkingDirectory,
+                    request.Environment,
+                    request.ExtraEnvironment
+                )
+            );
+            return inner.StartBackgroundAsync(
+                request with
+                {
+                    FileName = mapped.Executable,
+                    Arguments = mapped.Arguments,
+                    WorkingDirectory = mapped.WorkingDirectory,
+                    Environment = mapped.Environment,
+                    ExtraEnvironment = mapped.ExtraEnvironment,
+                },
+                cancellationToken
+            );
+        }
+
         public Task<IProcessSession> StartSessionAsync(
             ProcessSessionRequest request,
             CancellationToken cancellationToken

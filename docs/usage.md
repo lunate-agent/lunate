@@ -64,6 +64,14 @@ detail, and `[a]lways this session` covers that tool for the rest of the session
 ranked title, URL and snippet results; a fetch returns the page's readable text, its title and its
 links as markdown. Both stop at their byte cap and a failure names the URL and the reason.
 
+## Long commands keep running in the background
+
+A build, a test suite or a dev server does not have to hold the turn. `bash` with `background: true`
+starts it and returns a job id immediately; `bash_output` returns only what the job wrote since the
+last poll and says whether it is still running or has ended with its exit code; `bash_kill` stops
+the job and its whole process tree. The existing bash timeout still applies, unread output is
+bounded with a truncation marker, and ending the session kills the jobs it still owns.
+
 ## The plan stays on screen
 
 The model can keep a short todo list with the `todo` tool. Each call sends the whole list, with every

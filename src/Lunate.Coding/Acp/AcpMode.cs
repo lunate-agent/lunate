@@ -38,6 +38,7 @@ internal static class AcpMode
         McpToolSet? mcp = null;
         List<ITool> mcpTools = [];
         List<ITool> inheritedTools = [];
+        List<BashJobRegistry> bashJobRegistries = [];
         try
         {
             var workspace = new Workspace(Environment.CurrentDirectory);
@@ -177,6 +178,7 @@ internal static class AcpMode
                             mcpTools,
                             inheritedTools,
                             launch,
+                            bashJobs: TrackBashJobs(),
                             warn: notice => interaction.Notify(notice)
                         ),
                     ct
@@ -196,7 +198,29 @@ internal static class AcpMode
         }
         finally
         {
+            BashJobRegistry[] registries;
+            lock (bashJobRegistries)
+            {
+                registries = [.. bashJobRegistries];
+            }
+
+            foreach (BashJobRegistry registry in registries)
+            {
+                registry.KillAllAsync().GetAwaiter().GetResult();
+            }
+
             DisposeComposition(host, mcp, errors);
+        }
+
+        BashJobRegistry TrackBashJobs()
+        {
+            var registry = new BashJobRegistry();
+            lock (bashJobRegistries)
+            {
+                bashJobRegistries.Add(registry);
+            }
+
+            return registry;
         }
     }
 
@@ -274,6 +298,7 @@ internal static class AcpMode
         AgentSettings? settings = null,
         ModelCatalog? catalog = null,
         string? authPath = null,
+        BashJobRegistry? bashJobs = null,
         Action<UserNotice>? warn = null
     )
     {
@@ -281,6 +306,7 @@ internal static class AcpMode
             settings ?? SettingsStore.Resolve(null, null),
             launch ?? new LaunchOptions()
         );
+        bashJobs ??= new BashJobRegistry();
         // Every editor session resolves its settings again, so the refusal the serve start gave a
         // stored selection is re-asked here: a session that reached this point with one would run
         // its tool commands on the host, the silent fallback the selection forbids.
@@ -347,7 +373,8 @@ internal static class AcpMode
             writeVerifiers: host?.WriteVerifiers,
             verificationMode: effective.Verify,
             refusalTracker: refusalTracker,
-            bashGuardEnabled: effective.BashGuard
+            bashGuardEnabled: effective.BashGuard,
+            bashJobs: bashJobs
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -449,7 +476,8 @@ internal static class AcpMode
                 writeVerifiers: host?.WriteVerifiers,
                 verificationMode: effective.Verify,
                 refusalTracker: refusalTracker,
-                bashGuardEnabled: effective.BashGuard
+                bashGuardEnabled: effective.BashGuard,
+                bashJobs: bashJobs
             ),
         };
 

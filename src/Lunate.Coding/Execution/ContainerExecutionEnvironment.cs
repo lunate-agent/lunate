@@ -18,6 +18,11 @@ internal interface IHostCommandRunner
         Func<Task>? afterCancel
     );
 
+    Task<StartedBackgroundProcess> StartBackgroundAsync(
+        ProcessRunRequest request,
+        CancellationToken cancellationToken
+    );
+
     Task<IProcessSession> StartSessionAsync(
         ProcessSessionRequest request,
         CancellationToken cancellationToken
@@ -36,6 +41,11 @@ internal sealed class LocalHostCommandRunner : IHostCommandRunner
         CancellationToken cancellationToken,
         Func<Task>? afterCancel
     ) => LocalExecutionEnvironment.Instance.RunAsync(request, cancellationToken, afterCancel);
+
+    public Task<StartedBackgroundProcess> StartBackgroundAsync(
+        ProcessRunRequest request,
+        CancellationToken cancellationToken
+    ) => LocalExecutionEnvironment.Instance.StartBackgroundAsync(request, cancellationToken);
 
     public Task<IProcessSession> StartSessionAsync(
         ProcessSessionRequest request,
@@ -183,6 +193,60 @@ internal sealed class ContainerExecutionEnvironment : IExecutionEnvironment, IAs
         return await _host
             .RunAsync(hostRequest, cancellationToken, () => KillGroupAsync(container, pgidPath))
             .ConfigureAwait(false);
+    }
+
+    public async Task<StartedBackgroundProcess> StartBackgroundAsync(
+        ProcessRunRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.FileName);
+        ArgumentNullException.ThrowIfNull(request.Arguments);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.WorkingDirectory);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        string? failure = await EnsureContainerAsync().ConfigureAwait(false);
+        if (failure is not null)
+        {
+            throw new ExecutionEnvironmentUnavailableException(Unavailable(failure));
+        }
+
+        string pgidPath = PgidPath();
+        ExecutionCommand mapped = MapCommand(
+            new ExecutionCommand(
+                request.FileName,
+                request.Arguments,
+                request.WorkingDirectory,
+                request.Environment,
+                request.ExtraEnvironment
+            ),
+            pgidPath
+        );
+        ProcessRunRequest hostRequest = request with
+        {
+            FileName = mapped.Executable,
+            Arguments = mapped.Arguments,
+            WorkingDirectory = mapped.WorkingDirectory,
+            Environment = mapped.Environment,
+            ExtraEnvironment = mapped.ExtraEnvironment,
+        };
+        StartedBackgroundProcess started = await _host
+            .StartBackgroundAsync(hostRequest, cancellationToken)
+            .ConfigureAwait(false);
+        string container = _container;
+        return started with
+        {
+            AfterKill = async () =>
+            {
+                if (started.AfterKill is { } afterKill)
+                {
+                    await afterKill().ConfigureAwait(false);
+                }
+
+                await KillGroupAsync(container, pgidPath).ConfigureAwait(false);
+            },
+        };
     }
 
     /// <summary>

@@ -489,6 +489,11 @@ public sealed class ContainerExecutionEnvironmentTests
             return new ProcessRunResult(0, string.Empty, string.Empty, TimedOut: false);
         }
 
+        public Task<StartedBackgroundProcess> StartBackgroundAsync(
+            ProcessRunRequest request,
+            CancellationToken cancellationToken
+        ) => throw new NotSupportedException("no background tool command in this test");
+
         public Task<IProcessSession> StartSessionAsync(
             ProcessSessionRequest request,
             CancellationToken cancellationToken
