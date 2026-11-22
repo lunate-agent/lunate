@@ -152,6 +152,17 @@ public sealed class PrintEventJsonTests
                 new ToolOutputSpillFailed("run_1", "could not spill"),
                 """{"type":"tool_output_spill_failed","runId":"run_1","message":"could not spill"}"""
             },
+            {
+                new TodoUpdated(
+                    "run_1",
+                    [
+                        new TodoItem("write tests", TodoItemStatus.InProgress),
+                        new TodoItem("commit", TodoItemStatus.Pending),
+                        new TodoItem("read the card", TodoItemStatus.Done),
+                    ]
+                ),
+                """{"type":"todo_updated","runId":"run_1","items":[{"text":"write tests","status":"in_progress"},{"text":"commit","status":"pending"},{"text":"read the card","status":"done"}]}"""
+            },
         };
 
     [Theory]

@@ -11,7 +11,14 @@ internal static class OptionalTools
     internal static readonly IReadOnlyList<string> Names = ["grep", "find", "ls"];
 
     /// <summary>The core tool names an extra entry must never collide with.</summary>
-    internal static readonly IReadOnlyList<string> CoreNames = ["read", "write", "edit", "bash"];
+    internal static readonly IReadOnlyList<string> CoreNames =
+    [
+        "read",
+        "write",
+        "edit",
+        "bash",
+        "todo",
+    ];
 
     /// <summary>The accepted values as the error messages list them.</summary>
     internal const string Accepted = "'grep', 'find' or 'ls'";
