@@ -1,6 +1,4 @@
-using System.Text.Json;
 using Acp.Schema;
-using Lunate.Agent;
 
 namespace Lunate.Protocols.Tests;
 
@@ -68,37 +66,5 @@ public sealed class AcpSubagentFilterTests
         }
 
         return arguments;
-    }
-
-    private sealed class SpawnTool : ITool
-    {
-        public string Name => "spawn";
-
-        public string Description => "Spawns a subagent.";
-
-        public JsonElement ParametersSchema { get; } =
-            JsonSerializer.SerializeToElement(
-                new
-                {
-                    type = "object",
-                    properties = new { prompt = new { type = "string" } },
-                    required = new[] { "prompt" },
-                }
-            );
-
-        public ToolRisk Risk => ToolRisk.ReadOnly;
-
-        public async Task<ToolResult> ExecuteAsync(
-            JsonElement args,
-            ToolContext ctx,
-            CancellationToken ct
-        )
-        {
-            SubagentResult result = await ctx.Subagents!.RunAsync(
-                new SubagentRequest(args.GetProperty("prompt").GetString()!),
-                ct
-            );
-            return new ToolResult(result.Output, result.IsError);
-        }
     }
 }

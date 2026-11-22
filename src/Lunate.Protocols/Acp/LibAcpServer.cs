@@ -16,8 +16,14 @@ namespace Lunate.Protocols;
 /// <see cref="AcpEventMapper"/>), and session/cancel (cancels the in-flight run's token, or latches
 /// onto a queued prompt so its run begins already cancelled).
 /// Sessions run sequentially per connection — one active run at a time.
+/// <para>
+/// Every event the prompt loop receives is offered to the serve's observer before ACP's own
+/// filtering, child-run events included: that is how the composed extension host's observable
+/// stream (ADR-0040) carries an editor session too.
+/// </para>
 /// </summary>
-internal sealed class LibAcpServer(Action<string>? log = null) : IAcpServer
+internal sealed class LibAcpServer(Action<string>? log = null, Action<AgentEvent>? observe = null)
+    : IAcpServer
 {
     /// <inheritdoc />
     public async Task RunAsync(
@@ -33,7 +39,7 @@ internal sealed class LibAcpServer(Action<string>? log = null) : IAcpServer
 
         await using var stream = new NdJsonStream(input, output);
         await using var connection = new AgentSideConnection(
-            side => new ConnectionAgent(side, createHarness, log),
+            side => new ConnectionAgent(side, createHarness, log, observe),
             stream
         );
         var shutdown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -46,7 +52,8 @@ internal sealed class LibAcpServer(Action<string>? log = null) : IAcpServer
     private sealed class ConnectionAgent(
         AgentSideConnection connection,
         Func<AcpSessionContext, AgentHarness> createHarness,
-        Action<string>? log
+        Action<string>? log,
+        Action<AgentEvent>? observe
     ) : IAgent
     {
         private readonly object sessionsGate = new();
@@ -202,6 +209,11 @@ internal sealed class LibAcpServer(Action<string>? log = null) : IAcpServer
                             )
                         )
                         {
+                            // The observer sees what ACP filters out — child runs, lifecycle
+                            // markers, errors — because the stream is the run's own records, not
+                            // the protocol's projection of them.
+                            observe?.Invoke(agentEvent);
+
                             switch (agentEvent)
                             {
                                 // Child-run (subagent) events are never passed to ACP clients

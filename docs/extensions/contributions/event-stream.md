@@ -48,6 +48,10 @@ exporting metrics, drawing a view), it belongs on the stream — and the work it
 
 ## Delivery
 
+- **Every mode publishes.** The interactive session, `-p`/`--json` print mode and an ACP serve
+  (`lunate --acp`) all feed the same stream, so an observer is written once for every frontend. ACP
+  publishes each event before its own protocol filtering, so child-run events and lifecycle markers
+  reach the stream even though `session/update` never carries them.
 - **One queue per subscription.** The stream is hot and session-scoped. Each subscription has its
   own bounded queue (256 events) drained by its own pump, so a slow observer delays only itself.
 - **Dropped, not delayed.** When a queue is full the oldest event is dropped. The first drop logs one

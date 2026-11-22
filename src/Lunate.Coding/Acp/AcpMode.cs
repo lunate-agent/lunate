@@ -28,9 +28,8 @@ internal static class AcpMode
     )
     {
         var interaction = new AcpUserInteraction(line => errors.WriteLine($"lunate: {line}"));
-        IAcpServer server = new LibAcpServer(line =>
-            interaction.Notify(new UserNotice(NoticeLevel.Info, line))
-        );
+        Action<string> serverLog = line =>
+            interaction.Notify(new UserNotice(NoticeLevel.Info, line));
 
         // The host composes once at serve start (the session's first use) and every session/new
         // reuses the same hook seam and the MCP tools listed once here.
@@ -164,7 +163,7 @@ internal static class AcpMode
 
         try
         {
-            server
+            CreateServer(serverLog, host)
                 .RunAsync(
                     input,
                     output,
@@ -199,6 +198,14 @@ internal static class AcpMode
             DisposeComposition(host, mcp, errors);
         }
     }
+
+    /// <summary>
+    /// The ACP server for one serve: the protocol log plus the composed extension host's event
+    /// stream, so an in-process observer sees every event the prompt loop receives — before ACP's
+    /// own filtering, child runs included (ADR-0040). Without a host there is no stream.
+    /// </summary>
+    internal static IAcpServer CreateServer(Action<string>? log, ExtensionSession? host) =>
+        new LibAcpServer(log, host is null ? null : new Action<AgentEvent>(host.Publish));
 
     /// <summary>
     /// Composes the ACP host before the first frame is served: the process working directory is the
