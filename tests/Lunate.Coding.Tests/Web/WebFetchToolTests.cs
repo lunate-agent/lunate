@@ -245,6 +245,11 @@ public sealed class WebFetchToolTests
         Assert.True(result.IsError);
         Assert.Contains(PageUrl, result.Output, StringComparison.Ordinal);
         Assert.Contains("redirect loop", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "Correct the URL or try another page",
+            result.Output,
+            StringComparison.Ordinal
+        );
         Assert.Single(handler.Requests);
     }
 

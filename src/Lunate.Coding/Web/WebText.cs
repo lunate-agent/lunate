@@ -58,7 +58,10 @@ internal static class WebText
         return text[..index];
     }
 
-    /// <summary>Reads at most <paramref name="maxBytes"/> from a response stream.</summary>
+    /// <summary>
+    /// Reads at most <paramref name="maxBytes"/> from a response stream. Each read is bounded by
+    /// the budget that is left, so the stream is never consumed beyond the cap.
+    /// </summary>
     internal static async Task<byte[]> ReadCappedAsync(
         Stream stream,
         int maxBytes,
@@ -66,27 +69,25 @@ internal static class WebText
     )
     {
         ArgumentNullException.ThrowIfNull(stream);
-        using var output = new MemoryStream();
-        byte[] buffer = new byte[16 * 1024];
-        while (true)
+        if (maxBytes <= 0)
         {
-            int read = await stream.ReadAsync(buffer, ct).ConfigureAwait(false);
+            return [];
+        }
+
+        using var output = new MemoryStream();
+        byte[] buffer = new byte[Math.Min(16 * 1024, maxBytes)];
+        while ((int)output.Length < maxBytes)
+        {
+            int remaining = maxBytes - (int)output.Length;
+            int read = await stream
+                .ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)), ct)
+                .ConfigureAwait(false);
             if (read == 0)
             {
                 break;
             }
 
-            int remaining = maxBytes - (int)output.Length;
-            if (remaining <= 0)
-            {
-                break;
-            }
-
-            output.Write(buffer, 0, Math.Min(read, remaining));
-            if (read > remaining)
-            {
-                break;
-            }
+            output.Write(buffer, 0, read);
         }
 
         return output.ToArray();

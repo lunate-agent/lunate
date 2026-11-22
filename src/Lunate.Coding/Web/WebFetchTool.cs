@@ -145,7 +145,7 @@ public sealed class WebFetchTool : ITool
                     return Error(
                         string.Create(
                             CultureInfo.InvariantCulture,
-                            $"{current.AbsoluteUri} returned HTTP {(int)response.StatusCode} without a usable Location; the page cannot be followed."
+                            $"{current.AbsoluteUri} returned HTTP {(int)response.StatusCode} without a usable Location; the page cannot be followed. Correct the URL or try another page."
                         )
                     );
                 }
@@ -155,7 +155,7 @@ public sealed class WebFetchTool : ITool
                     return Error(
                         string.Create(
                             CultureInfo.InvariantCulture,
-                            $"redirect loop for {uri.AbsoluteUri}: the chain revisited {next.AbsoluteUri} after {redirects.ToString(CultureInfo.InvariantCulture)} redirect(s); the page cannot be fetched."
+                            $"redirect loop for {uri.AbsoluteUri}: the chain revisited {next.AbsoluteUri} after {redirects.ToString(CultureInfo.InvariantCulture)} redirect(s); the page cannot be fetched. Correct the URL or try another page."
                         )
                     );
                 }
