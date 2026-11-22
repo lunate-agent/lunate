@@ -68,7 +68,25 @@ public sealed class AuthStore
     internal string FilePath => _filePath;
 
     /// <summary>Loads the store; a missing file yields an empty store, a malformed file one error listing every problem.</summary>
-    public static AuthStore Load(string? filePath = null, Func<string, string?>? environment = null)
+    public static AuthStore Load(
+        string? filePath = null,
+        Func<string, string?>? environment = null
+    ) => LoadCore(filePath, environment, migrateProviders: true);
+
+    /// <summary>
+    /// Loads the store without the provider-store migration a normal load performs. A read-only
+    /// inspector uses this so reporting on a key cannot write <c>providers.json</c>.
+    /// </summary>
+    internal static AuthStore LoadReadOnly(
+        string? filePath = null,
+        Func<string, string?>? environment = null
+    ) => LoadCore(filePath, environment, migrateProviders: false);
+
+    private static AuthStore LoadCore(
+        string? filePath,
+        Func<string, string?>? environment,
+        bool migrateProviders
+    )
     {
         string path = filePath ?? DefaultFilePath();
         var env = environment ?? Environment.GetEnvironmentVariable;
@@ -88,7 +106,7 @@ public sealed class AuthStore
         }
 
         var store = new AuthStore(path, env, keys);
-        if (keys.Count > 0)
+        if (migrateProviders && keys.Count > 0)
         {
             AgentSettings settings = SettingsStore.Resolve(SettingsFilePath(filePath), _ => null);
             _ = ProviderStore.Load(ProviderStoreFilePath(filePath), store, settings.Providers);

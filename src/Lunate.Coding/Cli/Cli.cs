@@ -56,6 +56,11 @@ internal static class Cli
             return 0;
         }
 
+        if (args.Length > 0 && args[0] == "doctor")
+        {
+            return DoctorCommand.Run(args[1..], output, errors);
+        }
+
         if (args.Length > 0 && args[0] == "trust")
         {
             return TrustCommand.Run(

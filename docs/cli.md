@@ -15,6 +15,7 @@ option here is compared with the `--help` output in both directions before the d
 | `lunate mcp roslyn` | serve the read-only Roslyn C# tools over stdio to another MCP client ([Roslyn MCP server](mcp-roslyn.md)) |
 | `lunate --version` | print the version |
 | `lunate --help` | show the synopsis and the launch options |
+| `lunate doctor [--json]` | print the facts a bug report needs — version, OS and architecture, install channel, config and state paths, provider and model, credential presence, container engines, terminal capabilities and the last update-check result — without a network request or a secret; `--json` prints one pasteable object, and a missing required path exits 1 ([Troubleshooting](troubleshooting.md)) |
 
 <!-- run: help -->
 ```bash

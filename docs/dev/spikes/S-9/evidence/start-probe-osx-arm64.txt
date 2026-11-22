@@ -1,0 +1,15 @@
+Start probe on osx-arm64: 100 starts per publish shape, macOS 26.3.1, Apple M4, .NET 11.0.100
+
+Each start is `lunate --version` with an empty LUNATE_HOME; the exit status is what counts.
+ADR-0008 kept `EnableCompressionInSingleFile` out of the release because compressed single-file
+ReadyToRun builds died with AccessViolationException on macOS 26 arm64 under .NET 10.0.103
+(11/100 starts, docs/dev/spikes/S-5/evidence/startup-crashes.txt).
+
+  single file + ReadyToRun                      0/100 starts failed
+  single file + ReadyToRun + compression        0/100 starts failed
+  single file, no ReadyToRun                    0/100 starts failed
+  single file + compression, no ReadyToRun      0/100 starts failed
+
+The crash does not reproduce on .NET 11.0.100 on this machine. 100 starts bound the rate at roughly
+3%, so this is not evidence that the crash is fixed, only that it was not observed here; the flag
+stays off for the startup cost recorded in startup-osx-arm64.txt, not for the crash.

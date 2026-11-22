@@ -1,0 +1,45 @@
+Artifact size per publish shape, .NET 11.0.100, commit 642b178b, version 0.5.0
+
+`raw` is the single-file binary as published; `gzip -9` is that binary gzipped at level 9;
+`tar.gz` is what .github/workflows/release.yml attaches (tar -czf, gzip level 6, one file).
+
+== osx-arm64 (target RID of the card's numbers; measured on macOS 26.3.1, Apple M4) ==
+single file + ReadyToRun (release) raw    462020919  gzip -9    138116061  tar.gz    139042371
+single file + ReadyToRun + compression raw    143916263  gzip -9    134227141  tar.gz    134234176
+single file, no ReadyToRun         raw    143522759  gzip -9     50962898  tar.gz     51157999
+single file + compression, no ReadyToRun raw     57609543  gzip -9     51083408  tar.gz     51090384
+
+== linux-x64 (cross-published from macOS; sizes only, nothing run) ==
+single file + ReadyToRun (release) raw    401239053  gzip -9    149245907  tar.gz    149713701
+single file, no ReadyToRun         raw    136631653  gzip -9     53260713  tar.gz     53438670
+
+== win-x64 (cross-published from macOS; the release asset is a .zip, not a .tar.gz) ==
+single file + ReadyToRun (release) raw    400143390  gzip -9    148213451  zip       148539230
+single file, no ReadyToRun         raw    139224566  gzip -9     53834641  zip        53918260
+
+== per component, osx-arm64, published loose (PublishSingleFile=false) ==
+Loose output shows what the bundle is made of; the bundle's own bytes follow above.
+R2R columns are the same publish with PublishReadyToRun=true.
+group                                                IL bytes    R2R bytes        delta  files
+Roslyn (Microsoft.CodeAnalysis.*, Microsoft.Build.*)     24042170     55691786     31649616     84
+NuGet (NuGet.*)                                       2348368      6321664      3973296      6
+model providers (Anthropic, OpenAI, Google.*)        17300944     47139840     29838896      6
+runtime and framework (System.*, lib*)               90433968     95724552      5290584    198
+Lunate assemblies (Lunate.*, lunate.dll)              5528084     12001812      6473728     29
+Microsoft.Extensions.* and MCP                        3885336      8422192      4536856     16
+everything else                                       6470503     11452359      4981856     24
+total                                               150009373    236754205     86744832
+
+Largest loose assemblies, IL then the same assembly after ReadyToRun:
+     18997032 ->    18997032  System.Private.CoreLib.dll
+      8696144 ->     8696144  System.Private.Xml.dll
+      8065536 ->    21708800  Anthropic.dll
+      7079208 ->    21833216  Microsoft.CodeAnalysis.CSharp.dll
+      5451056 ->     5451056  libcoreclr.dylib
+      5345232 ->    14980608  OpenAI.dll
+      4821288 ->     4821288  System.Linq.Expressions.dll
+      4323112 ->    12935168  Microsoft.CodeAnalysis.Workspaces.dll
+      3484160 ->     9375232  Google.GenAI.dll
+      3177768 ->     3177768  System.Data.Common.dll
+      3103056 ->     9311232  Microsoft.CodeAnalysis.dll
+      2886416 ->     2886416  libclrjit.dylib
