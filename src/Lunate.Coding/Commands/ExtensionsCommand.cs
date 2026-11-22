@@ -122,7 +122,8 @@ internal static class ExtensionsCommand
                         id => host.RegisteredCounts(id),
                         singleFile: singleFile,
                         ignoredCopies: host.IgnoredHostCopyOf,
-                        inactiveTools: host.InactiveTools
+                        inactiveTools: host.InactiveTools,
+                        eventStream: id => host.EventStatus(id)
                     )
                 );
                 output.Write('\n');
@@ -141,7 +142,8 @@ internal static class ExtensionsCommand
                         cliMeasured: true,
                         singleFile: singleFile,
                         ignoredCopies: host.IgnoredHostCopyOf,
-                        inactiveTools: host.InactiveTools
+                        inactiveTools: host.InactiveTools,
+                        eventStream: id => host.EventStatus(id)
                     )
                 )
                 {

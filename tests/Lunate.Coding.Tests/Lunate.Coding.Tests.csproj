@@ -21,6 +21,11 @@
             Include="../TestExtensions/ToolExtension/ToolExtension.csproj"
             ReferenceOutputAssembly="false"
         />
+        <!-- The event-stream conformance test installs this observer-only fixture extension. -->
+        <ProjectReference
+            Include="../TestExtensions/ObserverExtension/ObserverExtension.csproj"
+            ReferenceOutputAssembly="false"
+        />
         <!-- The command-source tests install this fixture extension into a temp store. -->
         <ProjectReference
             Include="../TestExtensions/CommandExtension/CommandExtension.csproj"
@@ -78,6 +83,11 @@
             Properties="Configuration=$(Configuration)"
         />
         <MSBuild
+            Projects="$(MSBuildThisFileDirectory)../TestExtensions/ObserverExtension/ObserverExtension.csproj"
+            Targets="Build"
+            Properties="Configuration=$(Configuration)"
+        />
+        <MSBuild
             Projects="$(MSBuildThisFileDirectory)../TestExtensions/CommandExtension/CommandExtension.csproj"
             Targets="Build"
             Properties="Configuration=$(Configuration)"
@@ -106,6 +116,7 @@
             <HelloExtensionFiles Include="$(MSBuildThisFileDirectory)../TestExtensions/HelloExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
             <McpExtensionFiles Include="$(MSBuildThisFileDirectory)../TestExtensions/McpExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
             <ToolExtensionFiles Include="$(MSBuildThisFileDirectory)../TestExtensions/ToolExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
+            <ObserverExtensionFiles Include="$(MSBuildThisFileDirectory)../TestExtensions/ObserverExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
             <CommandExtensionFiles Include="$(MSBuildThisFileDirectory)../TestExtensions/CommandExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
             <ModelExtensionFiles Include="$(MSBuildThisFileDirectory)../TestExtensions/ModelExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
             <SkillSourceExtensionFiles Include="$(MSBuildThisFileDirectory)../TestExtensions/SkillSourceExtension/bin/$(Configuration)/$(TargetFramework)/**/*" />
@@ -125,6 +136,11 @@
         <Copy
             SourceFiles="@(ToolExtensionFiles)"
             DestinationFolder="$(OutDir)TestExtensions/ToolExtension/%(RecursiveDir)"
+            SkipUnchangedFiles="true"
+        />
+        <Copy
+            SourceFiles="@(ObserverExtensionFiles)"
+            DestinationFolder="$(OutDir)TestExtensions/ObserverExtension/%(RecursiveDir)"
             SkipUnchangedFiles="true"
         />
         <Copy

@@ -460,6 +460,22 @@ internal sealed class ExtensionSession : IAsyncDisposable
     /// <summary>The raw hook runner behind the input pipeline.</summary>
     internal HookRunner HookRunner => _loader.Hooks;
 
+    /// <summary>
+    /// Feeds one run event to the extensions' observable stream
+    /// (<see cref="IExtensionContext.Events"/>, ADR-0040). The host that iterates a run calls this
+    /// for every event it receives — child-run events included, because the parent's stream already
+    /// carries them. Non-blocking: it enqueues per subscriber and never throws, so a slow observer
+    /// cannot delay the run.
+    /// </summary>
+    internal void Publish(AgentEvent agentEvent) => _loader.EventStream.Publish(agentEvent);
+
+    /// <summary>
+    /// One extension's event-stream counters — live subscription, delivered and dropped events —
+    /// for <c>/extensions</c>; all zeros when it never subscribed.
+    /// </summary>
+    internal ExtensionEventStreamStatus EventStatus(string extensionId) =>
+        _loader.EventStream.Status(extensionId);
+
     /// <summary>Where extension diagnostics are reported.</summary>
     internal IExtensionLog Log => _log;
 

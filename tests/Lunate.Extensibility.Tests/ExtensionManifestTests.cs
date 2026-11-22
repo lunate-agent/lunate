@@ -20,6 +20,7 @@ public sealed class ExtensionManifestTests
         Assert.Empty(manifest.Tools);
         Assert.Empty(manifest.Commands);
         Assert.Empty(manifest.Hooks);
+        Assert.Empty(manifest.Events);
         Assert.Empty(manifest.Services);
         Assert.Empty(manifest.Capabilities);
         Assert.Null(manifest.SettingsSchema);
@@ -294,10 +295,48 @@ public sealed class ExtensionManifestTests
         );
     }
 
+    [Fact]
+    public void Parses_the_event_watch_list()
+    {
+        ExtensionManifest manifest = ExtensionManifest.Parse(
+            """{"id":"hello","version":"0.1.0","apiVersion":"^1.0.0","entryAssembly":"e.dll","events":["run_started","tool_call_result"]}""",
+            "extension.json"
+        );
+
+        Assert.Equal(["run_started", "tool_call_result"], manifest.Events);
+    }
+
+    [Fact]
+    public void A_wildcard_beside_a_kind_is_refused()
+    {
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            ExtensionManifest.Parse(
+                """{"id":"hello","version":"0.1.0","apiVersion":"^1.0.0","entryAssembly":"e.dll","events":["*","run_started"]}""",
+                "extension.json"
+            )
+        );
+
+        Assert.Contains("extension.json", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'events'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("declare it alone", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_wildcard_alone_is_accepted()
+    {
+        ExtensionManifest manifest = ExtensionManifest.Parse(
+            """{"id":"hello","version":"0.1.0","apiVersion":"^1.0.0","entryAssembly":"e.dll","events":["*"]}""",
+            "extension.json"
+        );
+
+        Assert.Equal(["*"], manifest.Events);
+    }
+
     [Theory]
     [InlineData("tools")]
     [InlineData("commands")]
     [InlineData("hooks")]
+    [InlineData("events")]
     [InlineData("services")]
     public void Duplicate_declarations_are_rejected(string field)
     {

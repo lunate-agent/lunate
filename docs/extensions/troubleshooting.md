@@ -14,6 +14,8 @@ shows a summary.
 | `… (slow)` | The load took longer than 500 ms. Investigate the factory. |
 | `…, hook <Hook> max <ms> ms, <slow>/<calls> slow` | A hook crossed the 500 ms slow threshold. The full timing is in `--json` as `hookTimings`. |
 | `…, start <ms> ms` | A remote extension's most recent start and handshake. |
+| `…, watches <kind>, …, events <seen> seen` | The manifest's watch list and how many events the extension's subscription has seen. |
+| `…, <n> dropped` | The extension's event queue overflowed and the oldest events were dropped; see [event-stream.md](contributions/event-stream.md#delivery). |
 | `<id> <version> (<scope>) trust-denied, tools …` | A project extension was not trusted for this repository. |
 | `<id> <version> (<scope>) failed: <first sentence> — see the log, tools …` | A load failed. The log has the rest. The `— see the log` pointer appears when the message was truncated. |
 | `<id> — remote failed: <reason>` | A remote process crashed or exited. |

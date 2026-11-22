@@ -125,6 +125,11 @@ internal static partial class ExtensionsView
         string counts = FormattableString.Invariant(
             $", tools {header.Tools.Count}, commands {header.Commands.Count}, hooks {header.Hooks.Count}, services {header.Services.Count}"
         );
+        if (header.Events.Count > 0)
+        {
+            counts += ", watches " + string.Join(", ", header.Events);
+        }
+
         return candidate.DeclaredNotProvided.Count == 0
             ? counts
             : counts
@@ -175,7 +180,8 @@ internal static partial class ExtensionsView
         Func<string, TimeSpan?>? remoteStart = null,
         IReadOnlyList<SingleFileExtension>? singleFile = null,
         Func<string, IgnoredHostCopy?>? ignoredCopies = null,
-        Func<string, IReadOnlyList<ExtensionInactiveTool>>? inactiveTools = null
+        Func<string, IReadOnlyList<ExtensionInactiveTool>>? inactiveTools = null,
+        Func<string, ExtensionEventStreamStatus?>? eventStream = null
     )
     {
         ArgumentNullException.ThrowIfNull(registeredCounts);
@@ -275,6 +281,27 @@ internal static partial class ExtensionsView
 
             node["hooks"] = counts.Hooks;
             node["services"] = counts.Services;
+            if (descriptor.Manifest.Events.Count > 0)
+            {
+                var watches = new JsonArray();
+                foreach (string kind in descriptor.Manifest.Events)
+                {
+                    watches.Add(kind);
+                }
+
+                node["events"] = watches;
+            }
+
+            if (eventStream?.Invoke(descriptor.Id) is { } counters)
+            {
+                node["eventStream"] = new JsonObject
+                {
+                    ["live"] = counters.Subscribed,
+                    ["seen"] = counters.Delivered,
+                    ["dropped"] = counters.Dropped,
+                };
+            }
+
             if (ignoredCopies?.Invoke(descriptor.Id) is { } ignored)
             {
                 node["ignoredCopy"] = ignored.ToString();
@@ -374,6 +401,16 @@ internal static partial class ExtensionsView
             node["commands"] = candidate.Header.Commands.Count;
             node["hooks"] = candidate.Header.Hooks.Count;
             node["services"] = candidate.Header.Services.Count;
+            if (candidate.Header.Events.Count > 0)
+            {
+                var watches = new JsonArray();
+                foreach (string kind in candidate.Header.Events)
+                {
+                    watches.Add(kind);
+                }
+
+                node["events"] = watches;
+            }
         }
 
         if (candidate.DeclaredNotProvided.Count > 0)

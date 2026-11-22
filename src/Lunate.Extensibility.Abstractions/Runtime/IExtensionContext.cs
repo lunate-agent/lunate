@@ -1,3 +1,5 @@
+using Lunate.Agent;
+
 namespace Lunate.Extensibility.Abstractions;
 
 public interface IExtensionContext
@@ -9,6 +11,16 @@ public interface IExtensionContext
     IExtensionSecrets Secrets { get; }
 
     IExtensionLog Log { get; }
+
+    /// <summary>
+    /// The session's event stream, for watching a run without being able to change it (ADR-0040).
+    /// One subscription is live for the session and carries every run, every child run and every
+    /// extension event; each subscription has its own bounded queue, so a slow observer loses its
+    /// oldest events instead of delaying the run. Intercepting stays the hook catalogue's business:
+    /// <see cref="Register(IHookHandler)"/>. Subscribing is registration only: it must not start
+    /// processes, sockets or timers.
+    /// </summary>
+    IObservable<AgentEvent> Events { get; }
 
     /// <summary>
     /// Registers a hook handler. Registration is registration only: it must not start processes,

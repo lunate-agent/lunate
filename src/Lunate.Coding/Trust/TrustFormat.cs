@@ -112,6 +112,27 @@ internal static class TrustFormat
     internal static IReadOnlyList<string> ProvenanceLine(string? fromPackage) =>
         fromPackage is { Length: > 0 } ? [fromPackage] : [];
 
+    /// <summary>
+    /// The detail lines of the extension trust question: the package provenance when there is one,
+    /// and — when the manifest declares what it watches — the event kinds as information, never as a
+    /// permission. The declaration does not gate an in-process subscription (ADR-0040); saying so in
+    /// the question is what keeps the line honest.
+    /// </summary>
+    internal static IReadOnlyList<string> ExtensionDetails(ExtensionTrustRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        List<string> details = [.. ProvenanceLine(request.FromPackage)];
+        IReadOnlyList<string> watched = request.Descriptor.Manifest.Events;
+        if (watched.Count > 0)
+        {
+            details.Add(
+                "watches " + string.Join(", ", watched) + " (information, not a permission)"
+            );
+        }
+
+        return details;
+    }
+
     internal static string McpQuestionTitle(string configPath, int serverCount) =>
         FormattableString.Invariant(
             $"Start {serverCount} {(serverCount == 1 ? "server" : "servers")} from project mcp.json '{RealPath(configPath)}'"

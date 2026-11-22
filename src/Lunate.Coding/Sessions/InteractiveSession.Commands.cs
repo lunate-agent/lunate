@@ -445,7 +445,8 @@ internal sealed partial class InteractiveSession
                 remoteStart: host.RemoteStartDuration,
                 singleFile: host.RefreshSingleFileExtensions(),
                 ignoredCopies: host.IgnoredHostCopyOf,
-                inactiveTools: host.InactiveTools
+                inactiveTools: host.InactiveTools,
+                eventStream: id => host.EventStatus(id)
             ),
         ];
         foreach ((string id, RemoteExtensionStatus status) in host.FailedRemoteStatuses())

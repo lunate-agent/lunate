@@ -216,6 +216,9 @@ public sealed class ExtensionTestHost : IAsyncDisposable
                 .ConfigureAwait(false)
         )
         {
+            // The extension's observable stream sees the same events the host records (ADR-0040),
+            // so an author can prove a subscription against a real run.
+            Runner.EventStream.Publish(agentEvent);
             Events.Emit(agentEvent);
             events.Add(agentEvent);
         }

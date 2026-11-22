@@ -43,6 +43,15 @@ public sealed partial class ExtensionLoader
                 ? registered
                 : new WorkspaceInfo(Path.GetFullPath(workingDirectory), null, null);
 
+        if (descriptor.Manifest.Events.Count > 0)
+        {
+            // ADR-0040's wire projection is protocol version 3, its own follow-up card. Saying so
+            // once is the difference between "not yet" and a silently ignored declaration.
+            (_options.Log ?? NullExtensionLog.Instance).Warn(
+                $"extension '{descriptor.Id}' declares 'events', but the event stream reaches an out-of-process extension with protocol version 3, which this host does not speak yet; the declaration has no effect in this session."
+            );
+        }
+
         IExtensionSecrets secrets = ExtensionSecretsStore.Load(_options, descriptor.Id);
         var remote = new RemoteExtension(
             new RemoteExtensionOptions

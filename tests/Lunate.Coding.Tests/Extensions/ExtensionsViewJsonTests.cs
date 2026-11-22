@@ -31,6 +31,40 @@ public sealed class ExtensionsViewJsonTests
     }
 
     [Fact]
+    public void Json_carries_the_declared_watch_list_and_the_subscription_counters()
+    {
+        IReadOnlyList<ExtensionDescriptor> descriptors =
+        [
+            Descriptor("ext-watch", events: ["run_started", "tool_call_result"]),
+        ];
+        IReadOnlyList<ExtensionLoadResult> results = [Loaded("ext-watch")];
+
+        using JsonDocument document = JsonDocument.Parse(
+            ExtensionsView.Json(descriptors, results, NoCounts, eventStream: id =>
+                string.Equals(id, "ext-watch", StringComparison.Ordinal)
+                    ? new ExtensionEventStreamStatus(
+                        id,
+                        Subscribed: true,
+                        Received: 9,
+                        Delivered: 7,
+                        Dropped: 2
+                    )
+                    : null
+            )
+        );
+
+        JsonElement node = document.RootElement[0];
+        Assert.Equal(
+            ["run_started", "tool_call_result"],
+            node.GetProperty("events").EnumerateArray().Select(entry => entry.GetString())
+        );
+        JsonElement stream = node.GetProperty("eventStream");
+        Assert.True(stream.GetProperty("live").GetBoolean());
+        Assert.Equal(7, stream.GetProperty("seen").GetInt32());
+        Assert.Equal(2, stream.GetProperty("dropped").GetInt32());
+    }
+
+    [Fact]
     public void Json_carries_the_ordered_fields_with_load_time_only_on_loaded_extensions()
     {
         IReadOnlyList<ExtensionDescriptor> descriptors =

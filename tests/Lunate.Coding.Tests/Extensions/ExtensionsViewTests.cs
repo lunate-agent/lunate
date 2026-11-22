@@ -66,6 +66,91 @@ public sealed class ExtensionsViewTests
     }
 
     [Fact]
+    public void A_loaded_segment_names_what_it_watches_and_its_counts()
+    {
+        IReadOnlyList<ExtensionDescriptor> descriptors =
+        [
+            Descriptor("ext-watch", events: ["run_started", "tool_call_result"]),
+        ];
+        IReadOnlyList<ExtensionLoadResult> results = [Loaded("ext-watch", milliseconds: 7)];
+
+        string segment = Assert.Single(
+            ExtensionsView.Segments(
+                descriptors,
+                results,
+                NoCounts,
+                eventStream: _ => new ExtensionEventStreamStatus(
+                    "ext-watch",
+                    Subscribed: true,
+                    Received: 12,
+                    Delivered: 12,
+                    Dropped: 0
+                )
+            )
+        );
+
+        Assert.Equal(
+            "ext-watch 0.1.0 (global) loaded in 7 ms, tools 0, commands 0, hooks 0, services 0, watches run_started, tool_call_result, events 12 seen",
+            segment
+        );
+    }
+
+    [Fact]
+    public void A_drop_is_shown_only_when_it_happened()
+    {
+        IReadOnlyList<ExtensionDescriptor> descriptors = [Descriptor("ext-watch", events: ["*"])];
+        IReadOnlyList<ExtensionLoadResult> results = [Loaded("ext-watch")];
+
+        string segment = Assert.Single(
+            ExtensionsView.Segments(
+                descriptors,
+                results,
+                NoCounts,
+                eventStream: _ => new ExtensionEventStreamStatus(
+                    "ext-watch",
+                    Subscribed: true,
+                    Received: 300,
+                    Delivered: 256,
+                    Dropped: 44
+                )
+            )
+        );
+
+        Assert.EndsWith(
+            ", watches *, events 256 seen, 44 dropped",
+            segment,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void An_extension_without_a_watch_list_or_a_subscription_stays_one_clause_shorter()
+    {
+        IReadOnlyList<ExtensionDescriptor> descriptors = [Descriptor("ext-quiet")];
+        IReadOnlyList<ExtensionLoadResult> results = [Loaded("ext-quiet")];
+
+        string segment = Assert.Single(
+            ExtensionsView.Segments(
+                descriptors,
+                results,
+                NoCounts,
+                eventStream: _ => new ExtensionEventStreamStatus(
+                    "ext-quiet",
+                    Subscribed: false,
+                    Received: 0,
+                    Delivered: 0,
+                    Dropped: 0
+                )
+            )
+        );
+
+        Assert.Equal(
+            "ext-quiet 0.1.0 (global) loaded in 12 ms, tools 0, commands 0, hooks 0, services 0",
+            segment
+        );
+    }
+
+    [Fact]
     public void A_denied_segment_carries_the_declared_counts()
     {
         IReadOnlyList<ExtensionDescriptor> descriptors =

@@ -272,6 +272,7 @@ internal sealed partial class InteractiveSession
     /// <summary>The synthetic call events reach the observer seam exactly like a run's events.</summary>
     private void HandleBashEvent(AgentEvent agentEvent)
     {
+        _extensions?.Publish(agentEvent);
         _options.EventObserver?.Invoke(agentEvent);
         HandleEvent(agentEvent);
     }

@@ -39,6 +39,12 @@ public sealed record ExtensionHeader
 
     public IReadOnlyList<string> Hooks { get; init; } = [];
 
+    /// <summary>
+    /// The declared watch list for the observable event stream; mirrors the manifest's
+    /// <c>events</c>.
+    /// </summary>
+    public IReadOnlyList<string> Events { get; init; } = [];
+
     public IReadOnlyList<string> Services { get; init; } = [];
 
     public IReadOnlyList<string> Capabilities { get; init; } = [];

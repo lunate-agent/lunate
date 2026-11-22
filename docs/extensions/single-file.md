@@ -69,6 +69,7 @@ The rules:
 | `#:tool <name>` | `tools` | One tool name, as `IExtensionContext.RegisterTool` uses it. Repeatable. |
 | `#:command <name>` | `commands` | One command name. Repeatable. |
 | `#:hook <name>` | `hooks` | One hook name (`tool-calling`, `session-started`, …). Repeatable. |
+| `#:event <kind>` | `events` | One watched event kind (`run_started`, `tool_call_result`, …), or `*` alone for every event. Repeatable. |
 | `#:service <name>` | `services` | One service name. Repeatable. |
 | `#:capability <name>` | `capabilities` | One free-form capability. Repeatable. |
 | `#:provider <id>` | `modelProviders[].id` | One model-provider id, `[a-z0-9-]+`. Repeatable. |

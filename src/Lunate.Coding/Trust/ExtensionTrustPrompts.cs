@@ -27,7 +27,7 @@ internal sealed class TuiExtensionTrustPrompt(TrustQuestion ask) : IExtensionTru
         cancellationToken.ThrowIfCancellationRequested();
 
         string title = TrustFormat.ExtensionQuestion(request.Descriptor, request.FilesChanged);
-        return ask(title, TrustFormat.ProvenanceLine(request.FromPackage), cancellationToken);
+        return ask(title, TrustFormat.ExtensionDetails(request), cancellationToken);
     }
 
     /// <summary>
