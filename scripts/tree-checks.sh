@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# The cheap repository-wide checks: ADR numbering, the spec-archive rule, the generated docs regions,
+# The cheap repository-wide checks: ADR numbering, the spec-archive rule, a release's changelog against its
+# fragments, the generated docs regions,
 # the docs link and navigation check, the guard that no build input or test reads the docs tree, and
 # the docs lint. They need no build and no test -- seconds of wall clock -- and they run from two
 # triggers: a push to `main` (`.github/workflows/tree-checks.yml`) and the merge queue
@@ -56,6 +57,18 @@ python3 scripts/check-spec-archive.py --base "$base"
 
 step "generated docs regions"
 python3 scripts/docs-sync --check
+
+step "a release's changelog carries every fragment"
+# Only the release pull request (or a release fix) edits CHANGELOG.md. When this tree's change does, the tree is the
+# commit a tag will go on, so it must pass the tag gate's own check (`release.yml`): every fragment on the tree is in
+# the release's section. A fragment that merged after the release pull request was assembled fails here, in the
+# queue, rather than at the tag (lunate#1003 merged after #1006 was cut, and v0.6.0's gate failed).
+if git diff --quiet "$base" -- CHANGELOG.md; then
+    echo "CHANGELOG.md is unchanged against ${base}: not a release, fragments stay open"
+else
+    version="$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' Directory.Build.props | head -n 1)"
+    python3 scripts/changelog-assemble --check --tag "v${version}"
+fi
 
 step "docs links and navigation"
 python3 scripts/docs-check --check

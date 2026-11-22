@@ -103,6 +103,14 @@ the endpoint, and that catalogue entry contributes the model's facts (context wi
 but never its pricing. Subagents and compaction default to chat when unassigned; compaction uses
 `fast` only when explicitly selected.
 
+The `fast` usage is also the vision fallback profile. When the chat model's known capabilities say
+it cannot take images, a `fast` profile whose model declares image input describes each image once
+per session, and the chat model receives that description next to the exact `[image <w>x<h>]`
+placeholder. The scrollback line names the description and the profile that produced it. With no
+vision-capable `fast` profile the image is refused as before; this is the existing usage, not a new
+settings key. A vision-profile failure fails the turn and names both errors, so the image is never
+silently dropped.
+
 The optional decision profile lives in the same block; [Decisions](decisions.md) owns what it does.
 
 ## Your own model catalog
