@@ -16,6 +16,15 @@ documents, so the decision is pure and its self-test needs no network. It mirror
   job can still report `runner_id: 0`. A job cancelled after it reached a step, and any document whose
   `steps` list or `runner_id` is missing, stays red: the rule fails closed. The run link is required with
   the jobs because the reporter names the job and the run, never the job alone.
+
+  The two jobs whose result is derived from the others' (`ci-ok` and `red-main-issue`) are not printed
+  beside a red job that ran: their card would name no failure of its own, because the leg's card is the
+  finding and the aggregate only restates it (#1002). Such a job is named on stderr with the run link
+  instead. A run whose only red jobs that ran are the derived ones still prints them: then nothing else
+  in the run speaks for the gate, and a wrong aggregate verdict is the whole finding. Whether the
+  aggregate's record is in the document at the read no longer changes the card set, only that line: the
+  reporter does not depend on `ci-ok`, so the record is there only when the aggregate happened to finish
+  first.
 - `--abandoned-json FILE` prints `id<TAB>name` for the red jobs that never acquired a runner, without the
   two jobs whose result is derived from the others' (`ci-ok` and `red-main-issue`). That is the list the
   run's job summary names, and the list no card is ever filed for (#922, #923).
@@ -91,8 +100,12 @@ def _load(path):
 
 def red_jobs(path, run_url):
     """One `id<TAB>name` line per red job, in the order the run lists them, without duplicates."""
+    jobs = _red_jobs(path)
+    # A derived job restates the result of a red job that ran, so beside one its card would name no
+    # failure of its own. When nothing else of the run is red, it is the finding and still files.
+    restated = any(not _derived(job) and not _never_acquired(job) for job in jobs)
     seen = set()
-    for job in _red_jobs(path):
+    for job in jobs:
         name = str(job.get("name") or "").strip()
         if not name or name in seen:
             continue
@@ -101,6 +114,13 @@ def red_jobs(path, run_url):
             print(
                 f"ci-issue-triage: {name}: never started (no runner was acquired); "
                 f"no card is filed for it; rerun {run_url}",
+                file=sys.stderr,
+            )
+            continue
+        if restated and _derived(job):
+            print(
+                f"ci-issue-triage: {name}: only restates the jobs that ran; "
+                f"no card is filed for it; run {run_url}",
                 file=sys.stderr,
             )
             continue
