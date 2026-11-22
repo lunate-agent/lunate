@@ -5,9 +5,10 @@ namespace Lunate.Agent.Tests;
 /// <summary>
 /// Session search (spec: "Session search"): one read-only, bounded, linear scan over a fixture state
 /// directory. The fixture — <c>tests/fixtures/session-search/</c> — holds a matching session, a nested
-/// session with a truncated JSONL line, and a session whose only hits are a tool result and a
-/// compaction summary. The tests pin a match, no match, the malformed line, the bounds and that a
-/// search writes nothing.
+/// session with a truncated JSONL line and a valid-JSON message line whose payload does not parse
+/// (both before a matching turn), and a session whose only hits are a tool result and a compaction
+/// summary. The tests pin a match, no match, the malformed lines, the bounds and that a search
+/// writes nothing.
 /// </summary>
 public sealed class SessionSearchTests
 {
@@ -59,8 +60,23 @@ public sealed class SessionSearchTests
     {
         SessionSearchResult result = Session.Search(Fixtures, "retry budget");
 
-        Assert.Equal(1, result.MalformedLines);
+        Assert.Equal(2, result.MalformedLines);
         Assert.Equal(2, result.Matches.Count);
+    }
+
+    [Fact]
+    public void A_malformed_message_payload_is_skipped_and_the_later_turn_still_matches()
+    {
+        // The nested fixture holds a syntactically valid line whose embedded message does not
+        // deserialize, followed by a matching assistant turn: the bad payload is one skipped line,
+        // never the end of the scan.
+        SessionSearchResult result = Session.Search(Fixtures, "every provider");
+
+        SessionSearchMatch match = Assert.Single(result.Matches);
+        Assert.Equal("s_20261021-100000-c3d4", match.SessionId);
+        Assert.Equal("e_03", match.EntryId);
+        Assert.Equal(2, result.MalformedLines);
+        Assert.False(result.StoppedAtBound);
     }
 
     [Fact]

@@ -6,7 +6,7 @@ namespace Lunate.Coding.Tests;
 
 /// <summary>
 /// <c>lunate sessions search</c> (spec: "Session search"): the fixture state directory
-/// <c>tests/fixtures/session-search/</c> answers a match, no match and a malformed line. The command
+/// <c>tests/fixtures/session-search/</c> answers a match, no match and malformed lines. The command
 /// prints each row's session id, timestamp, cwd, snippet and path, states the scan's bound, offers
 /// the same rows as JSON and treats a missing or unknown query as usage.
 /// </summary>
@@ -30,7 +30,7 @@ public sealed class SessionsCommandTests
         Assert.Contains("a1b2.jsonl", output, StringComparison.Ordinal);
         Assert.Contains("2 matches", output, StringComparison.Ordinal);
         Assert.Contains("bound 200 sessions", output, StringComparison.Ordinal);
-        Assert.Contains("skipped 1 malformed line", output, StringComparison.Ordinal);
+        Assert.Contains("skipped 2 malformed lines", output, StringComparison.Ordinal);
     }
 
     [Fact]

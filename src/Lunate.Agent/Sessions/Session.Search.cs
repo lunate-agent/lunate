@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 
 namespace Lunate.Agent;
@@ -199,8 +200,12 @@ public sealed partial class Session
                 {
                     entry = SessionFormat.Parse(line);
                 }
-                catch (InvalidDataException)
+                catch (Exception exception)
+                    when (exception is InvalidDataException or JsonException or ArgumentException)
                 {
+                    // The same failures the session loader treats as an invalid line: a line that
+                    // is not JSON, a valid line whose embedded message does not deserialize and a
+                    // content part that rejects its own value are all one skipped line here too.
                     malformed++;
                     continue;
                 }
@@ -248,7 +253,13 @@ public sealed partial class Session
             }
         }
         catch (Exception exception)
-            when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+            when (exception
+                    is IOException
+                        or InvalidDataException
+                        or JsonException
+                        or ArgumentException
+                        or UnauthorizedAccessException
+            )
         {
             if (header is null)
             {
