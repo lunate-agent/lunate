@@ -411,6 +411,9 @@ internal static class PrintMode
                     )
                 )
                 {
+                    // The extensions watch the same events the mode renders (ADR-0040); publishing
+                    // is enqueueing only, so no observer can pace the run.
+                    extensions?.Publish(agentEvent);
                     if (options.Json)
                     {
                         // One JSON object per line, canonically '\n'-terminated: the --json

@@ -13,6 +13,7 @@ public static partial class ExtensionHeaderScanner
         private readonly Dictionary<string, int> _toolLines = new(StringComparer.Ordinal);
         private readonly List<string> _commands = [];
         private readonly List<string> _hooks = [];
+        private readonly List<string> _events = [];
         private readonly List<string> _services = [];
         private readonly List<string> _capabilities = [];
         private readonly List<string> _providers = [];
@@ -37,6 +38,7 @@ public static partial class ExtensionHeaderScanner
                 Tools = _tools,
                 Commands = _commands,
                 Hooks = _hooks,
+                Events = _events,
                 Services = _services,
                 Capabilities = _capabilities,
                 Providers = _providers,
@@ -83,6 +85,9 @@ public static partial class ExtensionHeaderScanner
                 case ExtensionDirectives.Hook:
                     Declaration(_hooks, "#:hook", value, line);
                     return;
+                case ExtensionDirectives.Event:
+                    Declaration(_events, "#:event", value, line);
+                    return;
                 case ExtensionDirectives.Service:
                     Declaration(_services, "#:service", value, line);
                     return;
@@ -117,7 +122,7 @@ public static partial class ExtensionHeaderScanner
                             line,
                             $"unknown directive '#:{name}' ignored; a single-file extension header "
                                 + "accepts #:extension, #:tool, #:command, #:hook, #:service, "
-                                + "#:capability, #:provider, #:verifier, #:package and "
+                                + "#:event, #:capability, #:provider, #:verifier, #:package and "
                                 + "#:generators."
                         )
                     );

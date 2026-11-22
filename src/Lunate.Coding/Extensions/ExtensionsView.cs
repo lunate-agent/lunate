@@ -55,7 +55,8 @@ internal static partial class ExtensionsView
         Func<string, TimeSpan?>? remoteStart = null,
         IReadOnlyList<SingleFileExtension>? singleFile = null,
         Func<string, IgnoredHostCopy?>? ignoredCopies = null,
-        Func<string, IReadOnlyList<ExtensionInactiveTool>>? inactiveTools = null
+        Func<string, IReadOnlyList<ExtensionInactiveTool>>? inactiveTools = null,
+        Func<string, ExtensionEventStreamStatus?>? eventStream = null
     )
     {
         ArgumentNullException.ThrowIfNull(registeredCounts);
@@ -71,7 +72,8 @@ internal static partial class ExtensionsView
                         hookTimings,
                         remoteStart,
                         inactiveTools,
-                        ignoredCopies?.Invoke(entry.Descriptor.Id)
+                        ignoredCopies?.Invoke(entry.Descriptor.Id),
+                        eventStream?.Invoke(entry.Descriptor.Id)
                     )
                 ),
         ];
@@ -126,7 +128,8 @@ internal static partial class ExtensionsView
         Func<string, IReadOnlyList<HookTimings>>? hookTimings,
         Func<string, TimeSpan?>? remoteStart,
         Func<string, IReadOnlyList<ExtensionInactiveTool>>? inactiveTools,
-        IgnoredHostCopy? ignoredCopy
+        IgnoredHostCopy? ignoredCopy,
+        ExtensionEventStreamStatus? eventStream
     )
     {
         string head = FormattableString.Invariant(
@@ -143,11 +146,20 @@ internal static partial class ExtensionsView
                     registeredCounts(descriptor.Id),
                     inactiveTools?.Invoke(descriptor.Id)
                 )
+                + Watches(descriptor.Manifest.Events)
+                + EventCounts(eventStream)
                 + SlowestHook(hookTimings?.Invoke(descriptor.Id))
                 + StartMarker(remoteStart?.Invoke(descriptor.Id))
                 + IgnoredCopy(ignoredCopy),
-            ExtensionLoadState.TrustDenied => head + " trust-denied" + DeclaredCounts(descriptor),
-            _ => head + " failed: " + FailedMessage(result.Message) + DeclaredCounts(descriptor),
+            ExtensionLoadState.TrustDenied => head
+                + " trust-denied"
+                + DeclaredCounts(descriptor)
+                + Watches(descriptor.Manifest.Events),
+            _ => head
+                + " failed: "
+                + FailedMessage(result.Message)
+                + DeclaredCounts(descriptor)
+                + Watches(descriptor.Manifest.Events),
         };
     }
 
@@ -168,6 +180,36 @@ internal static partial class ExtensionsView
             : FormattableString.Invariant(
                 $", hook {slowest.Hook} max {Milliseconds(slowest.MaxMs)} ms, {slowest.SlowCount}/{slowest.Calls} slow"
             );
+    }
+
+    /// <summary>
+    /// What the manifest says the extension watches, as <c>, watches &lt;kind&gt;, …</c> or
+    /// <c>, watches *</c>; empty when it declares nothing, so an extension without a watch list
+    /// stays one line. The declaration is information, not a filter: in-process delivery is not
+    /// narrowed by it (ADR-0040).
+    /// </summary>
+    private static string Watches(IReadOnlyList<string> events) =>
+        events.Count == 0 ? string.Empty : ", watches " + string.Join(", ", events);
+
+    /// <summary>
+    /// The subscription counters as <c>, events &lt;n&gt; seen</c>, plus
+    /// <c>, &lt;n&gt; dropped</c> only when events were actually dropped. Empty when the extension
+    /// has no live subscription and has seen nothing, so a non-subscriber gains no clause.
+    /// </summary>
+    private static string EventCounts(ExtensionEventStreamStatus? status)
+    {
+        if (
+            status is not { } counters
+            || (!counters.Subscribed && counters.Received == 0 && counters.Dropped == 0)
+        )
+        {
+            return string.Empty;
+        }
+
+        string seen = FormattableString.Invariant($", events {counters.Delivered} seen");
+        return counters.Dropped == 0
+            ? seen
+            : seen + FormattableString.Invariant($", {counters.Dropped} dropped");
     }
 
     /// <summary>A remote extension's most recent start as <c>, start &lt;ms&gt; ms</c>; empty when none.</summary>

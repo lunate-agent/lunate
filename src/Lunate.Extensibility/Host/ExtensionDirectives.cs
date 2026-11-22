@@ -28,6 +28,11 @@ public static class ExtensionDirectives
     /// <summary>Declares a hook name; mirrors the manifest's <c>hooks</c>.</summary>
     public const string Hook = "hook";
 
+    /// <summary>
+    /// Declares a watched event kind, or <c>*</c>; mirrors the manifest's <c>events</c>.
+    /// </summary>
+    public const string Event = "event";
+
     /// <summary>Declares a service name; mirrors the manifest's <c>services</c>.</summary>
     public const string Service = "service";
 
@@ -55,6 +60,7 @@ public static class ExtensionDirectives
         new(Tool, "Tools"),
         new(Command, "Commands"),
         new(Hook, "Hooks"),
+        new(Event, "Events"),
         new(Service, "Services"),
         new(Capability, "Capabilities"),
         new(Provider, "ModelProviders"),
@@ -100,6 +106,7 @@ public static class ExtensionDirectives
             "Tools" => header.Tools,
             "Commands" => header.Commands,
             "Hooks" => header.Hooks,
+            "Events" => header.Events,
             "Services" => header.Services,
             "Capabilities" => header.Capabilities,
             "ModelProviders" => header.Providers,
