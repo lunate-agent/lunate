@@ -1,3 +1,10 @@
+## Purpose
+
+Two core tools give a plain install approved web access: `web_search` returns ranked title, URL and
+snippet results, and `web_fetch` returns a page's readable text with its title and markdown links.
+Both are bounded in bytes, both name the URL and the reason when they fail, and both use the same
+`Execute` approval path as `bash`.
+
 ## ADDED Requirements
 
 ### Requirement: Web search
