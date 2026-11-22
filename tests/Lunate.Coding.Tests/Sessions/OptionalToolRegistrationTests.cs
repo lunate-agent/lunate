@@ -82,6 +82,14 @@ public sealed class OptionalToolRegistrationTests
     }
 
     [Fact]
+    public void The_todo_tool_is_a_core_name_and_cannot_be_an_extra()
+    {
+        string error = OptionalTools.Error("--extra-tools", "todo");
+
+        Assert.Contains("core tool 'todo'", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void An_unknown_name_is_not_registered()
     {
         using var temp = new TempDirectory();
@@ -220,6 +228,7 @@ public sealed class OptionalToolRegistrationTests
         "write",
         "edit",
         "bash",
+        "todo",
         "web_search",
         "web_fetch",
     ];

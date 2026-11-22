@@ -17,6 +17,7 @@ internal static class OptionalTools
         "write",
         "edit",
         "bash",
+        "todo",
         "web_search",
         "web_fetch",
     ];

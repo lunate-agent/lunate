@@ -32,7 +32,7 @@ public sealed class WorkspaceToolFactoryTests
         );
 
         Assert.Equal(
-            ["read", "write", "edit", "bash", "web_search", "web_fetch"],
+            ["read", "write", "edit", "bash", "todo", "web_search", "web_fetch"],
             tools.Tools.Select(tool => tool.Name)
         );
     }
@@ -63,6 +63,7 @@ public sealed class WorkspaceToolFactoryTests
                 "write",
                 "edit",
                 "bash",
+                "todo",
                 "web_search",
                 "web_fetch",
                 "cs_diagnostics",
@@ -103,6 +104,7 @@ public sealed class WorkspaceToolFactoryTests
                 "write",
                 "edit",
                 "bash",
+                "todo",
                 "web_search",
                 "web_fetch",
                 "ext-tool",

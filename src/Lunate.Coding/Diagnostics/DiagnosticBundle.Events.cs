@@ -109,6 +109,11 @@ internal static partial class DiagnosticBundle
                 progress.Message
             ),
             ToolOutputSpillFailed failed => " message=" + Truncate(scrubber.Scrub(failed.Message)),
+            TodoUpdated todo => " items="
+                + todo.Items.Count.ToString(CultureInfo.InvariantCulture)
+                + " in_progress="
+                + todo.Items.Count(item => item.Status is TodoItemStatus.InProgress)
+                    .ToString(CultureInfo.InvariantCulture),
             _ => string.Empty,
         };
 

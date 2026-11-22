@@ -1038,3 +1038,36 @@ virtual Lunate.Agent.AgentEventBase.EqualityContract.get -> System.Type!
 virtual Lunate.Agent.AgentEventBase.Equals(Lunate.Agent.AgentEventBase? other) -> bool
 virtual Lunate.Agent.AgentEventBase.PrintMembers(System.Text.StringBuilder! builder) -> bool
 virtual Lunate.Agent.ExtensionEventBase.Equals(Lunate.Agent.ExtensionEventBase? other) -> bool
+Lunate.Agent.TodoItemStatus.Done = 2 -> Lunate.Agent.TodoItemStatus
+Lunate.Agent.TodoItemStatus.InProgress = 1 -> Lunate.Agent.TodoItemStatus
+Lunate.Agent.TodoItem
+override Lunate.Agent.TodoItem.ToString() -> string!
+static Lunate.Agent.TodoItem.operator !=(Lunate.Agent.TodoItem? left, Lunate.Agent.TodoItem? right) -> bool
+Lunate.Agent.TodoItem.Text.get -> string!
+Lunate.Agent.TodoItem.Text.init -> void
+static Lunate.Agent.TodoItem.operator ==(Lunate.Agent.TodoItem? left, Lunate.Agent.TodoItem? right) -> bool
+override Lunate.Agent.TodoItem.GetHashCode() -> int
+override Lunate.Agent.TodoItem.Equals(object? obj) -> bool
+Lunate.Agent.TodoItem.Equals(Lunate.Agent.TodoItem? other) -> bool
+Lunate.Agent.TodoItem.<Clone>$() -> Lunate.Agent.TodoItem!
+Lunate.Agent.TodoItem.Status.get -> Lunate.Agent.TodoItemStatus
+Lunate.Agent.TodoItem.Deconstruct(out string! Text, out Lunate.Agent.TodoItemStatus Status) -> void
+Lunate.Agent.TodoUpdated.Items.get -> System.Collections.Generic.IReadOnlyList<Lunate.Agent.TodoItem!>!
+Lunate.Agent.TodoItem.Status.init -> void
+Lunate.Agent.TodoUpdated.Items.init -> void
+Lunate.Agent.TodoUpdated
+override Lunate.Agent.TodoUpdated.ToString() -> string!
+static Lunate.Agent.TodoUpdated.operator !=(Lunate.Agent.TodoUpdated? left, Lunate.Agent.TodoUpdated? right) -> bool
+static Lunate.Agent.TodoUpdated.operator ==(Lunate.Agent.TodoUpdated? left, Lunate.Agent.TodoUpdated? right) -> bool
+override Lunate.Agent.TodoUpdated.GetHashCode() -> int
+override Lunate.Agent.TodoUpdated.Equals(object? obj) -> bool
+override sealed Lunate.Agent.TodoUpdated.Equals(Lunate.Agent.ExtensionEventBase? other) -> bool
+Lunate.Agent.TodoUpdated.Equals(Lunate.Agent.TodoUpdated? other) -> bool
+override Lunate.Agent.TodoUpdated.<Clone>$() -> Lunate.Agent.TodoUpdated!
+Lunate.Agent.TodoUpdated.Deconstruct(out string! RunId, out System.Collections.Generic.IReadOnlyList<Lunate.Agent.TodoItem!>! Items) -> void
+Lunate.Agent.TodoItemStatus.Pending = 0 -> Lunate.Agent.TodoItemStatus
+Lunate.Agent.TodoItemStatus
+Lunate.Agent.ExtensionEvent.ExtensionEvent(Lunate.Agent.TodoUpdated! value) -> void
+Lunate.Agent.AgentEvent.AgentEvent(Lunate.Agent.TodoUpdated! value) -> void
+Lunate.Agent.TodoItem.TodoItem(string! Text, Lunate.Agent.TodoItemStatus Status) -> void
+Lunate.Agent.TodoUpdated.TodoUpdated(string! RunId, System.Collections.Generic.IReadOnlyList<Lunate.Agent.TodoItem!>! Items) -> void
