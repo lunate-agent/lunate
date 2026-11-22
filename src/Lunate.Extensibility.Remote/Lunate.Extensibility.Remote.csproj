@@ -6,4 +6,10 @@
     <ItemGroup>
         <ProjectReference Include="../Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+        <!-- The event-projection queue tests drive the internal pump directly to model a child
+             that stops reading its stdin; a blocking channel needs the pump's own counters. -->
+        <InternalsVisibleTo Include="Lunate.Extensibility.Remote.Tests" />
+    </ItemGroup>
 </Project>

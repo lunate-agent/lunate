@@ -21,7 +21,8 @@ internal sealed class RemoteTestWorkspace : IDisposable
         string? startup = null,
         IReadOnlyList<string>? hooks = null,
         IReadOnlyList<string>? commands = null,
-        IReadOnlyList<string>? services = null
+        IReadOnlyList<string>? services = null,
+        IReadOnlyList<string>? events = null
     )
     {
         _root = Path.Combine(
@@ -52,6 +53,7 @@ internal sealed class RemoteTestWorkspace : IDisposable
                 "hooks": [{{Declarations(hooks ?? ["tool-calling"])}}],
                 "services": [{{Declarations(services ?? [])}}],
                 "commands": [{{Declarations(commands ?? [])}}],
+                "events": [{{Declarations(events ?? [])}}],
                 {{runtime}}
             }
             """

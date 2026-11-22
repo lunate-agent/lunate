@@ -8,5 +8,6 @@
     },
     "hooks": ["tool-calling"],
     "services": ["echo"],
-    "commands": ["ping", "wait", "fail"]
+    "commands": ["ping", "wait", "fail", "observed"],
+    "events": ["*"]
 }

@@ -1,18 +1,24 @@
 'use strict';
 
 // The Lunate remote extension reference: a dependency-free Node script speaking the NDJSON
-// JSON-RPC 2.0 wire documented in docs/extensions-remote.md. It answers `initialize` (protocol 2,
-// advertising the `commands` capability), blocks a probe tool call while consuming the host's
-// `core/workspace/get` service (the reentrant path), registers an `echo` service, serves the
-// `ping` / `wait` / `fail` commands over `command/invoke`, and exits on `shutdown`. Stdout is
+// JSON-RPC 2.0 wire documented in docs/extensions-remote.md. It answers `initialize` (protocol 3,
+// advertising the `commands` capability and accepting every observable event kind), blocks a probe
+// tool call while consuming the host's `core/workspace/get` service (the reentrant path), registers
+// an `echo` service, records every `event/<kind>` notification it receives, serves the `ping` /
+// `wait` / `fail` / `observed` commands over `command/invoke`, and exits on `shutdown`. Stdout is
 // protocol-only; every diagnostic goes to stderr, which the host caps into the extension log.
 
 const readline = require('readline');
 
-const PROTOCOL_VERSION = 2;
+const PROTOCOL_VERSION = 3;
 const HOOKS = ['ToolCalling'];
 const SERVICES = ['echo'];
+// The observable projection (ADR-0040): the manifest declares `*`, so the host sends every kind.
+const EVENTS = ['*'];
 const BLOCKED_PATH = 'block-me.txt';
+
+// Every `event/<kind>` kind this child has received, in arrival order and without repeats.
+const observedEvents = [];
 
 const pending = new Map();
 // Command invocations waiting for their cancellation: request id -> the function that answers
@@ -46,7 +52,8 @@ async function handleInitialize(id) {
         protocolVersion: PROTOCOL_VERSION,
         hooks: HOOKS,
         services: SERVICES,
-        commands: true
+        commands: true,
+        events: EVENTS
     });
 }
 
@@ -114,6 +121,15 @@ function handleCommandInvoke(id, params) {
                 disposition: 'failed'
             });
             return;
+        case 'observed':
+            // The observable event step's receipt: the kinds the host projected, in arrival order.
+            // Notifications are never acknowledged, so this command is how a test sees the turn.
+            reply(id, {
+                output: observedEvents.join(','),
+                error: null,
+                disposition: 'completed'
+            });
+            return;
         default:
             reply(id, {
                 output: null,
@@ -147,6 +163,16 @@ function handleFrame(frame) {
 
     if (frame.method === '$/cancelRequest') {
         handleCancel(frame.params);
+        return;
+    }
+
+    // An `event/<kind>` notification: the host's observable projection (protocol version 3). It
+    // carries no id and is never answered; record the kind so `observed` can report the turn.
+    if (frame.method.startsWith('event/')) {
+        const kind = frame.method.slice('event/'.length);
+        if (observedEvents.indexOf(kind) < 0) {
+            observedEvents.push(kind);
+        }
         return;
     }
 

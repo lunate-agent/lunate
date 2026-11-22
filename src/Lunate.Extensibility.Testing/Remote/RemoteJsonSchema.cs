@@ -43,6 +43,7 @@ public static class RemoteJsonSchema
         definitions["WorkspaceInfo"] = SchemaOf(typeof(WorkspaceInfo));
         definitions["InitializeRequest"] = SchemaOf(typeof(InitializeRequest));
         definitions["InitializeResult"] = SchemaOf(typeof(InitializeResult));
+        definitions["EventNotification"] = EventNotificationSchema();
 
         var hookResults = new JsonObject();
         foreach (HookContract contract in HookContracts.All.Where(c => c.ResultType is not null))
@@ -56,7 +57,7 @@ public static class RemoteJsonSchema
             ["$id"] = "https://lunate.dev/schemas/remote-extension-wire.json",
             ["title"] = $"Lunate remote extension wire (protocol version {RemoteProtocol.Version})",
             ["description"] =
-                "JSON-RPC 2.0 over newline-delimited UTF-8 JSON on stdio. Stdout is protocol-only; a non-JSON line or a line over 16 MB is a protocol error. Interceptor hooks are requests, observer hooks are notifications, service-call and command/invoke are requests, and $/cancelRequest carries { id }.",
+                "JSON-RPC 2.0 over newline-delimited UTF-8 JSON on stdio. Stdout is protocol-only; a non-JSON line or a line over 16 MB is a protocol error. Interceptor hooks are requests, observer hooks are notifications, service-call and command/invoke are requests, one event notification per kind carries the --json event line (protocol version 3), and $/cancelRequest carries { id }.",
             ["type"] = "object",
             ["properties"] = new JsonObject
             {
@@ -71,6 +72,7 @@ public static class RemoteJsonSchema
                 ["service-call"] = Ref("ServiceCallEnvelope"),
                 ["command.invoke"] = Ref("CommandInvokeRequest"),
                 ["command.result"] = Ref("CommandInvokeResult"),
+                ["event.notification"] = Ref("EventNotification"),
                 ["cancel"] = new JsonObject
                 {
                     ["type"] = "object",
@@ -86,6 +88,44 @@ public static class RemoteJsonSchema
 
     /// <summary>The schema definition name a variant/type is published under.</summary>
     public static string DefinitionName(Type type) => type.Name;
+
+    /// <summary>
+    /// The <c>event/&lt;kind&gt;</c> payload: the same line object <c>--json</c> writes, so its
+    /// stamped fields are required and the kind enum is the projection's own vocabulary. The
+    /// kind-specific fields stay documented by <c>docs/json-events.md</c> — one source, not a
+    /// second schema per event.
+    /// </summary>
+    private static JsonObject EventNotificationSchema()
+    {
+        var kinds = new JsonArray();
+        foreach (string kind in RemoteEventJson.Kinds)
+        {
+            kinds.Add(kind);
+        }
+
+        return new JsonObject
+        {
+            ["title"] = "EventNotification",
+            ["description"] =
+                "One `--json` event line, sent as the params of an event notification named after its kind (never awaited, never answered). The kind-specific fields are the ones docs/json-events.md documents.",
+            ["type"] = "object",
+            ["properties"] = new JsonObject
+            {
+                ["type"] = new JsonObject { ["type"] = "string", ["enum"] = kinds },
+                ["runId"] = new JsonObject { ["type"] = "string" },
+                ["sessionId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray { "string", "null" },
+                },
+                ["parentRunId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray { "string", "null" },
+                },
+                ["source"] = new JsonObject { ["type"] = "string" },
+            },
+            ["required"] = new JsonArray { "type", "runId" },
+        };
+    }
 
     private static JsonObject ResultFamilySchema(HookContract contract)
     {

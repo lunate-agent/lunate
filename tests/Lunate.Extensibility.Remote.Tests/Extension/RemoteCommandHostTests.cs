@@ -232,7 +232,7 @@ public sealed class RemoteCommandHostTests
         Assert.Equal(RemoteExtensionState.Failed, loader.RemoteStatus("remote-sample")!.State);
         Assert.Contains(workspace.Log.Warnings, warning =>
             warning.Contains(
-                "could not start while its declared commands were being listed",
+                "could not start during the session start",
                 StringComparison.Ordinal
             )
         );

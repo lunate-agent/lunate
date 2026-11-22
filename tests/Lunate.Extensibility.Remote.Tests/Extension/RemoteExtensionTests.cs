@@ -164,7 +164,7 @@ public sealed class RemoteExtensionTests
     {
         Harness harness = Harness.Create(hooks: ["tool-calling"]);
         harness.Child.Handshake = request => new InitializeResult(
-            3,
+            RemoteProtocol.Version + 1,
             request.Hooks,
             request.Services
         );
@@ -176,7 +176,11 @@ public sealed class RemoteExtensionTests
 
         Assert.Equal(RemoteExtensionState.Refused, harness.Extension.Status.State);
         Assert.Contains("was refused", harness.Context.Log.Errors[^1], StringComparison.Ordinal);
-        Assert.Contains("protocol 3", harness.Extension.Status.Reason!, StringComparison.Ordinal);
+        Assert.Contains(
+            $"protocol {RemoteProtocol.Version + 1}",
+            harness.Extension.Status.Reason!,
+            StringComparison.Ordinal
+        );
         // Never driven best-effort: the next call refuses without touching the child again.
         await Assert.ThrowsAsync<RemoteExtensionException>(() =>
             handler.HandleAsync(new ToolCallingPayload("r1", "c1", "read", EmptyArgs), Ct).AsTask()

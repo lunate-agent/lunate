@@ -20,10 +20,15 @@ internal sealed class FakeExtensionContext : IExtensionContext
     IExtensionLog IExtensionContext.Log => Log;
 
     /// <summary>
-    /// The event stream of the fake host: empty, because these tests drive registrations directly
-    /// and never iterate a run (the remote wire projection is the protocol-3 follow-up).
+    /// The event stream of the fake host: the production <see cref="SessionEventStream"/>, so a
+    /// test publishes a real event and the extension's projection drains it the way it does in a
+    /// session.
     /// </summary>
-    public IObservable<Lunate.Agent.AgentEvent> Events { get; } = new EmptyEvents();
+    public SessionEventStream Stream { get; }
+
+    public IObservable<Lunate.Agent.AgentEvent> Events => new ObservableEvents(Stream, Id);
+
+    public FakeExtensionContext() => Stream = new SessionEventStream(Log);
 
     public List<IHookHandler> Handlers { get; } = [];
 
@@ -35,18 +40,11 @@ internal sealed class FakeExtensionContext : IExtensionContext
 
     public void Register(IHookHandler handler) => Handlers.Add(handler);
 
-    private sealed class EmptyEvents : IObservable<Lunate.Agent.AgentEvent>
+    private sealed class ObservableEvents(SessionEventStream stream, string id)
+        : IObservable<Lunate.Agent.AgentEvent>
     {
-        public IDisposable Subscribe(IObserver<Lunate.Agent.AgentEvent> observer)
-        {
-            ArgumentNullException.ThrowIfNull(observer);
-            return new Subscription();
-        }
-
-        private sealed class Subscription : IDisposable
-        {
-            public void Dispose() { }
-        }
+        public IDisposable Subscribe(IObserver<Lunate.Agent.AgentEvent> observer) =>
+            stream.Subscribe(id, observer);
     }
 
     public void RegisterWriteVerifier(WriteVerifierRegistration registration) =>

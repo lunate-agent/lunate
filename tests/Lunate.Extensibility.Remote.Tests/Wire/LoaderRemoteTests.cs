@@ -111,6 +111,24 @@ public sealed class LoaderRemoteTests
     }
 
     [Fact]
+    public async Task An_events_only_extension_starts_at_session_start_and_observes()
+    {
+        // No hook, service or command: only the declared watch list would ever bring this child to
+        // life, and it must be alive before the first run emits (ADR-0040).
+        using var workspace = new RemoteTestWorkspace(hooks: [], events: ["*"]);
+        ExtensionLoader loader = workspace.CreateLoader();
+
+        await workspace.LoadAsync(loader);
+
+        Assert.Equal(1, workspace.Child.StartCount);
+        loader.EventStream.Publish(new Lunate.Agent.RunStarted("run_1"));
+        await WaitAsync(
+            () => workspace.Child.ObservedEventKinds().Contains("run_started"),
+            "the projected event"
+        );
+    }
+
+    [Fact]
     public async Task Background_mode_starts_after_the_explicit_trigger_only()
     {
         using var workspace = new RemoteTestWorkspace(startup: "background");
