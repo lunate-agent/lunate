@@ -15,16 +15,14 @@ documents, so the decision is pure and its self-test needs no network. It mirror
   rerun. All three have to hold: a job cancelled by a superseding run also has no steps, and a started
   job can still report `runner_id: 0`. A job cancelled after it reached a step, and any document whose
   `steps` list or `runner_id` is missing, stays red: the rule fails closed. The run link is required with
-  the jobs because the reporter names the job and the run, never the job alone.
-
-  The two jobs whose result is derived from the others' (`ci-ok` and `red-main-issue`) are not printed
-  beside a red job that ran: their card would name no failure of its own, because the leg's card is the
-  finding and the aggregate only restates it (#1002). Such a job is named on stderr with the run link
-  instead. A run whose only red jobs that ran are the derived ones still prints them: then nothing else
-  in the run speaks for the gate, and a wrong aggregate verdict is the whole finding. Whether the
-  aggregate's record is in the document at the read no longer changes the card set, only that line: the
-  reporter does not depend on `ci-ok`, so the record is there only when the aggregate happened to finish
-  first.
+  the jobs because the reporter names the job and the run, never the job alone. The two jobs whose result
+  is derived from the others' (`ci-ok` and `red-main-issue`) are not printed beside a red job that ran:
+  their card would name no failure of its own, because the leg's card is the finding and the aggregate only
+  restates it (#1002). Such a job is named on stderr with the run link instead. A run whose only red jobs
+  that ran are the derived ones still prints them: then nothing else in the run speaks for the gate, and a
+  wrong aggregate verdict is the whole finding. Whether the aggregate's record is in the document at the
+  read no longer changes the card set, only that line: the reporter does not depend on `ci-ok`, so the
+  record is there only when the aggregate happened to finish first.
 - `--abandoned-json FILE` prints `id<TAB>name` for the red jobs that never acquired a runner, without the
   two jobs whose result is derived from the others' (`ci-ok` and `red-main-issue`). That is the list the
   run's job summary names, and the list no card is ever filed for (#922, #923).
