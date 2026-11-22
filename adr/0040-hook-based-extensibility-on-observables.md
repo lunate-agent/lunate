@@ -1,6 +1,6 @@
 # 0040 — Hook-based extensibility: typed intercepting hooks plus one observable event stream
 
-- Status: proposed — 2026-11-15 (awaiting maintainer sign-off; #897)
+- Status: accepted — 2026-11-22 (maintainer sign-off on #982)
 - Date: 2026-11-15
 - Relates to: ADR-0017 (extensibility architecture and its addenda), ADR-0002 (layering and MEAI model
   types), ADR-0007 (System.Reactive confined to the TUI live area), ADR-0013 (the agent loop and harness
@@ -21,9 +21,10 @@ points that happen to be observers (`ProviderStreamEvent`, `SessionStarted`/`Ses
 exporter or a UI must register one handler per point and still cannot see a text fragment, a tool's
 arguments, an approval request, a usage update or a retry, because no hook exists for those.
 
-The stream those consumers want already exists. `AgentEvent` (`Lunate.Contracts`) is a closed hierarchy
-of sealed records carrying `RunId`, `SessionId`, `ParentRunId` and `Source`, emitted through
-`IAgentEvents`; the `--json` mode renders each as one documented JSON line and ACP maps the same records.
+The stream those consumers want already exists. `AgentEvent` (`Lunate.Contracts`) is a C# 15 union over
+its case records (ADR-0043), the case records carrying `RunId`, `SessionId`, `ParentRunId` and `Source`,
+emitted through `IAgentEvents`; the `--json` mode renders each as one documented JSON line and ACP maps
+the same records.
 So the question is not how to produce a stream but which contract exposes it — and that question drags
 two dependency and protocol decisions with it (BCL `IObservable` or System.Reactive; whether
 out-of-process extensions get the same surface), which is why it needs a record rather than a card-local
