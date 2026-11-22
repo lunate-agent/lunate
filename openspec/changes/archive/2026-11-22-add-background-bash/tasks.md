@@ -26,4 +26,4 @@
 
 ## 5. Close
 
-- [ ] 5.1 `openspec validate add-background-bash --strict`, sync the delta specs and archive the change as the last commit
+- [x] 5.1 `openspec validate add-background-bash --strict`, sync the delta specs and archive the change as the last commit
