@@ -47,7 +47,10 @@ import sys
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
 
-import published_release
+SCRIPTS = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))  # `python3 -I` drops the script's directory from sys.path
+
+import published_release  # noqa: E402
 
 KEYS_PAGE = "docs/keybindings.md"
 KEYS_SOURCE = "src/Lunate.Tui/keys.json"
