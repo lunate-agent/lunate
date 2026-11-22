@@ -65,6 +65,13 @@ Notable changes to Lunate, one section per release. The format follows
 
 ### Changed
 
+- **A text-only chat model can use images through the configured vision profile.** When the chat
+  model's capabilities say it cannot accept images and a `fast` profile's model can, that profile
+  describes each image and the chat model receives the description next to the `[image WxH]`
+  placeholder; the transcript names the description and profile. Without a vision-capable `fast`
+  profile the existing refusal stands, and a failing vision profile fails the turn naming both
+  errors instead of dropping the image (#1014).
+
 - **Independent read-only tool calls run in parallel.** When one model turn returns several `read`,
   `grep`, `find`, `ls`, `web_search` or `web_fetch` calls, Lunate now runs their bodies concurrently
   under a fixed cap of four. Start and result events stay in call order with their own call ids,
