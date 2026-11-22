@@ -601,12 +601,15 @@ public sealed class InteractiveSessionPickerTests
         host.Console.SendEnter();
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "Select session");
 
-        // Typed text is the picker's search field, answered by the store's turn search.
+        // Typed text is the picker's search field, answered by the store's turn search; the
+        // picker's title stays the one it opened with.
         host.Console.SendText("retry budget");
-        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "1 matches");
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "settle the retry budget");
+        Assert.Contains("Select session", host.LastFrame, StringComparison.Ordinal);
         Assert.Contains(seeded.SessionId, host.LastFrame, StringComparison.Ordinal);
-        Assert.Contains("settle the retry budget", host.LastFrame, StringComparison.Ordinal);
         Assert.DoesNotContain("filter:", host.LastFrame, StringComparison.Ordinal);
+        Assert.DoesNotContain("search:", host.LastFrame, StringComparison.Ordinal);
+        Assert.DoesNotContain("matches", host.LastFrame, StringComparison.Ordinal);
 
         // Confirming a hit opens the session at the matching turn, not at its latest leaf.
         host.Console.SendEnter();
@@ -640,13 +643,13 @@ public sealed class InteractiveSessionPickerTests
         await InteractiveSessionCommandTests.WaitForFrameAsync(host, "Select session");
 
         host.Console.SendText("retry budget");
-        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "1 matches");
+        await InteractiveSessionCommandTests.WaitForFrameAsync(host, "settle the retry budget");
         host.Console.SendEscape();
         await host.WaitUntilAsync(() =>
         {
             host.Advance(33);
             return host.LastFrame.Contains("Select session", StringComparison.Ordinal)
-                && !host.LastFrame.Contains("matches", StringComparison.Ordinal);
+                && !host.LastFrame.Contains("settle the retry budget", StringComparison.Ordinal);
         });
 
         host.Console.SendEscape();

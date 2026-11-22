@@ -213,7 +213,19 @@ public sealed partial class Session
                     continue;
                 }
 
-                textBytes += Encoding.UTF8.GetByteCount(text);
+                long remaining = SearchTextBytesLimit - textAlreadyRead - textBytes;
+                long bytes = Encoding.UTF8.GetByteCount(text);
+                if (bytes > remaining)
+                {
+                    // The message alone is larger than the text budget that is left: search and
+                    // charge only the part that fits, then stop at the bound, so the scan never
+                    // reads past the 8 MiB it states.
+                    text = TextWithinBudget(text, remaining);
+                    bytes = Encoding.UTF8.GetByteCount(text);
+                    stopped = true;
+                }
+
+                textBytes += bytes;
                 if (text.Contains(query, StringComparison.OrdinalIgnoreCase))
                 {
                     matches.Add(
@@ -228,6 +240,11 @@ public sealed partial class Session
                         )
                     );
                 }
+
+                if (stopped)
+                {
+                    break;
+                }
             }
         }
         catch (Exception exception)
@@ -240,6 +257,35 @@ public sealed partial class Session
         }
 
         return new(header, matches, malformed, textBytes, stopped);
+    }
+
+    /// <summary>
+    /// The longest prefix of <paramref name="text"/> whose UTF-8 encoding fits in
+    /// <paramref name="byteBudget"/> bytes, cut on a rune boundary so a multi-byte character is
+    /// never split. A message larger than the remaining budget is searched only up to the bound.
+    /// </summary>
+    private static string TextWithinBudget(string text, long byteBudget)
+    {
+        if (byteBudget <= 0)
+        {
+            return string.Empty;
+        }
+
+        long used = 0;
+        int characters = 0;
+        foreach (Rune rune in text.EnumerateRunes())
+        {
+            int length = rune.Utf8SequenceLength;
+            if (used + length > byteBudget)
+            {
+                break;
+            }
+
+            used += length;
+            characters += rune.Utf16SequenceLength;
+        }
+
+        return text[..characters];
     }
 
     /// <summary>The turn's text, for a user or assistant message only; null for every other entry.</summary>

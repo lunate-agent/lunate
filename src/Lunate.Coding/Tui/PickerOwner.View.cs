@@ -1,4 +1,3 @@
-using System.Globalization;
 using Lunate.Tui;
 
 namespace Lunate.Coding;
@@ -109,21 +108,13 @@ internal sealed partial class PickerOwner
             : _labels[index];
 
     /// <summary>
-    /// The title. The unfiltered session picker keeps its plain title (its render is pinned by a
-    /// golden); the model picker appends the invariant position and visible count and, while
-    /// filtering, the filter text; a filtering session picker names its hit count and query.
+    /// The title. The session picker keeps its plain title even while its search field filters —
+    /// the spec keeps the title and keys otherwise unchanged, and its render is pinned by a golden;
+    /// the model picker appends the invariant position and visible count and, while filtering, the
+    /// filter text.
     /// </summary>
     private string Title(int selected, int count)
     {
-        if (_kind is PickerKind.Session)
-        {
-            return _filter.Length == 0
-                ? _titlePrefix
-                : FormattableString.Invariant(
-                    $"{_titlePrefix} — {count} matches — search: {_filter}"
-                );
-        }
-
         if (_kind is not PickerKind.Model)
         {
             return _titlePrefix;

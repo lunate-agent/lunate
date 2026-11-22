@@ -129,7 +129,30 @@ public sealed class SessionSearchTests
         SessionSearchResult result = Session.Search(temp.Root, "retry budget");
 
         Assert.Empty(result.Matches);
-        Assert.True(result.TextBytes >= Session.SearchTextBytesLimit);
+        Assert.Equal(Session.SearchTextBytesLimit, result.TextBytes);
+        Assert.True(result.StoppedAtBound);
+    }
+
+    [Fact]
+    public void A_message_larger_than_the_remaining_text_budget_is_cut_at_the_bound()
+    {
+        using var temp = new TempDirectory();
+        Session session = Session.Create(
+            temp.File("s.jsonl"),
+            "/work",
+            new FixedTimeProvider(Start)
+        );
+        // Leave 32 bytes of the text budget, then add a turn whose query sits past that allowance:
+        // the scan may search only the part that fits, never the whole oversized message.
+        session.AppendMessage(
+            new ChatMessage(ChatRole.User, new string('x', (int)Session.SearchTextBytesLimit - 32))
+        );
+        session.AppendMessage(new ChatMessage(ChatRole.User, new string('y', 64) + "retry budget"));
+
+        SessionSearchResult result = Session.Search(temp.Root, "retry budget");
+
+        Assert.Empty(result.Matches);
+        Assert.Equal(Session.SearchTextBytesLimit, result.TextBytes);
         Assert.True(result.StoppedAtBound);
     }
 
