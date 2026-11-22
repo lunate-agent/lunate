@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
 PackageIdentifier: wdaniel1993.lunate
-PackageVersion: 0.5.0
+PackageVersion: 0.6.0
 InstallerType: zip
 NestedInstallerType: portable
 NestedInstallerFiles:
@@ -8,7 +8,7 @@ NestedInstallerFiles:
     PortableCommandAlias: lunate
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/lunate-agent/lunate/releases/download/v0.5.0/lunate-win-x64.zip
-    InstallerSha256: 50ACCDBBBB4A54270DEE07F95A1B375A84C0E855BD1C6A11C0BB0A17A1210E3B
+    InstallerUrl: https://github.com/lunate-agent/lunate/releases/download/v0.6.0/lunate-win-x64.zip
+    InstallerSha256: C7D7385E9E8180D83707CA7183B9FD2D8AFB2F149473095D814E8B8968F26900
 ManifestType: installer
 ManifestVersion: 1.10.0
