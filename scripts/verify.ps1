@@ -391,7 +391,7 @@ try {
     }
 
     Write-Host "`n==> contract package roundtrip"
-    # The extension contract ships beside the tool (#237), on the same tag and no looser: the four
+    # The extension contract ships beside the tool (#237), on the same tag and no looser: the five
     # SDK packages are checked by the same metadata script (the preview pair under the prerelease
     # flag), then the template's NuGet shape is proven against this feed — the packages nuget.org
     # serves after the next tag, exercised on every commit where they exist only in dist/.
@@ -403,6 +403,7 @@ try {
     try {
         foreach ($contractProject in @(
             'src/Lunate.Contracts/Lunate.Contracts.csproj',
+            'src/Lunate.Decisions.Model/Lunate.Decisions.Model.csproj',
             'src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj',
             'src/Lunate.Agent/Lunate.Agent.csproj',
             'src/Lunate.Extensibility.Testing/Lunate.Extensibility.Testing.csproj'
@@ -410,7 +411,7 @@ try {
             dotnet pack $contractProject -c $configuration -o $contractFeed --nologo -nodeReuse:false
             if ($LASTEXITCODE -ne 0) { throw "verify: dotnet pack failed for $contractProject" }
         }
-        # The contract pair carries the API version plus the tag's prerelease suffix, the preview pair
+        # The contract trio carries the API version plus the tag's prerelease suffix, the preview pair
         # the product version while it is a prerelease and <version>-preview.1 otherwise. The csprojs
         # hold $(ContractVersion) and $(PreviewVersion), so this derives from Directory.Build.props —
         # the same rule scripts/release-versions.sh runs for the bash gate and the pack-only job.
@@ -425,6 +426,7 @@ try {
         $contractVersion = "$apiVersion$suffix"
         $previewVersion = if ($dash -ge 0) { $productVersion } else { "$productVersion-preview.1" }
         Assert-PackageMetadata -Package (Join-Path $contractFeed "Lunate.Contracts.$contractVersion.nupkg") -PackageId 'Lunate.Contracts'
+        Assert-PackageMetadata -Package (Join-Path $contractFeed "Lunate.Decisions.Model.$contractVersion.nupkg") -PackageId 'Lunate.Decisions.Model'
         Assert-PackageMetadata -Package (Join-Path $contractFeed "Lunate.Extensibility.Abstractions.$contractVersion.nupkg") -PackageId 'Lunate.Extensibility.Abstractions'
         Assert-PackageMetadata -Package (Join-Path $contractFeed "Lunate.Agent.$previewVersion.nupkg") -PackageId 'Lunate.Agent' -Prerelease
         Assert-PackageMetadata -Package (Join-Path $contractFeed "Lunate.Extensibility.Testing.$previewVersion.nupkg") -PackageId 'Lunate.Extensibility.Testing' -Prerelease
