@@ -18,6 +18,8 @@ internal static class OptionalTools
         "edit",
         "bash",
         "todo",
+        "web_search",
+        "web_fetch",
     ];
 
     /// <summary>The accepted values as the error messages list them.</summary>

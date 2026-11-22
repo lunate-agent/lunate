@@ -40,8 +40,8 @@ elapsed seconds.
 
 ## Edits you approve, with the diff
 
-Writes and commands stop at a panel: a warning headline naming the tool and what it will do, a
-bounded detail block with the command or the edit's diff, and
+Writes, commands and web calls stop at a panel: a warning headline naming the tool and what it will
+do, a bounded detail block with the command, the edit's diff or the URL, and
 `Allow edit?  [y]es  [n]o  [a]lways this session`. Below 60 columns the detail shortens first and
 every choice stays on screen. The result names the match tier it used (`exact`, `normalized` or
 `indent`), and an ambiguous edit is refused instead of guessed.
@@ -51,12 +51,18 @@ every choice stays on screen. The result names the match tier it used (`exact`, 
 ## Tool calls commit as one line
 
 A finished call collapses to one header line — `✓ read  src/Foo.cs (1-13)`,
-`✗ bash  dotnet test · exit 1 · 12s`, `✓ edit  src/Foo.cs · +3 −0` (ASCII `+`/`x` without Unicode) —
+`✗ bash  dotnet test · exit 1 · 12s`, `✓ edit  src/Foo.cs · +3 −0`,
+`✓ web_fetch  example.com/page` (ASCII `+`/`x` without Unicode) —
 with a per-tool excerpt and the diff for `edit`/`write` under it. What the excerpt elides is one
 `ctrl+o` away: the full-screen transcript viewer shows every block with its complete output and
 diff, scrolls with the arrows and PageUp/PageDown, and closes on `q` or `Esc`.
 
 ![Compact tool blocks and the Ctrl+O transcript viewer](media/features/tools.gif)
+
+`web_search` and `web_fetch` ask like `bash`: one panel per call, with the query or URL in the
+detail, and `[a]lways this session` covers that tool for the rest of the session. A search returns
+ranked title, URL and snippet results; a fetch returns the page's readable text, its title and its
+links as markdown. Both stop at their byte cap and a failure names the URL and the reason.
 
 ## The plan stays on screen
 
