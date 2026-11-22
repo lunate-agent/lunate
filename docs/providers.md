@@ -143,8 +143,10 @@ Nothing refreshes at startup or in the background. `lunate --update-catalog` fet
 <https://models.dev/api.json>, maps it through the one catalog mapper and atomically writes the
 managed cache; `--output` writes the snapshot elsewhere and `--source <path-or-url>` reads a local
 snapshot, so an offline or malformed fetch leaves the old cache untouched. `lunate --discover
-<name-or-url>` drafts a `models.json` entry for an endpoint the catalog does not know, and
-`scripts/update-models.sh` regenerates the embedded snapshot and supports `--check`.
+<name-or-url>` drafts a `models.json` entry for an endpoint the catalog does not know; a listing
+entry that declares several API families is drafted through its `recommended_api` when that names a
+supported family and is skipped otherwise, so one such entry never discards the rest of the
+listing. `scripts/update-models.sh` regenerates the embedded snapshot and supports `--check`.
 
 ## Related
 

@@ -1010,9 +1010,8 @@ internal sealed partial class InteractiveSession
         }
 
         Notify(
-            $"connection test failed: {ConnectionShape(result)}. Nothing was written; the go-back "
-                + "re-opens the credential step with the earlier answers retained, and there is no "
-                + "automatic retry",
+            $"{ConnectionFailure(result)} Nothing was written; the go-back re-opens the credential "
+                + "step with the earlier answers retained, and there is no automatic retry",
             NoticeLevel.Warning
         );
         string? after = await PickAsync(
@@ -1043,6 +1042,15 @@ internal sealed partial class InteractiveSession
         wizard.RecordConnectionTest(new WizardCheckResult(WizardProgress.Skipped));
         _listing = [];
         return WizardMove.Advance;
+    }
+
+    private static string ConnectionFailure(WizardDiscoveryResult result)
+    {
+        string shape = ConnectionShape(result);
+        string? detail = result.Error?.Trim();
+        return detail is { Length: > 0 }
+            ? $"connection test failed: {shape} — {detail.TrimEnd('.')}."
+            : $"connection test failed: {shape}.";
     }
 
     private static string ConnectionShape(WizardDiscoveryResult result) =>

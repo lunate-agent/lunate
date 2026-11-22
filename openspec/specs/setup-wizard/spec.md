@@ -52,7 +52,7 @@ The wizard SHALL present ten steps in order — provider, credential, connection
 
 1. **Provider** lists the presets in `providers.json` order followed by `Custom OpenAI-compatible endpoint…`, and shows each provider's region (from the preset; asked for a custom provider). After one provider is collected, the step lists every collected provider and offers **Add another provider…** and **Done** (the default). The custom path asks the endpoint, its API family (default `openai-chat`), its credential placement (default bearer; `x-api-key` for an Anthropic endpoint), its region and an optional models URL, and refuses an unknown family by name.
 2. **Credential** offers "use `<VAR>` from the environment" first when the provider's standard variable is already set (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENROUTER_API_KEY`, …), storing an `env:<VARIABLE>` reference; otherwise it reads a key through the masked prompt, and offers a `lunate auth`-stored key when one exists. A later provider may reuse a stored `env:`/`auth:` reference or type its own key. The credential value SHALL never be written to `providers.json` or `settings.json`.
-3. **Connection test** makes one real discovery request through the entry's models URL (the provider's, or the configured one), refusing to leave the entry's host; the failure text names what failed — network, authentication, or an undecipherable response — and offers going back to the credential step rather than aborting the wizard. There is no automatic retry; the go-back loop is the retry.
+3. **Connection test** makes one real discovery request through the entry's models URL (the provider's, or the configured one), refusing to leave the entry's host; the failure text names what failed — network, authentication, a rejected status, or an undecipherable response — and includes the underlying discovery message with any credential value redacted. A listing that cannot be parsed is an undecipherable response, never network. The step offers going back to the credential step rather than aborting the wizard. There is no automatic retry; the go-back loop is the retry.
 4. **Model** lists the models the discovery returned (search filters as text is typed); when discovery is unavailable or skipped, the step accepts a manually typed model id. The chosen model's API family is shown beside it.
 5. **Model check** makes one minimal real request through the model's resolved API family: one short completion for a chat profile, one tiny noul for a decision profile. The cost SHALL be stated before it runs and the check SHALL be skippable (`--no-model-check` on the flag path). A failure SHALL name the model, the family and the HTTP status or response shape, and offer going back to the model step; a skip or failure SHALL be marked unverified in the summary. A discovery success alone SHALL NOT count as a verified model.
 6. **Chat profile** asks the profile name and its thinking level, offering only the levels the chosen model supports; the question is skipped entirely for a model without a reasoning style.
@@ -80,6 +80,12 @@ Every step accepts skip; a skipped step leaves the value it would have configure
 - **GIVEN** a provider whose discovery URL returns an undecipherable body
 - **WHEN** the model step opens
 - **THEN** it accepts a manually typed model id and the wizard continues
+
+#### Scenario: An unreadable listing names its own message
+
+- **GIVEN** a provider whose discovery listing contains an entry with unreadable model metadata, and a credential that appears in the parser's message
+- **WHEN** the connection test fails
+- **THEN** the notice names an undecipherable response and the parser's message with the credential replaced by `[redacted]`
 
 #### Scenario: The model check catches a wrong model or family
 
