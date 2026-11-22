@@ -69,10 +69,15 @@ Agent event stream (RunFinished / RunError)
   vocabulary unchanged.
 - **A detached process starter is the production sender.** macOS gets one `osascript` invocation
   whose title and body travel in environment variables; Linux gets `notify-send` with the title and
-  body as separate arguments after `--`; Windows gets a PowerShell toast script with the text in
-  environment variables. All output is redirected and drained, and the process object is disposed
-  when it exits. Title and body are never interpolated into a shell command. Alternative: shelling
-  out with a command string, rejected for quoting and injection risk.
+  body as separate arguments after `--`; Windows gets a PowerShell script that shows a shell
+  notification-area balloon with the text in environment variables. The balloon is the transport
+  because an unpackaged Lunate has no AppUserModelID for the Windows Runtime `CreateToastNotifier`;
+  `Shell_NotifyIcon` needs no registered identity and Windows 10 and 11 render its balloon as a
+  toast. All output is redirected and drained, and the process object is disposed when it exits.
+  Title and body are never interpolated into a shell command. Alternative: shelling out with a
+  command string, rejected for quoting and injection risk; alternative: registering an
+  AppUserModelID with a Start-menu shortcut, rejected because the install channels (zip, Scoop,
+  WinGet, `dotnet tool`) do not all run a provisioning step.
 - **The turn gate owns all suppression and failure isolation.** It checks enabled, known-unfocused
   focus and elapsed duration, then calls the sender inside one catch-all. A sender failure is
   silent; the turn has already settled. Alternative: let the sender decide, rejected because then
@@ -87,8 +92,9 @@ Agent event stream (RunFinished / RunError)
   usage page states this limit, and the setting remains safe to leave on.
 - [The focus request adds escape bytes to the terminal] -> it is written once on raw-mode entry and
   once around a child handover, and a terminal that ignores it is unaffected.
-- [Windows toast needs an application identity] -> the PowerShell toast is best effort; a refused
-  toast is silent, matching the card's best-effort rule.
+- [A Windows notification could need an application identity] -> the shell notification-area
+  balloon needs none, and a refused or unavailable notification area is silent, matching the card's
+  best-effort rule.
 - [A notification process outlives a fast session exit] -> the process is detached and its output
   is drained; the operating system reaps it, and a failed start is swallowed.
 - [A short default threshold may surprise a user who expects immediate feedback] -> the threshold is

@@ -11,8 +11,8 @@ internal interface INotificationSender
 
 /// <summary>
 /// The production sender: chooses the host's notification command, starts it detached and drains
-/// its output. It never blocks the turn and never throws to it; a missing tool, a refused toast or
-/// a dead output stream is the same silent no-op.
+/// its output. It never blocks the turn and never throws to it; a missing tool, a refused
+/// notification or a dead output stream is the same silent no-op.
 /// </summary>
 internal sealed class DesktopNotificationSender : INotificationSender
 {

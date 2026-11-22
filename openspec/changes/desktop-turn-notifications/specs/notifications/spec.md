@@ -102,10 +102,13 @@ focus from keystrokes, process state, timing or a platform-specific window query
 ### Requirement: Platform transports are best effort
 
 The interactive session SHALL deliver a notification through the host platform's own command:
-`osascript` with a notification script on macOS, `notify-send` on Linux, and a PowerShell toast
-through the Windows Runtime on Windows. The notification text SHALL be passed without shell string
-interpolation, so a title or outcome containing quotes, newlines or backslashes cannot break the
-command. The transport SHALL start the command without waiting for it and SHALL discard its output.
+`osascript` with a notification script on macOS, `notify-send` on Linux, and a PowerShell
+notification through the Windows shell notification area on Windows. The Windows transport SHALL NOT
+use a Windows Runtime toast, because an unpackaged Lunate has no AppUserModelID registered by a
+Start-menu shortcut; the notification-area balloon needs no application identity and Windows 10 and
+11 render it as a toast. The notification text SHALL be passed without shell string interpolation,
+so a title or outcome containing quotes, newlines or backslashes cannot break the command. The
+transport SHALL start the command without waiting for it and SHALL discard its output.
 
 An unsupported platform, a missing command, a failed process start, a non-zero exit or a platform
 permission that refuses notifications SHALL be silent: it SHALL NOT throw into the turn, SHALL NOT
@@ -125,11 +128,13 @@ next eligible turn SHALL try again.
 - **THEN** one `osascript` command is started, and the title and body reach it as data rather than as
   unescaped source text
 
-#### Scenario: Windows uses a PowerShell toast
+#### Scenario: Windows uses the shell notification area
 
 - **GIVEN** a Windows session
 - **WHEN** an eligible turn ends
-- **THEN** one PowerShell toast command is started with the title and body supplied out of band
+- **THEN** one PowerShell command is started with the title and body supplied out of band, and it
+  shows the notification through the shell notification area rather than an unprovisioned Windows
+  Runtime toast identity
 
 #### Scenario: A failing notification never fails the turn
 

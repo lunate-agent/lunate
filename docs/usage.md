@@ -128,10 +128,12 @@ raw mode. A terminal that does not implement it, a remote session that strips th
 that never sends a focus report leaves the state unknown, so Lunate sends nothing rather than guess.
 That is the documented limit: notifications are a best-effort convenience, not a delivery guarantee.
 
-Delivery uses the host's own tool: `osascript` on macOS, `notify-send` on Linux and a PowerShell toast
-on Windows. A missing tool, a refused permission or a failing command is silent and never changes
-the turn, its output or its exit code. Notifications are interactive-only; print mode, ACP and child
-runs never send one.
+Delivery uses the host's own tool: `osascript` on macOS, `notify-send` on Linux and a PowerShell
+notification through the Windows shell's notification area. Windows would need a Start-menu shortcut
+with an application identity for a Windows Runtime toast; the notification-area balloon needs none,
+and Windows 10 and 11 render it as a toast. A missing tool, a refused permission or a failing
+command is silent and never changes the turn, its output or its exit code. Notifications are
+interactive-only; print mode, ACP and child runs never send one.
 
 ## Run limits
 

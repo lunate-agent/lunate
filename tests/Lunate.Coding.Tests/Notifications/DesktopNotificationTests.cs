@@ -38,7 +38,7 @@ public sealed class DesktopNotificationTests
     }
 
     [Fact]
-    public void Windows_passes_the_text_as_environment_data_to_powershell()
+    public void Windows_uses_the_shell_notification_area_and_no_app_identity()
     {
         NotificationCommand command = Assert.IsType<NotificationCommand>(
             DesktopNotificationCommand.For(NotificationPlatform.Windows, Message)
@@ -48,6 +48,15 @@ public sealed class DesktopNotificationTests
         Assert.Contains("-NoProfile", command.Arguments);
         Assert.DoesNotContain("release prep", string.Join(" ", command.Arguments));
         Assert.Equal("finished", command.Environment[DesktopNotificationCommand.BodyVariable]);
+        Assert.Equal("release prep", command.Environment[DesktopNotificationCommand.TitleVariable]);
+
+        string script = string.Join(" ", command.Arguments);
+
+        // An unpackaged app has no registered AppUserModelID, so a Windows Runtime toast cannot
+        // show; the shell notification area's balloon needs no identity and renders as a toast.
+        Assert.DoesNotContain("CreateToastNotifier", script, StringComparison.Ordinal);
+        Assert.Contains("System.Windows.Forms.NotifyIcon", script, StringComparison.Ordinal);
+        Assert.Contains("ShowBalloonTip", script, StringComparison.Ordinal);
     }
 
     [Fact]

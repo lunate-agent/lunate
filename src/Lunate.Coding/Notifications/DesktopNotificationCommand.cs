@@ -35,15 +35,24 @@ internal static class DesktopNotificationCommand
     private const string MacScript =
         "display notification (system attribute \"LUNATE_NOTIFY_BODY\") with title (system attribute \"LUNATE_NOTIFY_TITLE\")";
 
+    // The Windows Runtime toast API needs an AppUserModelID registered by a Start-menu shortcut,
+    // and an unpackaged Lunate has none. The shell notification area's balloon needs no identity,
+    // and Windows 10 and 11 render it as a toast notification. The helper stays alive while the
+    // balloon shows: hiding the icon removes it.
     private const string WindowsScript =
         "$ErrorActionPreference='Stop';"
-        + "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime] > $null;"
-        + "$template=[Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);"
-        + "$texts=$template.GetElementsByTagName('text');"
-        + "$texts.Item(0).AppendChild($template.CreateTextNode($env:LUNATE_NOTIFY_TITLE)) > $null;"
-        + "$texts.Item(1).AppendChild($template.CreateTextNode($env:LUNATE_NOTIFY_BODY)) > $null;"
-        + "$toast=[Windows.UI.Notifications.ToastNotification]::new($template);"
-        + "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Lunate').Show($toast)";
+        + "Add-Type -AssemblyName System.Windows.Forms;"
+        + "Add-Type -AssemblyName System.Drawing;"
+        + "$icon=New-Object System.Windows.Forms.NotifyIcon;"
+        + "$icon.Icon=[System.Drawing.SystemIcons]::Information;"
+        + "$icon.BalloonTipTitle=$env:LUNATE_NOTIFY_TITLE;"
+        + "$icon.BalloonTipText=$env:LUNATE_NOTIFY_BODY;"
+        + "$icon.BalloonTipIcon=[System.Windows.Forms.ToolTipIcon]::Info;"
+        + "$icon.Visible=$true;"
+        + "$icon.ShowBalloonTip(10000);"
+        + "Start-Sleep -Milliseconds 10000;"
+        + "$icon.Visible=$false;"
+        + "$icon.Dispose()";
 
     /// <summary>The host platform, with test seams for the two checks that choose a family.</summary>
     internal static NotificationPlatform Detect(

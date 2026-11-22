@@ -14,8 +14,10 @@ to discover that the work finished minutes ago.
 - The notification carries the session title (falling back to the session id) and the outcome:
   finished, cancelled, failed, or stopped by a length, step, token, cost or time limit.
 - Deliver through the platform's own tool: `osascript` on macOS, `notify-send` on Linux and a
-  PowerShell toast on Windows. Delivery is best effort; a missing tool, a failing command or an
-  unsupported platform is silent and never changes the turn's result.
+  PowerShell notification through the Windows shell notification area on Windows, because the
+  unpackaged app has no registered AppUserModelID for a Windows Runtime toast. Delivery is best
+  effort; a missing tool, a failing command or an unsupported platform is silent and never changes
+  the turn's result.
 - Track terminal focus with the standard xterm focus-reporting sequence (`CSI I` / `CSI O`, enabled
   by `DECSET 1004` in raw mode). A terminal that never reports focus leaves the state unknown, so
   Lunate sends no notification rather than guessing.
