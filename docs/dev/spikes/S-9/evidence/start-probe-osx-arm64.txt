@@ -3,7 +3,7 @@ Start probe on osx-arm64: 100 starts per publish shape, macOS 26.3.1, Apple M4, 
 Each start is `lunate --version` with an empty LUNATE_HOME; the exit status is what counts.
 ADR-0008 kept `EnableCompressionInSingleFile` out of the release because compressed single-file
 ReadyToRun builds died with AccessViolationException on macOS 26 arm64 under .NET 10.0.103
-(11/100 starts, docs/spikes/S-5/evidence/startup-crashes.txt).
+(11/100 starts, docs/dev/spikes/S-5/evidence/startup-crashes.txt).
 
   single file + ReadyToRun                      0/100 starts failed
   single file + ReadyToRun + compression        0/100 starts failed
