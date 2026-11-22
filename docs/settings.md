@@ -37,6 +37,8 @@ shown are the documented defaults the store applies when a key is missing.
 | `maxSteps` | integer | 50 | user | The maximum number of model calls in one run; defaults to 50. `--max-steps <n>` overrides it for the invocation. |
 | `maxTime` | integer | unset | user | The wall-clock ceiling of one run in seconds; off when unset. Print mode can override it with `--max-time`. |
 | `model` | string | unset | user | The default model id. `LUNATE_MODEL` overrides it. |
+| `notify` | boolean | false | user | Sends a desktop notification when a long interactive turn ends while the terminal window is not focused. Off by default; `--notify` enables it for one run. A failed notification never changes the turn's result. |
+| `notifyMinSeconds` | integer | 10 | user | The minimum turn duration in seconds before a desktop notification is sent; 0 removes the threshold. Has no effect unless `notify` or `--notify` enables notifications. |
 | `output.spillThresholdTokens` | integer | 2000 | user, project | The estimated-token threshold (UTF-8 bytes / 4) above which a tool result is spilled. A project file may lower it, never raise it. `LUNATE_TOOL_SPILL_THRESHOLD` overrides it. |
 | `output.toolResultLimit` | integer | 30000 | user, project | Characters of one tool result before truncation. A project file may lower it, never raise it. `LUNATE_TOOL_OUTPUT_LIMIT` overrides it. |
 | `profiles.<id>.apiFamily` | string | unset | user | The API family the model must resolve to (`openai-chat`, `openai-responses`, `anthropic-messages`, `google` or `systemone`); it wins over discovery and the catalog and selects one of the provider's own URLs. User scope only. |

@@ -14,7 +14,7 @@ using Spectre.Console.Testing;
 namespace Lunate.Coding.Tests;
 
 /// <summary>A channel-backed terminal: the test sends keys and records the painted writes.</summary>
-internal sealed class ScriptedConsoleIO : IConsoleIO
+internal sealed class ScriptedConsoleIO : IConsoleIO, ITerminalFocus
 {
     private readonly Channel<KeyEvent> _keys = Channel.CreateUnbounded<KeyEvent>();
     private readonly Subject<ConsoleSize> _resized = new();
@@ -22,6 +22,9 @@ internal sealed class ScriptedConsoleIO : IConsoleIO
     private readonly List<string> _typedAtChild = [];
 
     public bool IsInteractive { get; set; }
+
+    /// <summary>Scripted focus state; null is the unknown state of a terminal without reporting.</summary>
+    public bool? IsFocused { get; set; }
 
     public ConsoleSize Size { get; set; } = new(80, 24);
 
@@ -590,6 +593,7 @@ internal sealed class InteractiveSessionHost : IDisposable
         string? modelsPath = null,
         IClipboardImageSource? clipboard = null,
         ITextClipboard? textClipboard = null,
+        INotificationSender? notificationSender = null,
         Func<DateTimeOffset>? clock = null,
         string? editorTempDirectory = null,
         UpdateCheckSeams? updateCheck = null,
@@ -654,6 +658,7 @@ internal sealed class InteractiveSessionHost : IDisposable
             SecretPrompt = secretPrompt,
             Clipboard = clipboard,
             TextClipboard = textClipboard,
+            NotificationSender = notificationSender,
             Clock = clock,
             EditorTempDirectory = editorTempDirectory,
             UpdateCheck = updateCheck,

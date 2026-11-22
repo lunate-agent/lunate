@@ -230,6 +230,12 @@ internal static class CliHelp
             "  --offline                      skip the daily update check for this run"
         );
         output.WriteLine(
+            "  --notify                       send a desktop notification when a long turn ends"
+        );
+        output.WriteLine(
+            "                                 while the terminal window is not focused"
+        );
+        output.WriteLine(
             "  --fullscreen                   run the session on the alternate screen; inline is"
         );
         output.WriteLine("                                 the default");
