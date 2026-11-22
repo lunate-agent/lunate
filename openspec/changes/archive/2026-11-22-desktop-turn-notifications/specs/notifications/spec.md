@@ -1,3 +1,8 @@
+## Purpose
+The opt-in desktop notification of a long interactive turn: the settings and launch flag, the
+duration and focus gates, the session title and outcome, the platform transports, and the
+best-effort rule that a failed notification never changes the turn.
+
 ## ADDED Requirements
 
 ### Requirement: Opt-in desktop notification for a long turn
