@@ -464,6 +464,46 @@ public sealed partial class AgentHarness
         CancellationToken ct
     )
     {
+        (JsonElement approvedArgs, ToolResult? blocked) = await PrepareToolCallAsync(
+            tool,
+            runId,
+            callId,
+            args,
+            channel,
+            ct
+        );
+        if (blocked is { } block)
+        {
+            return block;
+        }
+
+        ToolResult result = await ExecuteToolBodyAsync(
+            tool,
+            runId,
+            callId,
+            approvedArgs,
+            channel,
+            nestedDepth,
+            nestedCalls,
+            ct
+        );
+        return await ApplyToolResultReadyAsync(tool, runId, callId, approvedArgs, result, ct);
+    }
+
+    /// <summary>
+    /// The pre-execution half of a call: the <c>ToolCalling</c> hook, then the approval seam. It is
+    /// kept separate from the body so the parallel read-only batch can approve every call in order
+    /// and then run only the approved bodies concurrently.
+    /// </summary>
+    private async ValueTask<(JsonElement ApprovedArgs, ToolResult? Blocked)> PrepareToolCallAsync(
+        ITool tool,
+        string runId,
+        string callId,
+        JsonElement args,
+        AgentEventChannel channel,
+        CancellationToken ct
+    )
+    {
         (JsonElement approvedArgs, ToolResult? blocked) = await ApplyToolCallingAsync(
             tool,
             runId,
@@ -473,7 +513,7 @@ public sealed partial class AgentHarness
         );
         if (blocked is { } block)
         {
-            return block;
+            return (approvedArgs, block);
         }
 
         try
@@ -507,9 +547,12 @@ public sealed partial class AgentHarness
                     {
                         if (decisionApprover is not IUserPromptToolApprover promptApprover)
                         {
-                            return new ToolResult(
-                                "Decision escalated, but no user was present; the call was denied.",
-                                IsError: true
+                            return (
+                                approvedArgs,
+                                new ToolResult(
+                                    "Decision escalated, but no user was present; the call was denied.",
+                                    IsError: true
+                                )
                             );
                         }
 
@@ -523,9 +566,12 @@ public sealed partial class AgentHarness
                         };
                         if (!await promptApprover.PromptAsync(approvalRequest, ct))
                         {
-                            return new ToolResult(
-                                $"Denied: '{tool.Name}' was not run. Explain why the call is needed and ask before retrying.",
-                                IsError: true
+                            return (
+                                approvedArgs,
+                                new ToolResult(
+                                    $"Denied: '{tool.Name}' was not run. Explain why the call is needed and ask before retrying.",
+                                    IsError: true
+                                )
                             );
                         }
 
@@ -539,9 +585,12 @@ public sealed partial class AgentHarness
                     && !await decisionApprover.ApproveAsync(approvalRequest, ct)
                 )
                 {
-                    return new ToolResult(
-                        $"Denied: '{tool.Name}' was not run. Explain why the call is needed and ask before retrying.",
-                        IsError: true
+                    return (
+                        approvedArgs,
+                        new ToolResult(
+                            $"Denied: '{tool.Name}' was not run. Explain why the call is needed and ask before retrying.",
+                            IsError: true
+                        )
                     );
                 }
             }
@@ -549,16 +598,33 @@ public sealed partial class AgentHarness
         catch (Exception exception)
             when (exception is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            return new ToolResult(
-                $"Approval for tool '{tool.Name}' failed: {exception.Message}. The call was not run.",
-                IsError: true
+            return (
+                approvedArgs,
+                new ToolResult(
+                    $"Approval for tool '{tool.Name}' failed: {exception.Message}. The call was not run.",
+                    IsError: true
+                )
             );
         }
 
-        ToolResult result;
+        return (approvedArgs, null);
+    }
+
+    /// <summary>The tool body and its exception-to-error-result conversion, without the hooks.</summary>
+    private async Task<ToolResult> ExecuteToolBodyAsync(
+        ITool tool,
+        string runId,
+        string callId,
+        JsonElement approvedArgs,
+        AgentEventChannel channel,
+        int nestedDepth,
+        List<SessionNestedCall>? nestedCalls,
+        CancellationToken ct
+    )
+    {
         try
         {
-            result = await tool.ExecuteAsync(
+            return await tool.ExecuteAsync(
                 approvedArgs,
                 BuildToolContext(runId, callId, channel, nestedDepth, nestedCalls, ct),
                 ct
@@ -575,8 +641,6 @@ public sealed partial class AgentHarness
                 IsError: true
             );
         }
-
-        return await ApplyToolResultReadyAsync(tool, runId, callId, approvedArgs, result, ct);
     }
 
     private async ValueTask<(JsonElement Args, ToolResult? Blocked)> ApplyToolCallingAsync(
