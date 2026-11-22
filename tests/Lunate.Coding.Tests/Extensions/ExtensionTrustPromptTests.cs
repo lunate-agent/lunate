@@ -67,6 +67,34 @@ public sealed class ExtensionTrustPromptTests
     }
 
     [Fact]
+    public void The_trust_details_carry_the_watch_list_as_information()
+    {
+        ExtensionTrustRequest request = new(
+            Descriptor("hello", "/work/.lunate/extensions/hello") with
+            {
+                Manifest = ExtensionManifest.Parse(
+                    """{"id":"hello","version":"0.1.0","apiVersion":"^1.0.0","entryAssembly":"E.dll","events":["run_started","tool_call_result"]}""",
+                    "/work/.lunate/extensions/hello/extension.json"
+                ),
+            },
+            FilesChanged: false
+        );
+
+        Assert.Equal(
+            ["watches run_started, tool_call_result (information, not a permission)"],
+            TrustFormat.ExtensionDetails(request)
+        );
+        Assert.Empty(
+            TrustFormat.ExtensionDetails(
+                request with
+                {
+                    Descriptor = Descriptor("plain", "/work/x"),
+                }
+            )
+        );
+    }
+
+    [Fact]
     public async Task The_non_interactive_prompt_refuses_a_single_file_and_names_it()
     {
         var log = new RecordingExtensionLog();

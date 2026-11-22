@@ -18,6 +18,22 @@ internal sealed class AgentEventChannel(string? sessionId = null) : IAgentEvents
 
     public void Complete() => _channel.Writer.TryComplete();
 
+    /// <summary>
+    /// Reads what a per-call buffer already holds and closes it. The parallel read-only batch uses
+    /// one channel per tool body and replays these events in call order after the bodies finish.
+    /// </summary>
+    internal IReadOnlyList<AgentEvent> Drain()
+    {
+        _channel.Writer.TryComplete();
+        List<AgentEvent> events = [];
+        while (_channel.Reader.TryRead(out AgentEvent agentEvent))
+        {
+            events.Add(agentEvent);
+        }
+
+        return events;
+    }
+
     public IAsyncEnumerable<AgentEvent> ReadAllAsync(
         CancellationToken cancellationToken = default
     ) => _channel.Reader.ReadAllAsync(cancellationToken);

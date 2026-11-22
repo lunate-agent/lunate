@@ -267,6 +267,7 @@ public sealed partial class ExtensionLoader
     private async Task RollbackAsync(string id, AssemblyLoadContext? context)
     {
         ExtensionContext? extensionContext = DropRegistrations(id);
+        await _eventStream.CompleteExtensionAsync(id, CancellationToken.None).ConfigureAwait(false);
         await _backgroundServices.DropAsync(id).ConfigureAwait(false);
         if (_remoteExtensions.Remove(id, out RemoteExtension? remote))
         {
@@ -337,6 +338,7 @@ public sealed partial class ExtensionLoader
                     registration,
                     descriptor.Manifest.WriteVerifiers
                 ),
+            _eventStream,
             _modelRegistry.RegisterProvider,
             _modelRegistry.RegisterModelMiddleware,
             _modelRegistry.RegisterVirtualModel,

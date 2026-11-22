@@ -30,14 +30,15 @@ internal static class AcpTestSupport
 
     public static AcpRuntime Start(
         Func<AcpSessionContext, AgentHarness> createHarness,
-        Action<string>? log = null
+        Action<string>? log = null,
+        Func<Action<string>?, IAcpServer>? createServer = null
     )
     {
         var toServer = new Pipe();
         var toClient = new Pipe();
         var state = new RecordingClient();
         Task serverTask = Task.Run(() =>
-            new LibAcpServer(log).RunAsync(
+            (createServer?.Invoke(log) ?? new LibAcpServer(log)).RunAsync(
                 toServer.Reader.AsStream(),
                 toClient.Writer.AsStream(),
                 createHarness,
@@ -524,6 +525,39 @@ internal sealed class GatedTool : ITool
         started.TrySetResult();
         await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
         return new ToolResult("unreachable", IsError: false);
+    }
+}
+
+/// <summary>A tool that runs a subagent child, so a test can observe child-run events.</summary>
+internal sealed class SpawnTool : ITool
+{
+    public string Name => "spawn";
+
+    public string Description => "Spawns a subagent.";
+
+    public JsonElement ParametersSchema { get; } =
+        JsonSerializer.SerializeToElement(
+            new
+            {
+                type = "object",
+                properties = new { prompt = new { type = "string" } },
+                required = new[] { "prompt" },
+            }
+        );
+
+    public ToolRisk Risk => ToolRisk.ReadOnly;
+
+    public async Task<ToolResult> ExecuteAsync(
+        JsonElement args,
+        ToolContext ctx,
+        CancellationToken ct
+    )
+    {
+        SubagentResult result = await ctx.Subagents!.RunAsync(
+            new SubagentRequest(args.GetProperty("prompt").GetString()!),
+            ct
+        );
+        return new ToolResult(result.Output, result.IsError);
     }
 }
 

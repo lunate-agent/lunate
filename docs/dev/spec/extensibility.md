@@ -16,7 +16,7 @@ Status: working spec under ADR-0017. The durable decisions live in `adr/0017-ext
 
 - **Assembly**: `Lunate.Extensibility.Abstractions` — semver'd, PublicAPI-tracked. Extensions reference it and `Microsoft.Extensions.AI.Abstractions`; nothing else from Lunate. The contract carries the core `Lunate.Agent` tool types (`ToolContext`, `ToolResult`, annotations, exposure, risk) transitively, so a tool handler is written against the one core tool model.
 - **ALC sharing**: the contract assemblies (`Lunate.Extensibility.Abstractions` and the `Lunate.Agent` types it references), `Microsoft.Extensions.AI.Abstractions` and `System.Text.Json` are shared in the default `AssemblyLoadContext`; everything else an extension brings is private to its collectible ALC.
-- **Manifest** `extension.json`: `id`, `version`, `apiVersion` range, `entryAssembly`, declared `tools`/`commands`/`hooks`/`services`, `settingsSchema` (JSON schema), `capabilities` (informational). Incompatible `apiVersion` → clear refusal at load.
+- **Manifest** `extension.json`: `id`, `version`, `apiVersion` range, `entryAssembly`, declared `tools`/`commands`/`hooks`/`events`/`services`, `settingsSchema` (JSON schema), `capabilities` (informational). Incompatible `apiVersion` → clear refusal at load.
 - **Lifecycle**: the factory registers only (no processes, sockets, timers). Long-lived resources start in `SessionStarted` (safe to run more than once) or on first use and stop in an idempotent `SessionEnding`. Reload unloads the ALC; state does not survive.
 - **Settings and secrets**: per-extension settings validated against `settingsSchema`; secrets are namespaced and never written to session files.
 - **Discovery**: `~/.lunate/extensions/` (global) and `.lunate/extensions/` (project). Manifests are read at startup; assemblies load on first use. Project extensions run repository code and need a one-time approval per repository, re-prompted when files change (content hash). `/extensions` shows scope, state, load time.
@@ -66,6 +66,43 @@ Rules:
 - Prefer appending prompt/tool changes over rewriting the prefix (prompt caching).
 - Every hook payload and result is a JSON DTO; a conformance test round-trips them all through `System.Text.Json`.
 - The `ToolResultReady` payload carries the call's arguments as approved, so handlers act on what ran without parsing output text; the result may replace the output, attach model-facing structured content, and set UI-only details.
+
+## Observable event stream
+
+Next to the intercepting hook catalogue the contract offers one observing surface,
+`IExtensionContext.Events` — a BCL `IObservable<AgentEvent>` (ADR-0040). The two surfaces do not
+overlap: a hook has a typed result, an order, a timeout and a failure policy, and it sits on the
+run's path; an observer has a stream and nothing else. Observing is never expressed as a hook, and
+the catalogue gains no payload or result per event kind.
+
+- **Hot and session-scoped.** One subscription per extension, live until the extension unloads or
+  the session ends. It carries every run, every child run (ids intact, `ParentRunId` set) and every
+  extension event.
+- **Off the run's path.** `Publish` only enqueues. Each subscription has its own bounded queue
+  (256 events) drained by its own pump, so a slow subscriber delays only itself; on overflow the
+  oldest event is dropped, counted per subscription, warned about once naming the extension, and
+  shown by `/extensions` as `events <seen> seen, <dropped> dropped`. `OnNext` must return quickly:
+  durable work belongs in a background service, deciding work in a hook.
+- **Error isolation and completion per subscription.** A throw from any observer callback is caught,
+  logged once naming the extension and drops that subscription; the run and the other subscribers
+  are unaffected. `OnError` is never the failure channel (a failed run is a `RunError` event);
+  `OnCompleted` fires once, after the queued events, at session end or on unload, and a publisher
+  delivers nothing after it. Disposing the subscription stops it without a completion callback.
+- **Who publishes.** The front end that iterates a run publishes each event it receives — the
+  interactive session and print mode — through `ExtensionSession`. The harness stays
+  `IAsyncEnumerable<AgentEvent>` (ADR-0007) and knows nothing about extensions. A front end that
+  composes the extension host and iterates a harness publishes the same way.
+- **Manifest declaration.** `events` names the `--json` event kinds the extension watches, or `["*"]`
+  alone for everything; a single-file header declares the same list with `#:event`. It is
+  information, not a permission: in-process delivery is not filtered by it, `/extensions` shows it as
+  `watches …`, and the interactive trust question carries it as a detail line. Out-of-process
+  extensions do not receive the stream yet: the `event/` projection over protocol version 3, its
+  conformance entry, the refusal path for a protocol-2 host and the node-remote sample are ADR-0040's
+  follow-up card, and a remote manifest that declares `events` logs one warning until then.
+- **Same records as the other projections.** `--json` and ACP render the same `AgentEvent` union;
+  there is no second event model and an observer never writes to stdout.
+- **File changes stay separate.** `IFileChangeBus` keeps its handler-shaped subscription; it predates
+  this surface and is not migrated.
 
 ## Tool model
 

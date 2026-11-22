@@ -14,6 +14,10 @@ turn at any point.
 
 A tool that fails reports what failed and what to do next back to the model as text, not as a crash.
 
+When one model turn asks for several independent read-only calls — `read`, `grep`, `find`, `ls`,
+`web_search` or `web_fetch` — Lunate runs them together under a small fixed cap. Writes, edits,
+`bash` and a tool that opts out with sequential concurrency keep their turn order.
+
 ## The tools are the only way it acts
 
 Nine built-in tools do the work: `read`, `write`, `edit`, `bash`, `bash_output`, `bash_kill`, `todo`,

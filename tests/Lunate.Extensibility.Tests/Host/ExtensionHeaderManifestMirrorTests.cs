@@ -22,6 +22,7 @@ public sealed class ExtensionHeaderManifestMirrorTests
             [
                 "Capabilities",
                 "Commands",
+                "Events",
                 "Hooks",
                 "ModelProviders",
                 "Services",
@@ -87,6 +88,7 @@ public sealed class ExtensionHeaderManifestMirrorTests
             #:tool a-tool
             #:command a-command
             #:hook a-hook
+            #:event a-kind
             #:service a-service
             #:capability a-capability
             #:provider a-provider
