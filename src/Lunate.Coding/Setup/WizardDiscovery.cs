@@ -97,8 +97,22 @@ internal static class WizardDiscovery
                 )
                 .ConfigureAwait(false);
 
-        return result.Succeeded ? List(result.Draft) : Classify(result.Error ?? "discovery failed");
+        if (result.Succeeded)
+        {
+            return List(result.Draft);
+        }
+
+        WizardDiscoveryResult failure = Classify(result.Error ?? "discovery failed");
+        return Redact(failure, CredentialValue(provider, credential, environment, namedKeySource));
     }
+
+    private static WizardDiscoveryResult Redact(WizardDiscoveryResult result, string? credential) =>
+        result.Error is { Length: > 0 } error && credential is { Length: > 0 }
+            ? result with
+            {
+                Error = error.Replace(credential, "[redacted]", StringComparison.Ordinal),
+            }
+            : result;
 
     /// <summary>The credential the discovery request sends, resolved like the auth picker's probe:
     /// the typed key first, then the referenced source (`env:` variable, `auth:` stored key).</summary>
@@ -217,16 +231,12 @@ internal static class WizardDiscovery
             return Fail(WizardFailureKind.Rejected, message);
         }
 
-        if (
-            message.Contains("not valid JSON", StringComparison.Ordinal)
-            || message.Contains("does not contain", StringComparison.Ordinal)
-            || message.Contains("without an id", StringComparison.Ordinal)
-        )
+        if (message.StartsWith("Discovering models from ", StringComparison.Ordinal))
         {
-            return Fail(WizardFailureKind.Undecipherable, message);
+            return Fail(WizardFailureKind.Network, message);
         }
 
-        return Fail(WizardFailureKind.Network, message);
+        return Fail(WizardFailureKind.Undecipherable, message);
     }
 
     private static WizardDiscoveryResult Fail(WizardFailureKind kind, string message) =>

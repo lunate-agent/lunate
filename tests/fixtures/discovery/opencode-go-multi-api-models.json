@@ -1,0 +1,75 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "recommended-supported",
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "capabilities": { "tools": { "supported": true } },
+      "limit": { "context": 1048576, "output": 65536 },
+      "api": {
+        "generate-content": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        },
+        "interactions": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        }
+      },
+      "recommended_api": "generate-content"
+    },
+    {
+      "id": "recommended-live-interactions",
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "capabilities": { "tools": { "supported": true } },
+      "limit": { "context": 1048576, "output": 65536 },
+      "api": {
+        "generate-content": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        },
+        "interactions": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        }
+      },
+      "recommended_api": "interactions"
+    },
+    {
+      "id": "without-recommendation",
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "capabilities": { "tools": { "supported": true } },
+      "limit": { "context": 1048576, "output": 65536 },
+      "api": {
+        "generate-content": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        },
+        "interactions": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        }
+      }
+    },
+    {
+      "id": "recommended-undeclared",
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "capabilities": { "tools": { "supported": true } },
+      "limit": { "context": 1048576, "output": 65536 },
+      "api": {
+        "generate-content": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        },
+        "interactions": {
+          "base_url": "https://opencode.ai/inference/go/google/v1beta"
+        }
+      },
+      "recommended_api": "responses"
+    },
+    {
+      "id": "ordinary-entry",
+      "modalities": { "input": ["text"], "output": ["text"] },
+      "capabilities": { "tools": { "supported": true } },
+      "limit": { "context": 128000, "output": 8192 },
+      "api": {
+        "chat-completions": {
+          "base_url": "https://opencode.ai/inference/go/openai/v1"
+        }
+      }
+    }
+  ]
+}

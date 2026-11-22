@@ -79,6 +79,42 @@ public sealed class SetupWizardModelStepTests
         await run;
     }
 
+    [PosixFact]
+    public async Task A_failed_connection_notice_shows_the_underlying_message_with_the_key_redacted()
+    {
+        using var host = new InteractiveSessionHost(
+            freshInstall: true,
+            interactiveConsole: true,
+            discoveryTransport: Response(
+                200,
+                File.ReadAllText(Fixture("undecipherable-models.json"))
+            )
+        );
+        Task run = host.RunAsync();
+        await host.WaitUntilAsync(() => host.Session.IsComposed);
+
+        await host.WaitForFrameAsync("Select provider");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Credential for openai");
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("API key for openai");
+        host.Console.SendText(Credential);
+        host.Console.SendEnter();
+        await host.WaitForFrameAsync("Connection test (one discovery request");
+        host.Console.SendEnter(); // run the test
+        await host.WaitForFrameAsync("connection test failed");
+
+        Assert.Contains("undecipherable response", host.Frames, StringComparison.Ordinal);
+        Assert.Contains("invalid API base_url", host.Frames, StringComparison.Ordinal);
+        Assert.Contains("[redacted]", host.Frames, StringComparison.Ordinal);
+        Assert.DoesNotContain(Credential, host.Frames, StringComparison.Ordinal);
+
+        host.Console.SendEscape();
+        await host.WaitUntilAsync(() => !host.Session.IsRunning);
+        host.Console.Complete();
+        await run;
+    }
+
     /// <summary>
     /// Regression: a confirmed wizard pick's continuation opens the next step's picker. The
     /// dismissal used to complete the pick first, so a dismissal still running when that
@@ -147,4 +183,7 @@ public sealed class SetupWizardModelStepTests
                     }
                 )
         );
+
+    private static string Fixture(string name) =>
+        Path.Combine(RepositoryRoot.Find(), "tests", "fixtures", "discovery", name);
 }

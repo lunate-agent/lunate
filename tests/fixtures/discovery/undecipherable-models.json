@@ -1,0 +1,13 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "unreadable-metadata",
+      "api": {
+        "chat-completions": {
+          "base_url": "model-step-test-key is not a base URL"
+        }
+      }
+    }
+  ]
+}

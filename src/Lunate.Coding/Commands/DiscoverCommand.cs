@@ -309,17 +309,21 @@ public static class DiscoverCommand
                 }
 
                 string listed = id.GetString()!;
-                if (
-                    !DiscoveryModelMetadataReader.TryRead(
-                        entry,
-                        baseUrl,
-                        pinnedToHost,
-                        out DiscoveryModelMetadata? metadata,
-                        out string? metadataError
-                    )
-                )
+                DiscoveryMetadataRead read = DiscoveryModelMetadataReader.Read(
+                    entry,
+                    baseUrl,
+                    pinnedToHost,
+                    out DiscoveryModelMetadata? metadata,
+                    out string? metadataError
+                );
+                if (read == DiscoveryMetadataRead.Invalid)
                 {
                     return Failure($"Model '{listed}' {metadataError}.");
+                }
+
+                if (read == DiscoveryMetadataRead.Skip)
+                {
+                    continue;
                 }
 
                 string? endpoint = metadata?.Endpoint?.AbsoluteUri.TrimEnd('/')

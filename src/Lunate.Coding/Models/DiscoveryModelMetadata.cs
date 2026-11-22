@@ -15,10 +15,19 @@ internal sealed record DiscoveryModelMetadata(
     ModelCapabilityDescriptor? Capabilities
 );
 
+/// <summary>How a listing entry's metadata was read: a model to draft, an entry to skip, or an
+/// entry that makes the listing unreadable.</summary>
+internal enum DiscoveryMetadataRead
+{
+    Read,
+    Skip,
+    Invalid,
+}
+
 /// <summary>Maps the per-model metadata returned by OpenCode Go's OpenAI-compatible listing.</summary>
 internal static class DiscoveryModelMetadataReader
 {
-    public static bool TryRead(
+    public static DiscoveryMetadataRead Read(
         JsonElement model,
         string configuredBaseUrl,
         bool pinToConfiguredHost,
@@ -30,16 +39,59 @@ internal static class DiscoveryModelMetadataReader
         error = null;
         if (!model.TryGetProperty("api", out JsonElement apis))
         {
-            return true;
+            return DiscoveryMetadataRead.Read;
         }
 
-        if (apis.ValueKind != JsonValueKind.Object || apis.EnumerateObject().Count() != 1)
+        if (apis.ValueKind != JsonValueKind.Object)
         {
-            error = "has an 'api' object that does not name exactly one API family";
-            return false;
+            return Invalid(
+                "has an 'api' object that does not name exactly one API family",
+                out error
+            );
         }
 
-        JsonProperty api = apis.EnumerateObject().Single();
+        // A recommendation may sit beside the families or inside the object; it is not a family.
+        JsonProperty[] declared =
+        [
+            .. apis.EnumerateObject().Where(property => property.Name != "recommended_api"),
+        ];
+        if (declared.Length == 0)
+        {
+            return Invalid(
+                "has an 'api' object that does not name exactly one API family",
+                out error
+            );
+        }
+
+        bool several = declared.Length > 1;
+        JsonProperty api;
+        if (several)
+        {
+            string? recommended = ReadString(model, "recommended_api")
+                ?? ReadString(apis, "recommended_api");
+            if (recommended is null)
+            {
+                return DiscoveryMetadataRead.Skip;
+            }
+
+            JsonProperty? selected = declared
+                .Where(property =>
+                    string.Equals(property.Name, recommended, StringComparison.Ordinal)
+                )
+                .Select(property => (JsonProperty?)property)
+                .FirstOrDefault();
+            if (selected is not { } chosen)
+            {
+                return DiscoveryMetadataRead.Skip;
+            }
+
+            api = chosen;
+        }
+        else
+        {
+            api = declared[0];
+        }
+
         string? family = api.Name switch
         {
             "chat-completions" => ProviderApiFamilies.OpenAiChat,
@@ -51,14 +103,16 @@ internal static class DiscoveryModelMetadataReader
         };
         if (family is null)
         {
-            error = $"names unsupported API family '{api.Name}'";
-            return false;
+            return several
+                ? DiscoveryMetadataRead.Skip
+                : Invalid($"names unsupported API family '{api.Name}'", out error);
         }
 
         if (api.Value.ValueKind != JsonValueKind.Object)
         {
-            error = $"has invalid metadata for API family '{api.Name}'";
-            return false;
+            return several
+                ? DiscoveryMetadataRead.Skip
+                : Invalid($"has invalid metadata for API family '{api.Name}'", out error);
         }
 
         Uri? endpoint = null;
@@ -74,8 +128,9 @@ internal static class DiscoveryModelMetadataReader
                 || (endpoint.Scheme == "http" && !endpoint.IsLoopback)
             )
             {
-                error = $"has an invalid API base_url '{baseUrl}'";
-                return false;
+                return several
+                    ? DiscoveryMetadataRead.Skip
+                    : Invalid($"has an invalid API base_url '{baseUrl}'", out error);
             }
 
             if (
@@ -88,9 +143,12 @@ internal static class DiscoveryModelMetadataReader
                 )
             )
             {
-                error =
-                    $"has API base_url host '{endpoint.Host}' outside the custom provider's configured host";
-                return false;
+                return several
+                    ? DiscoveryMetadataRead.Skip
+                    : Invalid(
+                        $"has API base_url host '{endpoint.Host}' outside the custom provider's configured host",
+                        out error
+                    );
             }
         }
 
@@ -138,8 +196,19 @@ internal static class DiscoveryModelMetadataReader
                     features
                 )
         );
-        return true;
+        return DiscoveryMetadataRead.Read;
     }
+
+    private static DiscoveryMetadataRead Invalid(string message, out string? error)
+    {
+        error = message;
+        return DiscoveryMetadataRead.Invalid;
+    }
+
+    private static string? ReadString(JsonElement element, string name) =>
+        Property(element, name) is { ValueKind: JsonValueKind.String } value
+            ? value.GetString()
+            : null;
 
     private static JsonElement Property(JsonElement element, string name) =>
         element.ValueKind == JsonValueKind.Object
