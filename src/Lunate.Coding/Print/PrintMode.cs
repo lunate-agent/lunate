@@ -393,7 +393,8 @@ internal static class PrintMode
                 var imageInputs = new ImageInputResolver(
                     workspace.WorktreeRoot,
                     model,
-                    options.Clipboard ?? new PlatformClipboardImageSource()
+                    options.Clipboard ?? new PlatformClipboardImageSource(),
+                    VisionFallback.TryResolveProfile(settings, providers, catalog) is not null
                 );
                 ImageInputResult input = await imageInputs.ResolveAsync(options.Prompt, ct);
                 if (input.Outcome != ImageInputOutcome.Ready)
@@ -893,12 +894,31 @@ internal static class PrintMode
             [],
             SessionContext(session)
         );
-        IReadOnlyDictionary<string, UsageModelClient>? decisionUsageModels = decisionModel is null
+        ResolvedModelProfile? visionProfile = VisionFallback.TryResolveProfile(
+            settings,
+            providers,
+            catalog
+        );
+        var usageModels = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal);
+        if (decisionModel is not null)
+        {
+            usageModels["decision"] = decisionModel;
+        }
+
+        if (visionProfile is not null)
+        {
+            usageModels[VisionFallback.Usage] = VisionFallback.CreateClient(
+                visionProfile,
+                auth,
+                options.Environment ?? Environment.GetEnvironmentVariable,
+                factory,
+                SessionContext(session)
+            );
+        }
+
+        IReadOnlyDictionary<string, UsageModelClient>? resolvedUsageModels = usageModels.Count == 0
             ? null
-            : new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
-            {
-                ["decision"] = decisionModel,
-            };
+            : usageModels;
         // The routing consumer is wired like the interactive session: a routed selection applies
         // to the run nobody watches too. Unresolved routing profiles are a settings-validation
         // error before this point, so a resolution failure is a run error, not a degraded gate.
@@ -914,7 +934,7 @@ internal static class PrintMode
             RoutingMinConfidence = settings.Decisions.RoutingMinConfidence,
             ApprovalsThreshold = settings.Decisions.ApprovalsThreshold,
             DecideTool = settings.Decisions.Tool,
-            UsageModels = decisionUsageModels,
+            UsageModels = resolvedUsageModels,
             SystemPrompt = SystemPrompt.Compose(
                 workspace,
                 ToolNames(),

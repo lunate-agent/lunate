@@ -424,12 +424,31 @@ internal static class AcpMode
             [],
             new RequestContext(session.SessionId)
         );
-        IReadOnlyDictionary<string, UsageModelClient>? usageModels = decisionModel is null
+        ResolvedModelProfile? visionProfile = VisionFallback.TryResolveProfile(
+            effective,
+            providers,
+            models
+        );
+        var usageModels = new Dictionary<string, UsageModelClient>(StringComparer.Ordinal);
+        if (decisionModel is not null)
+        {
+            usageModels["decision"] = decisionModel;
+        }
+
+        if (visionProfile is not null)
+        {
+            usageModels[VisionFallback.Usage] = VisionFallback.CreateClient(
+                visionProfile,
+                auth,
+                static name => Environment.GetEnvironmentVariable(name),
+                clientFactory,
+                new RequestContext(session.SessionId)
+            );
+        }
+
+        IReadOnlyDictionary<string, UsageModelClient>? resolvedUsageModels = usageModels.Count == 0
             ? null
-            : new Dictionary<string, UsageModelClient>(StringComparer.Ordinal)
-            {
-                ["decision"] = decisionModel,
-            };
+            : usageModels;
         // The routing consumer is wired like the interactive session: an editor session is
         // selected between the configured profiles it configured. Unresolved routing profiles
         // are a settings-validation error before this point, so a resolution failure is a
@@ -463,7 +482,7 @@ internal static class AcpMode
             RoutingMinConfidence = effective.Decisions.RoutingMinConfidence,
             ApprovalsThreshold = effective.Decisions.ApprovalsThreshold,
             DecideTool = effective.Decisions.Tool,
-            UsageModels = usageModels,
+            UsageModels = resolvedUsageModels,
             Approver = context.ClientApprover is { } clientApprover
                 ? new AcpApprover(effective.Approval, clientApprover)
                 : new NonInteractiveApprover(effective.Approval, yolo: false),

@@ -207,6 +207,24 @@ public sealed class ImageInputResolverTests
     }
 
     [Fact]
+    public async Task A_known_text_only_model_is_allowed_when_a_vision_fallback_is_configured()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllBytes(temp.File("diagram.png"), ImageSamples.Png(64, 32));
+        var resolver = new ImageInputResolver(
+            temp.Root,
+            TextModel,
+            allowVisionFallback: true
+        );
+
+        ImageInputResult result = await ResolveAsync(resolver, "@diagram.png");
+
+        Assert.Equal(ImageInputOutcome.Ready, result.Outcome);
+        Assert.Equal("[image 64x32]", result.Text);
+        Assert.Single(result.Images!);
+    }
+
+    [Fact]
     public async Task Unknown_image_support_is_allowed_to_reach_the_provider()
     {
         using var temp = new TempDirectory();
