@@ -54,7 +54,14 @@ derive() {
 }
 
 self_test() {
-    local failures=0 checks=0 want got key
+    local failures=0 checks=0 want got key api
+    # The contract version is Directory.Build.props' own: the self-test proves the derivation's rule (the tag's
+    # suffix, the preview marker), not a number that every contract bump would have to edit here (#992, #996).
+    api="$(api_version)"
+    if [ -z "${api}" ]; then
+        echo "release-versions: FAIL: Directory.Build.props has no <ContractApiVersion>" >&2
+        return 1
+    fi
 
     check() {
         local label="$1" tag="$2" key_name="$3" expected="$4" out
@@ -69,9 +76,9 @@ self_test() {
 
     # An RC tag: nothing stable leaves the pipeline.
     check "RC" v0.2.0-rc.1 TOOL 0.2.0-rc.1
-    check "RC" v0.2.0-rc.1 CONTRACTS 1.17.0-rc.1
+    check "RC" v0.2.0-rc.1 CONTRACTS "${api}-rc.1"
     check "RC" v0.2.0-rc.1 PREVIEW 0.2.0-rc.1
-    check "RC" v0.2.0-rc.1 TEMPLATE 1.17.0-rc.1
+    check "RC" v0.2.0-rc.1 TEMPLATE "${api}-rc.1"
 
     # The invariant, stated as such: every version derived from an RC tag carries a prerelease.
     checks=$((checks + 1))
@@ -86,9 +93,9 @@ self_test() {
     done < <(derive v0.2.0-rc.1)
 
     # A final tag: the contracts are stable, the previews carry the preview marker.
-    check "final" v0.2.0 CONTRACTS 1.17.0
+    check "final" v0.2.0 CONTRACTS "${api}"
     check "final" v0.2.0 PREVIEW 0.2.0-preview.1
-    check "final" v0.2.0 TEMPLATE 1.17.0
+    check "final" v0.2.0 TEMPLATE "${api}"
     check "final" v0.2.0 TOOL 0.2.0
 
     # No template may pin a Lunate package to a literal version: the pin has to follow the release,
