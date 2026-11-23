@@ -276,7 +276,7 @@ projects by position in `lunate.slnx` (`scripts/test-parallel.sh`), so the compa
 the same run that own the same slice, and a test that failed on one OS and passed on another in the
 same run is not a tree change. `verify (ubuntu-latest, 4/4)` of run 45147690490 failed
 `Lunate.Extensibility.Remote.Tests.RemoteExtensionTests.A_cancelled_hook_call_sends_a_cancel_request_to_the_child`
-while `verify (windows-latest, 4/4)` of the same run — the same five projects, through
+while `verify (windows-latest, 4/4)` of the same run — the same test projects, through
 `bash scripts/verify.sh --shard 4/4` under Git Bash — was green, the Ubuntu leg of the previous push
 run was green on the same suite, and the push's own diff (`fa61cfb1`, the `web_search` classification)
 sits in `Lunate.Coding` projects that shard 2 owns. The test then passed 93 local runs at that head,
