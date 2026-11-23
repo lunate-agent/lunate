@@ -1528,7 +1528,7 @@ public sealed partial class AgentHarness
 
     /// <summary>
     /// The request copy of a message with every image reference replaced by its bytes, or — on a
-    /// text-only chat model with a configured fast vision profile — by the description and the
+    /// text-only chat model with a configured vision profile — by the description and the
     /// placeholder. The stored message (and the session entry) keeps the reference.
     /// </summary>
     private ChatMessage HydrateImages(ChatMessage message, bool described)
@@ -1552,7 +1552,7 @@ public sealed partial class AgentHarness
 
     /// <summary>
     /// Replaces each request image with a description when the chat model is known not to accept
-    /// images and the configured fast profile can see them. Returns false so the ordinary
+    /// images and the configured vision profile can see them. Returns false so the ordinary
     /// capability check can reject the request when no such profile is configured.
     /// </summary>
     private async Task<bool> DescribeImagesIfNeededAsync(
@@ -1571,7 +1571,7 @@ public sealed partial class AgentHarness
             return false;
         }
 
-        UsageModelClient? vision = ResolveUsageModel("fast");
+        UsageModelClient? vision = ResolveUsageModel("vision");
         if (vision is null || !SupportsImageInput(vision.Model))
         {
             return false;
@@ -1591,12 +1591,22 @@ public sealed partial class AgentHarness
                 reference,
                 ct
             );
+            string placeholder = string.Create(
+                CultureInfo.InvariantCulture,
+                $"[image {reference.Width}x{reference.Height}]"
+            );
             _visionTexts[reference.Digest] = string.Create(
                 CultureInfo.InvariantCulture,
-                $"[image {reference.Width}x{reference.Height}] described by profile '{vision.ProfileName}' ({vision.Model.Id}): {description}"
+                $"{placeholder} described by profile '{vision.ProfileName}' ({vision.Model.Id}): {description}"
             );
             channel.Emit(
-                new SteeringInjected(runId, EntryId: null, Text: _visionTexts[reference.Digest])
+                new ImageDescribed(
+                    runId,
+                    placeholder,
+                    description,
+                    vision.ProfileName,
+                    vision.Model.Id
+                )
             );
         }
 
@@ -1638,7 +1648,7 @@ public sealed partial class AgentHarness
                     channel,
                     usage,
                     response.ModelId ?? vision.Model.Id,
-                    UsageAttribution("fast", vision)
+                    UsageAttribution("vision", vision)
                 );
             }
 

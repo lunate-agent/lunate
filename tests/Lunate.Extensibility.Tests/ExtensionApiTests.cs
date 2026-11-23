@@ -7,7 +7,7 @@ public sealed class ExtensionApiTests
 {
     [Fact]
     public void Current_is_the_released_contract_version() =>
-        Assert.Equal("1.18.0", ExtensionApi.Current);
+        Assert.Equal("1.19.0", ExtensionApi.Current);
 
     /// <summary>
     /// The gate compares an extension's referenced <c>Lunate.Extensibility.Abstractions</c> version
@@ -29,7 +29,7 @@ public sealed class ExtensionApiTests
         );
 
     [Theory]
-    [InlineData("1.18.0")]
+    [InlineData("1.19.0")]
     [InlineData("^1.16.0")]
     [InlineData("^1.15.0")]
     [InlineData("^1.13.0")]

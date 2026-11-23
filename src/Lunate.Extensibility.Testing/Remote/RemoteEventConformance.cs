@@ -128,6 +128,10 @@ public static class RemoteEventConformance
                 new TimeLimitReached("run_1", TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(6))
             ),
             new("SteeringInjected", new SteeringInjected("run_1", "entry_3", "focus")),
+            new(
+                "ImageDescribed",
+                new ImageDescribed("run_1", "[image 2x3]", "A red square.", "sight", "vision-test")
+            ),
             new("ToolProgressUpdate", new ToolProgressUpdate("run_1", "call_1", "halfway")),
             new("ToolOutputSpillFailed", new ToolOutputSpillFailed("run_1", "disk full")),
             new(

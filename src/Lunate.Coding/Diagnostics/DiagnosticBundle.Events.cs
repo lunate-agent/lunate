@@ -104,6 +104,15 @@ internal static partial class DiagnosticBundle
             SteeringInjected injected => injected.Text is { } text
                 ? Count(" entry=" + (injected.EntryId ?? "(none)"), text)
                 : " entry=" + (injected.EntryId ?? "(none)"),
+            ImageDescribed described => Count(
+                " placeholder="
+                    + described.Placeholder
+                    + " profile="
+                    + described.Profile
+                    + " model="
+                    + described.ModelId,
+                described.Description
+            ),
             ToolProgressUpdate progress => Count(
                 " call=" + Short(progress.CallId),
                 progress.Message

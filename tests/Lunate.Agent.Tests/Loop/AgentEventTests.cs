@@ -33,6 +33,7 @@ public sealed class AgentEventTests
             new StepLimitReached(RunId, 50),
             new CostLimitReached(RunId, 1m, 1m),
             new TimeLimitReached(RunId, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)),
+            new ImageDescribed(RunId, "[image 2x3]", "A red square.", "sight", "vision-test"),
             new ToolProgressUpdate(RunId, "call_1", "half way"),
             new ToolOutputSpillFailed(RunId, "could not spill"),
             new TodoUpdated(RunId, [new TodoItem("write tests", TodoItemStatus.InProgress)]),
@@ -83,7 +84,7 @@ public sealed class AgentEventTests
                 .Where(type => typeof(AgentEventBase).IsAssignableFrom(type) && !type.IsAbstract),
         ];
 
-        Assert.Equal(28, concreteTypes.Length);
+        Assert.Equal(29, concreteTypes.Length);
         Assert.All(concreteTypes, type =>
             Assert.True(type.IsSealed, $"{type.Name} must be sealed")
         );

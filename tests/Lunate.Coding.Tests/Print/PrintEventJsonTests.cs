@@ -163,6 +163,10 @@ public sealed class PrintEventJsonTests
                 ),
                 """{"type":"todo_updated","runId":"run_1","items":[{"text":"write tests","status":"in_progress"},{"text":"commit","status":"pending"},{"text":"read the card","status":"done"}]}"""
             },
+            {
+                new ImageDescribed("run_1", "[image 2x3]", "A red square.", "sight", "vision-test"),
+                """{"type":"image_described","runId":"run_1","placeholder":"[image 2x3]","description":"A red square.","profile":"sight","modelId":"vision-test"}"""
+            },
         };
 
     [Theory]

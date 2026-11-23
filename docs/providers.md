@@ -134,12 +134,13 @@ because schema 1 cannot express them; a schema-2 override replaces the entry com
 model never needs a code change.
 
 Capability sets are open strings for APIs, input/output modalities and features, and the host checks
-only existing-usage requirements: chat needs text and tools, decision needs structured output, and an
-attached image is rejected before sending only when image input is known to be unsupported. When a
-vision-capable `fast` profile is configured, that profile describes the image first and the chat
-model receives the description and the `[image <w>x<h>]` placeholder as text; without one, the
-image is rejected. Unknown image support is attempted, and a provider rejection becomes a
-model-named switch-profile-or-remove-image notice.
+only the declared requirement of each usage: `chat` needs text and tools, `decision` needs structured
+output, `vision` needs image input, and an attached image is rejected before sending only when image
+input is known to be unsupported. A usage is therefore a role with a requirement, not a quality
+label. When a `vision` profile is configured, that profile describes the image first and the chat
+model receives the description and the `[image <w>x<h>]` placeholder as text; without one, the image
+is rejected. Unknown image support is attempted, and a provider rejection becomes a model-named
+switch-profile-or-remove-image notice.
 
 Nothing refreshes at startup or in the background. `lunate --update-catalog` fetches
 <https://models.dev/api.json>, maps it through the one catalog mapper and atomically writes the

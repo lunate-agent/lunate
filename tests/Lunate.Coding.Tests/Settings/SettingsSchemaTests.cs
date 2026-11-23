@@ -99,6 +99,7 @@ public sealed partial class SettingsSchemaTests
         ["usages.fast"] = "probe-two",
         ["usages.subagents"] = WildcardId,
         ["usages.compaction"] = "probe-two",
+        ["usages.vision"] = "probe-two",
     };
 
     [Fact]

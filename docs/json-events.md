@@ -89,6 +89,7 @@ updates.
 | `decision_failed` | `questionId`, `modelId`, `reason` |
 | `model_routed` | `requestedModel`, `resolvedModel` |
 | `steering_injected` | optional `entryId` |
+| `image_described` | `placeholder`, `description`, `profile`, `modelId` |
 
 A decision event's extra fields are the ones [Decisions](decisions.md) describes; a run without a
 decision profile emits none of the three decision types.

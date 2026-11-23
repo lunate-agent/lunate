@@ -6,7 +6,7 @@ namespace Lunate.Coding.Tests;
 public sealed class VisionFallbackTests
 {
     [Fact]
-    public void The_fast_usage_is_the_vision_profile_only_when_its_model_sees_images()
+    public void The_vision_usage_is_the_vision_profile_only_when_its_model_sees_images()
     {
         using var temp = new TempDirectory();
         ModelCatalog catalog = Catalog(
@@ -32,7 +32,32 @@ public sealed class VisionFallbackTests
     }
 
     [Fact]
-    public void No_fast_usage_means_no_vision_profile()
+    public void The_fast_usage_is_not_a_vision_profile()
+    {
+        using var temp = new TempDirectory();
+        ModelCatalog catalog = Catalog(
+            temp,
+            """{ "id": "vision", "provider": "openai", "contextWindow": 1000, "supportsTools": true, "supportsVision": true }"""
+        );
+        ProviderEntry provider = Provider();
+        var settings = new AgentSettings
+        {
+            Profiles = new Dictionary<string, ModelProfile>(StringComparer.Ordinal)
+            {
+                ["fast"] = new("fast", provider.Name, "vision"),
+            },
+            Usages = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["chat"] = "fast",
+                ["fast"] = "fast",
+            },
+        };
+
+        Assert.Null(VisionFallback.ResolveProfile(settings, [provider], catalog));
+    }
+
+    [Fact]
+    public void No_vision_usage_means_no_vision_profile()
     {
         using var temp = new TempDirectory();
         ModelCatalog catalog = Catalog(
@@ -56,12 +81,12 @@ public sealed class VisionFallbackTests
         {
             Profiles = new Dictionary<string, ModelProfile>(StringComparer.Ordinal)
             {
-                ["fast"] = new("fast", provider, model),
+                ["vision"] = new("vision", provider, model),
             },
             Usages = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["chat"] = "fast",
-                ["fast"] = "fast",
+                ["chat"] = "vision",
+                ["vision"] = "vision",
             },
         };
 

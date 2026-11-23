@@ -5,15 +5,15 @@ using Microsoft.Extensions.AI;
 namespace Lunate.Coding;
 
 /// <summary>
-/// The configured vision profile: the existing <c>fast</c> usage when its resolved model declares
-/// image input. There is no separate settings key — #253/#357 forbid a new usage — so binding
-/// <c>fast</c> to a vision model is how a user turns the fallback on.
+/// The configured vision profile: the <c>vision</c> usage when its resolved model declares image
+/// input. Binding <c>vision</c> to a vision model is how a user turns the fallback on; a profile
+/// whose model does not declare image input is treated as unset.
 /// </summary>
 internal static class VisionFallback
 {
-    internal const string Usage = "fast";
+    internal const string Usage = "vision";
 
-    /// <summary>The resolved fast profile when its model can see images; null otherwise.</summary>
+    /// <summary>The resolved vision profile when its model can see images; null otherwise.</summary>
     internal static ResolvedModelProfile? ResolveProfile(
         AgentSettings settings,
         IReadOnlyList<ProviderEntry> providers,

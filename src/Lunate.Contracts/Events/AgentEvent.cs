@@ -212,6 +212,20 @@ public sealed record TimeLimitReached(string RunId, TimeSpan MaxTime, TimeSpan E
 public sealed record SteeringInjected(string RunId, string? EntryId, string? Text = null)
     : ExtensionEventBase(RunId);
 
+/// <summary>
+/// A vision profile's description of a request image that replaced the image for a chat model
+/// without image input. <see cref="Placeholder"/> is the exact <c>[image WxH]</c> text the chat
+/// model receives beside the description; <see cref="Profile"/> and <see cref="ModelId"/> name what
+/// produced it, so the transcript can say which profile saw the image.
+/// </summary>
+public sealed record ImageDescribed(
+    string RunId,
+    string Placeholder,
+    string Description,
+    string Profile,
+    string ModelId
+) : AgentEventBase(RunId);
+
 /// <summary>Streamed progress a tool reports through its context while it runs.</summary>
 public sealed record ToolProgressUpdate(string RunId, string CallId, string Message)
     : ExtensionEventBase(RunId);
@@ -274,6 +288,7 @@ public union AgentEvent(
     CostLimitReached,
     TimeLimitReached,
     SteeringInjected,
+    ImageDescribed,
     ToolProgressUpdate,
     ToolOutputSpillFailed,
     TodoUpdated
@@ -337,6 +352,7 @@ public union AgentEvent(
             CostLimitReached e => new AgentEvent(e),
             TimeLimitReached e => new AgentEvent(e),
             SteeringInjected e => new AgentEvent(e),
+            ImageDescribed e => new AgentEvent(e),
             ToolProgressUpdate e => new AgentEvent(e),
             ToolOutputSpillFailed e => new AgentEvent(e),
             TodoUpdated e => new AgentEvent(e),
