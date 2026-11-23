@@ -25,12 +25,7 @@ public sealed class WebSearchTool : ITool
 
     private static readonly IReadOnlyList<string> Accepted = ["query", "max_results"];
 
-    private static readonly string[] NoResultsMarkers =
-    [
-        "no-results",
-        "No results found for",
-        "No results.",
-    ];
+    private static readonly string[] NoResultsTextMarkers = ["No results found for", "No results."];
 
     private static readonly JsonElement Schema = JsonDocument
         .Parse(
@@ -56,6 +51,12 @@ public sealed class WebSearchTool : ITool
     private static readonly Regex AnchorPattern = new(
         """<a\b(?<attrs>[^>]*)>(?<text>.*?)</a>""",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1)
+    );
+
+    private static readonly Regex OpenTagPattern = new(
+        """<(?<tag>[a-z][a-z0-9]*)\b(?<attrs>[^>]*)>""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1)
     );
 
@@ -291,9 +292,54 @@ public sealed class WebSearchTool : ITool
 
     private static bool LooksLikeNoResults(string html)
     {
-        foreach (string marker in NoResultsMarkers)
+        foreach (Match element in OpenTagPattern.Matches(html))
         {
-            if (html.Contains(marker, StringComparison.OrdinalIgnoreCase))
+            string? classes = HtmlToText.Attribute(element.Groups["attrs"].Value, "class");
+            if (!HasNoResultsClass(classes))
+            {
+                continue;
+            }
+
+            int contentStart = element.Index + element.Length;
+            int contentEnd = html.IndexOf(
+                "</" + element.Groups["tag"].Value,
+                contentStart,
+                StringComparison.OrdinalIgnoreCase
+            );
+            if (contentEnd < 0)
+            {
+                continue;
+            }
+
+            string text = HtmlToText.InlineText(html[contentStart..contentEnd]);
+            foreach (string marker in NoResultsTextMarkers)
+            {
+                if (text.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasNoResultsClass(string? classes)
+    {
+        if (string.IsNullOrWhiteSpace(classes))
+        {
+            return false;
+        }
+
+        foreach (
+            string token in classes.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+        )
+        {
+            if (
+                token.Equals("no-results", StringComparison.OrdinalIgnoreCase)
+                || token.StartsWith("no-results__", StringComparison.OrdinalIgnoreCase)
+                || token.StartsWith("no-results--", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 return true;
             }

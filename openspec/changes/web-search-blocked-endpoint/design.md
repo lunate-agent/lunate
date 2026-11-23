@@ -38,12 +38,15 @@ card asks for.
 
 ### 2. A genuine no-results page is recognised by its own marker
 
-A 200 page with no result anchors is a genuine empty result only when the body carries a
-DuckDuckGo no-results marker (`no-results` / "No results found for"). Anything else — an empty
-body, a challenge page, an unknown shape — is a blocked/rate-limited error. The marker is a private
-constant in `WebSearchTool`, matching the existing tolerant parser style. Alternatives rejected:
-trusting an empty anchor list is the defect; trusting HTTP status alone cannot see a 200 challenge;
-marking every no-anchor page as "no results" keeps the wrong model instruction.
+A 200 page with no result anchors is a genuine empty result only when it carries DuckDuckGo's own
+no-results element (class `no-results`) and the text inside that element carries a no-results phrase
+("No results found for" / "No results."). The marker is a private constant in `WebSearchTool`,
+matching the existing tolerant parser style. Anything else — an empty body, a challenge page, an
+unknown shape, or marker-looking text echoed into an input, title or challenge copy — is a
+blocked/rate-limited error. Alternatives rejected: trusting an empty anchor list is the defect;
+trusting HTTP status alone cannot see a 200 challenge; searching the raw body for the marker lets an
+echoed query hide a block; marking every no-anchor page as "no results" keeps the wrong model
+instruction.
 
 ### 3. Recorded fixtures, no network in tests
 
@@ -57,9 +60,9 @@ both pinned without a live endpoint.
 - **DuckDuckGo changes its no-results markup** -> the marker set is small and central; an
   unrecognised genuine empty page becomes a blocked error, which is a visible, retryable failure
   rather than a misleading query verdict. The marker can be extended in a follow-up.
-- **A block page carries a no-results-looking string** -> the markers are page-structure text
-  (`no-results`, "No results found for"), not the word "blocked", and the recorded challenge page
-  is a regression fixture.
+- **A block page echoes the query as no-results-looking text** -> detection requires the no-results
+  element and the marker inside it, so text echoed into an input, title or challenge copy cannot
+  suppress the blocked error, and the recorded echoed-marker challenge page is a regression fixture.
 - **The message invites waiting rather than query repair** -> that is the card's intent; a genuinely
   bad query on a working endpoint still returns the normal no-results result.
 

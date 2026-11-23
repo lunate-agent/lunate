@@ -5,6 +5,9 @@
 - [x] 1.3 Add `WebSearchToolTests` cases: a non-200 blocked response, a 200 challenge page, and a
       genuine no-results page, all from the fixtures.
 - [x] 1.4 Replace the inline "Nothing here" no-results test with the genuine no-results fixture.
+- [x] 1.5 Commit `search-blocked-echoed-marker.html`, a challenge page echoing "No results." in
+      its title, input and visible copy.
+- [x] 1.6 Add a `WebSearchToolTests` case covering the echoed-marker challenge as blocked.
 
 ## 2. Blocked-endpoint detection
 
@@ -13,6 +16,8 @@
 - [x] 2.2 Treat a 200 page with no result anchors as the same error unless it carries a genuine
       no-results marker, keeping the current non-error text for that case.
 - [x] 2.3 Keep the ranked-result, count-cap, byte-cap, argument and timeout behaviour unchanged.
+- [x] 2.4 Recognise a genuine no-results page only through the content of DuckDuckGo's own
+      no-results element, so echoed marker text cannot suppress the blocked error.
 
 ## 3. Documentation and release note
 
@@ -23,5 +28,5 @@
 
 - [x] 4.1 Run CSharpier, build the touched project and test project, and run the named test classes.
 - [x] 4.2 Run `openspec validate web-search-blocked-endpoint --type change --strict`.
-- [ ] 4.3 Sync specs and archive with `openspec archive web-search-blocked-endpoint --yes` as the
+- [x] 4.3 Sync specs and archive with `openspec archive web-search-blocked-endpoint --yes` as the
       last commit.

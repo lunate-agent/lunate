@@ -252,6 +252,35 @@ public sealed class WebSearchToolTests
         );
     }
 
+    [Fact]
+    public async Task A_200_challenge_page_that_echoes_a_no_results_marker_is_still_blocked()
+    {
+        string fixture = WebTestSupport.Fixture("search-blocked-echoed-marker.html");
+        Assert.Contains("No results.", fixture, StringComparison.Ordinal);
+        using var handler = StubHttpHandler.Html(fixture);
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
+
+        ToolResult result = await tool.ExecuteAsync(
+            WebTestSupport.Args("""{"query":"No results."}"""),
+            WebTestSupport.Context(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.IsError);
+        Assert.Contains(
+            "https://html.duckduckgo.com/html/",
+            result.Output,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("blocked", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("rate-limit", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "No results found",
+            result.Output,
+            StringComparison.OrdinalIgnoreCase
+        );
+    }
+
     private static int CountResults(string output) =>
         output
             .Split('\n')

@@ -10,7 +10,8 @@ block. A blocked endpoint must read as a blocked endpoint, not as a bad query.
 - A non-200 search response returns an error that names the search endpoint, the HTTP status and
   the reason, and says the endpoint is blocking or rate-limiting the client.
 - A 200 response with no result anchors is an error with the same blocked/rate-limited wording
-  unless the page carries a genuine no-results marker (`no-results` / "No results found for").
+  unless the page carries a genuine no-results marker inside DuckDuckGo's own no-results element
+  (`no-results` / "No results found for"); marker-looking text echoed elsewhere does not count.
 - A genuine empty result keeps the current non-error text, "No results found for '<query>'. Try a
   different query."
 - Tests drive both shapes from committed recorded fixtures — a DuckDuckGo challenge/blocked page
