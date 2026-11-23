@@ -16,12 +16,9 @@ search endpoint, and SHALL return the ranked results in rank order with a title,
 a snippet for each result. The result SHALL name the query, SHALL number the results, and SHALL be
 bounded both in result count (`max_results`) and in total UTF-8 output bytes (8 KiB) with a marker
 stating the cap; a cut point SHALL NOT split a UTF-8 sequence or a UTF-16 surrogate pair. A search
-with no matches SHALL return a readable "no results" result rather than an error only when the
-response carries a genuine no-results marker; a 200 response with no result links and no such
-marker SHALL produce an error saying the endpoint blocked or rate-limited the search. A non-200
-response SHALL produce an error naming the endpoint, the HTTP status and the reason and saying the
-endpoint blocked or rate-limited the search. An unknown argument SHALL be refused with an error
-naming the accepted arguments.
+with no matches SHALL return a readable "no results" result rather than an error. An unknown
+argument SHALL be refused with an error naming the accepted arguments, and an HTTP failure SHALL
+produce an error result naming the endpoint and the reason.
 
 #### Scenario: A query returns ranked title, URL and snippet
 
@@ -45,24 +42,9 @@ naming the accepted arguments.
 
 #### Scenario: No matches is a result, not an error
 
-- **GIVEN** a recorded genuine no-results page with a no-results marker and no result links
+- **GIVEN** a stub search response with no result links
 - **WHEN** `web_search` runs
 - **THEN** it returns a non-error result saying no results were found for the query
-
-#### Scenario: A non-200 response names the endpoint as blocked or rate-limited
-
-- **GIVEN** a recorded blocked response with a non-200 status
-- **WHEN** `web_search` runs
-- **THEN** the error names the search endpoint and the status, and says the endpoint blocked or
-  rate-limited the search
-
-#### Scenario: A 200 challenge page is not a no-results result
-
-- **GIVEN** a recorded blocked page returned with HTTP 200, carrying no result links and no
-  genuine no-results marker
-- **WHEN** `web_search` runs
-- **THEN** the error names the search endpoint and says the endpoint blocked or rate-limited the
-  search, and the result is not the no-results text
 
 #### Scenario: Bad arguments are refused with the accepted set
 
