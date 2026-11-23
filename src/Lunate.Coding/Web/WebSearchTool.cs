@@ -25,6 +25,8 @@ public sealed class WebSearchTool : ITool
 
     private static readonly IReadOnlyList<string> Accepted = ["query", "max_results"];
 
+    private static readonly string[] NoResultsTextMarkers = ["No results found for", "No results."];
+
     private static readonly JsonElement Schema = JsonDocument
         .Parse(
             """
@@ -49,6 +51,12 @@ public sealed class WebSearchTool : ITool
     private static readonly Regex AnchorPattern = new(
         """<a\b(?<attrs>[^>]*)>(?<text>.*?)</a>""",
         RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1)
+    );
+
+    private static readonly Regex OpenTagPattern = new(
+        """<(?<tag>[a-z][a-z0-9]*)\b(?<attrs>[^>]*)>""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(1)
     );
 
@@ -120,12 +128,13 @@ public sealed class WebSearchTool : ITool
             using HttpResponseMessage response = await client
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token)
                 .ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+            if (response.StatusCode != HttpStatusCode.OK)
             {
-                return Error(
+                return Blocked(
+                    endpoint,
                     string.Create(
                         CultureInfo.InvariantCulture,
-                        $"search failed: {endpoint} returned HTTP {(int)response.StatusCode} {response.ReasonPhrase}; try again later."
+                        $"returned HTTP {(int)response.StatusCode} {response.ReasonPhrase}"
                     )
                 );
             }
@@ -136,9 +145,18 @@ public sealed class WebSearchTool : ITool
             byte[] source = await WebText
                 .ReadCappedAsync(stream, MaxSourceBytes, timeout.Token)
                 .ConfigureAwait(false);
-            List<SearchResult> results = Parse(WebText.Decode(source), Endpoint);
+            string html = WebText.Decode(source);
+            List<SearchResult> results = Parse(html, Endpoint);
             if (results.Count == 0)
             {
+                if (!LooksLikeNoResults(html))
+                {
+                    return Blocked(
+                        endpoint,
+                        "answered HTTP 200 with a page that is not a search results page"
+                    );
+                }
+
                 return Result($"No results found for '{query}'. Try a different query.");
             }
 
@@ -271,6 +289,72 @@ public sealed class WebSearchTool : ITool
 
         return null;
     }
+
+    private static bool LooksLikeNoResults(string html)
+    {
+        foreach (Match element in OpenTagPattern.Matches(html))
+        {
+            string? classes = HtmlToText.Attribute(element.Groups["attrs"].Value, "class");
+            if (!HasNoResultsClass(classes))
+            {
+                continue;
+            }
+
+            int contentStart = element.Index + element.Length;
+            int contentEnd = html.IndexOf(
+                "</" + element.Groups["tag"].Value,
+                contentStart,
+                StringComparison.OrdinalIgnoreCase
+            );
+            if (contentEnd < 0)
+            {
+                continue;
+            }
+
+            string text = HtmlToText.InlineText(html[contentStart..contentEnd]);
+            foreach (string marker in NoResultsTextMarkers)
+            {
+                if (text.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasNoResultsClass(string? classes)
+    {
+        if (string.IsNullOrWhiteSpace(classes))
+        {
+            return false;
+        }
+
+        foreach (
+            string token in classes.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
+        )
+        {
+            if (
+                token.Equals("no-results", StringComparison.OrdinalIgnoreCase)
+                || token.StartsWith("no-results__", StringComparison.OrdinalIgnoreCase)
+                || token.StartsWith("no-results--", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static ToolResult Blocked(Uri endpoint, string detail) =>
+        Error(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"search blocked: {endpoint} {detail}; the search endpoint is blocking or rate-limiting this client. Try again later."
+            )
+        );
 
     private static ToolResult Result(string output) => new(output, IsError: false);
 
