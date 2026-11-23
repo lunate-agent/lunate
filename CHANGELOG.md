@@ -8,6 +8,71 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-23
+
+### Added
+
+- Session search: `lunate sessions search <query> [--json]` scans the session store linearly — no
+  index, no cache — bounded to the 200 most recently written session files, 8 MiB of message text
+  and 20 matches, and every run prints that bound and whether it stopped there; with `--json` the
+  rows stay one JSON array on stdout and that summary goes to stderr. Each result carries
+  the session id, the turn's timestamp, the session's `cwd`, the text around the hit, the entry id
+  and the session file path; it matches user and assistant turns only, skips a malformed line —
+  invalid JSON or a message payload that does not parse — and reports how many it skipped, and exits
+  0 when nothing matches. The interactive session picker
+  (`/resume`, `--resume`) has the same search as a field, and confirming a hit resumes that session
+  at the matching turn so the conversation continues from there
+  ([Command reference](docs/cli.md#find-a-past-session)) (#999).
+
+- **A remote extension observes a turn, end to end.** Protocol version 3 projects the session's
+  event stream to an out-of-process extension as `event/<kind>` notifications carrying the same JSON
+  line `--json` writes, the catalog's `costUsd` on `usage_updated` included, since the host prices
+  the record with the same estimate the print stream uses; the `initialize` handshake negotiates the
+  manifest's `events` watch list against the kinds the child accepts, and only the declared kinds it
+  accepts are sent, never awaited. Each started child gets one bounded pump, so a slow child loses
+  its oldest events — counted, warned once — instead of delaying the run, and an event over the
+  wire's line cap is dropped rather than breaking the wire. A version-2 child still loads and is
+  refused by name only when the manifest declares `events`; an observer-only remote extension now
+  starts at session start. The `--json` projection moved into the wire package with `--json`
+  delegating to it, so there is one event model, the out-of-process host's lazy-start rule names the
+  `events` session start as its one exception, and the node reference extension speaks protocol 3,
+  records what it observes and proves a real turn in its fitness test. Implements the wire half of
+  [ADR-0040](adr/0040-hook-based-extensibility-on-observables.md) (#1013).
+
+- **Project memory in `LUNATE.md`.** Lunate reads a `LUNATE.md` at the repository root — the
+  worktree root for a linked worktree — into the system prompt after the `AGENTS.md` chain, so the
+  rules come first and a note never outranks them. The model appends one fact at a time with the new
+  `remember` tool, which adds a Markdown bullet, keeps the file's own line endings and byte-order
+  mark, and leaves every existing byte alone; it takes no path, so it never writes global state. The
+  file is capped at 8,000 characters: a longer file is read up to the cap with an omission marker,
+  and an append that would pass it is refused without changing the file (#1018).
+
+### Changed
+
+- **The red `verify (macos-latest, 2/2)` of the `main` push run `45027673116` was a runner that could
+  not reach GitHub, and this pull request records the triage instead of a second change.** Its
+  `Checkout` step reported three fetch attempts, each ending `unable to access
+  'https://github.com/lunate-agent/lunate/': Failed to connect to github.com port 443 after 75012 ms`
+  with exit code `128`, so the leg stopped at step two and every step after it was skipped. The commit
+  `137d2790` changes nothing but `changes/1007.md`, the macOS sibling `verify (macos-latest, 1/2)` and
+  the Ubuntu, Windows and PowerShell legs of that run were green, the leg's own annotations carry
+  GitHub's macOS arm64 capacity notice, and `verify (macos-latest, 2/2)` is green again — `Checkout`
+  included — on `main` in run `45075955421`. No file in the tree decides whether a runner reaches
+  github.com, and `ci-capacity-retry.yml` retries only a leg GitHub never gave a runner, so the
+  remedy is a rerun of the red run (#1009).
+
+- **A `perf (macos-latest)` budget miss is triaged against the machine, not by re-reading the number.**
+  [CONTRIBUTING](CONTRIBUTING.md) named how the startup step reports the measurement it failed on
+  (floor, median, budget, and the first attempt's floor after a retry) but not how that measurement is
+  read, so a red push on the shared macOS runner still costs a session of log archaeology. It now names
+  the check — the same job's most recent push run on `main`, which measured the startup path at another
+  moment, because interference only ever adds time — and the remedy: a rerun. Run 45053133975 read
+  386 ms on its first attempt and 343 ms on the retry with a 467 ms median against the 300 ms budget,
+  while the pushes either side of it measured under budget on the same runner class and `main`'s head
+  floors at 143 ms in a local `osx-arm64` publish of the release shape, which
+  [S-9](docs/dev/spikes/S-9/report.md) records at 139-177 ms: a starved runner, not a startup path that
+  changed (#1017).
+
 ## [0.6.0] - 2026-11-22
 
 ### Added
