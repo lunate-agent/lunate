@@ -268,6 +268,25 @@ arm64 capacity notice the run carried, not a startup path that changed. That red
 re-calibration and not an edit to the gate: a red job that ran is never retried that way, and no
 change in this repository makes a shared runner measure its quiet floor.
 
+A red test step is read against the legs that ran the same commit before a test or its subject is
+edited, because the gate's own flake budget has already been spent: `scripts/verify.sh` retries a
+failed pass once and records a pass that comes back green the second time as a flake, so a step that
+ends red is not one unlucky attempt — the retry ran and was red too. The shards partition the test
+projects by position in `lunate.slnx` (`scripts/test-parallel.sh`), so the comparison is the legs of
+the same run that own the same slice, and a test that failed on one OS and passed on another in the
+same run is not a tree change. `verify (ubuntu-latest, 4/4)` of run 45147690490 failed
+`Lunate.Extensibility.Remote.Tests.RemoteExtensionTests.A_cancelled_hook_call_sends_a_cancel_request_to_the_child`
+while `verify (windows-latest, 4/4)` of the same run — the same test projects, through
+`bash scripts/verify.sh --shard 4/4` under Git Bash — was green, the Ubuntu leg of the previous push
+run was green on the same suite, and the push's own diff (`fa61cfb1`, the `web_search` classification)
+sits in `Lunate.Coding` projects that shard 2 owns. The test then passed all 94 local runs at
+that head, 48 of them six at a time under load: a machine-side red, and the remedy is a rerun. A
+red that comes back on the tree is the other thing — a defect in the test or in what it covers,
+and a card of its own rather than a rerun of the leg that triaged it. The annotations name the
+test, never the message it failed on: where the assertion itself matters, the pass is reproduced
+locally under the same shard (`bash scripts/verify.sh --shard 4/4`) instead of read from a log
+that needs an account.
+
 A card can arrive stale. The reporter files one card per failing job, and one merge reddens several
 legs at once: `verify (windows-latest, 1/4)`, `(2/4)` and `verify-powershell (windows)` all restore
 the extension template against the feed the step has just packed, so a single fix lands for all three
