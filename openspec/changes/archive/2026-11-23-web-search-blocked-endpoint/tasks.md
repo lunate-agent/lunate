@@ -23,5 +23,5 @@
 
 - [x] 4.1 Run CSharpier, build the touched project and test project, and run the named test classes.
 - [x] 4.2 Run `openspec validate web-search-blocked-endpoint --type change --strict`.
-- [ ] 4.3 Sync specs and archive with `openspec archive web-search-blocked-endpoint --yes` as the
+- [x] 4.3 Sync specs and archive with `openspec archive web-search-blocked-endpoint --yes` as the
       last commit.
