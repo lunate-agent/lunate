@@ -1,6 +1,18 @@
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: Usage-to-profile selection
+**Reason**: `vision` is its own usage and `fast` no longer implies vision.
+
+**Migration**: Move the vision model from `usages.fast` to `usages.vision`.
+
+### Requirement: Usage and provider cost attribution
+**Reason**: `vision` is a recorded usage.
+
+**Migration**: Read `vision` as its own attribution value; no migration is required for existing sessions.
+
+## ADDED Requirements
+
+### Requirement: Usage-to-profile selection with usages.vision
 
 Core selection SHALL resolve usages to profiles and profiles to providers; it SHALL NOT route an individual request among providers. The configured usages SHALL include `chat`, optional `fast`, optional `vision`, `decision`, and defaults for `subagents` and `compaction`. `/model` SHALL switch the chat profile. An explicit `provider/model` SHALL resolve using that provider's default settings. A bare model id SHALL resolve only when exactly one provider/profile candidate matches; otherwise it SHALL be refused with every candidate named. A provider MAY perform its own per-request routing internally, as in the `model-router` sample; core SHALL add no routing DSL.
 
@@ -30,13 +42,13 @@ The `vision` usage SHALL be the vision fallback profile and SHALL require image 
 - **WHEN** a usage resolves to its profile
 - **THEN** core selects that provider once and does not apply a routing DSL or per-request provider selection
 
-#### Scenario: The fast profile describes an image for a text-only chat model
+#### Scenario: The vision profile describes an image for a text-only chat model
 
 - **GIVEN** a `vision` usage bound to a profile whose model declares image input and a chat model known not to accept images
 - **WHEN** a request carries an image
 - **THEN** the image goes to the vision profile for a description and the chat request carries the description as text
 
-#### Scenario: A text-only fast profile leaves the refusal unchanged
+#### Scenario: A text-only vision profile leaves the refusal unchanged
 
 - **GIVEN** a `vision` usage bound to a profile whose model does not declare image input and a chat model known not to accept images
 - **WHEN** a request carries an image
@@ -48,7 +60,7 @@ The `vision` usage SHALL be the vision fallback profile and SHALL require image 
 - **WHEN** a request carries an image
 - **THEN** the existing image refusal stands and no vision request is made
 
-### Requirement: Usage and provider cost attribution
+### Requirement: Usage and provider cost attribution including vision
 
 Every recorded model usage SHALL identify its usage (`chat`, `fast`, `decision`, `subagents`, `compaction`, or `vision`), profile name, provider name and kind, resolved model id, and token lanes. Decision records SHALL additionally carry decision method (`native` or `adapter`) and probability. `/cost` SHALL report priced totals grouped by usage and by provider, retaining the existing rule that unknown pricing is unpriced rather than zero. Session schema 4 SHALL write this attribution and SHALL read schemas 1–3 without changing their interpretation; no provider configuration, credential reference or secret SHALL be written to a session.
 

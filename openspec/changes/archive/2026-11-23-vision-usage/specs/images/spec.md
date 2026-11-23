@@ -1,6 +1,13 @@
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: Vision gating
+**Reason**: The `fast` usage no longer carries the vision role.
+
+**Migration**: Bind the vision model to `usages.vision`; a `fast` binding no longer enables the fallback.
+
+## ADDED Requirements
+
+### Requirement: Vision gating with usages.vision
 
 An image SHALL be sent only when the active chat model declares image input. When the chat model's known capabilities say it accepts no images and the request carries at least one image, the harness SHALL describe each image through the configured vision profile before sending the chat request: the `vision` usage when its resolved model declares image input. A user submission SHALL NOT be refused by the early image resolver when that vision profile exists. With no such profile, a user submission with an image SHALL be refused before the run with an error naming the model id and saying that the model does not support images; a `read` of an image SHALL return that same refusal as an error result. No chat request SHALL carry image content for a model without image input, and the image SHALL NOT be silently dropped.
 
@@ -24,7 +31,7 @@ The description SHALL be sent to the chat model as text together with the image'
 - **WHEN** the user submits `@diagram.png`
 - **THEN** the vision profile receives the image, the chat request carries no image content, and the run starts
 
-#### Scenario: The fast profile is the configured vision profile
+#### Scenario: The vision usage is the configured vision profile
 
 - **GIVEN** two configured profiles whose models declare image input, with one bound to `usages.vision`
 - **WHEN** a text-only chat model receives an image

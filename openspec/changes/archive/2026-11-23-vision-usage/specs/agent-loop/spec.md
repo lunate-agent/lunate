@@ -1,6 +1,13 @@
-## MODIFIED Requirements
+## REMOVED Requirements
 
 ### Requirement: Image parts in model requests
+**Reason**: The `fast` usage no longer carries the vision role.
+
+**Migration**: Bind the vision model to `usages.vision`; a `fast` binding no longer enables the fallback.
+
+## ADDED Requirements
+
+### Requirement: Image parts in model requests with usages.vision
 
 The harness SHALL store every image attachment through the session's image store and SHALL append a session message whose image parts are `ImageContentReference` values (digest, mime, width, height), never image bytes. Before each model request it SHALL hydrate those references into Microsoft.Extensions.AI `DataContent` parts for the provider, reading the blob from the session store or the in-memory store of a no-session run, when the active chat model declares image input. A tool result carrying `Images` SHALL append its tool-role message with the placeholder text and then one user-role message carrying the image contents with the text `Image from <tool>: [image <w>x<h>].`; the follow-up user message is the portable carrier because the OpenAI chat-completions adapter maps image content only in user-role messages, not in tool-role results. A resumed session SHALL hydrate the same way.
 
