@@ -40,6 +40,8 @@ None.
   vision-profile failure still names both errors.
 - `provider-store`: `usages.vision` joins the configured usages and is the vision profile when its
   resolved model declares image input; `fast` returns to being only the fast usage.
+- `agent-events`: the event set gains `ImageDescribed`, and the contract version note records the
+  added case.
 
 ## Impact
 
