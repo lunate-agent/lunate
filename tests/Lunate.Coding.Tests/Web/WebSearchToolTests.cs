@@ -6,7 +6,8 @@ namespace Lunate.Coding.Tests;
 
 /// <summary>
 /// <c>web_search</c>: one offline HTTP request, ranked title/url/snippet results, the count and byte
-/// caps, and a readable non-error result when the endpoint has no matches.
+/// caps, a readable non-error result for a genuine empty page, and a blocked/rate-limited error when
+/// the endpoint refuses the search.
 /// </summary>
 public sealed class WebSearchToolTests
 {
@@ -150,18 +151,22 @@ public sealed class WebSearchToolTests
     [Fact]
     public async Task No_matches_is_a_readable_result_not_an_error()
     {
-        using var handler = StubHttpHandler.Html("<html><body>Nothing here.</body></html>");
+        using var handler = StubHttpHandler.Html(WebTestSupport.Fixture("search-no-results.html"));
         var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
-            WebTestSupport.Args("""{"query":"no such thing"}"""),
+            WebTestSupport.Args("""{"query":"xqzvbnmplkjhgfdsa"}"""),
             WebTestSupport.Context(),
             TestContext.Current.CancellationToken
         );
 
         Assert.False(result.IsError);
-        Assert.Contains("no results", result.Output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("no such thing", result.Output, StringComparison.Ordinal);
+        Assert.Contains(
+            "No results found for 'xqzvbnmplkjhgfdsa'. Try a different query.",
+            result.Output,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain("blocked", result.Output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -184,10 +189,18 @@ public sealed class WebSearchToolTests
         Assert.Empty(handler.Requests);
     }
 
-    [Fact]
-    public async Task An_http_failure_names_the_endpoint_and_the_status()
+    [Theory]
+    [InlineData(HttpStatusCode.Accepted, "202")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, "503")]
+    public async Task A_non_200_response_is_a_blocked_endpoint_not_a_search_failure(
+        HttpStatusCode status,
+        string expectedStatus
+    )
     {
-        using var handler = StubHttpHandler.Html("unavailable", HttpStatusCode.ServiceUnavailable);
+        using var handler = StubHttpHandler.Html(
+            WebTestSupport.Fixture("search-blocked.html"),
+            status
+        );
         var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
 
         ToolResult result = await tool.ExecuteAsync(
@@ -202,7 +215,41 @@ public sealed class WebSearchToolTests
             result.Output,
             StringComparison.Ordinal
         );
-        Assert.Contains("503", result.Output, StringComparison.Ordinal);
+        Assert.Contains(expectedStatus, result.Output, StringComparison.Ordinal);
+        Assert.Contains("blocked", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("rate-limit", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "No results found",
+            result.Output,
+            StringComparison.OrdinalIgnoreCase
+        );
+    }
+
+    [Fact]
+    public async Task A_200_challenge_page_is_a_blocked_endpoint_not_no_results()
+    {
+        using var handler = StubHttpHandler.Html(WebTestSupport.Fixture("search-blocked.html"));
+        var tool = new WebSearchTool(handler, WaitBudgets.WebStubRequest);
+
+        ToolResult result = await tool.ExecuteAsync(
+            WebTestSupport.Args("""{"query":"x"}"""),
+            WebTestSupport.Context(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.IsError);
+        Assert.Contains(
+            "https://html.duckduckgo.com/html/",
+            result.Output,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("blocked", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("rate-limit", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "No results found",
+            result.Output,
+            StringComparison.OrdinalIgnoreCase
+        );
     }
 
     private static int CountResults(string output) =>

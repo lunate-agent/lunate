@@ -25,6 +25,13 @@ public sealed class WebSearchTool : ITool
 
     private static readonly IReadOnlyList<string> Accepted = ["query", "max_results"];
 
+    private static readonly string[] NoResultsMarkers =
+    [
+        "no-results",
+        "No results found for",
+        "No results.",
+    ];
+
     private static readonly JsonElement Schema = JsonDocument
         .Parse(
             """
@@ -120,12 +127,13 @@ public sealed class WebSearchTool : ITool
             using HttpResponseMessage response = await client
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token)
                 .ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
+            if (response.StatusCode != HttpStatusCode.OK)
             {
-                return Error(
+                return Blocked(
+                    endpoint,
                     string.Create(
                         CultureInfo.InvariantCulture,
-                        $"search failed: {endpoint} returned HTTP {(int)response.StatusCode} {response.ReasonPhrase}; try again later."
+                        $"returned HTTP {(int)response.StatusCode} {response.ReasonPhrase}"
                     )
                 );
             }
@@ -136,9 +144,18 @@ public sealed class WebSearchTool : ITool
             byte[] source = await WebText
                 .ReadCappedAsync(stream, MaxSourceBytes, timeout.Token)
                 .ConfigureAwait(false);
-            List<SearchResult> results = Parse(WebText.Decode(source), Endpoint);
+            string html = WebText.Decode(source);
+            List<SearchResult> results = Parse(html, Endpoint);
             if (results.Count == 0)
             {
+                if (!LooksLikeNoResults(html))
+                {
+                    return Blocked(
+                        endpoint,
+                        "answered HTTP 200 with a page that is not a search results page"
+                    );
+                }
+
                 return Result($"No results found for '{query}'. Try a different query.");
             }
 
@@ -271,6 +288,27 @@ public sealed class WebSearchTool : ITool
 
         return null;
     }
+
+    private static bool LooksLikeNoResults(string html)
+    {
+        foreach (string marker in NoResultsMarkers)
+        {
+            if (html.Contains(marker, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static ToolResult Blocked(Uri endpoint, string detail) =>
+        Error(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"search blocked: {endpoint} {detail}; the search endpoint is blocking or rate-limiting this client. Try again later."
+            )
+        );
 
     private static ToolResult Result(string output) => new(output, IsError: false);
 

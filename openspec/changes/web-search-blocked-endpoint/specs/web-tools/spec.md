@@ -35,7 +35,7 @@ naming the accepted arguments.
 - **THEN** the output stays within the byte cap, ends with a marker naming the cap, and splits no
   UTF-8 sequence or surrogate pair
 
-#### Scenario: Genuine no matches is a result, not an error
+#### Scenario: No matches is a result, not an error
 
 - **GIVEN** a recorded genuine no-results page with a no-results marker and no result links
 - **WHEN** `web_search` runs
