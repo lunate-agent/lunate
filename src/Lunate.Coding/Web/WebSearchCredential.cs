@@ -31,8 +31,18 @@ internal static class WebSearchCredential
         error = null;
 
         int separator = reference.IndexOf(':', StringComparison.Ordinal);
-        string source = reference[..separator];
-        string target = reference[(separator + 1)..];
+        string source = separator <= 0 ? string.Empty : reference[..separator];
+        string target = separator <= 0 ? string.Empty : reference[(separator + 1)..];
+        if (source is not ("auth" or "env" or "helper"))
+        {
+            // The setting is validated when it loads; this arm covers a directly constructed
+            // configuration, where the value is not a reference at all.
+            error =
+                $"'{SettingKey}' must be an auth:<name>, env:<VARIABLE> or helper:<name> reference, "
+                + "never a literal key; fix the setting and try again.";
+            return false;
+        }
+
         if (source == "helper")
         {
             error =

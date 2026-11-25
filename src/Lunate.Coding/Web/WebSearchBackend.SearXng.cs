@@ -8,7 +8,7 @@ namespace Lunate.Coding;
 /// instance that sits behind an authenticating proxy. The instance URL is the setting, so the same
 /// request shape serves a loopback container and a hosted instance.
 /// </summary>
-internal sealed partial class SearXngBackend : WebSearchBackend
+internal sealed class SearXngBackend : WebSearchBackend
 {
     private static readonly Regex ArticlePattern = new(
         """<article\b(?<attrs>[^>]*)>""",
@@ -34,8 +34,9 @@ internal sealed partial class SearXngBackend : WebSearchBackend
 
     internal override bool NeedsCredential => false;
 
-    internal override string Describe =>
-        $"Uses the configured SearXNG instance at {_instance.AbsoluteUri.TrimEnd('/')}.";
+    // The instance URL stays out of the description: the description reaches the model provider,
+    // and a self-hosted instance's host is the user's business.
+    internal override string Describe => "Uses the configured SearXNG instance.";
 
     internal override HttpRequestMessage CreateRequest(
         string query,

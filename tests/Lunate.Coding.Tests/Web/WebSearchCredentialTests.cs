@@ -97,6 +97,63 @@ public sealed class WebSearchCredentialTests
     }
 
     [Fact]
+    public async Task A_literal_key_in_the_setting_is_never_sent()
+    {
+        using var handler = StubHttpHandler.Json("{}");
+        var tool = new WebSearchTool(
+            new WebSearchConfiguration(
+                new WebSearchSettings
+                {
+                    Backend = WebSearchBackendKind.Tavily,
+                    Credential = "sk-live-1234",
+                }
+            ),
+            handler: handler,
+            timeout: WaitBudgets.WebStubRequest
+        );
+
+        ToolResult result = await tool.ExecuteAsync(
+            WebTestSupport.Args("""{"query":"x"}"""),
+            WebTestSupport.Context(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.IsError);
+        Assert.Contains(WebSearchCredential.SettingKey, result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("sk-live-1234", result.Output, StringComparison.Ordinal);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task A_helper_reference_sends_no_request_and_names_the_alternatives()
+    {
+        using var handler = StubHttpHandler.Json("{}");
+        var tool = new WebSearchTool(
+            new WebSearchConfiguration(
+                new WebSearchSettings
+                {
+                    Backend = WebSearchBackendKind.Tavily,
+                    Credential = "helper:keychain",
+                }
+            ),
+            handler: handler,
+            timeout: WaitBudgets.WebStubRequest
+        );
+
+        ToolResult result = await tool.ExecuteAsync(
+            WebTestSupport.Args("""{"query":"x"}"""),
+            WebTestSupport.Context(),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.True(result.IsError);
+        Assert.Contains(WebSearchCredential.SettingKey, result.Output, StringComparison.Ordinal);
+        Assert.Contains("helper:keychain", result.Output, StringComparison.Ordinal);
+        Assert.Contains("auth:<name>", result.Output, StringComparison.Ordinal);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
     public async Task A_backend_that_needs_a_credential_without_one_names_the_setting()
     {
         using var handler = StubHttpHandler.Json("{}");
