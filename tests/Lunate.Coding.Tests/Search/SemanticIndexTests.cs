@@ -162,9 +162,9 @@ public sealed class SemanticIndexTests
                                 .Select(word =>
                                     (float)
                                         text.Split(
-                                            [' ', '\n'],
-                                            StringSplitOptions.RemoveEmptyEntries
-                                        )
+                                                [' ', '\n'],
+                                                StringSplitOptions.RemoveEmptyEntries
+                                            )
                                             .Count(token =>
                                                 token.Contains(
                                                     word,

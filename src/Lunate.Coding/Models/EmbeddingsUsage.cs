@@ -103,7 +103,8 @@ internal static class EmbeddingsUsage
     internal static void RequireEmbeddingsCapability(ResolvedModelProfile profile)
     {
         if (
-            profile.Capabilities.Apis is { } apis && !apis.Contains(RequiredApi, StringComparer.Ordinal)
+            profile.Capabilities.Apis is { } apis
+            && !apis.Contains(RequiredApi, StringComparer.Ordinal)
         )
         {
             throw new InvalidDataException(

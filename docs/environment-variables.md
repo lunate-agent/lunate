@@ -34,7 +34,7 @@ being ignored.
 | `LUNATE_SUBAGENTS_CONCURRENCY` | `subagents.concurrency` (an integer or `unlimited`) |
 | `LUNATE_SUBAGENTS_TOKEN_BUDGET` | `subagents.tokenBudget` (an integer or `unlimited`) |
 | `LUNATE_SUBAGENTS_TREE_TOKEN_BUDGET` | `subagents.treeTokenBudget` (an integer or `unlimited`) |
-| `LUNATE_EXTRA_TOOLS` | `tools.extra` (a comma-separated list of `grep`, `find`, `ls`) |
+| `LUNATE_EXTRA_TOOLS` | `tools.extra` (a comma-separated list of `grep`, `find`, `ls`, `semantic_search`) |
 
 The launch flag wins over the environment, which wins over the file. The switch settings accept
 `true`, `false`, `1` or `0`. [Settings reference](settings.md) lists every key with its type, default

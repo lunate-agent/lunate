@@ -58,6 +58,13 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--run-id", default="swebench-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
     parser.add_argument("--arm", choices=("lunate", "baseline", "merge", "all"), default="all")
     parser.add_argument("--lunate-bin", help="self-contained linux-x64 Lunate executable")
+    parser.add_argument(
+        "--lunate-home",
+        help=(
+            "directory whose settings.json and providers.json the adapter copies into each "
+            "instance's LUNATE_HOME (the tool-on arm's optional tools and usages)"
+        ),
+    )
     parser.add_argument("--adapter", default=str(ADAPTER), help="adapter entry point (tests may supply a fake)")
     parser.add_argument("--mini-extra", default=None, help="mini-extra executable (baseline arm)")
     parser.add_argument("--eval-python", default=sys.executable, help="interpreter with the official swebench package")
@@ -103,6 +110,8 @@ def adapter_command(
         "--timeout",
         str(definition["instanceTimeoutSeconds"]),
     ]
+    if definition.get("_lunate_home"):
+        command += ["--lunate-home", definition["_lunate_home"]]
     for name in (model["credential"], "DOTNET_EnableWriteXorExecute"):
         if os.environ.get(name):
             command += ["--env", name]
@@ -285,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
             "_run_id": args.run_id,
             "_started_at": utc_now(),
             "_lunate_bin": args.lunate_bin,
+            "_lunate_home": args.lunate_home,
             "_eval_python": args.eval_python,
             "_docker": args.docker,
             "_adapter": args.adapter,

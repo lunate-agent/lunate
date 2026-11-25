@@ -1,6 +1,6 @@
 # ADR-0027: User-scoped provider profiles, usages, and capability facts
 
-- Status: accepted — 2026-10-30 (maintainer amendments for `provider-store`, #253); amended 2026-11-22 (usages as capability-bearing roles, `usages.vision`, #979)
+- Status: accepted — 2026-10-30 (maintainer amendments for `provider-store`, #253); amended 2026-11-22 (usages as capability-bearing roles, `usages.vision`, #979); further amended 2026-11-25 (`embeddings` is built, `semantic_search`, #1028)
 - Date: 2026-10-30
 - Duplicate removed: `adr/0027-provider-store-and-model-profiles.md` was an earlier draft of this same decision and claimed the same number; deleted as a duplicate in commit `28dc4440` so the ADR numbers stay unique and dense.
 - Relates to: ADR-0002 (layering and MEAI model types), ADR-0003 (loop ownership), ADR-0015 (pinned session format), ADR-0022 (model catalog and provider auth)
@@ -92,3 +92,27 @@ carries the description beside the `[image <w>x<h>]` placeholder. An unset `visi
 profile whose model does not declare image input, leaves the existing image refusal unchanged.
 `fast` carries no vision role. The vision call attributes as usage `vision`, and the transcript
 announces it with the `ImageDescribed` event rather than a steering event.
+
+## Amendment 2026-11-25 — `embeddings` is built by repo search
+
+The 2026-11-22 amendment named `embeddings` so a later consumer would find the place and kept it
+unbuilt until one existed. #981 makes repo search that consumer, and #1028 builds it as the optional
+`semantic_search` tool. This section is the later word; the earlier text stays as the record of the
+2026-11-22 decision.
+
+The role is unchanged in shape: one settings key (`usages.embeddings`), one declared requirement at
+resolution (the model's `embeddings` API), and one attribution value (`embeddings`). What is new is
+that all three are exercised:
+
+- The requirement is checked the way decision 3 says capability facts are: a **known** API set
+  without `embeddings` is refused by profile and model, an **unknown** set stays accepted, and the
+  resolved family must be `openai-chat` — the only family this build has an embeddings wire for.
+- An embeddings call is charged to the run through the loop's one usage-accounting path and recorded
+  in schema 4 under usage `embeddings`. Schema 4 is unchanged; the attribution usage is the free
+  string the 2026-11-22 amendment relies on.
+- The consumer's index is a rebuildable cache under the state root's `cache` directory, keyed by
+  workspace and model. It is not provider configuration and not session content: deleting it costs
+  re-embedding time and nothing else, which is the line decision 5 draws around session state.
+
+Image generation remains named and unbuilt. Building a role is this change's rule for any later one:
+the requirement is enforced at resolution, the attribution is recorded, and a consumer exists.

@@ -8,7 +8,13 @@ namespace Lunate.Coding;
 internal static class OptionalTools
 {
     /// <summary>The names that can be enabled, in their documented order.</summary>
-    internal static readonly IReadOnlyList<string> Names = ["grep", "find", "ls", "semantic_search"];
+    internal static readonly IReadOnlyList<string> Names =
+    [
+        "grep",
+        "find",
+        "ls",
+        "semantic_search",
+    ];
 
     /// <summary>The core tool names an extra entry must never collide with.</summary>
     internal static readonly IReadOnlyList<string> CoreNames =

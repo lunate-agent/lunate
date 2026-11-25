@@ -13,7 +13,9 @@ public sealed class EmbeddingsUsageTests
     public void A_known_api_set_without_embeddings_is_refused()
     {
         ResolvedModelProfile profile = Profile(
-            new ModelCapabilityDescriptor(apis: new HashSet<string>(["chat"], StringComparer.Ordinal))
+            new ModelCapabilityDescriptor(
+                apis: new HashSet<string>(["chat"], StringComparer.Ordinal)
+            )
         );
 
         InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
@@ -57,8 +59,16 @@ public sealed class EmbeddingsUsageTests
             EmbeddingsUsage.RequireEmbeddingsCapability(profile)
         );
 
-        Assert.Contains(ProviderApiFamilies.AnthropicMessages, exception.Message, StringComparison.Ordinal);
-        Assert.Contains(ProviderApiFamilies.OpenAiChat, exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            ProviderApiFamilies.AnthropicMessages,
+            exception.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            ProviderApiFamilies.OpenAiChat,
+            exception.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -74,7 +84,9 @@ public sealed class EmbeddingsUsageTests
             ModelCatalog.Load(temp.File("missing-models.json")),
             AuthStore.Load(temp.File("missing-auth.json"), _ => null),
             _ => null,
-            new ChatClientFactory(Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance),
+            new ChatClientFactory(
+                Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance
+            ),
             context: null,
             warnings.Add
         );

@@ -969,7 +969,7 @@ public sealed class CliTests
     public void Launch_options_refuse_an_unknown_extra_tool()
     {
         Assert.False(LaunchOptions.TryParse(["--extra-tools", "wat"], out _, out string? error));
-        Assert.Contains("'grep', 'find' or 'ls'", error, StringComparison.Ordinal);
+        Assert.Contains("'grep', 'find', 'ls' or 'semantic_search'", error, StringComparison.Ordinal);
     }
 
     [Fact]

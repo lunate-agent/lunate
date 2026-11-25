@@ -31,17 +31,28 @@ public sealed class EmbeddingWireTests
             WireId = "text-embedding-3-small",
         };
 
-        IEmbeddingGenerator<string, Embedding<float>> generator =
-            factory.CreateEmbeddingGenerator(model, apiKey: "sk-test", context: null);
+        IEmbeddingGenerator<string, Embedding<float>> generator = factory.CreateEmbeddingGenerator(
+            model,
+            apiKey: "sk-test",
+            context: null
+        );
         GeneratedEmbeddings<Embedding<float>> generated = await generator.GenerateAsync(
             ["hello", "world"],
             cancellationToken: TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpMethod.Post, capture.Request!.Method);
-        Assert.EndsWith("/embeddings", capture.Request.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+        Assert.EndsWith(
+            "/embeddings",
+            capture.Request.RequestUri!.AbsolutePath,
+            StringComparison.Ordinal
+        );
         Assert.Equal("Bearer sk-test", capture.Request.Headers.GetValues("Authorization").Single());
-        Assert.Contains("\"model\":\"text-embedding-3-small\"", capture.Body, StringComparison.Ordinal);
+        Assert.Contains(
+            "\"model\":\"text-embedding-3-small\"",
+            capture.Body,
+            StringComparison.Ordinal
+        );
         Assert.Contains("\"input\":[\"hello\",\"world\"]", capture.Body, StringComparison.Ordinal);
         Assert.Equal(2, generated.Count);
         Assert.Equal([0.1f, 0.2f], generated[0].Vector.ToArray());
@@ -67,8 +78,16 @@ public sealed class EmbeddingWireTests
             factory.CreateEmbeddingGenerator(model, apiKey: "sk-test", context: null)
         );
 
-        Assert.Contains(ProviderApiFamilies.AnthropicMessages, exception.Message, StringComparison.Ordinal);
-        Assert.Contains(ProviderApiFamilies.OpenAiChat, exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            ProviderApiFamilies.AnthropicMessages,
+            exception.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            ProviderApiFamilies.OpenAiChat,
+            exception.Message,
+            StringComparison.Ordinal
+        );
     }
 
     private sealed class CapturingTransport : HttpMessageHandler

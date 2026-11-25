@@ -113,17 +113,19 @@ internal sealed class SemanticIndex(string root, string cacheFile, string modelI
             );
         }
 
-        hits.Sort(static (left, right) =>
-        {
-            int byScore = right.Score.CompareTo(left.Score);
-            if (byScore != 0)
+        hits.Sort(
+            static (left, right) =>
             {
-                return byScore;
-            }
+                int byScore = right.Score.CompareTo(left.Score);
+                if (byScore != 0)
+                {
+                    return byScore;
+                }
 
-            int byPath = string.CompareOrdinal(left.Path, right.Path);
-            return byPath != 0 ? byPath : left.StartLine.CompareTo(right.StartLine);
-        });
+                int byPath = string.CompareOrdinal(left.Path, right.Path);
+                return byPath != 0 ? byPath : left.StartLine.CompareTo(right.StartLine);
+            }
+        );
         bool truncated = hits.Count > maxResults;
         if (truncated)
         {
@@ -226,7 +228,10 @@ internal sealed class SemanticIndex(string root, string cacheFile, string modelI
                 break;
             }
 
-            string absolute = Path.Combine(_root, entry.Path.Replace('/', Path.DirectorySeparatorChar));
+            string absolute = Path.Combine(
+                _root,
+                entry.Path.Replace('/', Path.DirectorySeparatorChar)
+            );
             string? text = ReadText(absolute);
             if (text is null)
             {
@@ -253,13 +258,7 @@ internal sealed class SemanticIndex(string root, string cacheFile, string modelI
             }
 
             taken++;
-            yield return new ChunkSource(
-                path,
-                start + 1,
-                end,
-                chunkText,
-                Digest(chunkText)
-            );
+            yield return new ChunkSource(path, start + 1, end, chunkText, Digest(chunkText));
         }
     }
 
@@ -360,7 +359,11 @@ internal sealed class SemanticIndex(string root, string cacheFile, string modelI
 
             foreach (CacheChunk chunk in document.Chunks)
             {
-                if (chunk.Path is { Length: > 0 } && chunk.Digest is { Length: > 0 } && chunk.Vector is { Length: > 0 })
+                if (
+                    chunk.Path is { Length: > 0 }
+                    && chunk.Digest is { Length: > 0 }
+                    && chunk.Vector is { Length: > 0 }
+                )
                 {
                     entries[(chunk.Path, chunk.Digest)] = chunk.Vector;
                 }
@@ -394,13 +397,7 @@ internal sealed class SemanticIndex(string root, string cacheFile, string modelI
             var document = new CacheDocument(
                 CacheVersion,
                 _modelId,
-                [
-                    .. chunks.Select(chunk => new CacheChunk(
-                        chunk.Path,
-                        chunk.Digest,
-                        chunk.Vector
-                    )),
-                ]
+                [.. chunks.Select(chunk => new CacheChunk(chunk.Path, chunk.Digest, chunk.Vector))]
             );
             string temporary = _cacheFile + ".tmp";
             File.WriteAllText(temporary, JsonSerializer.Serialize(document), Utf8);
@@ -431,7 +428,9 @@ internal sealed class SemanticIndex(string root, string cacheFile, string modelI
             rightNorm += right[index] * right[index];
         }
 
-        return leftNorm == 0 || rightNorm == 0 ? double.NaN : dot / (Math.Sqrt(leftNorm) * Math.Sqrt(rightNorm));
+        return leftNorm == 0 || rightNorm == 0
+            ? double.NaN
+            : dot / (Math.Sqrt(leftNorm) * Math.Sqrt(rightNorm));
     }
 
     private static string Digest(string text) =>

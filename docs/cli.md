@@ -101,7 +101,7 @@ These apply to the interactive session and to print mode.
 | `--model <id>` | use this model for the run (wins over settings) |
 | `--thinking <level>` | `off`, `low`, `medium` or `high` for the run |
 | `--tools <list>` | expose only these comma-separated tool names |
-| `--extra-tools <list>` | enable optional search tools (`grep`, `find`, `ls`) |
+| `--extra-tools <list>` | enable optional search tools (`grep`, `find`, `ls`, `semantic_search`; `semantic_search` also needs a `usages.embeddings` profile) |
 | `--no-tools` | expose no tools for the run |
 | `--max-steps <n>` | stop the run after `n` model calls (default 50; overrides the `maxSteps` setting) |
 | `--max-cost <usd>` | stop the run at this cumulative session spend |

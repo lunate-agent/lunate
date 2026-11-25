@@ -43,6 +43,7 @@ from swebench_support import (
     check_docker,
     check_official_harness,
     check_usage,
+    copy_lunate_home,
     forwarded_environment,
     instance_image,
     load_dataset,
@@ -142,6 +143,14 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         metavar="PYTHON",
         help="interpreter with the official swebench package (default: this Python)",
     )
+    parser.add_argument(
+        "--lunate-home",
+        metavar="DIR",
+        help=(
+            "copy exactly DIR/settings.json and DIR/providers.json into the run's LUNATE_HOME so an "
+            "arm can enable optional tools and bind usages (credentials stay environment-only)"
+        ),
+    )
     parser.add_argument("--docker", default="docker", metavar="PATH", help="Docker client (default: docker)")
     parser.add_argument("--keep", action="store_true", help="keep the instance container for debugging")
     return parser.parse_args(argv)
@@ -166,6 +175,8 @@ def execute(args: argparse.Namespace) -> int:
     if run_root.exists() and any(run_root.iterdir()):
         raise AdapterError(f"run directory '{run_root}' already exists; pass a different --run-id")
     run_root.mkdir(parents=True, exist_ok=True)
+    if args.lunate_home:
+        copy_lunate_home(Path(args.lunate_home), run_root)
     (run_root / "dataset.json").write_text(
         json.dumps(selected, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
     )
@@ -183,6 +194,7 @@ def execute(args: argparse.Namespace) -> int:
         "maxCostUsd": args.max_cost,
         "maxTimeSeconds": args.max_time,
         "maxWorkers": args.max_workers,
+        "lunateHome": args.lunate_home,
         "instances": [],
         "evaluation": {"requested": False},
     }

@@ -118,8 +118,7 @@ public sealed class SemanticSearchToolTests
         using var fixture = new Fixture();
         File.WriteAllText(fixture.Workspace.File("a.txt"), "alpha\n");
         SemanticSearchTool tool = fixture.Tool(new KeywordEmbeddingsClient(Vocabulary));
-        List<(UsageDetails Usage, string ModelId, ModelUsageAttribution Attribution)> recorded =
-        [];
+        List<(UsageDetails Usage, string ModelId, ModelUsageAttribution Attribution)> recorded = [];
 
         ToolResult result = await RunAsync(
             tool,
@@ -151,7 +150,8 @@ public sealed class SemanticSearchToolTests
 
         Assert.Equal(
             ["a.txt"],
-            Directory.GetFiles(fixture.Workspace.Root, "*", SearchOption.AllDirectories)
+            Directory
+                .GetFiles(fixture.Workspace.Root, "*", SearchOption.AllDirectories)
                 .Select(Path.GetFileName)
                 .Order()
         );
@@ -247,9 +247,9 @@ public sealed class SemanticSearchToolTests
                                 .Select(word =>
                                     (float)
                                         text.Split(
-                                            [' ', '\n'],
-                                            StringSplitOptions.RemoveEmptyEntries
-                                        )
+                                                [' ', '\n'],
+                                                StringSplitOptions.RemoveEmptyEntries
+                                            )
                                             .Count(token =>
                                                 token.Contains(
                                                     word,

@@ -45,13 +45,16 @@ internal sealed class SemanticSearchTool : ITool
     private readonly EmbeddingsBinding _binding;
     private readonly SemanticIndex _index;
 
-    internal SemanticSearchTool(Workspace workspace, EmbeddingsBinding binding, SemanticIndex? index = null)
+    internal SemanticSearchTool(
+        Workspace workspace,
+        EmbeddingsBinding binding,
+        SemanticIndex? index = null
+    )
     {
         ArgumentNullException.ThrowIfNull(workspace);
         ArgumentNullException.ThrowIfNull(binding);
         _binding = binding;
-        _index =
-            index
+        _index = index
             ?? new SemanticIndex(
                 workspace.WorktreeRoot,
                 SemanticIndex.CacheFile(workspace.WorktreeRoot, binding.ModelId),

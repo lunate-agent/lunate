@@ -212,11 +212,7 @@ internal static class DecisionUsageModels
             return factory.Create(profile.Model, held, context);
         }
 
-        (string? key, ModelInfo wireModel) = ResolveCredentialReference(
-            profile,
-            auth,
-            environment
-        );
+        (string? key, ModelInfo wireModel) = ResolveCredentialReference(profile, auth, environment);
         return factory.Create(wireModel, key, context);
     }
 
