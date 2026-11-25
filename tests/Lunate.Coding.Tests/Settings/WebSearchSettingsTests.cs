@@ -197,6 +197,41 @@ public sealed class WebSearchSettingsTests
         Assert.Contains("helper:<name>", exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("{ \"backend\": 5 }", "'tools.webSearch.backend' must be a string")]
+    [InlineData(
+        "{ \"backend\": \"searxng\", \"url\": 5 }",
+        "'tools.webSearch.url' must be a string"
+    )]
+    [InlineData(
+        "{ \"backend\": \"brave\", \"credential\": 5 }",
+        "'tools.webSearch.credential' must be a string"
+    )]
+    public void A_non_string_field_is_refused_by_its_own_key(string section, string expected)
+    {
+        using var temp = new TempDirectory();
+        Write(
+            temp,
+            $$"""
+            {
+              "schemaVersion": 2,
+              "tools": { "webSearch": {{section}} }
+            }
+            """
+        );
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            SettingsStore.Resolve(temp.File("settings.json"), _ => null)
+        );
+
+        Assert.Contains(expected, exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "providers.tools.webSearch",
+            exception.Message,
+            StringComparison.Ordinal
+        );
+    }
+
     [Fact]
     public void An_unknown_key_under_webSearch_is_refused()
     {

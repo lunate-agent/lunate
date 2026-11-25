@@ -64,25 +64,15 @@ public static partial class SettingsStore
             switch (property.Name)
             {
                 case "backend":
-                    backendName = ReadProviderField(
-                        property.Value,
-                        "tools.webSearch",
-                        "backend",
-                        problems
-                    );
+                    backendName = ReadWebSearchField(property.Value, "backend", problems);
                     break;
                 case "url":
                     hasUrl = true;
-                    urlText = ReadProviderField(property.Value, "tools.webSearch", "url", problems);
+                    urlText = ReadWebSearchField(property.Value, "url", problems);
                     break;
                 case "credential":
                     hasCredential = true;
-                    credential = ReadProviderField(
-                        property.Value,
-                        "tools.webSearch",
-                        "credential",
-                        problems
-                    );
+                    credential = ReadWebSearchField(property.Value, "credential", problems);
                     break;
                 default:
                     problems.Add($"unknown key 'tools.webSearch.{property.Name}'");
@@ -157,6 +147,21 @@ public static partial class SettingsStore
             Url = url,
             Credential = credential,
         };
+    }
+
+    private static string? ReadWebSearchField(
+        JsonElement value,
+        string field,
+        List<string> problems
+    )
+    {
+        if (value.ValueKind != JsonValueKind.String)
+        {
+            problems.Add($"'tools.webSearch.{field}' must be a string");
+            return null;
+        }
+
+        return value.GetString();
     }
 
     /// <summary>The URL rule the provider store applies to an endpoint: https, or http for loopback.</summary>
