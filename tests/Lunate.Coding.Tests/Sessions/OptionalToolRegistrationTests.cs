@@ -117,6 +117,53 @@ public sealed class OptionalToolRegistrationTests
     }
 
     [Fact]
+    public void The_embeddings_usage_is_never_resolved_while_the_tool_is_not_enabled()
+    {
+        using var temp = new TempDirectory();
+        int resolutions = 0;
+
+        ToolRegistry tools = HarnessFactory.CreateTools(
+            new Workspace(temp.Root),
+            extraTools: ["grep"],
+            embeddings: () =>
+            {
+                resolutions++;
+                return null;
+            }
+        );
+
+        Assert.Equal(0, resolutions);
+        Assert.Null(tools.Find(OptionalTools.SemanticSearch));
+    }
+
+    [Fact]
+    public async Task A_run_that_does_not_enable_the_tool_stays_silent_about_it()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            """
+            {
+              "schemaVersion": 2
+            }
+            """
+        );
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+        };
+
+        (int exitCode, _, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.DoesNotContain("semantic_search", errors, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Semantic_search_registers_when_a_binding_resolves()
     {
         using var temp = new TempDirectory();

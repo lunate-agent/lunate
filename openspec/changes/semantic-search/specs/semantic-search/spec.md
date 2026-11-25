@@ -7,11 +7,14 @@
 `semantic_search` SHALL join `grep`, `find` and `ls` as an optional search tool, off by default and
 enabled through the same three levers: `tools.extra`, `LUNATE_EXTRA_TOOLS` and `--extra-tools`. It
 SHALL be offered to the model only when its name is enabled **and** an `embeddings` usage resolves
-to a profile that meets the embeddings requirement. When either is absent the tool SHALL NOT be
-registered, so the model is never told about a tool that cannot run; the host SHALL print one
-single-line notice naming the settings key that would make it available. It SHALL be read-only, SHALL
-require no approval, and SHALL follow the optional tools' name validation (a core name is refused
-with the accepted values).
+to a profile that meets the embeddings requirement. A name that is not enabled SHALL register
+nothing and SHALL print no notice, exactly as `grep`, `find` and `ls` stay silent when they are not
+enabled: off by default means no chatter about a tool the user did not ask for, and the embeddings
+usage of such a run is never resolved. An enabled name whose `embeddings` usage does not resolve
+SHALL NOT be registered, so the model is never told about a tool that cannot run; the host SHALL
+print one single-line notice naming the setting (`usages.embeddings`) that would make it available.
+It SHALL be read-only, SHALL require no approval, and SHALL follow the optional tools' name
+validation (a core name is refused with the accepted values).
 
 The tool SHALL accept a required non-empty `query` string and an optional `max_results` integer
 (default 10, at least 1, at most 50). An unknown argument SHALL be refused with an error naming the
@@ -29,7 +32,8 @@ next step, never an unhandled exception.
 
 - **GIVEN** a settings file without `tools.extra`
 - **WHEN** the harness is built
-- **THEN** `semantic_search` is not registered and the model is not offered it
+- **THEN** `semantic_search` is not registered, the model is not offered it, no notice names it and
+  no embeddings profile is resolved for the run
 
 #### Scenario: Enabled beside grep
 

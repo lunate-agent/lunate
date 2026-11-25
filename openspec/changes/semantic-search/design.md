@@ -41,9 +41,12 @@ refusal and the "nothing extra by default" rule. It is read-only and requires no
 other search tools.
 
 Registration has one extra gate the other three do not need: the tool needs an embeddings profile.
-When the name is enabled but the usage does not resolve, the tool is **not registered** and the host
-prints one warning naming `usages.embeddings`. The alternative — register and fail every call — puts
-a guaranteed error in front of the model and burns a step per attempt.
+A name that is not enabled registers nothing and prints no notice — like the other three extras, it
+is off by default and silent about it, and the run resolves no embeddings profile at all. When the
+name is enabled but the usage does not resolve, the tool is **not registered** and the host prints
+one warning naming `usages.embeddings`. The alternative — register and fail every call — puts a
+guaranteed error in front of the model and burns a step per attempt, and warning on every run that
+never opted in would be chatter no other optional tool produces.
 
 ### D2 — `usages.embeddings` is a role with one requirement
 
