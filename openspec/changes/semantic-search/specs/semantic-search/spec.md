@@ -1,5 +1,12 @@
 # semantic-search — the embeddings-backed repo search delta
 
+## Purpose
+
+The optional `semantic_search` tool proves the `embeddings` capability: it embeds the workspace into
+a rebuildable cache and ranks it against a natural-language query, so the agent can find code by
+what it does rather than by the words it uses. It is off by default, offered only when an
+`embeddings` profile resolves, and it never writes its index into the workspace or a session.
+
 ## ADDED Requirements
 
 ### Requirement: Optional semantic search tool
