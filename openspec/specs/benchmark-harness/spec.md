@@ -8,13 +8,13 @@ The reproducible SWE-bench adapter: run Lunate inside the official instance imag
 
 ### Requirement: One documented entry point
 
-The repository SHALL provide one harness adapter at `scripts/eval/swebench.py` whose behaviour is driven by documented CLI flags, including a one-instance dry run, the instance id, the model id, the Lunate binary, the output directory, the evaluation mode, the per-run timeout, and an optional Lunate home directory so an arm can run with a prepared settings and provider pair. `--help` SHALL list every flag and state the prerequisites. A run SHALL be reproducible from that command plus an official dataset instance; no environment-specific shell script is required.
+The repository SHALL provide one harness adapter at `scripts/eval/swebench.py` whose behaviour is driven by documented CLI flags, including a one-instance dry run, the instance id, the model id, the Lunate binary, the output directory, the evaluation mode and the per-run timeout. `--help` SHALL list every flag and state the prerequisites. A run SHALL be reproducible from that command plus an official dataset instance; no environment-specific shell script is required.
 
 #### Scenario: Help lists the dry-run and evaluation flags
 
 - **GIVEN** a checkout with no run directory
 - **WHEN** the adapter is invoked with `--help`
-- **THEN** it exits 0 and the output names `--dry-run`, `--instance`, `--model`, `--lunate-bin`, `--output-dir`, `--dataset-file`, `--evaluate` and `--lunate-home`
+- **THEN** it exits 0 and the output names `--dry-run`, `--instance`, `--model`, `--lunate-bin`, `--output-dir`, `--dataset-file` and `--evaluate`
 
 #### Scenario: A dry run is one instance
 
@@ -27,18 +27,6 @@ The repository SHALL provide one harness adapter at `scripts/eval/swebench.py` w
 - **GIVEN** no `--instance` and no `--dry-run`
 - **WHEN** the adapter starts
 - **THEN** it exits 2 with a message that names the missing selection flag and writes no run directory
-
-#### Scenario: A home directory supplies only settings and providers
-
-- **GIVEN** a directory containing `settings.json` and `providers.json`
-- **WHEN** the adapter runs with `--lunate-home <dir>`
-- **THEN** exactly those two files are copied into the run directory's `lunate-home` and the in-image run reads them, and no other file from the directory is copied
-
-#### Scenario: A home without settings is refused
-
-- **GIVEN** a directory with no `settings.json`
-- **WHEN** the adapter runs with `--lunate-home <dir>`
-- **THEN** it refuses with a usage error naming the missing file and starts no container
 
 ### Requirement: Runs inside the official SWE-bench image
 
@@ -61,13 +49,6 @@ For each selected instance the adapter SHALL run Lunate inside the official SWE-
 - **GIVEN** an instance whose official image is absent from the local Docker daemon
 - **WHEN** the adapter prepares the instance
 - **THEN** it pulls the image named by the instance before the container starts
-
-#### Scenario: A prepared home makes the tool-on arm reproducible
-
-- **GIVEN** a prepared home whose `settings.json` enables `semantic_search` in `tools.extra` and binds `usages.embeddings`
-- **WHEN** the adapter runs the same instance subset with and without that `--lunate-home`
-- **THEN** both arms run the identical container command apart from the prepared home, and each
-  arm's trajectory records its own steps and tokens
 
 ### Requirement: Patch and trajectory under known paths
 

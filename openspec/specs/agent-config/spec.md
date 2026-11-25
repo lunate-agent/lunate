@@ -14,8 +14,7 @@ are approved automatically, commands still require approval), `verify` (`block` 
 `off`), and `output.toolResultLimit` (default 30,000 characters), and `startupHeader` (default
 `true`; `false` suppresses the interactive welcome header). It SHALL also read optional `favorites`,
 an ordered array of at most eight unique non-empty model ids, and optional `tools.extra`, an array of
-optional search tool names
-(`grep`, `find`, `ls`, `semantic_search`; default empty), where an unknown name or a name
+optional search tool names (`grep`, `find`, `ls`; default empty), where an unknown name or a name
 colliding with a core tool SHALL be rejected with the accepted values. It SHALL also read `notify`, a
 boolean that enables desktop notifications for long interactive turns (default `false`; the
 `--notify` launch flag enables it for one run), and `notifyMinSeconds`, a non-negative integer
@@ -144,19 +143,6 @@ A failed write SHALL leave the old file intact. A write SHALL emit `schemaVersio
 - **WHEN** settings are resolved
 - **THEN** notifications are enabled with no duration threshold; and a negative or non-integer
   `notifyMinSeconds` is refused with the accepted value shape and no partial settings are applied
-
-#### Scenario: semantic_search is an accepted optional name
-
-- **GIVEN** `tools.extra` set to `["semantic_search"]`
-- **WHEN** settings are resolved
-- **THEN** the list is accepted exactly as `["grep"]` would be
-
-#### Scenario: An optional entry cannot name a core tool
-
-- **GIVEN** `tools.extra` set to `["read"]`
-- **WHEN** settings are resolved
-- **THEN** it is refused naming the core tool and every accepted value, including
-  `semantic_search`
 
 ### Requirement: Auth store
 

@@ -553,25 +553,19 @@ A `bash` command SHALL run wrapped in a guard profile, not a jail: writes under 
 
 ### Requirement: Optional search tools
 
-When configured, the optional read-only search tools SHALL be registered beside the core set: `grep` (regex search with `path`, `glob`, `case_sensitive` and `max_results` of 100 default / 500 cap, using the ripgrep binary when present and an internal walker otherwise, both honouring `.gitignore` and skipping binary files), `find` (glob matching with `path`, `type` of `file` or `dir`, 100/500 bounds, case-insensitive on Windows and macOS, case-sensitive on Linux), `ls` (one directory listing with `path` and `depth` of 1 default / 3 max, directories first then files, `.git` always skipped) and `semantic_search` (the embeddings-backed repo search the `semantic-search` capability specifies; it is registered only when an embeddings profile also resolves). `grep`, `find` and `ls` SHALL refuse a path outside the workspace exactly as `read` does; all four SHALL require no approval, SHALL follow no directory symlink and SHALL route their output through the existing truncation path. Their results SHALL name what was searched and SHALL end with a `[N more …]` line when a cap cut the result. When the configured list is empty — the default — none SHALL be registered, and the tool set SHALL be exactly the core set.
+When configured, three read-only tools SHALL be registered beside the core set: `grep` (regex search with `path`, `glob`, `case_sensitive` and `max_results` of 100 default / 500 cap, using the ripgrep binary when present and an internal walker otherwise, both honouring `.gitignore` and skipping binary files), `find` (glob matching with `path`, `type` of `file` or `dir`, 100/500 bounds, case-insensitive on Windows and macOS, case-sensitive on Linux) and `ls` (one directory listing with `path` and `depth` of 1 default / 3 max, directories first then files, `.git` always skipped). All three SHALL refuse a path outside the workspace exactly as `read` does, SHALL require no approval, SHALL follow no directory symlink and SHALL route their output through the existing truncation path. Their results SHALL name what was searched and SHALL end with a `[N more …]` line when a cap cut the result. When the configured list is empty — the default — none SHALL be registered, and the tool set SHALL be exactly the core set.
 
 #### Scenario: Nothing extra by default
 
 - **GIVEN** a settings file without `tools.extra`
 - **WHEN** the harness is built
-- **THEN** only the core tools are registered and no `grep`, `find`, `ls` or `semantic_search` exists
+- **THEN** only the core tools are registered and no `grep`, `find` or `ls` exists
 
 #### Scenario: A configured list registers exactly its tools
 
 - **GIVEN** `tools.extra` set to `["grep", "ls"]`
 - **WHEN** the harness is built
 - **THEN** `grep` and `ls` are registered, `find` is not, and a `bash` name in the list is rejected with the accepted values
-
-#### Scenario: semantic_search needs both the name and a profile
-
-- **GIVEN** `tools.extra` set to `["semantic_search"]` and no resolvable `usages.embeddings`
-- **WHEN** the harness is built
-- **THEN** `semantic_search` is not registered and the model is offered no tool that cannot run
 
 #### Scenario: grep honours gitignore and the cap
 
