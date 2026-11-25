@@ -149,7 +149,11 @@ credential.
 Non-200 is a blocked/rate-limited error naming the endpoint, the status and the reason, for every
 backend. For a genuine empty answer:
 
-- JSON backends answer with an empty result array, which is an empty search by construction.
+- JSON backends answer with an empty result array, which is an empty search by construction, and
+  only that shape is one: a missing container, a missing or non-array `results` field, a 200 API
+  error object and an array whose entries carry no usable URL are all a shape the backend did not
+  expect, so they take the blocked path. A changed upstream shape is never reported to the model as
+  a verdict on its query.
 - HTML backends keep the strict rule the blocked-endpoint change introduced: no result links is only
   an empty search when the page carries DuckDuckGo's/SearXNG's own no-results element and marker;
   otherwise the page is not a results page and the endpoint is blocking or challenging the client.
@@ -157,8 +161,10 @@ backend. For a genuine empty answer:
 ### 5. Recorded fixtures, not network
 
 Each backend's test reads a fixture under `tests/fixtures/web/` shaped like the real answer
-(`searxng-results.html`, `searxng-no-results.html`, `brave-results.json`, `brave-no-results.json`,
-`tavily-results.json`, `tavily-no-results.json`) through `StubHttpHandler`, which also records the
+(`searxng-results.html`, `searxng-no-results.html`, `brave-results.json`,
+`brave-empty-results.json`, `brave-no-web-object.json`, `brave-api-error.json`,
+`brave-results-not-an-array.json`, `tavily-results.json`, `tavily-no-results.json`,
+`tavily-api-error.json`) through `StubHttpHandler`, which also records the
 request headers and body so a test can assert the credential's single placement. No test resolves a
 real reference from the process environment: every credential in a test is a `Func<string, string?>`
 stub.

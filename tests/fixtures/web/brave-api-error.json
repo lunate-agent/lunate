@@ -1,0 +1,7 @@
+{
+  "type": "ErrorResponse",
+  "error": {
+    "code": "SUBSCRIPTION_TOKEN_INVALID",
+    "detail": "The provided subscription token is invalid."
+  }
+}

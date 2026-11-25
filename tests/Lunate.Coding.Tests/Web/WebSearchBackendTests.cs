@@ -181,7 +181,7 @@ public sealed class WebSearchBackendTests
     }
 
     [Theory]
-    [InlineData("brave", "brave-no-results.json")]
+    [InlineData("brave", "brave-empty-results.json")]
     [InlineData("tavily", "tavily-no-results.json")]
     public async Task An_empty_api_answer_is_a_result_not_an_error(string backend, string fixture)
     {
@@ -197,6 +197,36 @@ public sealed class WebSearchBackendTests
             StringComparison.Ordinal
         );
         Assert.DoesNotContain("blocked", result.Output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(
+        "brave",
+        "brave-no-web-object.json",
+        "https://api.search.brave.com/res/v1/web/search"
+    )]
+    [InlineData("brave", "brave-api-error.json", "https://api.search.brave.com/res/v1/web/search")]
+    [InlineData(
+        "brave",
+        "brave-results-not-an-array.json",
+        "https://api.search.brave.com/res/v1/web/search"
+    )]
+    [InlineData("tavily", "tavily-api-error.json", "https://api.tavily.com/search")]
+    public async Task An_api_answer_that_is_not_an_empty_result_array_is_a_blocked_page(
+        string backend,
+        string fixture,
+        string endpoint
+    )
+    {
+        using var handler = StubHttpHandler.Json(WebTestSupport.Fixture(fixture));
+        WebSearchTool tool = Tool(Settings(backend), handler, secret: "key");
+
+        ToolResult result = await Run(tool, """{"query":"xqzvbnmplkjhgfdsa"}""");
+
+        Assert.True(result.IsError);
+        Assert.Contains(endpoint, result.Output, StringComparison.Ordinal);
+        Assert.Contains("blocked", result.Output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("No results found", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -123,10 +123,12 @@ internal static class WebSearchBackends
 
 /// <summary>
 /// The JSON reading both API backends share: one object, an optional container property, then a
-/// <c>results</c> array of objects with a title, an absolute URL and a snippet property. A body that
-/// is not JSON of that shape reads as <c>null</c>, which the tool reports as the endpoint not
-/// answering a search; a shape without results is a genuine empty search. Neither is an exception a
-/// model cannot act on.
+/// <c>results</c> array of objects with a title, an absolute URL and a snippet property. Only an
+/// explicitly present, empty <c>results</c> array is a genuine empty search; every other shape — a
+/// body that is not JSON, a missing container, a missing or non-array <c>results</c>, an API error
+/// object, an array whose entries carry no usable URL — reads as <c>null</c>, which the tool reports
+/// as the endpoint not answering a search. A shape the backend did not expect is never a verdict on
+/// the query, and neither is an exception a model cannot act on.
 /// </summary>
 internal static class SearchJson
 {
@@ -152,13 +154,10 @@ internal static class SearchJson
 
             if (container is not null)
             {
-                if (!root.TryGetProperty(container, out JsonElement scope))
-                {
-                    // Brave answers a query with no matches without a `web` object at all.
-                    return new SearchPage([], NoResults: true);
-                }
-
-                if (scope.ValueKind != JsonValueKind.Object)
+                if (
+                    !root.TryGetProperty(container, out JsonElement scope)
+                    || scope.ValueKind != JsonValueKind.Object
+                )
                 {
                     return null;
                 }
@@ -171,7 +170,7 @@ internal static class SearchJson
                 || array.ValueKind != JsonValueKind.Array
             )
             {
-                return new SearchPage([], NoResults: true);
+                return null;
             }
 
             var results = new List<SearchResult>();
@@ -197,7 +196,9 @@ internal static class SearchJson
                 );
             }
 
-            return new SearchPage(results, NoResults: results.Count == 0);
+            // Only the array itself decides: an array with entries that carry no usable URL is a
+            // shape this backend did not expect, not an empty answer.
+            return new SearchPage(results, NoResults: array.GetArrayLength() == 0);
         }
     }
 

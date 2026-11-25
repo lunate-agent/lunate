@@ -14,9 +14,11 @@ point SHALL NOT split a UTF-8 sequence or a UTF-16 surrogate pair. A search with
 return a readable "no results" result rather than an error only when the response is a genuine empty
 answer: a JSON backend's empty result array, or an HTML page carrying a genuine no-results marker. A
 200 HTML response with no result links and no such marker SHALL produce an error saying the endpoint
-blocked or rate-limited the search. A non-200 response SHALL produce an error naming the endpoint,
-the HTTP status and the reason and saying the endpoint blocked or rate-limited the search. An
-unknown argument SHALL be refused with an error naming the accepted arguments.
+blocked or rate-limited the search. A 200 JSON response that carries no `results` array — a missing
+container, a missing or non-array field, or an API error object — SHALL produce the same error. A
+non-200 response SHALL produce an error naming the endpoint, the HTTP status and the reason and
+saying the endpoint blocked or rate-limited the search. An unknown argument SHALL be refused with an
+error naming the accepted arguments.
 
 #### Scenario: A query returns ranked title, URL and snippet
 
@@ -63,6 +65,14 @@ unknown argument SHALL be refused with an error naming the accepted arguments.
 - **GIVEN** a recorded blocked page returned with HTTP 200, carrying no result links and no
   genuine no-results marker
 - **WHEN** `web_search` runs
+- **THEN** the error names the search endpoint and says the endpoint blocked or rate-limited the
+  search, and the result is not the no-results text
+
+#### Scenario: An API answer without a result array is not a no-results result
+
+- **GIVEN** a recorded HTTP 200 API answer carrying no `results` array — a missing container, a
+  missing or non-array `results` field, or an API error object
+- **WHEN** `web_search` runs against that API backend
 - **THEN** the error names the search endpoint and says the endpoint blocked or rate-limited the
   search, and the result is not the no-results text
 

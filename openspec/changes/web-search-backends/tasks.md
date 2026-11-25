@@ -1,8 +1,9 @@
 ## 1. Fixtures and failing tests first
 
 - [x] 1.1 Add recorded-shape fixtures under `tests/fixtures/web/`: `searxng-results.html`,
-  `searxng-no-results.html`, `brave-results.json`, `brave-no-results.json`, `tavily-results.json`,
-  `tavily-no-results.json`.
+  `searxng-no-results.html`, `brave-results.json`, `brave-empty-results.json`,
+  `brave-no-web-object.json`, `brave-api-error.json`, `brave-results-not-an-array.json`,
+  `tavily-results.json`, `tavily-no-results.json`, `tavily-api-error.json`.
 - [x] 1.2 Extend `tests/Lunate.Coding.Tests/Web/StubHttpHandler.cs` (`StubRequest`) to record the
   request headers and body so a test can assert the credential's one placement.
 - [x] 1.3 Add `WebSearchBackendTests` (or extend `WebSearchToolTests`) covering: DuckDuckGo as the
@@ -20,6 +21,9 @@
 - [x] 1.6 Add the registered `env:` reference case to `CredentialVariablesTests`: composing the web
   search configuration registers the name in the strip list.
 - [x] 1.7 Run the new and edited test classes and confirm the new cases fail before implementation.
+- [x] 1.8 Add the rework cases the review of PR #1034 asked for: a 200 API answer that carries no
+  `results` array — a missing container, an API error object, a non-array field — is a blocked page,
+  and only a present, empty result array is a genuine no-results answer.
 
 ## 2. Implementation
 
@@ -43,6 +47,8 @@
 - [x] 2.8 Thread one `WebSearchConfiguration` from `PrintMode`, `AcpMode` and `InteractiveSession`
   into `HarnessFactory.CreateTools`/`CreateWorkspaceTools` and so into every `WebSearchTool`.
 - [x] 2.9 Run the focused test classes again until green.
+- [x] 2.10 Make `SearchJson.Read` classify a JSON answer strictly: only an empty `results` array is
+  a no-results answer, and every other shape returns `null` so the tool takes its blocked path.
 
 ## 3. Documentation and release note
 
