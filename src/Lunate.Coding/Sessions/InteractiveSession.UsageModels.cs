@@ -52,8 +52,10 @@ internal sealed partial class InteractiveSession
 
         foreach ((string usage, string profileName) in _settings.Usages)
         {
-            if (usage == "chat")
+            if (usage is "chat" or EmbeddingsUsage.Usage)
             {
+                // `chat` is already above; `embeddings` is not a chat role — it is resolved into
+                // the semantic search tool's own binding, never into a chat client.
                 continue;
             }
 
@@ -144,6 +146,23 @@ internal sealed partial class InteractiveSession
             _environment,
             _factory,
             SessionRequestContext()
+        );
+
+    /// <summary>
+    /// The embeddings binding the optional semantic search tool carries, or null with one notice
+    /// naming the settings key. The tool factory asks for it only when the tool name is enabled,
+    /// so a run that does not use the tool resolves no embeddings profile.
+    /// </summary>
+    private EmbeddingsBinding? ResolveEmbeddingsBinding() =>
+        EmbeddingsUsage.TryResolve(
+            _settings,
+            _providerEntries,
+            _catalog,
+            _auth,
+            _environment,
+            _factory,
+            SessionRequestContext(),
+            message => Notify(message, NoticeLevel.Warning)
         );
 
     private IChatClient CreateUsageClient(ResolvedModelProfile profile)

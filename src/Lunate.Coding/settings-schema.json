@@ -398,7 +398,7 @@
       "type": "string array",
       "default": "[]",
       "scope": "user",
-      "allowed": ["grep", "find", "ls"],
+      "allowed": ["grep", "find", "ls", "semantic_search"],
       "description": "Optional search tools to register beside the core set; empty means none. `LUNATE_EXTRA_TOOLS` overrides it."
     },
     {
@@ -443,6 +443,13 @@
       "default": "unset",
       "scope": "user, project",
       "description": "The profile used to compact a session; used only when assigned."
+    },
+    {
+      "name": "usages.embeddings",
+      "type": "string",
+      "default": "unset",
+      "scope": "user, project",
+      "description": "The embeddings profile: indexed and queried by the optional `semantic_search` tool. It must resolve to an `openai-chat` model that declares the `embeddings` API; otherwise the tool is not offered."
     },
     {
       "name": "usages.fast",

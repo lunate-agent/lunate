@@ -8,7 +8,7 @@ namespace Lunate.Coding;
 internal static class OptionalTools
 {
     /// <summary>The names that can be enabled, in their documented order.</summary>
-    internal static readonly IReadOnlyList<string> Names = ["grep", "find", "ls"];
+    internal static readonly IReadOnlyList<string> Names = ["grep", "find", "ls", "semantic_search"];
 
     /// <summary>The core tool names an extra entry must never collide with.</summary>
     internal static readonly IReadOnlyList<string> CoreNames =
@@ -26,7 +26,10 @@ internal static class OptionalTools
     ];
 
     /// <summary>The accepted values as the error messages list them.</summary>
-    internal const string Accepted = "'grep', 'find' or 'ls'";
+    internal const string Accepted = "'grep', 'find', 'ls' or 'semantic_search'";
+
+    /// <summary>The embeddings-backed tool, which needs a resolved embeddings profile to be offered.</summary>
+    internal const string SemanticSearch = "semantic_search";
 
     /// <summary>Whether <paramref name="name"/> is one of the optional tool names.</summary>
     internal static bool IsName(string? name) =>

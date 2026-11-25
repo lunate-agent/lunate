@@ -5,15 +5,16 @@ namespace Lunate.Coding;
 
 internal sealed partial class InteractiveSession
 {
-    private void RecordDecisionUsage(UsageUpdated usage) =>
-        RecordDecisionUsage(usage.Usage, usage.ModelId, usage.Attribution, usage.ProviderCost);
+    private void RecordAttributedUsage(UsageUpdated usage) =>
+        RecordAttributedUsage(usage.Usage, usage.ModelId, usage.Attribution, usage.ProviderCost);
 
     /// <summary>
-    /// Persists one decision usage as a schema-4 model-usage entry. The provider-reported cost is
-    /// kept beside the tokens so <c>/cost</c> prefers it over a catalog estimate and a resume
-    /// reads the same amount back.
+    /// Persists one attributed usage the run recorded beside a chat message — a decision or an
+    /// embeddings call — as a schema-4 model-usage entry. The provider-reported cost is kept beside
+    /// the tokens so <c>/cost</c> prefers it over a catalog estimate and a resume reads the same
+    /// amount back.
     /// </summary>
-    private void RecordDecisionUsage(
+    private void RecordAttributedUsage(
         UsageDetails details,
         string? modelId,
         ModelUsageAttribution? attribution,
@@ -71,6 +72,6 @@ internal sealed partial class InteractiveSession
             probability
         );
         AddUsage(details, modelId, root: false);
-        RecordDecisionUsage(details, modelId, attribution, providerCost);
+        RecordAttributedUsage(details, modelId, attribution, providerCost);
     }
 }

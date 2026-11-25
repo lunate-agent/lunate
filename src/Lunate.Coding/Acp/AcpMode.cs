@@ -371,6 +371,13 @@ internal static class AcpMode
             providerStorePath: AuthStore.ProviderStoreFilePath(null)
         );
         var refusalTracker = new WriteVerificationRefusalTracker();
+        // The session exists before the tools: the optional semantic search tool resolves its
+        // embeddings client with the session's request identity (header templates read it).
+        Session session = HarnessFactory.CreateSession(
+            sessionDirectory ?? HarnessFactory.DefaultSessionDirectory(workspace),
+            workspace
+        );
+        HarnessFactory.AttachRedaction(session, redaction);
         ToolRegistry tools = HarnessFactory.CreateTools(
             workspace,
             files: context.FileAccess,
@@ -381,7 +388,8 @@ internal static class AcpMode
             verificationMode: effective.Verify,
             refusalTracker: refusalTracker,
             bashGuardEnabled: effective.BashGuard,
-            bashJobs: bashJobs
+            bashJobs: bashJobs,
+            embeddings: () => ResolveEmbeddingsBinding(session)
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -401,11 +409,6 @@ internal static class AcpMode
             throw new ToolFilterException(toolError!);
         }
 
-        Session session = HarnessFactory.CreateSession(
-            sessionDirectory ?? HarnessFactory.DefaultSessionDirectory(workspace),
-            workspace
-        );
-        HarnessFactory.AttachRedaction(session, redaction);
         LaunchOptions directives = launch ?? new LaunchOptions();
         SystemPrompt.Record(session, directives);
         // The decision model resolves once, before the harness options: the decision usage
@@ -502,7 +505,8 @@ internal static class AcpMode
                 verificationMode: effective.Verify,
                 refusalTracker: refusalTracker,
                 bashGuardEnabled: effective.BashGuard,
-                bashJobs: bashJobs
+                bashJobs: bashJobs,
+                embeddings: () => ResolveEmbeddingsBinding(session)
             ),
         };
 
@@ -516,6 +520,20 @@ internal static class AcpMode
             tools,
             options
         );
+
+        // The embeddings binding the optional semantic search tool carries; the tool factory asks
+        // for it only when the tool name is enabled.
+        EmbeddingsBinding? ResolveEmbeddingsBinding(Session session) =>
+            EmbeddingsUsage.TryResolve(
+                effective,
+                providers,
+                models,
+                auth,
+                static name => Environment.GetEnvironmentVariable(name),
+                clientFactory,
+                new RequestContext(session.SessionId),
+                message => (warn ?? (_ => { }))(new UserNotice(NoticeLevel.Warning, message))
+            );
 
         // The profile clients load the stores only when routing is on, like the interactive
         // session's per-build resolution.

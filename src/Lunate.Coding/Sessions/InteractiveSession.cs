@@ -678,7 +678,8 @@ internal sealed partial class InteractiveSession : IDisposable
             bashGuardEnabled: _settings.BashGuard,
             bashGuard: _bashGuard,
             environment: _executionEnvironment,
-            bashJobs: _bashJobs
+            bashJobs: _bashJobs,
+            embeddings: ResolveEmbeddingsBinding
         );
         _tools.Add(new AskUserTool());
         await ComposeMcpConfigAsync(ct);
@@ -709,7 +710,8 @@ internal sealed partial class InteractiveSession : IDisposable
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
             environment: _executionEnvironment,
-            bashJobs: _bashJobs
+            bashJobs: _bashJobs,
+            embeddings: ResolveEmbeddingsBinding
         );
         // The model resolves after the extension host: the configured id may name a virtual or
         // extension-registered model, which only the registry knows.

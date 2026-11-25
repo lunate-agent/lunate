@@ -765,6 +765,8 @@ public sealed partial class AgentHarness
             {
                 DecideAsync = (request, decisionCt) =>
                     EvaluateToolDecisionAsync(runId, request, channel, decisionCt),
+                RecordUsage = (details, modelId, attribution) =>
+                    AccumulateUsage(runId, channel, details, modelId, attribution),
             },
             ToolStubs = CallableToolStubs(),
             Models = _options.ModelRegistry is { } registry

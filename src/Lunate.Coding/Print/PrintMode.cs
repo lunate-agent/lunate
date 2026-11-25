@@ -866,7 +866,18 @@ internal static class PrintMode
             refusalTracker: refusalTracker,
             bashGuardEnabled: settings.BashGuard,
             environment: environment,
-            bashJobs: bashJobs
+            bashJobs: bashJobs,
+            embeddings: () =>
+                EmbeddingsUsage.TryResolve(
+                    settings,
+                    providers,
+                    catalog,
+                    auth,
+                    options.Environment ?? Environment.GetEnvironmentVariable,
+                    factory,
+                    SessionContext(session),
+                    message => warn(new UserNotice(NoticeLevel.Warning, message))
+                )
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -990,7 +1001,18 @@ internal static class PrintMode
                 refusalTracker: refusalTracker,
                 bashGuardEnabled: settings.BashGuard,
                 environment: environment,
-                bashJobs: bashJobs
+                bashJobs: bashJobs,
+                embeddings: () =>
+                    EmbeddingsUsage.TryResolve(
+                        settings,
+                        providers,
+                        catalog,
+                        auth,
+                        options.Environment ?? Environment.GetEnvironmentVariable,
+                        factory,
+                        SessionContext(session),
+                        message => warn(new UserNotice(NoticeLevel.Warning, message))
+                    )
             ),
         };
 

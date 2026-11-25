@@ -29,7 +29,8 @@ internal static class HarnessFactory
         bool bashGuardEnabled = true,
         BashGuard? bashGuard = null,
         IExecutionEnvironment? environment = null,
-        BashJobRegistry? bashJobs = null
+        BashJobRegistry? bashJobs = null,
+        Func<EmbeddingsBinding?>? embeddings = null
     )
     {
         refusalTracker ??= new WriteVerificationRefusalTracker();
@@ -77,7 +78,7 @@ internal static class HarnessFactory
         tools.Add(new RememberTool(workspace, files: files));
         tools.Add(new WebSearchTool());
         tools.Add(new WebFetchTool());
-        AddOptionalTools(tools, workspace, extraTools);
+        AddOptionalTools(tools, workspace, extraTools, embeddings);
         return tools;
     }
 
@@ -89,7 +90,8 @@ internal static class HarnessFactory
     private static void AddOptionalTools(
         ToolRegistry tools,
         Workspace workspace,
-        IReadOnlyList<string>? names
+        IReadOnlyList<string>? names,
+        Func<EmbeddingsBinding?>? embeddings
     )
     {
         if (names is not { Count: > 0 })
@@ -115,6 +117,15 @@ internal static class HarnessFactory
                 case "ls":
                     tools.Add(new LsTool(workspace));
                     break;
+                case OptionalTools.SemanticSearch:
+                    // The tool is offered only when it can run: an enabled name without a
+                    // resolved embeddings profile registers nothing (the resolver warns once).
+                    if (embeddings?.Invoke() is { } binding)
+                    {
+                        tools.Add(new SemanticSearchTool(workspace, binding));
+                    }
+
+                    break;
             }
         }
     }
@@ -138,7 +149,8 @@ internal static class HarnessFactory
         WriteVerificationRefusalTracker? refusalTracker = null,
         bool bashGuardEnabled = true,
         IExecutionEnvironment? environment = null,
-        BashJobRegistry? bashJobs = null
+        BashJobRegistry? bashJobs = null,
+        Func<EmbeddingsBinding?>? embeddings = null
     )
     {
         ArgumentNullException.ThrowIfNull(inheritedTools);
@@ -158,7 +170,8 @@ internal static class HarnessFactory
                 refusalTracker: refusalTracker,
                 bashGuardEnabled: bashGuardEnabled,
                 environment: environment,
-                bashJobs: bashJobs
+                bashJobs: bashJobs,
+                embeddings: embeddings
             );
             if (extensionTools is not null)
             {
