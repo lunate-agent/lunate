@@ -57,7 +57,11 @@ public sealed class SettingsStoreExtraToolsTests
             SettingsStore.Resolve(temp.File("settings.json"), _ => null)
         );
 
-        Assert.Contains("'grep', 'find', 'ls' or 'semantic_search'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "'grep', 'find', 'ls' or 'semantic_search'",
+            exception.Message,
+            StringComparison.Ordinal
+        );
         Assert.Contains("'wat'", exception.Message, StringComparison.Ordinal);
         Assert.Contains("No settings were applied", exception.Message, StringComparison.Ordinal);
     }
@@ -81,7 +85,11 @@ public sealed class SettingsStoreExtraToolsTests
         );
 
         Assert.Contains("core tool 'bash'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("'grep', 'find', 'ls' or 'semantic_search'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "'grep', 'find', 'ls' or 'semantic_search'",
+            exception.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Theory]
@@ -105,7 +113,11 @@ public sealed class SettingsStoreExtraToolsTests
         );
 
         Assert.Contains($"core tool '{name}'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("'grep', 'find', 'ls' or 'semantic_search'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "'grep', 'find', 'ls' or 'semantic_search'",
+            exception.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -141,7 +153,11 @@ public sealed class SettingsStoreExtraToolsTests
         );
 
         Assert.Contains(ExtraToolsVariable, exception.Message, StringComparison.Ordinal);
-        Assert.Contains("'grep', 'find', 'ls' or 'semantic_search'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            "'grep', 'find', 'ls' or 'semantic_search'",
+            exception.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

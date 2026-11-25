@@ -213,7 +213,11 @@ internal static class DecisionUsageModels
         }
 
         (string? key, ModelInfo wireModel) = ResolveCredentialReference(profile, auth, environment);
-        return factory.Create(wireModel, key, context);
+        // No resolved key stays on the deferred path, which keeps replay allowed; the explicit
+        // credential overload would bypass LUNATE_REPLAY for a run that has no credential yet.
+        return key is { Length: > 0 }
+            ? factory.Create(wireModel, key, context)
+            : factory.Create(wireModel, context);
     }
 
     /// <summary>
