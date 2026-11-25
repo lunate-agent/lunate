@@ -1176,6 +1176,7 @@
             "decision_evaluated",
             "decision_failed",
             "decision_unavailable",
+            "image_described",
             "model_routed",
             "reasoning_end",
             "reasoning_message_content",

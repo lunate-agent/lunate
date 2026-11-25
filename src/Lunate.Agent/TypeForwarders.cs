@@ -16,6 +16,7 @@ using System.Runtime.CompilerServices;
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.FileMutationQueue))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.GitIdentity))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.IAgentEvents))]
+[assembly: TypeForwardedTo(typeof(Lunate.Agent.ImageDescribed))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.IFileChangeSink))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.IFileMutationQueue))]
 [assembly: TypeForwardedTo(typeof(Lunate.Agent.IModelAccess))]

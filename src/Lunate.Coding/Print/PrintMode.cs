@@ -1,3 +1,4 @@
+using System.Globalization;
 using Lunate.Agent;
 using Lunate.Ai;
 using Lunate.Extensibility;
@@ -546,6 +547,13 @@ internal static class PrintMode
             SteeringInjected { Text.Length: > 0 } injected => new UserNotice(
                 NoticeLevel.Info,
                 injected.Text
+            ),
+            ImageDescribed described => new UserNotice(
+                NoticeLevel.Info,
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{described.Placeholder} described by profile '{described.Profile}' ({described.ModelId}): {described.Description}"
+                )
             ),
             _ => null,
         };

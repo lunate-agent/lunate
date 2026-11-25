@@ -1953,6 +1953,24 @@ internal sealed partial class InteractiveSession : IDisposable
         );
     }
 
+    /// <summary>Commits the dim line that names what a vision profile saw in an image.</summary>
+    private void EchoImageDescription(ImageDescribed described)
+    {
+        string text = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{described.Placeholder} described by profile '{described.Profile}' ({described.ModelId}): {described.Description}"
+        );
+        _transcript.Add(new TranscriptUserEntry(text));
+        _turnWroteOutput = true;
+        _live.WriteScrollback(console =>
+            console.Write(
+                new Markup(
+                    $"[dim]{(_capabilities.Unicode ? "»" : ">>")} {Markup.Escape(text)}[/]\n"
+                )
+            )
+        );
+    }
+
     private void ApplyKill(InputLine.KillResult kill)
     {
         if (kill.Killed.Length == 0)

@@ -187,6 +187,9 @@ internal sealed partial class InteractiveSession
             case SteeringInjected injected:
                 EchoSteering(injected);
                 break;
+            case ImageDescribed described:
+                EchoImageDescription(described);
+                break;
             case Retrying retrying:
                 Notify(
                     FormattableString.Invariant($"retrying (attempt {retrying.Attempt})"),

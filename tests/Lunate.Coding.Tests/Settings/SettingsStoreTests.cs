@@ -72,6 +72,20 @@ public sealed class SettingsStoreTests
     }
 
     [Fact]
+    public void Vision_is_an_allowed_usage_key()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            """{"schemaVersion":2,"usages":{"vision":"sight"}}"""
+        );
+
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
+
+        Assert.Equal("sight", settings.Usages["vision"]);
+    }
+
+    [Fact]
     public void Question_suggestions_can_be_enabled_in_user_settings()
     {
         using var temp = new TempDirectory();

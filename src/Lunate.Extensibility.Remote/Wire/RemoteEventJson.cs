@@ -59,6 +59,7 @@ public static class RemoteEventJson
         [typeof(CostLimitReached)] = "cost_limit_reached",
         [typeof(TimeLimitReached)] = "time_limit_reached",
         [typeof(SteeringInjected)] = "steering_injected",
+        [typeof(ImageDescribed)] = "image_described",
         [typeof(ToolProgressUpdate)] = "tool_progress_update",
         [typeof(ToolOutputSpillFailed)] = "tool_output_spill_failed",
         [typeof(TodoUpdated)] = "todo_updated",
@@ -179,6 +180,13 @@ public static class RemoteEventJson
             Retrying e => new JsonObject { ["attempt"] = e.Attempt, ["reason"] = e.Reason },
             CompactionApplied e => CompactionBody(e),
             SteeringInjected e => SteeringBody(e),
+            ImageDescribed e => new JsonObject
+            {
+                ["placeholder"] = e.Placeholder,
+                ["description"] = e.Description,
+                ["profile"] = e.Profile,
+                ["modelId"] = e.ModelId,
+            },
             StepLimitReached e => new JsonObject { ["maxSteps"] = e.MaxSteps },
             CostLimitReached e => new JsonObject
             {

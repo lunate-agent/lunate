@@ -166,7 +166,7 @@ public static partial class SettingsStore
         var usages = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (JsonProperty property in value.EnumerateObject())
         {
-            if (property.Name is not ("chat" or "fast" or "subagents" or "compaction"))
+            if (property.Name is not ("chat" or "fast" or "subagents" or "compaction" or "vision"))
             {
                 problems.Add($"unknown usage 'usages.{property.Name}'");
                 continue;

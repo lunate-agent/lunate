@@ -37,6 +37,14 @@ What an extension compiles against is versioned under `ExtensionApi`, and a cont
 author can feel gets a note here. The notes are additive: the version a note names is the one an
 extension declares in its manifest's `apiVersion`.
 
+### 1.19.0 — the image description event
+
+`ImageDescribed` joins `AgentEvent` as a core event, carrying the `[image <w>x<h>]` placeholder, the
+description, the vision profile name and its model id. It is the transcript line the vision fallback
+emits when a configured `usages.vision` profile describes an image for a chat model that cannot see
+it; it is not an `ExtensionEvent`. Handle it, or leave it to your `_` arm. The `--json` and remote
+wire kind is `image_described`.
+
 ### 1.18.0 — the observable event stream
 
 `IExtensionContext.Events` is the observing half of the extension surface

@@ -459,6 +459,13 @@
       "description": "The profile child runs use."
     },
     {
+      "name": "usages.vision",
+      "type": "string",
+      "default": "unset",
+      "scope": "user, project",
+      "description": "The vision profile: describes an image for a chat model that cannot see it. It must declare image input; otherwise the image refusal is unchanged."
+    },
+    {
       "name": "verify",
       "type": "string",
       "default": "block",

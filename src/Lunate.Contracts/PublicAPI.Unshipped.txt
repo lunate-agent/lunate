@@ -1071,3 +1071,23 @@ Lunate.Agent.ExtensionEvent.ExtensionEvent(Lunate.Agent.TodoUpdated! value) -> v
 Lunate.Agent.AgentEvent.AgentEvent(Lunate.Agent.TodoUpdated! value) -> void
 Lunate.Agent.TodoItem.TodoItem(string! Text, Lunate.Agent.TodoItemStatus Status) -> void
 Lunate.Agent.TodoUpdated.TodoUpdated(string! RunId, System.Collections.Generic.IReadOnlyList<Lunate.Agent.TodoItem!>! Items) -> void
+Lunate.Agent.ImageDescribed
+Lunate.Agent.ImageDescribed.ImageDescribed(string! RunId, string! Placeholder, string! Description, string! Profile, string! ModelId) -> void
+Lunate.Agent.ImageDescribed.Placeholder.get -> string!
+Lunate.Agent.ImageDescribed.Placeholder.init -> void
+Lunate.Agent.ImageDescribed.Description.get -> string!
+Lunate.Agent.ImageDescribed.Description.init -> void
+Lunate.Agent.ImageDescribed.Profile.get -> string!
+Lunate.Agent.ImageDescribed.Profile.init -> void
+Lunate.Agent.ImageDescribed.ModelId.get -> string!
+Lunate.Agent.ImageDescribed.ModelId.init -> void
+Lunate.Agent.ImageDescribed.Deconstruct(out string! RunId, out string! Placeholder, out string! Description, out string! Profile, out string! ModelId) -> void
+Lunate.Agent.ImageDescribed.Equals(Lunate.Agent.ImageDescribed? other) -> bool
+override Lunate.Agent.ImageDescribed.<Clone>$() -> Lunate.Agent.ImageDescribed!
+override Lunate.Agent.ImageDescribed.Equals(object? obj) -> bool
+override sealed Lunate.Agent.ImageDescribed.Equals(Lunate.Agent.AgentEventBase? other) -> bool
+override Lunate.Agent.ImageDescribed.GetHashCode() -> int
+override Lunate.Agent.ImageDescribed.ToString() -> string!
+static Lunate.Agent.ImageDescribed.operator !=(Lunate.Agent.ImageDescribed? left, Lunate.Agent.ImageDescribed? right) -> bool
+static Lunate.Agent.ImageDescribed.operator ==(Lunate.Agent.ImageDescribed? left, Lunate.Agent.ImageDescribed? right) -> bool
+Lunate.Agent.AgentEvent.AgentEvent(Lunate.Agent.ImageDescribed! value) -> void

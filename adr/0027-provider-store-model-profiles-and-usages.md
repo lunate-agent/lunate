@@ -1,6 +1,6 @@
 # ADR-0027: User-scoped provider profiles, usages, and capability facts
 
-- Status: accepted — 2026-10-30 (maintainer amendments for `provider-store`, #253)
+- Status: accepted — 2026-10-30 (maintainer amendments for `provider-store`, #253); amended 2026-11-22 (usages as capability-bearing roles, `usages.vision`, #979)
 - Date: 2026-10-30
 - Duplicate removed: `adr/0027-provider-store-and-model-profiles.md` was an earlier draft of this same decision and claimed the same number; deleted as a duplicate in commit `28dc4440` so the ADR numbers stay unique and dense.
 - Relates to: ADR-0002 (layering and MEAI model types), ADR-0003 (loop ownership), ADR-0015 (pinned session format), ADR-0022 (model catalog and provider auth)
@@ -58,3 +58,37 @@ record, and records the schema-4 extension required by ADR-0015.
 - Schema 4 remains the attribution boundary. Capability facts are runtime/configuration data and are
   not copied into session files.
 - Image generation, embeddings, and vision fallback require the separately scoped #357 work.
+
+## Amendment 2026-11-22 — a usage is a role with declared capability requirements
+
+The maintainer decision of 2026-11-22 extends decision 3 with the rule this ADR's usages follow. It
+does not replace decisions 1, 2, 4 or 5; where decision 2 or 3 said "no new usages" or kept vision
+fallback out of scope, this amendment is the later word.
+
+### Decision 6 — a usage is a role with declared capability requirements
+
+A usage is not a quality label and not an alias for another usage; it names what the configured
+profile is for and which capability facts the host checks. The roles and their requirements are:
+
+| Usage | Requirement |
+| --- | --- |
+| `chat` | text input + tools |
+| `decision` | structured output |
+| `vision` | image input |
+| `embeddings` (named, not built) | embeddings API |
+| `image` (named, not built) | image output |
+
+`fast` and `subagents` select a profile without adding a capability requirement beyond the chat
+family; `compaction` selects the summarizer and defaults to chat.
+
+A new usage costs one settings key (`usages.<role>`), its declared requirement at resolution, and
+its usage attribution value. While the schema-4 attribution usage stays a free string, a new usage
+needs no session schema bump. Embeddings and image generation are named here so a later consumer
+finds the place, and are not built until one exists.
+
+`vision` is the vision fallback profile: when the chat model's known capabilities say it accepts no
+images and a request carries one, the `vision` profile describes the image and the chat request
+carries the description beside the `[image <w>x<h>]` placeholder. An unset `vision` usage, or a
+profile whose model does not declare image input, leaves the existing image refusal unchanged.
+`fast` carries no vision role. The vision call attributes as usage `vision`, and the transcript
+announces it with the `ImageDescribed` event rather than a steering event.
