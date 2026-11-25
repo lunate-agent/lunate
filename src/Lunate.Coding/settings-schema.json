@@ -402,6 +402,28 @@
       "description": "Optional search tools to register beside the core set; empty means none. `LUNATE_EXTRA_TOOLS` overrides it."
     },
     {
+      "name": "tools.webSearch.backend",
+      "type": "string",
+      "default": "duckduckgo",
+      "scope": "user",
+      "allowed": ["duckduckgo", "searxng", "brave", "tavily"],
+      "description": "The local `web_search` backend: `duckduckgo` (the zero-config default, no key), `searxng` (your own instance, named by `tools.webSearch.url`), `brave` or `tavily` (an API key reference in `tools.webSearch.credential`). A backend is a tool setting, not a model usage. There is no environment-variable override."
+    },
+    {
+      "name": "tools.webSearch.credential",
+      "type": "string",
+      "default": "unset",
+      "scope": "user",
+      "description": "The backend's credential as an `auth:<name>`, `env:<VARIABLE>` or `helper:<name>` reference, resolved when a search is sent and never a literal secret in the file. Required by `brave` and `tavily`, optional for `searxng`, refused by `duckduckgo`; the referenced `env:` name is stripped from tool child processes. There is no environment-variable override."
+    },
+    {
+      "name": "tools.webSearch.url",
+      "type": "string",
+      "default": "unset",
+      "scope": "user",
+      "description": "The SearXNG instance base URL: absolute https, or http only for a loopback host. Required by the `searxng` backend and refused by the others. There is no environment-variable override."
+    },
+    {
       "name": "tui.fullscreen",
       "type": "boolean",
       "default": "false",

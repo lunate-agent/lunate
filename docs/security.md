@@ -21,9 +21,14 @@ editor's own permission request for everything the policy does not already allow
 `--yolo`.
 
 The web tools have no workspace boundary: `web_fetch` can request any http or https URL the model
-names, and `web_search` sends the query to the search endpoint. Both are `Execute` risk, so every
-call is approved, and neither attaches a credential or reads the state root. A declined call sends
-no request.
+names, and `web_search` sends the query to the configured search backend — DuckDuckGo by default, or
+a SearXNG, Brave or Tavily endpoint the user selected in the user-scoped `tools.webSearch` setting.
+Both are `Execute` risk, so every call is approved. Neither reads the state root, and a declined call
+sends nothing. A backend that needs an API key holds a credential *reference* (`auth:`, `env:` or
+`helper:`), never the value: the reference is resolved when the approved call is sent, the value
+appears only in the one header that backend's API expects, and an `env:` name it resolves is removed
+from tool child processes like a provider key. A project settings file cannot select a backend, so a
+repository cannot redirect a search or spend your key.
 
 **The workspace boundary.** The file tools resolve paths canonically, following symlinks, and refuse
 anything outside the working directory, so a model mistake cannot read or write next to your home

@@ -38,6 +38,9 @@ internal sealed class StubHttpHandler(
         string contentType = "text/plain; charset=utf-8"
     ) => new((_, _) => Task.FromResult(Response(status, body, contentType)));
 
+    internal static StubHttpHandler Json(string body, HttpStatusCode status = HttpStatusCode.OK) =>
+        Text(body, status, "application/json; charset=utf-8");
+
     internal static StubHttpHandler Redirect(
         string location,
         HttpStatusCode status = HttpStatusCode.Found
@@ -79,6 +82,25 @@ internal sealed class StubHttpHandler(
         CancellationToken cancellationToken
     )
     {
+        // The body is read before the handler answers: a backend that sends a POST records what it
+        // sent, and a test asserts the credential's one placement with no network.
+        string? body = request.Content is null
+            ? null
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, IEnumerable<string>> header in request.Headers)
+        {
+            headers[header.Key] = string.Join(",", header.Value);
+        }
+
+        if (request.Content is not null)
+        {
+            foreach (KeyValuePair<string, IEnumerable<string>> header in request.Content.Headers)
+            {
+                headers[header.Key] = string.Join(",", header.Value);
+            }
+        }
+
         lock (_requests)
         {
             _requests.Add(
@@ -86,7 +108,9 @@ internal sealed class StubHttpHandler(
                     request.Method.Method,
                     request.RequestUri,
                     request.Headers.UserAgent.ToString(),
-                    string.Join(",", request.Headers.Accept.Select(value => value.MediaType))
+                    string.Join(",", request.Headers.Accept.Select(value => value.MediaType)),
+                    headers,
+                    body
                 )
             );
         }
@@ -95,4 +119,11 @@ internal sealed class StubHttpHandler(
     }
 }
 
-internal sealed record StubRequest(string Method, Uri? Uri, string UserAgent, string Accept);
+internal sealed record StubRequest(
+    string Method,
+    Uri? Uri,
+    string UserAgent,
+    string Accept,
+    IReadOnlyDictionary<string, string> Headers,
+    string? Body
+);

@@ -195,11 +195,14 @@ public sealed record AgentSettings
         new Dictionary<string, string>(StringComparer.Ordinal);
 }
 
-/// <summary>The optional tools enabled beside the core set (the <c>tools</c> settings section).</summary>
+/// <summary>The tools section: the optional tools beside the core set and the local web search backend.</summary>
 public sealed record ToolsSettings
 {
     /// <summary>The optional search tool names to register; empty (the default) means none.</summary>
     public IReadOnlyList<string> Extra { get; init; } = [];
+
+    /// <summary>The local <c>web_search</c> backend, its URL and its credential reference.</summary>
+    public WebSearchSettings WebSearch { get; init; } = new();
 }
 
 /// <summary>
@@ -1233,8 +1236,9 @@ public static partial class SettingsStore
     }
 
     /// <summary>
-    /// Reads the <c>tools</c> section: only <c>extra</c> is known, an array of optional search tool
-    /// names. A missing key keeps the documented default (empty); every bad entry is collected.
+    /// Reads the <c>tools</c> section: <c>extra</c>, an array of optional search tool names, and
+    /// <c>webSearch</c>, the local search backend. A missing key keeps the documented default
+    /// (empty, DuckDuckGo); every bad entry is collected.
     /// </summary>
     private static ToolsSettings ReadTools(JsonElement value, List<string> problems)
     {
@@ -1247,47 +1251,61 @@ public static partial class SettingsStore
 
         foreach (JsonProperty property in value.EnumerateObject())
         {
-            if (property.Name != "extra")
+            switch (property.Name)
             {
-                problems.Add($"unknown key 'tools.{property.Name}'");
-                continue;
+                case "extra":
+                    settings = settings with { Extra = ReadExtraTools(property.Value, problems) };
+                    break;
+                case "webSearch":
+                    settings = settings with
+                    {
+                        WebSearch = ReadWebSearch(property.Value, problems),
+                    };
+                    break;
+                default:
+                    problems.Add($"unknown key 'tools.{property.Name}'");
+                    break;
             }
-
-            if (property.Value.ValueKind != JsonValueKind.Array)
-            {
-                problems.Add("'tools.extra' must be an array of tool names");
-                continue;
-            }
-
-            List<string> extra = [];
-            foreach (JsonElement item in property.Value.EnumerateArray())
-            {
-                if (item.ValueKind != JsonValueKind.String)
-                {
-                    problems.Add("'tools.extra' must contain only non-empty tool names");
-                    continue;
-                }
-
-                string name = item.GetString()!.Trim();
-                if (name.Length == 0)
-                {
-                    problems.Add("'tools.extra' must contain only non-empty tool names");
-                    continue;
-                }
-
-                if (!OptionalTools.IsName(name))
-                {
-                    problems.Add(OptionalTools.Error("'tools.extra'", name));
-                    continue;
-                }
-
-                extra.Add(name);
-            }
-
-            settings = settings with { Extra = extra };
         }
 
         return settings;
+    }
+
+    /// <summary>Reads the <c>tools.extra</c> list: optional search tool names only.</summary>
+    private static IReadOnlyList<string> ReadExtraTools(JsonElement value, List<string> problems)
+    {
+        if (value.ValueKind != JsonValueKind.Array)
+        {
+            problems.Add("'tools.extra' must be an array of tool names");
+            return [];
+        }
+
+        List<string> extra = [];
+        foreach (JsonElement item in value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+            {
+                problems.Add("'tools.extra' must contain only non-empty tool names");
+                continue;
+            }
+
+            string name = item.GetString()!.Trim();
+            if (name.Length == 0)
+            {
+                problems.Add("'tools.extra' must contain only non-empty tool names");
+                continue;
+            }
+
+            if (!OptionalTools.IsName(name))
+            {
+                problems.Add(OptionalTools.Error("'tools.extra'", name));
+                continue;
+            }
+
+            extra.Add(name);
+        }
+
+        return extra;
     }
 
     private static int? ReadConcurrency(JsonElement value, List<string> problems)

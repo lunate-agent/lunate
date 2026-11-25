@@ -2,21 +2,22 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Lunate.Agent;
 using Lunate.Ai;
 
 namespace Lunate.Coding;
 
 /// <summary>
-/// The core <c>web_search</c> tool: one unauthenticated request to DuckDuckGo's HTML endpoint,
-/// ranked results with a title, an absolute URL and a snippet, bounded in count and total bytes.
-/// It declares <see cref="ToolRisk.Execute"/>, so the approval path is the same as <c>bash</c>.
+/// The core <c>web_search</c> tool: one request to the configured backend — DuckDuckGo's HTML
+/// endpoint by default, or a SearXNG instance, Brave or Tavily — ranked results with a title, an
+/// absolute URL and a snippet, bounded in count and total bytes. The backend supplies the request
+/// and the answer shape; everything the model sees is the same for every backend. It declares
+/// <see cref="ToolRisk.Execute"/>, so the approval path is the same as <c>bash</c> whatever backend
+/// is selected.
 /// </summary>
 public sealed class WebSearchTool : ITool
 {
     internal const string ToolName = "web_search";
-    internal const string SearchEndpoint = "https://html.duckduckgo.com/html/";
     internal const int DefaultMaxResults = 5;
     internal const int MaxResultsCap = 10;
     internal const int MaxOutputBytes = 8 * 1024;
@@ -24,8 +25,6 @@ public sealed class WebSearchTool : ITool
     internal static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(20);
 
     private static readonly IReadOnlyList<string> Accepted = ["query", "max_results"];
-
-    private static readonly string[] NoResultsTextMarkers = ["No results found for", "No results."];
 
     private static readonly JsonElement Schema = JsonDocument
         .Parse(
@@ -35,7 +34,7 @@ public sealed class WebSearchTool : ITool
               "properties": {
                 "query": {
                   "type": "string",
-                  "description": "Search query; the terms are sent to the search endpoint"
+                  "description": "Search query; the terms are sent to the search backend"
                 },
                 "max_results": {
                   "type": "integer",
@@ -48,27 +47,23 @@ public sealed class WebSearchTool : ITool
         )
         .RootElement.Clone();
 
-    private static readonly Regex AnchorPattern = new(
-        """<a\b(?<attrs>[^>]*)>(?<text>.*?)</a>""",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1)
-    );
-
-    private static readonly Regex OpenTagPattern = new(
-        """<(?<tag>[a-z][a-z0-9]*)\b(?<attrs>[^>]*)>""",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-        TimeSpan.FromSeconds(1)
-    );
-
-    private static readonly Uri Endpoint = new(SearchEndpoint, UriKind.Absolute);
+    private readonly WebSearchConfiguration _configuration;
+    private readonly WebSearchBackend _backend;
     private readonly HttpMessageHandler? _handler;
     private readonly TimeSpan _timeout;
 
     public WebSearchTool()
-        : this(null, null) { }
+        : this(new WebSearchConfiguration()) { }
 
-    internal WebSearchTool(HttpMessageHandler? handler, TimeSpan? timeout)
+    internal WebSearchTool(
+        WebSearchConfiguration configuration,
+        HttpMessageHandler? handler = null,
+        TimeSpan? timeout = null
+    )
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+        _configuration = configuration;
+        _backend = WebSearchBackends.Create(configuration.Resolved);
         _handler = handler;
         _timeout = timeout ?? DefaultTimeout;
     }
@@ -77,8 +72,8 @@ public sealed class WebSearchTool : ITool
 
     public string Description =>
         "Search the web and return ranked results with a title, URL and snippet. "
-        + "Uses DuckDuckGo's HTML endpoint, needs no API key, returns 5 results by default "
-        + "(max 10) and stops at 8 KiB of output.";
+        + _backend.Describe
+        + " Returns 5 results by default (max 10) and stops at 8 KiB of output.";
 
     public JsonElement ParametersSchema => Schema;
 
@@ -116,15 +111,23 @@ public sealed class WebSearchTool : ITool
 
         maxResults = Math.Min(maxResults, MaxResultsCap);
 
-        Uri endpoint = new(SearchEndpoint + "?q=" + Uri.EscapeDataString(query), UriKind.Absolute);
+        if (!TryCredential(out string? credential, out ToolResult? credentialFailure))
+        {
+            return credentialFailure!;
+        }
+
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(_timeout);
         try
         {
             using HttpClient client = CreateClient();
-            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            using HttpRequestMessage request = _backend.CreateRequest(
+                query,
+                maxResults,
+                credential
+            );
+            Uri endpoint = request.RequestUri!;
             request.Headers.TryAddWithoutValidation("User-Agent", RequestContext.LunateVersion);
-            request.Headers.Accept.ParseAdd("text/html");
             using HttpResponseMessage response = await client
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token)
                 .ConfigureAwait(false);
@@ -145,11 +148,10 @@ public sealed class WebSearchTool : ITool
             byte[] source = await WebText
                 .ReadCappedAsync(stream, MaxSourceBytes, timeout.Token)
                 .ConfigureAwait(false);
-            string html = WebText.Decode(source);
-            List<SearchResult> results = Parse(html, Endpoint);
-            if (results.Count == 0)
+            SearchPage page = _backend.Read(WebText.Decode(source), endpoint);
+            if (page.Results.Count == 0)
             {
-                if (!LooksLikeNoResults(html))
+                if (!page.NoResults)
                 {
                     return Blocked(
                         endpoint,
@@ -160,26 +162,7 @@ public sealed class WebSearchTool : ITool
                 return Result($"No results found for '{query}'. Try a different query.");
             }
 
-            var output = new StringBuilder();
-            output.Append("Search results for '").Append(query).Append("':\n");
-            int number = 1;
-            foreach (SearchResult result in results.Take(maxResults))
-            {
-                output
-                    .Append(number.ToString(CultureInfo.InvariantCulture))
-                    .Append(". [")
-                    .Append(result.Title)
-                    .Append("](")
-                    .Append(result.Url)
-                    .Append(")\n   ")
-                    .Append(result.Snippet.Length == 0 ? "(no snippet)" : result.Snippet)
-                    .Append('\n');
-                number++;
-            }
-
-            return Result(
-                WebText.Cap(output.ToString().TrimEnd('\n'), MaxOutputBytes, "search output")
-            );
+            return Result(Render(query, page.Results, maxResults));
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -204,6 +187,71 @@ public sealed class WebSearchTool : ITool
         }
     }
 
+    /// <summary>
+    /// The credential the request carries, or the error result that stops it. A backend that needs
+    /// one and has no reference, or a reference that does not resolve, sends no request: the
+    /// approval has already been spent, and a request without the key would only burn the endpoint's
+    /// rate limit.
+    /// </summary>
+    private bool TryCredential(out string? credential, out ToolResult? failure)
+    {
+        credential = null;
+        failure = null;
+        string? reference = _configuration.Resolved.Credential;
+        if (reference is null)
+        {
+            if (_backend.NeedsCredential)
+            {
+                failure = Error(
+                    $"the {_backend.DisplayName} backend needs a credential, but "
+                        + $"'{WebSearchCredential.SettingKey}' is not set; add an 'auth:<name>' or "
+                        + "'env:<VARIABLE>' reference and try again."
+                );
+                return false;
+            }
+
+            return true;
+        }
+
+        if (
+            !WebSearchCredential.TryResolve(
+                reference,
+                _configuration.NamedKeySource,
+                _configuration.Environment,
+                out credential,
+                out string? error
+            )
+        )
+        {
+            failure = Error(error!);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string Render(string query, IReadOnlyList<SearchResult> results, int maxResults)
+    {
+        var output = new StringBuilder();
+        output.Append("Search results for '").Append(query).Append("':\n");
+        int number = 1;
+        foreach (SearchResult result in results.Take(maxResults))
+        {
+            output
+                .Append(number.ToString(CultureInfo.InvariantCulture))
+                .Append(". [")
+                .Append(result.Title)
+                .Append("](")
+                .Append(result.Url)
+                .Append(")\n   ")
+                .Append(result.Snippet.Length == 0 ? "(no snippet)" : result.Snippet)
+                .Append('\n');
+            number++;
+        }
+
+        return WebText.Cap(output.ToString().TrimEnd('\n'), MaxOutputBytes, "search output");
+    }
+
     private HttpClient CreateClient()
     {
         HttpClient client = _handler is null
@@ -211,141 +259,6 @@ public sealed class WebSearchTool : ITool
             : new HttpClient(_handler, disposeHandler: false);
         client.Timeout = Timeout.InfiniteTimeSpan;
         return client;
-    }
-
-    private static List<SearchResult> Parse(string html, Uri endpoint)
-    {
-        var results = new List<SearchResult>();
-        foreach (Match match in AnchorPattern.Matches(html))
-        {
-            string attributes = match.Groups["attrs"].Value;
-            string classes = HtmlToText.Attribute(attributes, "class") ?? string.Empty;
-            if (classes.Contains("result__a", StringComparison.Ordinal))
-            {
-                string? href = HtmlToText.Attribute(attributes, "href");
-                string? url = Unwrap(href, endpoint);
-                if (url is null)
-                {
-                    continue;
-                }
-
-                string title = HtmlToText.InlineText(match.Groups["text"].Value);
-                results.Add(new SearchResult(title.Length == 0 ? url : title, url, string.Empty));
-            }
-            else if (
-                classes.Contains("result__snippet", StringComparison.Ordinal)
-                && results.Count > 0
-                && results[^1].Snippet.Length == 0
-            )
-            {
-                results[^1] = results[^1] with
-                {
-                    Snippet = HtmlToText.InlineText(match.Groups["text"].Value),
-                };
-            }
-        }
-
-        return results;
-    }
-
-    private static string? Unwrap(string? href, Uri endpoint)
-    {
-        if (string.IsNullOrWhiteSpace(href))
-        {
-            return null;
-        }
-
-        string value = WebUtility.HtmlDecode(href).Trim();
-        if (value.StartsWith("//", StringComparison.Ordinal))
-        {
-            value = endpoint.Scheme + ":" + value;
-        }
-
-        int redirect = value.IndexOf("uddg=", StringComparison.Ordinal);
-        if (redirect >= 0)
-        {
-            int start = redirect + "uddg=".Length;
-            int end = value.IndexOf('&', start);
-            string encoded = end < 0 ? value[start..] : value[start..end];
-            try
-            {
-                value = Uri.UnescapeDataString(encoded);
-            }
-            catch (UriFormatException)
-            {
-                return null;
-            }
-        }
-
-        if (Uri.TryCreate(value, UriKind.Absolute, out Uri? absolute))
-        {
-            return absolute.Scheme is "http" or "https" ? absolute.AbsoluteUri : null;
-        }
-
-        if (Uri.TryCreate(endpoint, value, out absolute))
-        {
-            return absolute.Scheme is "http" or "https" ? absolute.AbsoluteUri : null;
-        }
-
-        return null;
-    }
-
-    private static bool LooksLikeNoResults(string html)
-    {
-        foreach (Match element in OpenTagPattern.Matches(html))
-        {
-            string? classes = HtmlToText.Attribute(element.Groups["attrs"].Value, "class");
-            if (!HasNoResultsClass(classes))
-            {
-                continue;
-            }
-
-            int contentStart = element.Index + element.Length;
-            int contentEnd = html.IndexOf(
-                "</" + element.Groups["tag"].Value,
-                contentStart,
-                StringComparison.OrdinalIgnoreCase
-            );
-            if (contentEnd < 0)
-            {
-                continue;
-            }
-
-            string text = HtmlToText.InlineText(html[contentStart..contentEnd]);
-            foreach (string marker in NoResultsTextMarkers)
-            {
-                if (text.Contains(marker, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasNoResultsClass(string? classes)
-    {
-        if (string.IsNullOrWhiteSpace(classes))
-        {
-            return false;
-        }
-
-        foreach (
-            string token in classes.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-        )
-        {
-            if (
-                token.Equals("no-results", StringComparison.OrdinalIgnoreCase)
-                || token.StartsWith("no-results__", StringComparison.OrdinalIgnoreCase)
-                || token.StartsWith("no-results--", StringComparison.OrdinalIgnoreCase)
-            )
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static ToolResult Blocked(Uri endpoint, string detail) =>
@@ -359,6 +272,4 @@ public sealed class WebSearchTool : ITool
     private static ToolResult Result(string output) => new(output, IsError: false);
 
     private static ToolResult Error(string output) => new(output, IsError: true);
-
-    private sealed record SearchResult(string Title, string Url, string Snippet);
 }

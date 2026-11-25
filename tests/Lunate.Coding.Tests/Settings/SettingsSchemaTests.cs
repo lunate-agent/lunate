@@ -49,6 +49,9 @@ public sealed partial class SettingsSchemaTests
         ["maxSteps"] = 55,
         ["maxTime"] = 90,
         ["tools.extra"] = new[] { "grep" },
+        ["tools.webSearch.backend"] = "searxng",
+        ["tools.webSearch.credential"] = "env:PROBE_SEARCH_TOKEN",
+        ["tools.webSearch.url"] = "https://search.probe.test/",
         ["toolEnvironment.passthrough"] = new[] { "MY_PROJECT_TOKEN" },
         ["output.toolResultLimit"] = 100,
         ["output.spillThresholdTokens"] = 50,
@@ -139,6 +142,9 @@ public sealed partial class SettingsSchemaTests
         Assert.Equal(1024, settings.Profiles[WildcardId].MaxOutput);
         Assert.Equal(0.5, settings.Decisions.ApprovalsThreshold);
         Assert.Equal(55, settings.MaxSteps);
+        Assert.Equal(WebSearchBackendKind.SearXng, settings.Tools.WebSearch.Backend);
+        Assert.Equal("https://search.probe.test/", settings.Tools.WebSearch.Url?.AbsoluteUri);
+        Assert.Equal("env:PROBE_SEARCH_TOKEN", settings.Tools.WebSearch.Credential);
     }
 
     [Fact]
@@ -191,6 +197,11 @@ public sealed partial class SettingsSchemaTests
         }
 
         Assert.Equal((IReadOnlyList<string>)OptionalTools.Names, Entry("tools.extra").Allowed);
+
+        Assert.Equal(
+            (IReadOnlyList<string>)WebSearchBackends.Names,
+            Entry("tools.webSearch.backend").Allowed
+        );
     }
 
     [Fact]
@@ -534,6 +545,7 @@ public sealed partial class SettingsSchemaTests
         ["ReadSubagents"] = "subagents.",
         ["ReadRoslyn"] = "roslyn.",
         ["ReadTools"] = "tools.",
+        ["ReadWebSearch"] = "tools.webSearch.",
         ["ReadToolEnvironment"] = "toolEnvironment.",
         ["ReadDecisions"] = "decisions.",
         ["ReadTui"] = "tui.",
@@ -563,6 +575,7 @@ public sealed partial class SettingsSchemaTests
                 "skills",
             },
             ["ReadTui"] = new HashSet<string>(StringComparer.Ordinal) { "keys" },
+            ["ReadTools"] = new HashSet<string>(StringComparer.Ordinal) { "webSearch" },
             ["ReadProfiles"] = new HashSet<string>(StringComparer.Ordinal) { "capabilities" },
         };
 

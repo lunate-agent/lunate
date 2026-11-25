@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dotnet html - searx</title>
+    <link rel="stylesheet" href="/static/css/searxng.min.css" />
+  </head>
+  <body>
+    <main id="main_results">
+      <div id="urls" role="main">
+        <article class="result result-default">
+          <h3>
+            <a href="https://example.test/guide" class="url_header" rel="nofollow">First result</a>
+          </h3>
+          <p class="content">The first snippet &amp; its detail.</p>
+          <div class="engines">
+            <span class="engine-name">example</span>
+          </div>
+        </article>
+        <article class="result result-default">
+          <h3>
+            <a href="https://example.test/second" class="url_header" rel="nofollow" target="_blank">Second result</a>
+          </h3>
+          <p class="content">The second snippet with a highlight.</p>
+          <div class="engines">
+            <span class="engine-name">example</span>
+          </div>
+        </article>
+        <article class="result result-default">
+          <h3>
+            <a href="https://example.test/third" class="url_header" rel="nofollow">Third result</a>
+          </h3>
+          <p class="content">The third snippet.</p>
+          <div class="engines">
+            <span class="engine-name">example</span>
+          </div>
+        </article>
+      </div>
+      <nav id="pagination" role="navigation">
+        <a href="/search?q=dotnet+html&amp;pageno=2">next</a>
+      </nav>
+    </main>
+  </body>
+</html>

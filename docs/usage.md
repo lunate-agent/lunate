@@ -64,6 +64,12 @@ detail, and `[a]lways this session` covers that tool for the rest of the session
 ranked title, URL and snippet results; a fetch returns the page's readable text, its title and its
 links as markdown. Both stop at their byte cap and a failure names the URL and the reason.
 
+`web_search` runs on DuckDuckGo with no configuration. A `tools.webSearch` section in
+`~/.lunate/settings.json` switches it to your own SearXNG instance, or to the Brave or Tavily API
+with a credential reference; the approval prompt and the result shape stay the same whatever the
+backend, so a search is still a tool call you see. [Configuration](configuration.md#the-web-search-backend)
+owns the setting.
+
 ## Long commands keep running in the background
 
 A build, a test suite or a dev server does not have to hold the turn. `bash` with `background: true`

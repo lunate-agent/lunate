@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Lunate.Agent;
 using Lunate.Ai;
 
 namespace Lunate.Coding.Tests;
@@ -66,6 +67,33 @@ public sealed class CredentialVariablesTests
 
             Assert.Contains("MY_GATEWAY_KEY", CredentialVariables.All);
             Assert.Contains("MY_TENANT_KEY", CredentialVariables.All);
+        }
+        finally
+        {
+            CredentialVariables.ResetForTests();
+        }
+    }
+
+    [Fact]
+    public void A_search_backends_env_reference_is_registered_when_the_tools_compose()
+    {
+        CredentialVariables.ResetForTests();
+        try
+        {
+            using var temp = new TempDirectory();
+            ToolRegistry tools = HarnessFactory.CreateTools(
+                new Workspace(temp.Root),
+                webSearch: new WebSearchConfiguration(
+                    new WebSearchSettings
+                    {
+                        Backend = WebSearchBackendKind.Brave,
+                        Credential = "env:MY_SEARCH_CRED",
+                    }
+                )
+            );
+
+            Assert.Contains("MY_SEARCH_CRED", CredentialVariables.All);
+            Assert.NotNull(tools.Find("web_search"));
         }
         finally
         {
