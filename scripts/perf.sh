@@ -59,6 +59,12 @@ echo "perf: $(hyperfine --version)"
 # reading the runner's thermal and scheduler state (identical code measured 81 to
 # 364 ms on macOS legs). A real regression sits on the startup path and moves the
 # floor with it, so nothing is hidden by the change.
+#
+# That asymmetry holds for interference a burst leaves behind, not for a runner
+# that is slow for the length of the job: both attempts of the noise policy below
+# share one runner, and such a machine misses both (run 45779536055's 362 then
+# 305 ms against a 300 ms budget, #1037). Two misses are a machine question
+# before they are a regression one — CONTRIBUTING's perf triage owns the reading.
 measure_startup() {
   hyperfine --warmup "$WARMUP" --runs "$RUNS" --export-json "$RESULTS_ABS" "$HYPERFINE_CMD" >/dev/null
   # Two JSON shapes are in the wild: hyperfine 2.x writes the statistics under
@@ -133,8 +139,10 @@ measure_once
 
 # Noise policy (ADR-0005): a single budget miss re-runs the measurement once
 # before failing, so a shared-runner noise burst does not redden the gate while
-# a material regression still misses both attempts. Consecutive misses are a
-# re-calibration (or regression) signal.
+# a material regression still misses both attempts. The retry separates a burst
+# from a sustained slowdown, not this machine from the tree: consecutive misses
+# are still read against the machine first (CONTRIBUTING's perf triage), and only
+# a floor over budget with the machine out of the picture is a re-calibration.
 if [ "$FLOOR_MS" -gt "$BUDGET_MS" ]; then
   echo "startup floor ${FLOOR_MS} ms exceeds budget ${BUDGET_MS} ms; re-running once (noise policy)"
   FIRST_FLOOR_MS="$FLOOR_MS"
