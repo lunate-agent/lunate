@@ -35,7 +35,7 @@
 - [x] 3.2 Regenerate `docs/settings.md` with `scripts/docs-sync`.
 - [x] 3.3 Add the release-note fragment `changes/<pull-request-number>.md` under the release's
   headings.
-- [ ] 3.4 Run `dotnet csharpier format .`, the focused Release builds and tests, and
+- [x] 3.4 Run `dotnet csharpier format .`, the focused Release builds and tests, and
   `openspec validate --all --strict`.
 
 ## 4. Finish
