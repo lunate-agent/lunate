@@ -268,6 +268,19 @@ arm64 capacity notice the run carried, not a startup path that changed. That red
 re-calibration and not an edit to the gate: a red job that ran is never retried that way, and no
 change in this repository makes a shared runner measure its quiet floor.
 
+Both attempts of that retry are measured on the same runner inside the same job, so a miss on the
+retry is not by itself the "two consecutive misses" regression signal ADR 0005's wording can read
+as: run 45779536055's `perf (macos-latest)` (#1037) missed at 362 ms and again at 305 ms — five
+milliseconds over the 300 ms budget — with a 394 ms median, while the same head (the native search
+opt-in, #1036, which adds nothing to the `--version` path in `src/Lunate.Coding/Cli/Cli.cs`) floors
+at 129-180 ms in a local `osx-arm64` publish of the release shape, and the push 72 minutes earlier
+(`c36fc13d`, run 45770717521) was green on the same job. A runner that is slow for the length of a
+job misses both attempts; the retry separates a burst from a sustained slowdown, not the machine
+from the tree. The check above therefore comes first on every miss, and a floor that is still over
+the budget once the machine is out of the picture is the other thing — a change to the startup
+path, which is a card against that path rather than a rerun, and never a re-calibration of the
+budget.
+
 A red test step is read against the legs that ran the same commit before a test or its subject is
 edited, because the gate's own flake budget has already been spent: `scripts/verify.sh` retries a
 failed pass once and records a pass that comes back green the second time as a flake, so a step that
