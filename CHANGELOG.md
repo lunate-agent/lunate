@@ -8,6 +8,105 @@ Notable changes to Lunate, one section per release. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-26
+
+### Added
+
+- **A backend seam for `web_search`.** DuckDuckGo stays the zero-config default, and the
+  user-scoped `tools.webSearch` setting selects a self-hosted SearXNG instance, Brave or Tavily;
+  each API backend's credential is a `auth:`/`env:`/`helper:` reference resolved when the approved
+  call is sent, never a literal key, and an `env:` name it resolves is stripped from tool child
+  processes. The tool contract, the `Execute` approval tier and the result bytes are the same for
+  every backend, and tests drive all four from recorded fixtures (#1034).
+
+- **The two-layer web search decision.** [ADR-0046](adr/0046-web-search-layers.md) records the
+  maintainer decision on #1024: the local tool with a backend seam, provider-native search as a
+  separate layer, and the approval trade-off between them (#1034).
+
+- **`semantic_search`, the embeddings-backed repo search.** An optional tool beside `grep`, `find`
+  and `ls`, off by default and enabled the same way (`tools.extra`, `LUNATE_EXTRA_TOOLS`,
+  `--extra-tools`). A search embeds the query with the profile named by `usages.embeddings` and
+  returns the best-matching workspace regions ranked by similarity, each with its path, its line
+  range and a snippet. The tool is offered only when an embeddings profile actually resolves;
+  otherwise the run prints one notice naming `usages.embeddings` (#1028).
+
+- **The `embeddings` usage.** `usages.embeddings` gains the role ADR-0027 named but left unbuilt:
+  it requires the model's `embeddings` API on an `openai-chat` family, and its calls are charged and
+  recorded as usage `embeddings`, so `/cost` groups them under their own usage. No session schema
+  change: schema 4's attribution usage is a free string (#1028).
+
+- **A rebuildable search index.** The index is a chunk-and-vector cache under
+  `~/.lunate/cache/semantic-index/`, keyed by workspace and model, honouring the same `.gitignore`
+  walk as the other search tools. It is never written into the workspace or a session, and deleting
+  it costs only the time to embed the workspace again (#1028).
+
+- **A tool-on/tool-off arm for the SWE-bench harness.** `scripts/eval/swebench.py` and the
+  orchestrator accept `--lunate-home <dir>`, which copies exactly `settings.json` and
+  `providers.json` into the run's `LUNATE_HOME` so one prepared home enables the tool and binds the
+  usage; credentials stay environment-only, and each arm's `summary.json` records its steps, tokens
+  and resolve count (#1028).
+
+- **Provider-native web search behind an explicit opt-in.** The user-scoped
+  `tools.nativeSearch` boolean turns on the second search layer from ADR-0046: when the chat model
+  declares the `web_search` capability feature, the request carries MEAI's `HostedWebSearchTool`
+  instead of declaring the local `web_search` tool. The search then runs inside the chat call, so it
+  is billed and attributed to that call — no new usage, cost lane or session entry. Without the
+  opt-in, or with a model that does not declare the feature, the local tool is offered exactly as
+  before; `--tools` still governs whether either layer is declared (#1030).
+
+### Changed
+
+- **Vision is its own usage.** The image fallback now binds `usages.vision` instead of the `fast`
+  usage, so a text-only chat model with an image is described by the configured vision profile and
+  the call attributes as usage `vision`; an unset or non-vision `vision` profile leaves the existing
+  image refusal unchanged, and a `fast` profile no longer implies vision. The settings reference
+  gains the key, and the transcript announces the description with the dedicated `ImageDescribed`
+  event, naming the placeholder, description, profile and model, instead of reusing
+  `SteeringInjected` (#1025).
+
+- **The `image_described` event kind.** `--json` and the remote wire gain the kind, and the new
+  event case moves the extension contract to 1.19.0 with its author note; no session schema bump is
+  needed (#1025).
+
+- **A red test step is triaged against the legs that ran the same commit, not by editing the test it
+  named.** [CONTRIBUTING](CONTRIBUTING.md) said how a failing step reports the tests it failed on
+  (#948) and how a `perf` budget miss is read, but not how a red test step is read.
+  `verify (ubuntu-latest, 4/4)` of run 45147690490 failed on
+  `Lunate.Extensibility.Remote.Tests.RemoteExtensionTests.A_cancelled_hook_call_sends_a_cancel_request_to_the_child`
+  while `verify (windows-latest, 4/4)` — the same test projects, the same shard through the
+  same script under Git Bash — was green in the same run, the Ubuntu leg of the previous push run was
+  green on the same suite, and the push's own diff (`fa61cfb1`, the `web_search` classification) sits
+  in `Lunate.Coding` projects that shard 2 owns. The test passed all 94 local runs at that head, 48 of
+  them six at a time under load. The paragraph now names the comparison, why the gate's own retry is
+  already spent when a step ends red, and the split between a machine-side red (a rerun of the run)
+  and one that comes back on the tree (a card of its own) (#1032).
+
+- **A `perf` budget miss on the retry is read against the machine, not as a regression.**
+  [CONTRIBUTING](CONTRIBUTING.md) already triaged a `perf` budget miss against the same job's most
+  recent push run on `main`, but ADR 0005's "two consecutive misses" wording — and `scripts/perf.sh`'s
+  own comment beside it — read as though the noise policy's retry separated a regression from noise.
+  Both attempts are measured on the same runner inside the same job, so a runner that is slow for the
+  length of a job misses both: run 45779536055's `perf (macos-latest)` (#1037) missed at 362 ms and
+  again at 305 ms, five milliseconds over the 300 ms budget, with a 394 ms median, while the same head
+  floors at 129-180 ms in a local `osx-arm64` publish of the release shape and the push 72 minutes
+  earlier was green on the same job. The paragraph and the script's comments now say that the machine
+  check comes first, and that only a floor still over the budget once the machine is out of the picture
+  is a card against the startup path (#1037).
+
+- **A `perf` red's machine check is run as a local publish when the run's own numbers are not
+  readable.** [CONTRIBUTING](CONTRIBUTING.md) sent the triage to the same job's most recent push
+  run, but only a failed leg's floor reaches the check run's annotations: `scripts/perf.sh` writes a
+  green leg's measurement to its job log, which needs a session. The paragraph now names the local
+  `osx-arm64` publish a session without an account reads the machine from instead, and records the
+  run it was read on: run 45795920557's `perf (macos-latest)` missed at 386 ms, then at 350 ms on the
+  noise policy's retry with a 430 ms median, against the 300 ms budget — on a head that changes prose
+  and `perf.sh` comments only and floors at 132-133 ms locally, with the job's two earlier misses in
+  the same four days at 386/343 and 362/305 ms (#1039).
+
+### Fixed
+
+- `web_search` now reports a blocked or rate-limited DuckDuckGo endpoint as an error naming the endpoint, instead of returning the no-results text, while a genuine empty result keeps that text (#1026).
+
 ## [0.7.0] - 2026-11-23
 
 ### Added
