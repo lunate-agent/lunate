@@ -402,6 +402,14 @@
       "description": "Optional search tools to register beside the core set; empty means none. `LUNATE_EXTRA_TOOLS` overrides it."
     },
     {
+      "name": "tools.nativeSearch",
+      "type": "boolean",
+      "default": "false",
+      "scope": "user",
+      "allowed": [],
+      "description": "Explicit opt-in for provider-native web search: when on and the chat model's capability features include `web_search`, the request declares the provider's built-in search and does not declare the local `web_search`; the search is billed and attributed to the chat call. Off by default because a native search cannot be approved per call; a project settings file may not carry the key. There is no environment-variable override."
+    },
+    {
       "name": "tools.webSearch.backend",
       "type": "string",
       "default": "duckduckgo",

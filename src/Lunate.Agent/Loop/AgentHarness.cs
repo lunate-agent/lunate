@@ -22,6 +22,14 @@ namespace Lunate.Agent;
 public sealed partial class AgentHarness
 {
     private const string CacheCreationInputTokensKey = "CacheCreationInputTokens";
+
+    /// <summary>
+    /// The local tool's name and the model feature that declares provider-native search: both are
+    /// <c>web_search</c>, which is why the hosted tool replaces the local declaration rather than
+    /// joining it.
+    /// </summary>
+    private const string WebSearchName = "web_search";
+
     private const string VisionDescriptionPrompt =
         "Describe this image for another model that cannot see it. Cover the visible content, any text, and details relevant to a coding task. Return only the description.";
 
@@ -1777,32 +1785,50 @@ public sealed partial class AgentHarness
         ModelInfo? modelOverride = null
     )
     {
-        ChatOptions options;
+        ModelInfo? model = modelOverride ?? DeclaredModel();
+        List<AIFunction> declarations;
         if (activeTools is null)
         {
-            options = new() { Tools = [.. _tools.Declarations] };
+            declarations = [.. _tools.Declarations];
         }
         else
         {
             HashSet<string> selected = new(activeTools, StringComparer.Ordinal);
-            options = new()
-            {
-                Tools =
-                [
-                    .. _tools.Declarations.Where(declaration =>
-                        selected.Contains(declaration.Name)
-                    ),
-                ],
-            };
+            declarations =
+            [
+                .. _tools.Declarations.Where(declaration => selected.Contains(declaration.Name)),
+            ];
         }
 
-        if ((modelOverride ?? DeclaredModel()) is { } model)
+        List<AITool> tools = [.. declarations];
+        if (NativeWebSearchActive(model, activeTools))
+        {
+            // The provider's built-in search is also named web_search; declaring both would leave
+            // the model with two tools of one name.
+            tools.RemoveAll(tool =>
+                string.Equals(tool.Name, WebSearchName, StringComparison.Ordinal)
+            );
+            tools.Add(new HostedWebSearchTool());
+        }
+
+        var options = new ChatOptions { Tools = tools };
+        if (model is not null)
         {
             ReasoningParameters.Apply(options, model, _options.ThinkingLevel);
         }
 
         return options;
     }
+
+    /// <summary>
+    /// Whether this request declares the provider's built-in search instead of the local
+    /// <c>web_search</c>: the user's opt-in, the request model's declared <c>web_search</c>
+    /// feature, and a tool selection that still offers the local tool all have to agree.
+    /// </summary>
+    private bool NativeWebSearchActive(ModelInfo? model, IReadOnlyList<string>? activeTools) =>
+        _options.NativeWebSearch
+        && model?.Capabilities?.Features?.Contains(WebSearchName, StringComparer.Ordinal) == true
+        && (activeTools is null || activeTools.Contains(WebSearchName, StringComparer.Ordinal));
 
     /// <summary>The catalog entry of the harness's model; null when no catalog declares it.</summary>
     private ModelInfo? DeclaredModel() =>

@@ -54,6 +54,44 @@ A misconfigured section fails at start, naming the key: an unknown backend, a mi
 reference. The approval prompt is the same for every backend (`web_search` is `Execute` risk, on the
 `bash` tier), so a declined call sends no request and spends no key.
 
+## Provider-native search
+
+Some providers run the search inside the chat request instead of returning a tool call. That search
+cannot be approved per call, so it is a separate, explicit opt-in:
+
+```json
+{
+  "tools": {
+    "nativeSearch": true
+  }
+}
+```
+
+The key is user-scoped and defaults to `false`; a project settings file may not carry it, and there
+is no environment-variable override. It only takes effect when the chat model declares the
+`web_search` capability feature. Declare it through the profile (keeping `tools`, because a profile's
+`capabilities.features` replaces the whole set) or in a `models.json` entry:
+
+```json
+{
+  "profiles": {
+    "chat": {
+      "provider": "openai",
+      "model": "gpt-5",
+      "capabilities": { "features": ["tools", "web_search"] }
+    }
+  }
+}
+```
+
+With both the opt-in and the declared feature, the request carries the provider's built-in search
+and does not declare the local `web_search` tool; `--tools` still governs it, so a selection that
+does not name `web_search` declares neither. Without either half, nothing changes: the local tool is
+offered and the `tools.webSearch` backend settings keep applying. The search is part of the chat
+call, so it is billed and attributed to that call — there is no separate usage, cost lane or session
+entry. [ADR-0046](../adr/0046-web-search-layers.md) records the approval trade-off behind the
+opt-in.
+
 ## Where thinking resolves from
 
 The session's thinking level resolves once at start, from the most specific fact available: the

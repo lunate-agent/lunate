@@ -498,6 +498,7 @@ internal static class AcpMode
             Session = session,
             FileChanges = (IFileChangeSink?)host?.FileChanges ?? NullFileChangeSink.Instance,
             Model = model,
+            NativeWebSearch = effective.Tools.NativeSearch,
             ModelCatalog = catalog,
             ModelRegistry = host?.ModelRegistry,
             ModelId = model.Id,

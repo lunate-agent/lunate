@@ -30,6 +30,12 @@ appears only in the one header that backend's API expects, and an `env:` name it
 from tool child processes like a provider key. A project settings file cannot select a backend, so a
 repository cannot redirect a search or spend your key.
 
+Provider-native search is the exception that needs an explicit opt-in: `tools.nativeSearch` is a
+user-scoped boolean, off by default, that lets a model declaring the `web_search` feature run the
+search inside the chat request. There is no per-call prompt for that search — it is part of the chat
+call — which is exactly why a project settings file cannot switch it on. The local `web_search` tool
+is not offered while it is active, and the search is billed and attributed to the chat call.
+
 **The workspace boundary.** The file tools resolve paths canonically, following symlinks, and refuse
 anything outside the working directory, so a model mistake cannot read or write next to your home
 directory by accident ([ADR-0016](../adr/0016-workspace-boundary.md)). This is a guard rail, not an

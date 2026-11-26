@@ -40,6 +40,14 @@ public sealed record AgentHarnessOptions
     /// </summary>
     public bool DecideTool { get; init; }
 
+    /// <summary>
+    /// Whether provider-native web search may replace the local <c>web_search</c> declaration for
+    /// a request whose model declares the <c>web_search</c> capability feature. Off by default: a
+    /// native search runs inside the chat call, so it cannot be approved per call and needs the
+    /// user's explicit opt-in.
+    /// </summary>
+    public bool NativeWebSearch { get; init; }
+
     /// <summary>The maximum number of model calls per run.</summary>
     public int MaxSteps { get; init; } = 50;
 

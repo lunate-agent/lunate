@@ -1141,6 +1141,7 @@ internal sealed partial class InteractiveSession : IDisposable
             Steering = _steering,
             FileChanges = (IFileChangeSink?)_extensions?.FileChanges ?? NullFileChangeSink.Instance,
             Model = resolvedModel,
+            NativeWebSearch = _settings.Tools.NativeSearch,
             ModelCatalog = _catalog,
             ModelId = resolvedModel.Id,
             UsageModels = usageModels,
