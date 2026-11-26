@@ -855,6 +855,11 @@ internal static class PrintMode
             options.McpAgentsConfigPath,
             AuthStore.ProviderStoreFilePath(options.AuthPath)
         );
+        WebSearchConfiguration webSearch = HarnessFactory.CreateWebSearch(
+            settings,
+            auth,
+            options.Environment ?? Environment.GetEnvironmentVariable
+        );
         ToolRegistry tools = HarnessFactory.CreateTools(
             workspace,
             skillReadAllowance: new SkillReadAllowance(skills.ReadRoots),
@@ -877,7 +882,8 @@ internal static class PrintMode
                     factory,
                     SessionContext(session),
                     message => warn(new UserNotice(NoticeLevel.Warning, message))
-                )
+                ),
+            webSearch: webSearch
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -1012,7 +1018,8 @@ internal static class PrintMode
                         factory,
                         SessionContext(session),
                         message => warn(new UserNotice(NoticeLevel.Warning, message))
-                    )
+                    ),
+                webSearch: webSearch
             ),
         };
 

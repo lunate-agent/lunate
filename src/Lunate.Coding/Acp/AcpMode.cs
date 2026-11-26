@@ -378,6 +378,11 @@ internal static class AcpMode
             workspace
         );
         HarnessFactory.AttachRedaction(session, redaction);
+        WebSearchConfiguration webSearch = HarnessFactory.CreateWebSearch(
+            effective,
+            auth,
+            static name => Environment.GetEnvironmentVariable(name)
+        );
         ToolRegistry tools = HarnessFactory.CreateTools(
             workspace,
             files: context.FileAccess,
@@ -389,7 +394,8 @@ internal static class AcpMode
             refusalTracker: refusalTracker,
             bashGuardEnabled: effective.BashGuard,
             bashJobs: bashJobs,
-            embeddings: () => ResolveEmbeddingsBinding(session)
+            embeddings: () => ResolveEmbeddingsBinding(session),
+            webSearch: webSearch
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -506,7 +512,8 @@ internal static class AcpMode
                 refusalTracker: refusalTracker,
                 bashGuardEnabled: effective.BashGuard,
                 bashJobs: bashJobs,
-                embeddings: () => ResolveEmbeddingsBinding(session)
+                embeddings: () => ResolveEmbeddingsBinding(session),
+                webSearch: webSearch
             ),
         };
 

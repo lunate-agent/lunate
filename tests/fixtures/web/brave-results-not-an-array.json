@@ -1,0 +1,16 @@
+{
+  "type": "search",
+  "query": {
+    "original": "dotnet html",
+    "show_strict_warning": false,
+    "is_navigational": false
+  },
+  "web": {
+    "type": "search",
+    "family_friendly": true,
+    "results": {
+      "type": "search",
+      "count": 0
+    }
+  }
+}

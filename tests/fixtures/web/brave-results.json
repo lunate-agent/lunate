@@ -1,0 +1,32 @@
+{
+  "type": "search",
+  "query": {
+    "original": "dotnet html",
+    "show_strict_warning": false,
+    "is_navigational": false
+  },
+  "web": {
+    "type": "search",
+    "family_friendly": true,
+    "results": [
+      {
+        "title": "First result",
+        "url": "https://example.test/guide",
+        "description": "The first <strong>snippet</strong> &amp; its detail.",
+        "profile": { "name": "Example", "long_name": "example.test" }
+      },
+      {
+        "title": "Second result",
+        "url": "https://example.test/second",
+        "description": "The second snippet with a highlight.",
+        "profile": { "name": "Example", "long_name": "example.test" }
+      },
+      {
+        "title": "Third result",
+        "url": "https://example.test/third",
+        "description": "The third snippet.",
+        "profile": { "name": "Example", "long_name": "example.test" }
+      }
+    ]
+  }
+}

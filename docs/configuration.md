@@ -22,6 +22,38 @@ reference](providers.md#custom-provider-entries) owns its shape, the API familie
 endpoint precedence and the credential and header rules; `lunate auth login --custom` is the way to
 write one ([models and providers](models-and-providers.md#a-custom-openai-compatible-endpoint)).
 
+## The web search backend
+
+`web_search` runs on DuckDuckGo's HTML endpoint with no configuration. One user-scoped section
+switches it, and a backend is a tool setting, not a model usage — it never appears in `/cost`:
+
+```json
+{
+  "tools": {
+    "webSearch": {
+      "backend": "searxng",
+      "url": "https://search.example.test/",
+      "credential": "env:SEARXNG_TOKEN"
+    }
+  }
+}
+```
+
+`backend` is `duckduckgo` (the default), `searxng`, `brave` or `tavily`. `url` is a SearXNG
+instance's base URL (https, or http on a loopback host) and belongs to that backend only. `credential`
+is a reference in the provider form — `auth:<name>` for a key in `auth.json`, `env:<VARIABLE>` for
+an environment variable, `helper:<name>` for a helper this host cannot resolve — and never a literal
+key. It is required by `brave` and `tavily` and optional for a SearXNG instance behind an
+authenticating proxy. The reference is resolved when a search is sent, from the same auth store and
+environment provider credentials use; an `env:` name it resolves is stripped from tool child
+processes, like a provider's. A `tools.webSearch` section in a project settings file is refused:
+only you choose an endpoint that spends your key.
+
+A misconfigured section fails at start, naming the key: an unknown backend, a missing `url` or
+`credential`, an irrelevant one for the chosen backend, or a credential value that is not a
+reference. The approval prompt is the same for every backend (`web_search` is `Execute` risk, on the
+`bash` tier), so a declined call sends no request and spends no key.
+
 ## Where thinking resolves from
 
 The session's thinking level resolves once at start, from the most specific fact available: the

@@ -30,11 +30,16 @@ internal static class HarnessFactory
         BashGuard? bashGuard = null,
         IExecutionEnvironment? environment = null,
         BashJobRegistry? bashJobs = null,
-        Func<EmbeddingsBinding?>? embeddings = null
+        Func<EmbeddingsBinding?>? embeddings = null,
+        WebSearchConfiguration? webSearch = null
     )
     {
         refusalTracker ??= new WriteVerificationRefusalTracker();
         bashJobs ??= new BashJobRegistry();
+        webSearch ??= new WebSearchConfiguration();
+        // The one composition seam: a configured search credential's `env:` name joins the strip
+        // list every tool child's inherited environment is filtered by, like a provider's does.
+        webSearch.RegisterCredential();
         var tools = new ToolRegistry();
         tools.Add(new ReadTool(workspace, files, skillReadAllowance));
         tools.Add(
@@ -76,7 +81,7 @@ internal static class HarnessFactory
         tools.Add(new BashKillTool(bashJobs));
         tools.Add(new TodoTool());
         tools.Add(new RememberTool(workspace, files: files));
-        tools.Add(new WebSearchTool());
+        tools.Add(new WebSearchTool(webSearch));
         tools.Add(new WebFetchTool());
         AddOptionalTools(tools, workspace, extraTools, embeddings);
         return tools;
@@ -150,7 +155,8 @@ internal static class HarnessFactory
         bool bashGuardEnabled = true,
         IExecutionEnvironment? environment = null,
         BashJobRegistry? bashJobs = null,
-        Func<EmbeddingsBinding?>? embeddings = null
+        Func<EmbeddingsBinding?>? embeddings = null,
+        WebSearchConfiguration? webSearch = null
     )
     {
         ArgumentNullException.ThrowIfNull(inheritedTools);
@@ -171,7 +177,8 @@ internal static class HarnessFactory
                 bashGuardEnabled: bashGuardEnabled,
                 environment: environment,
                 bashJobs: bashJobs,
-                embeddings: embeddings
+                embeddings: embeddings,
+                webSearch: webSearch
             );
             if (extensionTools is not null)
             {
@@ -420,5 +427,22 @@ internal static class HarnessFactory
     {
         ArgumentNullException.ThrowIfNull(auth);
         return new ChatClientFactory(NullLoggerFactory.Instance, namedKeySource: auth.TryGet);
+    }
+
+    /// <summary>
+    /// The web search configuration of a run: the resolved <c>tools.webSearch</c> section plus the
+    /// credential sources provider credentials resolve from, so a backend's reference is resolved
+    /// the same way a provider's is.
+    /// </summary>
+    internal static WebSearchConfiguration CreateWebSearch(
+        AgentSettings settings,
+        AuthStore auth,
+        Func<string, string?> environment
+    )
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(auth);
+        ArgumentNullException.ThrowIfNull(environment);
+        return new WebSearchConfiguration(settings.Tools.WebSearch, auth.TryGet, environment);
     }
 }

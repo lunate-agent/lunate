@@ -1,0 +1,27 @@
+{
+  "query": "dotnet html",
+  "response_time": 0.42,
+  "results": [
+    {
+      "title": "First result",
+      "url": "https://example.test/guide",
+      "content": "The first snippet & its detail.",
+      "score": 0.98,
+      "raw_content": null
+    },
+    {
+      "title": "Second result",
+      "url": "https://example.test/second",
+      "content": "The second snippet with a highlight.",
+      "score": 0.87,
+      "raw_content": null
+    },
+    {
+      "title": "Third result",
+      "url": "https://example.test/third",
+      "content": "The third snippet.",
+      "score": 0.81,
+      "raw_content": null
+    }
+  ]
+}
