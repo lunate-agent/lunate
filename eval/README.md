@@ -93,6 +93,7 @@ the selected official records, so the evaluation sees exactly the instances that
 | `--timeout <seconds>` | Container and official test timeout (default `1800`). |
 | `--max-cost <usd>` | Pass `--max-cost` to Lunate inside the container so one instance cannot spend past this amount. |
 | `--max-time <seconds>` | Pass `--max-time` to Lunate inside the container so one instance cannot run past this wall clock. |
+| `--lunate-home <dir>` | Copy exactly `<dir>/settings.json` and `<dir>/providers.json` into the run's `LUNATE_HOME`, so an arm can enable optional tools and bind usages. Credentials stay environment-only. |
 | `--max-workers <n>` | Official-evaluation workers (default `1`). |
 | `--eval-python <path>` | Interpreter that can import the official `swebench` package (default: this Python). |
 | `--docker <path>` | Docker client (default `docker`). |
@@ -112,6 +113,7 @@ Each run writes `eval/runs/swebench/<run-id>/`:
 | `<instance-id>/lunate.log` | Lunate diagnostics (stderr). |
 | `<instance-id>/exit-code` | Lunate's semantic exit code. |
 | `<instance-id>/official-report.json` | The official per-instance report, when produced. |
+| `lunate-home/` | `settings.json` and `providers.json` copied from `--lunate-home`, when that flag is passed. |
 
 Credentials are environment-only. The adapter forwards each selected variable with `docker run -e
 NAME` so the value never appears in the adapter's process arguments or in `run.json`; after the run
@@ -132,6 +134,29 @@ of the whole generated codebase evaluated by `programbench eval`; a SWE-bench pa
 that handoff. A second adapter for ProgramBench, if wanted, is a separate change against the
 official `programbench` CLI.
 
+
+### Comparing an optional tool on and off
+
+`semantic_search` is off unless `tools.extra` names it and `usages.embeddings` resolves to an
+embedding profile, so the two arms of a comparison differ in one prepared home:
+
+```bash
+# the tool-off arm: no --lunate-home, exactly the published command
+python3 scripts/eval/swebench.py --instance <id> --model <id> --lunate-bin artifacts/linux-x64/lunate \
+  --run-id tool-off
+
+# the tool-on arm: a home whose settings.json names the tool and binds the usage
+python3 scripts/eval/swebench_run.py --arm lunate --lunate-bin artifacts/linux-x64/lunate \
+  --lunate-home /path/to/prepared-home --run-id tool-on
+```
+
+The prepared home holds `settings.json` (`"tools": {"extra": ["semantic_search"]}` and
+`"usages": {"embeddings": "<profile>"}`) and `providers.json`; nothing else from the directory is
+copied, and the provider credential is still forwarded by name. Both arms record their own
+`steps`, `inputTokens` and `outputTokens` per instance in `summary.json`, and resolve counts come
+from the official harness, so the comparison reads: steps, tokens and resolve rate, arm against arm.
+The comparison itself needs Docker and a live provider credential; it is a maintainer step, not a
+repository test.
 
 ## Published SWE-bench run
 

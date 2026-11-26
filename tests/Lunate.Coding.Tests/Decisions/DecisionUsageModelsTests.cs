@@ -177,11 +177,65 @@ public sealed class DecisionUsageModelsTests
         Assert.Contains("the decision layer is off", warning.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_profile_with_no_resolved_credential_stays_on_the_replay_allowed_create()
+    {
+        bool valid = ProviderEntry.TryCreate(
+            "google-provider",
+            "google",
+            new Uri("https://provider.example.test/v1"),
+            "auth:google-key",
+            headers: null,
+            region: null,
+            out ProviderEntry? provider,
+            out string? error
+        );
+        Assert.True(valid, error);
+        var model = new ModelInfo(
+            "gemini-test",
+            "google",
+            Endpoint: null,
+            ContextWindow: 64000,
+            SupportsTools: false
+        );
+        var profile = new ResolvedModelProfile(
+            new ModelProfile("usage", "google-provider", model.Id),
+            provider!,
+            model,
+            64000,
+            new ModelCapabilityDescriptor()
+        );
+        var factory = new RecordingFactory(new ScriptedChatClient());
+        using var temp = new TempDirectory();
+
+        _ = DecisionUsageModels.CreateUsageClient(
+            profile,
+            AuthStore.Load(temp.File("auth.json"), _ => null),
+            _ => null,
+            factory
+        );
+
+        Assert.True(factory.ReplayAllowed);
+        Assert.Null(factory.ApiKey);
+    }
+
     private sealed class RecordingFactory(IChatClient client) : IChatClientFactory
     {
         public string? ApiKey { get; private set; }
 
-        public IChatClient Create(ModelInfo model) => client;
+        public bool ReplayAllowed { get; private set; }
+
+        public IChatClient Create(ModelInfo model)
+        {
+            ReplayAllowed = true;
+            return client;
+        }
+
+        public IChatClient Create(ModelInfo model, RequestContext? context)
+        {
+            ReplayAllowed = true;
+            return client;
+        }
 
         public IChatClient Create(ModelInfo model, string? apiKey)
         {

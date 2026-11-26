@@ -684,6 +684,7 @@ internal sealed partial class InteractiveSession : IDisposable
             bashGuard: _bashGuard,
             environment: _executionEnvironment,
             bashJobs: _bashJobs,
+            embeddings: ResolveEmbeddingsBinding,
             webSearch: webSearch
         );
         _tools.Add(new AskUserTool());
@@ -716,6 +717,7 @@ internal sealed partial class InteractiveSession : IDisposable
             bashGuardEnabled: _settings.BashGuard,
             environment: _executionEnvironment,
             bashJobs: _bashJobs,
+            embeddings: ResolveEmbeddingsBinding,
             webSearch: webSearch
         );
         // The model resolves after the extension host: the configured id may name a virtual or

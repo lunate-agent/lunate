@@ -34,6 +34,7 @@ class SwebenchAdapterPreflightTests(AdapterTestCase):
             "--max-cost",
             "--max-time",
             "--max-workers",
+            "--lunate-home",
         ):
             self.assertIn(flag, result.stdout)
         self.assertIn("ProgramBench", result.stdout)
@@ -44,6 +45,28 @@ class SwebenchAdapterPreflightTests(AdapterTestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("--instance", result.stderr)
         self.assertFalse(self.output.exists())
+
+    def test_a_lunate_home_without_settings_is_a_usage_error(self) -> None:
+        home = self.tmp / "home-missing-settings"
+        home.mkdir()
+        (home / "providers.json").write_text("{}", encoding="utf-8")
+
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--dry-run",
+                "--instance",
+                "alpha__one-1",
+                "--run-id",
+                "run-home",
+                "--lunate-home",
+                str(home),
+            )
+        )
+
+        self.assertEqual(2, result.returncode)
+        self.assertIn("settings.json", result.stderr)
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.docker_args.exists())
 
     def test_a_non_elf_binary_is_refused_before_docker(self) -> None:
         text_binary = self.tmp / "text-binary"

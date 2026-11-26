@@ -67,6 +67,27 @@ def check_usage(args: argparse.Namespace) -> None:
         fail("usage: --max-time must be a positive number of seconds")
     if args.max_workers <= 0:
         fail("usage: --max-workers must be at least 1")
+    if args.lunate_home:
+        home = Path(args.lunate_home)
+        if not home.is_dir():
+            fail(f"usage: --lunate-home '{home}' is not a directory")
+        if not (home / "settings.json").is_file():
+            fail(f"usage: --lunate-home '{home}' has no settings.json")
+
+
+def copy_lunate_home(source: Path, run_root: Path) -> None:
+    """Copy exactly the settings and provider store into the run's LUNATE_HOME.
+
+    The in-image script exports ``LUNATE_HOME=/lunate-run/lunate-home``, so the two files are
+    what an arm needs to carry profiles and a ``usages.embeddings`` binding. Nothing else from
+    the directory is copied: credentials stay forwarded by environment variable name.
+    """
+    destination = run_root / "lunate-home"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in ("settings.json", "providers.json"):
+        candidate = source / name
+        if candidate.is_file():
+            (destination / name).write_bytes(candidate.read_bytes())
 
 
 def load_dataset(args: argparse.Namespace) -> list[dict]:

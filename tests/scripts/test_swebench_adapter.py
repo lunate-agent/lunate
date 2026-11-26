@@ -71,6 +71,44 @@ class SwebenchAdapterRunTests(AdapterTestCase):
         self.assertIn("FAKE_API_KEY", environment)
         self.assertNotIn(SECRET, environment)
 
+    def test_a_lunate_home_carries_only_settings_and_providers(self) -> None:
+        home = self.tmp / "home"
+        home.mkdir()
+        (home / "settings.json").write_text(
+            json.dumps({"schemaVersion": 2, "tools": {"extra": ["semantic_search"]}}),
+            encoding="utf-8",
+        )
+        (home / "providers.json").write_text(json.dumps({"providers": {}}), encoding="utf-8")
+        (home / "auth.json").write_text(json.dumps({"openai": SECRET}), encoding="utf-8")
+
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--dry-run",
+                "--instance",
+                "alpha__one-1",
+                "--run-id",
+                "run-home",
+                "--lunate-home",
+                str(home),
+                "--env",
+                "FAKE_API_KEY",
+            )
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        copied = self.run_root("run-home") / "lunate-home"
+        self.assertEqual(
+            ["providers.json", "settings.json"],
+            sorted(path.name for path in copied.iterdir()),
+        )
+        self.assertIn(
+            "semantic_search", (copied / "settings.json").read_text(encoding="utf-8")
+        )
+        run = json.loads((self.run_root("run-home") / "run.json").read_text())
+        self.assertEqual(str(home), run["lunateHome"])
+        instance = self.run_root("run-home") / "alpha__one-1"
+        self.assertIn("LUNATE_HOME=/lunate-run/lunate-home", (instance / "run.sh").read_text())
+
     def test_the_dry_run_selects_exactly_one_instance(self) -> None:
         result = self.run_adapter(
             *self.base_arguments(

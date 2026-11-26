@@ -112,6 +112,15 @@ model does not declare image input, the image is refused as before; `fast` carri
 A vision-profile failure fails the turn and names both errors, so the image is never silently
 dropped.
 
+The `embeddings` usage is the embedding profile behind the optional `semantic_search` tool. It must
+resolve to an `openai-chat` model that declares the `embeddings` API — a model whose known
+capabilities say otherwise is refused when the usage resolves, while an unknown capability set is
+accepted. With no `embeddings` usage, or a profile that cannot resolve, the tool is not offered to
+the model even when `tools.extra` names it; the run prints one notice naming the key. Every search
+charges its embedding calls to the run as usage `embeddings`, so `/cost` groups them under their own
+usage. The workspace index is a cache under `~/.lunate/cache/semantic-index/`, never in the
+workspace and never in a session.
+
 The optional decision profile lives in the same block; [Decisions](decisions.md) owns what it does.
 
 ## Your own model catalog

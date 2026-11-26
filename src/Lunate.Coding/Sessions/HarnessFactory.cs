@@ -30,6 +30,7 @@ internal static class HarnessFactory
         BashGuard? bashGuard = null,
         IExecutionEnvironment? environment = null,
         BashJobRegistry? bashJobs = null,
+        Func<EmbeddingsBinding?>? embeddings = null,
         WebSearchConfiguration? webSearch = null
     )
     {
@@ -82,7 +83,7 @@ internal static class HarnessFactory
         tools.Add(new RememberTool(workspace, files: files));
         tools.Add(new WebSearchTool(webSearch));
         tools.Add(new WebFetchTool());
-        AddOptionalTools(tools, workspace, extraTools);
+        AddOptionalTools(tools, workspace, extraTools, embeddings);
         return tools;
     }
 
@@ -94,7 +95,8 @@ internal static class HarnessFactory
     private static void AddOptionalTools(
         ToolRegistry tools,
         Workspace workspace,
-        IReadOnlyList<string>? names
+        IReadOnlyList<string>? names,
+        Func<EmbeddingsBinding?>? embeddings
     )
     {
         if (names is not { Count: > 0 })
@@ -120,6 +122,15 @@ internal static class HarnessFactory
                 case "ls":
                     tools.Add(new LsTool(workspace));
                     break;
+                case OptionalTools.SemanticSearch:
+                    // The tool is offered only when it can run: an enabled name without a
+                    // resolved embeddings profile registers nothing (the resolver warns once).
+                    if (embeddings?.Invoke() is { } binding)
+                    {
+                        tools.Add(new SemanticSearchTool(workspace, binding));
+                    }
+
+                    break;
             }
         }
     }
@@ -144,6 +155,7 @@ internal static class HarnessFactory
         bool bashGuardEnabled = true,
         IExecutionEnvironment? environment = null,
         BashJobRegistry? bashJobs = null,
+        Func<EmbeddingsBinding?>? embeddings = null,
         WebSearchConfiguration? webSearch = null
     )
     {
@@ -165,6 +177,7 @@ internal static class HarnessFactory
                 bashGuardEnabled: bashGuardEnabled,
                 environment: environment,
                 bashJobs: bashJobs,
+                embeddings: embeddings,
                 webSearch: webSearch
             );
             if (extensionTools is not null)

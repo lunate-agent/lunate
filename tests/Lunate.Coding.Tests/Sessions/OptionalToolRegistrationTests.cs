@@ -103,6 +103,127 @@ public sealed class OptionalToolRegistrationTests
     }
 
     [Fact]
+    public void Semantic_search_is_absent_when_no_embeddings_binding_resolves()
+    {
+        using var temp = new TempDirectory();
+
+        ToolRegistry tools = HarnessFactory.CreateTools(
+            new Workspace(temp.Root),
+            extraTools: [OptionalTools.SemanticSearch],
+            embeddings: () => null
+        );
+
+        Assert.Equal(CoreNames, Names(tools));
+    }
+
+    [Fact]
+    public void The_embeddings_usage_is_never_resolved_while_the_tool_is_not_enabled()
+    {
+        using var temp = new TempDirectory();
+        int resolutions = 0;
+
+        ToolRegistry tools = HarnessFactory.CreateTools(
+            new Workspace(temp.Root),
+            extraTools: ["grep"],
+            embeddings: () =>
+            {
+                resolutions++;
+                return null;
+            }
+        );
+
+        Assert.Equal(0, resolutions);
+        Assert.Null(tools.Find(OptionalTools.SemanticSearch));
+    }
+
+    [Fact]
+    public async Task A_run_that_does_not_enable_the_tool_stays_silent_about_it()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            """
+            {
+              "schemaVersion": 2
+            }
+            """
+        );
+        var client = new ScriptedChatClient().Enqueue(Scripts.Text("ok"), Scripts.Stop());
+        PrintModeOptions options = PrintModeTestSupport.BaseOptions(
+            temp,
+            new FakeChatClientFactory(client)
+        ) with
+        {
+            Prompt = "Hi",
+        };
+
+        (int exitCode, _, string errors) = await PrintModeTestSupport.RunAsync(options);
+
+        Assert.Equal(0, exitCode);
+        Assert.DoesNotContain("semantic_search", errors, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Semantic_search_registers_when_a_binding_resolves()
+    {
+        using var temp = new TempDirectory();
+
+        ToolRegistry tools = HarnessFactory.CreateTools(
+            new Workspace(temp.Root),
+            extraTools: ["grep", OptionalTools.SemanticSearch],
+            embeddings: () =>
+                new EmbeddingsBinding(
+                    new StubEmbeddingsClient(),
+                    "embedding-profile",
+                    "fake-provider",
+                    "openai",
+                    "fake/embed"
+                )
+        );
+
+        Assert.Equal([.. CoreNames, "grep", OptionalTools.SemanticSearch], Names(tools));
+        Assert.Equal(ToolRisk.ReadOnly, tools.Find(OptionalTools.SemanticSearch)!.Risk);
+    }
+
+    [Fact]
+    public void Semantic_search_is_an_accepted_optional_name()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(
+            temp.File("settings.json"),
+            """
+            {
+              "schemaVersion": 2,
+              "tools": { "extra": ["semantic_search"] }
+            }
+            """
+        );
+
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
+
+        Assert.Equal([OptionalTools.SemanticSearch], settings.Tools.Extra);
+    }
+
+    [Fact]
+    public void An_optional_entry_cannot_name_a_core_tool_and_lists_the_new_value()
+    {
+        string error = OptionalTools.Error("--extra-tools", "read");
+
+        Assert.Contains("core tool 'read'", error, StringComparison.Ordinal);
+        Assert.Contains("semantic_search", error, StringComparison.Ordinal);
+    }
+
+    private sealed class StubEmbeddingsClient : IEmbeddingsClient
+    {
+        public string ModelId => "fake/embed";
+
+        public Task<EmbeddingsResponse> EmbedAsync(
+            IReadOnlyList<string> inputs,
+            CancellationToken cancellationToken
+        ) => Task.FromResult(new EmbeddingsResponse([], Usage: null));
+    }
+
+    [Fact]
     public void The_launch_filter_can_select_a_web_tool()
     {
         using var temp = new TempDirectory();

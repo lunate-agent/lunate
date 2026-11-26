@@ -97,6 +97,38 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
         self.assertIn("agent.cost_limit=3.0000", command)
 
 
+class SwebenchRunAdapterCommandTests(unittest.TestCase):
+    def definition(self, home: str | None) -> dict:
+        return {
+            "_adapter": str(REPOSITORY / "scripts" / "eval" / "swebench.py"),
+            "_lunate_bin": str(REPOSITORY / "artifacts" / "linux-x64" / "lunate"),
+            "_lunate_home": home,
+            "_eval_python": sys.executable,
+            "_docker": "docker",
+            "dataset": "SWE-bench/SWE-bench_Verified",
+            "split": "test",
+            "limits": {"maxTimeSeconds": 1800},
+            "instanceTimeoutSeconds": 1800,
+        }
+
+    def test_a_lunate_home_reaches_the_adapter_and_the_off_arm_omits_it(self) -> None:
+        model = {"tier": "budget", "id": "example/model", "credential": "OPENROUTER_API_KEY"}
+
+        with_home = swebench_run.adapter_command(
+            self.definition("/tmp/prepared-home"), "alpha__one-1", model, 5.0, Path("/tmp/out")
+        )
+        without_home = swebench_run.adapter_command(
+            self.definition(None), "alpha__one-1", model, 5.0, Path("/tmp/out")
+        )
+
+        self.assertEqual("/tmp/prepared-home", with_home[with_home.index("--lunate-home") + 1])
+        self.assertNotIn("--lunate-home", without_home)
+        self.assertEqual(
+            [part for part in without_home if part != "--lunate-home"],
+            [part for part in with_home if part not in ("--lunate-home", "/tmp/prepared-home")],
+        )
+
+
 class SwebenchRunSpendTests(unittest.TestCase):
     def test_trajectory_totals_and_catalog_price(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -166,7 +166,12 @@ public static partial class SettingsStore
         var usages = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (JsonProperty property in value.EnumerateObject())
         {
-            if (property.Name is not ("chat" or "fast" or "subagents" or "compaction" or "vision"))
+            // Two lists so CSharpier can keep the condition readable; `embeddings` is a usage
+            // role too (ADR-0027), just not a chat one.
+            if (
+                property.Name is not ("chat" or "fast" or "subagents" or "compaction" or "vision")
+                && property.Name is not ("embeddings")
+            )
             {
                 problems.Add($"unknown usage 'usages.{property.Name}'");
                 continue;

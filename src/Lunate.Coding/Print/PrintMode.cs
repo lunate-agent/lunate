@@ -872,6 +872,17 @@ internal static class PrintMode
             bashGuardEnabled: settings.BashGuard,
             environment: environment,
             bashJobs: bashJobs,
+            embeddings: () =>
+                EmbeddingsUsage.TryResolve(
+                    settings,
+                    providers,
+                    catalog,
+                    auth,
+                    options.Environment ?? Environment.GetEnvironmentVariable,
+                    factory,
+                    SessionContext(session),
+                    message => warn(new UserNotice(NoticeLevel.Warning, message))
+                ),
             webSearch: webSearch
         );
         tools.Add(new AskUserTool());
@@ -997,6 +1008,17 @@ internal static class PrintMode
                 bashGuardEnabled: settings.BashGuard,
                 environment: environment,
                 bashJobs: bashJobs,
+                embeddings: () =>
+                    EmbeddingsUsage.TryResolve(
+                        settings,
+                        providers,
+                        catalog,
+                        auth,
+                        options.Environment ?? Environment.GetEnvironmentVariable,
+                        factory,
+                        SessionContext(session),
+                        message => warn(new UserNotice(NoticeLevel.Warning, message))
+                    ),
                 webSearch: webSearch
             ),
         };

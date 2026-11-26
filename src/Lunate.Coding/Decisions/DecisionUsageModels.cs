@@ -212,6 +212,27 @@ internal static class DecisionUsageModels
             return factory.Create(profile.Model, held, context);
         }
 
+        (string? key, ModelInfo wireModel) = ResolveCredentialReference(profile, auth, environment);
+        // No resolved key stays on the deferred path, which keeps replay allowed; the explicit
+        // credential overload would bypass LUNATE_REPLAY for a run that has no credential yet.
+        return key is { Length: > 0 }
+            ? factory.Create(wireModel, key, context)
+            : factory.Create(wireModel, context);
+    }
+
+    /// <summary>
+    /// The credential a non-System-One profile resolves to and the model whose <c>AuthRef</c> the
+    /// client factory may still resolve at first use: the preset's environment variable or the
+    /// auth store for a reference, the variable's value for an <c>env:</c> reference, and the same
+    /// refusals for a missing variable or an unsupported helper. Shared by the chat usage clients
+    /// and the embeddings client so one rule serves both.
+    /// </summary>
+    internal static (string? Key, ModelInfo WireModel) ResolveCredentialReference(
+        ResolvedModelProfile profile,
+        AuthStore auth,
+        Func<string, string?> environment
+    )
+    {
         string reference = profile.Provider.CredentialReference;
         if (reference.StartsWith("auth:", StringComparison.Ordinal))
         {
@@ -223,16 +244,13 @@ internal static class DecisionUsageModels
                     ?? (preset.KeyVariableAlias is { } alias ? environment(alias) : null);
             if (!string.IsNullOrWhiteSpace(environmentKey))
             {
-                return factory.Create(profile.Model, environmentKey, context);
+                return (environmentKey, profile.Model);
             }
 
             string? storedKey = auth.TryGet(keyName);
-            if (!string.IsNullOrWhiteSpace(storedKey))
-            {
-                return factory.Create(profile.Model, storedKey, context);
-            }
-
-            return factory.Create(profile.Model with { AuthRef = keyName }, context);
+            return !string.IsNullOrWhiteSpace(storedKey)
+                ? (storedKey, profile.Model)
+                : (null, profile.Model with { AuthRef = keyName });
         }
 
         if (reference.StartsWith("env:", StringComparison.Ordinal))
@@ -241,7 +259,7 @@ internal static class DecisionUsageModels
             string? environmentKey = environment(variable);
             if (!string.IsNullOrWhiteSpace(environmentKey))
             {
-                return factory.Create(profile.Model, environmentKey, context);
+                return (environmentKey, profile.Model);
             }
 
             throw new InvalidOperationException(
