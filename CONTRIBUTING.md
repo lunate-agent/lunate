@@ -282,14 +282,15 @@ path, which is a card against that path rather than a rerun, and never a re-cali
 budget.
 
 Only the red half of that comparison is readable from the run: `scripts/perf.sh` puts the measured
-floor in the check run's annotations when it fails and nowhere else, while a green leg's measurement
-stays in its job log, which needs a session. A session without an account takes the machine from a
+floor in the check run's annotations when it fails and nowhere else, while a green leg leaves its
+number in the job log, which needs a session. A session without an account takes the machine from a
 local publish instead — the `bash scripts/perf.sh artifacts/publish/<rid>/lunate` line above, over the
 `osx-arm64` release shape — which is how run 45795920557 (#1039) was read: its head (#1038) changes
-prose and `perf.sh` comments only, it floors at 132-133 ms locally while the run read 350 ms on the
-retry, 386 ms on the first attempt and 430 ms median, and the same job one push earlier read 305 and
-343 ms — the third such red in four days against the 139-177 ms
-[S-9](docs/dev/spikes/S-9/report.md) records for that path.
+prose and `perf.sh` comments only and floors at 132-133 ms locally, while the run read 386 ms on the
+first attempt, 350 ms on the retry and 430 ms median. The job had missed the same way twice in the
+four days before it — 386 ms first and 343 ms on the retry on 2026-11-22, 362 and 305 ms on the push
+two hours earlier — against the 139-177 ms [S-9](docs/dev/spikes/S-9/report.md) records for that
+path.
 
 A red test step is read against the legs that ran the same commit before a test or its subject is
 edited, because the gate's own flake budget has already been spent: `scripts/verify.sh` retries a
