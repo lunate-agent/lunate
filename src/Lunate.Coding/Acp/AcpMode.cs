@@ -371,6 +371,11 @@ internal static class AcpMode
             providerStorePath: AuthStore.ProviderStoreFilePath(null)
         );
         var refusalTracker = new WriteVerificationRefusalTracker();
+        WebSearchConfiguration webSearch = HarnessFactory.CreateWebSearch(
+            effective,
+            auth,
+            static name => Environment.GetEnvironmentVariable(name)
+        );
         ToolRegistry tools = HarnessFactory.CreateTools(
             workspace,
             files: context.FileAccess,
@@ -381,7 +386,8 @@ internal static class AcpMode
             verificationMode: effective.Verify,
             refusalTracker: refusalTracker,
             bashGuardEnabled: effective.BashGuard,
-            bashJobs: bashJobs
+            bashJobs: bashJobs,
+            webSearch: webSearch
         );
         tools.Add(new AskUserTool());
         foreach (ITool tool in mcpTools)
@@ -502,7 +508,8 @@ internal static class AcpMode
                 verificationMode: effective.Verify,
                 refusalTracker: refusalTracker,
                 bashGuardEnabled: effective.BashGuard,
-                bashJobs: bashJobs
+                bashJobs: bashJobs,
+                webSearch: webSearch
             ),
         };
 

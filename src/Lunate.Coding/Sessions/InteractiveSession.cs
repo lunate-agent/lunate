@@ -666,6 +666,11 @@ internal sealed partial class InteractiveSession : IDisposable
         // Skills compose after the extension host (its sources contribute) and before the tools
         // (the read tool carries their allowance); discovery and the trust question run here.
         await ComposeSkillsAsync(ct);
+        WebSearchConfiguration webSearch = HarnessFactory.CreateWebSearch(
+            _settings,
+            _auth,
+            _environment
+        );
         _tools = HarnessFactory.CreateTools(
             _workspace,
             skillReadAllowance: _skillAllowance,
@@ -678,7 +683,8 @@ internal sealed partial class InteractiveSession : IDisposable
             bashGuardEnabled: _settings.BashGuard,
             bashGuard: _bashGuard,
             environment: _executionEnvironment,
-            bashJobs: _bashJobs
+            bashJobs: _bashJobs,
+            webSearch: webSearch
         );
         _tools.Add(new AskUserTool());
         await ComposeMcpConfigAsync(ct);
@@ -709,7 +715,8 @@ internal sealed partial class InteractiveSession : IDisposable
             refusalTracker: _writeVerificationRefusals,
             bashGuardEnabled: _settings.BashGuard,
             environment: _executionEnvironment,
-            bashJobs: _bashJobs
+            bashJobs: _bashJobs,
+            webSearch: webSearch
         );
         // The model resolves after the extension host: the configured id may name a virtual or
         // extension-registered model, which only the registry knows.
