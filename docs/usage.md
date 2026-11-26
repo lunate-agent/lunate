@@ -70,6 +70,11 @@ with a credential reference; the approval prompt and the result shape stay the s
 backend, so a search is still a tool call you see. [Configuration](configuration.md#the-web-search-backend)
 owns the setting.
 
+If your provider runs search natively and the chat model declares the `web_search` feature, setting
+`tools.nativeSearch` to `true` moves the search inside the chat request: there is no per-call
+approval prompt and the local tool is not offered. The search is billed and attributed to the chat
+call. [Configuration](configuration.md#provider-native-search) owns that opt-in.
+
 ## Long commands keep running in the background
 
 A build, a test suite or a dev server does not have to hold the turn. `bash` with `background: true`
