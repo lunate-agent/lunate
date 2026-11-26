@@ -992,6 +992,7 @@ internal static class PrintMode
             Session = session,
             FileChanges = (IFileChangeSink?)extensions?.FileChanges ?? NullFileChangeSink.Instance,
             Model = model,
+            NativeWebSearch = settings.Tools.NativeSearch,
             ModelCatalog = catalog,
             ModelId = model.Id,
             ModelRegistry = extensions?.ModelRegistry,

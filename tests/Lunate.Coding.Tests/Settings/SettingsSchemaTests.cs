@@ -49,6 +49,7 @@ public sealed partial class SettingsSchemaTests
         ["maxSteps"] = 55,
         ["maxTime"] = 90,
         ["tools.extra"] = new[] { "grep" },
+        ["tools.nativeSearch"] = true,
         ["tools.webSearch.backend"] = "searxng",
         ["tools.webSearch.credential"] = "env:PROBE_SEARCH_TOKEN",
         ["tools.webSearch.url"] = "https://search.probe.test/",
@@ -143,6 +144,7 @@ public sealed partial class SettingsSchemaTests
         Assert.Equal(1024, settings.Profiles[WildcardId].MaxOutput);
         Assert.Equal(0.5, settings.Decisions.ApprovalsThreshold);
         Assert.Equal(55, settings.MaxSteps);
+        Assert.True(settings.Tools.NativeSearch);
         Assert.Equal(WebSearchBackendKind.SearXng, settings.Tools.WebSearch.Backend);
         Assert.Equal("https://search.probe.test/", settings.Tools.WebSearch.Url?.AbsoluteUri);
         Assert.Equal("env:PROBE_SEARCH_TOKEN", settings.Tools.WebSearch.Credential);

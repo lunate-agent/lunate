@@ -18,6 +18,79 @@ public sealed class WebSearchSettingsTests
         Assert.Equal(WebSearchBackendKind.DuckDuckGo, settings.Tools.WebSearch.Backend);
         Assert.Null(settings.Tools.WebSearch.Url);
         Assert.Null(settings.Tools.WebSearch.Credential);
+        Assert.False(settings.Tools.NativeSearch);
+    }
+
+    [Fact]
+    public void The_provider_native_search_opt_in_resolves()
+    {
+        using var temp = new TempDirectory();
+        Write(
+            temp,
+            """
+            {
+              "schemaVersion": 2,
+              "tools": { "nativeSearch": true }
+            }
+            """
+        );
+
+        AgentSettings settings = SettingsStore.Resolve(temp.File("settings.json"), _ => null);
+
+        Assert.True(settings.Tools.NativeSearch);
+    }
+
+    [Theory]
+    [InlineData("\"yes\"")]
+    [InlineData("1")]
+    [InlineData("null")]
+    public void A_non_boolean_native_search_opt_in_is_refused_by_key(string value)
+    {
+        using var temp = new TempDirectory();
+        Write(
+            temp,
+            $$"""
+            {
+              "schemaVersion": 2,
+              "tools": { "nativeSearch": {{value}} }
+            }
+            """
+        );
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            SettingsStore.Resolve(temp.File("settings.json"), _ => null)
+        );
+
+        Assert.Contains("'tools.nativeSearch'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("must be true or false", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_project_settings_file_cannot_opt_into_native_search()
+    {
+        using var temp = new TempDirectory();
+        File.WriteAllText(temp.File("user-settings.json"), """{ "schemaVersion": 2 }""");
+        Write(
+            temp,
+            """
+            {
+              "schemaVersion": 2,
+              "tools": { "nativeSearch": true }
+            }
+            """,
+            "project-settings.json"
+        );
+
+        InvalidDataException exception = Assert.Throws<InvalidDataException>(() =>
+            SettingsStore.ResolveWithProject(
+                temp.File("user-settings.json"),
+                temp.File("project-settings.json"),
+                [],
+                _ => null
+            )
+        );
+
+        Assert.Contains("'tools' is not allowed", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

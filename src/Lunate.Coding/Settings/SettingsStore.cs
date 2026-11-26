@@ -195,7 +195,7 @@ public sealed record AgentSettings
         new Dictionary<string, string>(StringComparer.Ordinal);
 }
 
-/// <summary>The tools section: the optional tools beside the core set and the local web search backend.</summary>
+/// <summary>The tools section: the optional tools beside the core set, the local web search backend and the provider-native search opt-in.</summary>
 public sealed record ToolsSettings
 {
     /// <summary>The optional search tool names to register; empty (the default) means none.</summary>
@@ -203,6 +203,13 @@ public sealed record ToolsSettings
 
     /// <summary>The local <c>web_search</c> backend, its URL and its credential reference.</summary>
     public WebSearchSettings WebSearch { get; init; } = new();
+
+    /// <summary>
+    /// Whether provider-native web search may replace the local <c>web_search</c> declaration for
+    /// a model that declares the <c>web_search</c> capability feature; off by default because a
+    /// native search cannot be approved per call.
+    /// </summary>
+    public bool NativeSearch { get; init; }
 }
 
 /// <summary>
@@ -1236,9 +1243,10 @@ public static partial class SettingsStore
     }
 
     /// <summary>
-    /// Reads the <c>tools</c> section: <c>extra</c>, an array of optional search tool names, and
-    /// <c>webSearch</c>, the local search backend. A missing key keeps the documented default
-    /// (empty, DuckDuckGo); every bad entry is collected.
+    /// Reads the <c>tools</c> section: <c>extra</c>, an array of optional search tool names,
+    /// <c>webSearch</c>, the local search backend, and <c>nativeSearch</c>, the provider-native
+    /// search opt-in. A missing key keeps the documented default (empty, DuckDuckGo, off); every
+    /// bad entry is collected.
     /// </summary>
     private static ToolsSettings ReadTools(JsonElement value, List<string> problems)
     {
@@ -1262,6 +1270,12 @@ public static partial class SettingsStore
                         WebSearch = ReadWebSearch(property.Value, problems),
                     };
                     break;
+                case "nativeSearch":
+                    settings = settings with
+                    {
+                        NativeSearch = ReadNativeSearch(property.Value, problems),
+                    };
+                    break;
                 default:
                     problems.Add($"unknown key 'tools.{property.Name}'");
                     break;
@@ -1269,6 +1283,21 @@ public static partial class SettingsStore
         }
 
         return settings;
+    }
+
+    /// <summary>
+    /// Reads <c>tools.nativeSearch</c>: a JSON boolean; a missing key keeps the documented default
+    /// (off). The key is the user's explicit opt-in for an unapprovable provider-side search.
+    /// </summary>
+    private static bool ReadNativeSearch(JsonElement value, List<string> problems)
+    {
+        if (value.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            return value.GetBoolean();
+        }
+
+        problems.Add("'tools.nativeSearch' must be true or false");
+        return false;
     }
 
     /// <summary>Reads the <c>tools.extra</c> list: optional search tool names only.</summary>

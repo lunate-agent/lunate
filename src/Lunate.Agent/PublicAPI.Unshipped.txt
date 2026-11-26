@@ -1982,3 +1982,5 @@ override Lunate.Agent.ImageDescribed.ToString() -> string! (forwarded, contained
 static Lunate.Agent.ImageDescribed.operator !=(Lunate.Agent.ImageDescribed? left, Lunate.Agent.ImageDescribed? right) -> bool (forwarded, contained in Lunate.Contracts)
 static Lunate.Agent.ImageDescribed.operator ==(Lunate.Agent.ImageDescribed? left, Lunate.Agent.ImageDescribed? right) -> bool (forwarded, contained in Lunate.Contracts)
 Lunate.Agent.AgentEvent.AgentEvent(Lunate.Agent.ImageDescribed! value) -> void (forwarded, contained in Lunate.Contracts)
+Lunate.Agent.AgentHarnessOptions.NativeWebSearch.get -> bool
+Lunate.Agent.AgentHarnessOptions.NativeWebSearch.init -> void
