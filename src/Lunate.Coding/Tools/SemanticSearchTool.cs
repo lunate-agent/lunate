@@ -17,7 +17,7 @@ internal sealed class SemanticSearchTool : ITool
     internal const string ToolName = "semantic_search";
     private const int DefaultMaxResults = 10;
     private const int MaxResultsCap = 50;
-    private const int MaxOutputBytes = 8 * 1024;
+    internal const int MaxOutputBytes = 8 * 1024;
 
     private static readonly IReadOnlyList<string> Accepted = ["query", "max_results"];
 
@@ -141,8 +141,12 @@ internal sealed class SemanticSearchTool : ITool
         if (result.Hits.Count == 0)
         {
             return new ToolResult(
-                $"No indexed files match '{query.Trim()}' (nothing readable to search under the "
-                    + "workspace, or no similarity above the floor)",
+                WebText.Cap(
+                    $"No indexed files match '{query.Trim()}' (nothing readable to search under the "
+                        + "workspace, or no similarity above the floor)",
+                    MaxOutputBytes,
+                    "search output"
+                ),
                 IsError: false
             );
         }
@@ -152,8 +156,8 @@ internal sealed class SemanticSearchTool : ITool
 
     /// <summary>
     /// Renders the ranked hits: the query, one numbered line per region and the caps that actually
-    /// cut the result. Output stops at the byte cap or before a hit that would cross it, so a cut
-    /// never splits a UTF-8 sequence or a surrogate pair.
+    /// cut the result, then bounds the whole result — the query included — to the UTF-8 byte cap,
+    /// with a marker when the cap cut it. The cut never splits a UTF-8 sequence or a surrogate pair.
     /// </summary>
     internal static string Render(string query, SemanticSearchResult result)
     {
@@ -163,24 +167,14 @@ internal sealed class SemanticSearchTool : ITool
         foreach (SemanticHit hit in result.Hits)
         {
             string snippet = hit.Snippet.Replace('\n', ' ');
-            string line = string.Create(
-                CultureInfo.InvariantCulture,
-                $"{rendered + 1}. {hit.Path}:{hit.StartLine}-{hit.EndLine}  {snippet}"
-            );
-            if (Encoding.UTF8.GetByteCount(line) + 1 > MaxOutputBytes)
-            {
-                output
-                    .Append(
-                        string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"[stopped at the {MaxOutputBytes} byte cap after {rendered} {(rendered == 1 ? "hit" : "hits")}]"
-                        )
+            output
+                .Append(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{rendered + 1}. {hit.Path}:{hit.StartLine}-{hit.EndLine}  {snippet}"
                     )
-                    .Append('\n');
-                return output.ToString().TrimEnd('\n');
-            }
-
-            output.Append(line).Append('\n');
+                )
+                .Append('\n');
             rendered++;
         }
 
@@ -208,7 +202,7 @@ internal sealed class SemanticSearchTool : ITool
                 .Append('\n');
         }
 
-        return output.ToString().TrimEnd('\n');
+        return WebText.Cap(output.ToString().TrimEnd('\n'), MaxOutputBytes, "search output");
     }
 
     private static string Truncate(string value, int length) =>

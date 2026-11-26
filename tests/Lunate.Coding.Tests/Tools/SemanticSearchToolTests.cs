@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using Lunate.Agent;
 using Microsoft.Extensions.AI;
@@ -64,6 +66,78 @@ public sealed class SemanticSearchToolTests
         Assert.StartsWith("2. ", lines[2], StringComparison.Ordinal);
         Assert.Contains("more matching regions", lines[3], StringComparison.Ordinal);
         Assert.Equal(4, lines.Length);
+    }
+
+    [Fact]
+    public async Task A_query_longer_than_the_byte_cap_is_cut_with_a_marker()
+    {
+        using var fixture = new Fixture();
+        File.WriteAllText(fixture.Workspace.File("a.txt"), "alpha\n");
+        SemanticSearchTool tool = fixture.Tool(new KeywordEmbeddingsClient(Vocabulary));
+        string arguments = JsonSerializer.Serialize(new { query = new string('a', 20_000) });
+
+        ToolResult result = await RunAsync(tool, arguments);
+
+        Assert.False(result.IsError);
+        Assert.True(
+            Encoding.UTF8.GetByteCount(result.Output) <= SemanticSearchTool.MaxOutputBytes,
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"output was {Encoding.UTF8.GetByteCount(result.Output)} bytes"
+            )
+        );
+        Assert.Contains("capped at", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_no_hit_result_is_bounded_with_a_marker()
+    {
+        using var fixture = new Fixture();
+        SemanticSearchTool tool = fixture.Tool(new KeywordEmbeddingsClient(Vocabulary));
+        string arguments = JsonSerializer.Serialize(new { query = new string('a', 20_000) });
+
+        ToolResult result = await RunAsync(tool, arguments);
+
+        Assert.False(result.IsError);
+        Assert.True(
+            Encoding.UTF8.GetByteCount(result.Output) <= SemanticSearchTool.MaxOutputBytes,
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"output was {Encoding.UTF8.GetByteCount(result.Output)} bytes"
+            )
+        );
+        Assert.Contains("capped at", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Hits_that_each_fit_are_still_bounded_by_the_total_byte_cap()
+    {
+        SemanticSearchResult result = new(
+            [
+                .. Enumerable
+                    .Range(0, 50)
+                    .Select(index => new SemanticHit(
+                        new string('p', 180) + $"-{index}.txt",
+                        1,
+                        40,
+                        new string('a', 160),
+                        1.0
+                    )),
+            ],
+            Truncated: false,
+            IndexCapped: false
+        );
+
+        string output = SemanticSearchTool.Render("alpha", result);
+
+        Assert.True(
+            Encoding.UTF8.GetByteCount(output) <= SemanticSearchTool.MaxOutputBytes,
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"output was {Encoding.UTF8.GetByteCount(output)} bytes"
+            )
+        );
+        Assert.Contains("capped at", output, StringComparison.Ordinal);
     }
 
     [Theory]
