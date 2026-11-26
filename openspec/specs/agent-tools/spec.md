@@ -553,7 +553,7 @@ A `bash` command SHALL run wrapped in a guard profile, not a jail: writes under 
 
 ### Requirement: Optional search tools
 
-When configured, the optional read-only search tools SHALL be registered beside the core set: `grep` (regex search with `path`, `glob`, `case_sensitive` and `max_results` of 100 default / 500 cap, using the ripgrep binary when present and an internal walker otherwise, both honouring `.gitignore` and skipping binary files), `find` (glob matching with `path`, `type` of `file` or `dir`, 100/500 bounds, case-insensitive on Windows and macOS, case-sensitive on Linux), `ls` (one directory listing with `path` and `depth` of 1 default / 3 max, directories first then files, `.git` always skipped) and `semantic_search` (the embeddings-backed repo search the `semantic-search` capability specifies; it is registered only when an embeddings profile also resolves). `grep`, `find` and `ls` SHALL refuse a path outside the workspace exactly as `read` does; all four SHALL require no approval, SHALL follow no directory symlink and SHALL route their output through the existing truncation path. Their results SHALL name what was searched and SHALL end with a `[N more …]` line when a cap cut the result. When the configured list is empty — the default — none SHALL be registered, and the tool set SHALL be exactly the core set.
+When configured, the optional read-only search tools SHALL be registered beside the core set: `grep` (regex search with `path`, `glob`, `case_sensitive` and `max_results` of 100 default / 500 cap, using the ripgrep binary when present and an internal walker otherwise, both honouring `.gitignore` and skipping binary files), `find` (glob matching with `path`, `type` of `file` or `dir`, 100/500 bounds, case-insensitive on Windows and macOS, case-sensitive on Linux), `ls` (one directory listing with `path` and `depth` of 1 default / 3 max, directories first then files, `.git` always skipped) and `semantic_search` (the embeddings-backed repo search the `semantic-search` capability specifies; it is registered only when an embeddings profile also resolves). `grep`, `find` and `ls` SHALL refuse a path outside the workspace exactly as `read` does; all four SHALL require no approval, SHALL follow no directory symlink and SHALL route their output through the existing truncation path, whose marker states the cap when a total-byte cap cut the result. Their results SHALL name what was searched. When a result-count cap cut the result, `grep`, `find` and `ls` SHALL end with `[N more matches]`, `[N more files]` and `[N more entries]` respectively (singular for one), and `semantic_search` SHALL end with `[N shown; more matching regions exist, raise max_results for more]`; `semantic_search`'s own 8 KiB total-byte cap SHALL use the shared search-output truncation marker, `[search output capped at 8192 bytes]`. When the configured list is empty — the default — none SHALL be registered, and the tool set SHALL be exactly the core set.
 
 #### Scenario: Nothing extra by default
 
@@ -578,6 +578,18 @@ When configured, the optional read-only search tools SHALL be registered beside 
 - **GIVEN** a workspace whose `.gitignore` excludes `bin/` and one file with 600 matching lines
 - **WHEN** `grep` runs with a 100 default
 - **THEN** nothing from `bin/` appears, exactly 100 matches are returned and the result ends with `[500 more matches]`
+
+#### Scenario: semantic_search states the count cap in its own words
+
+- **GIVEN** an index with three matching regions
+- **WHEN** `semantic_search` runs with `max_results: 2`
+- **THEN** exactly two regions are rendered and the result ends with `[2 shown; more matching regions exist, raise max_results for more]`
+
+#### Scenario: semantic_search states its total-byte cap
+
+- **GIVEN** a rendered semantic search result that exceeds the 8 KiB output bound
+- **WHEN** `semantic_search` bounds the result
+- **THEN** the output stays within 8 KiB and carries `[search output capped at 8192 bytes]`
 
 #### Scenario: A path outside the workspace is refused
 
