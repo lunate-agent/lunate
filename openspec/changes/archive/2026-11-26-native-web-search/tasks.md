@@ -40,5 +40,5 @@
 
 ## 4. Finish
 
-- [ ] 4.1 Sync the delta specs into `openspec/specs/`, then archive as the last commit:
+- [x] 4.1 Sync the delta specs into `openspec/specs/`, then archive as the last commit:
   `openspec archive native-web-search --yes`.
