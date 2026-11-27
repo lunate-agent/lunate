@@ -38,7 +38,7 @@ byte-identical across calls, and that the balance bound holds; it SHALL fail nam
 weight when any of them does not.
 
 Every gate run SHALL record the wall time of each test project it runs, next to the per-shard record
-`scripts/shard-timing.sh` already writes, and `scripts/shard-timing.sh weights --from <dir>` SHALL fold
+`scripts/shard-timing.sh` already writes, and `scripts/shard-weights.sh weights --from <dir>` SHALL fold
 such records back into `scripts/verify-shard-weights.tsv`, so a real run refreshes the weights instead
 of anyone estimating them.
 
@@ -82,4 +82,4 @@ of anyone estimating them.
 
 - **GIVEN** a gate run that executed test projects
 - **WHEN** the run finishes
-- **THEN** `artifacts/verify-timing/` holds a per-project record naming each project's wall time beside the shard's own record, and `scripts/shard-timing.sh weights --from` folds it into a weight table
+- **THEN** `artifacts/verify-timing/` holds a per-project record naming each project's wall time beside the shard's own record, and `scripts/shard-weights.sh weights --from` folds it into a weight table

@@ -20,9 +20,9 @@ whose pole is one project running as one unit, so the scheduler has to be given 
   input the partition reads, in every lane, so the four shards of a lane agree without talking to each
   other.
 - Record **per-project** wall times in every gate run, beside the per-shard records
-  `scripts/shard-timing.sh` already writes, and teach `shard-timing.sh` to fold a run's records back
-  into the table (`weights --from <dir>`), so the next real run refreshes the weights instead of
-  guessing them.
+  `scripts/shard-timing.sh` already writes, and add `scripts/shard-weights.sh` to write the per-project
+  record and fold a run's records back into the table (`weights --from <dir>`), so the next real run
+  refreshes the weights instead of guessing them.
 - Give shard 1's non-test work a weight in the partition: it starts pre-loaded with the recorded cost
   of its publish, startup budget, roundtrip, formatting, docs and public-API steps, so the leg that
   owns them is not silently the heaviest.
@@ -52,8 +52,9 @@ None.
   the pass checker work per culture pass and read the weight table.
 - `scripts/verify.sh`: the test phase asks for a module list per culture pass; the run records its
   per-project wall times; the header comment stops describing a position partition.
-- `scripts/shard-timing.sh`: a `projects` record written next to the shard record, and a `weights`
-  command that folds recorded project timings into the table; the self-test covers both.
+- `scripts/shard-weights.sh` (new): a `record` command that writes the per-project record next to the
+  shard record, a `weights` command that folds recorded project timings into the table, and the
+  self-test that covers both.
 - `scripts/gate-tests.sh`: the partition checks become per-pass, weight-aware and table-aware, and the
   shard-timing self-test gains the new commands.
 - `scripts/verify-shard-weights.tsv` (new): the recorded weight table.

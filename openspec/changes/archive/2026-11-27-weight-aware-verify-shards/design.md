@@ -85,9 +85,9 @@ alone. Determinism is a checked property, not a hope.
 
 `scripts/verify-shard-weights.tsv` holds the recorded wall time of one culture pass per test project,
 plus the `#primary` weight. It is a ratchet point: reviewed like code, and refreshed from a real run
-rather than re-estimated. Every gate run now calls `shard-timing.sh projects`, which parses the test
+rather than re-estimated. Every gate run now calls `shard-weights.sh record`, which parses the test
 platform's own per-module summary out of the pass output and writes
-`artifacts/verify-timing/verify-<rid>-<shard>-of-<n>-projects.jsonl`; `shard-timing.sh weights --from
+`artifacts/verify-timing/verify-<rid>-<shard>-of-<n>-projects.jsonl`; `shard-weights.sh weights --from
 <dir>` folds a lane's four shard records into a table, taking the slower of a project's two recorded
 passes so the heavier pass is what the partition compensates for.
 
@@ -133,7 +133,7 @@ Lightweight C4, dynamic: one gate run, one lane.
                      dotnet test --test-modules   verify-<rid>-<i>-of-<n>-projects.jsonl
                      (de-AT pass)                        |
                                                          v
-                                              shard-timing.sh weights --from
+                                              shard-weights.sh weights --from
                                                          |
                                                          v
                                               scripts/verify-shard-weights.tsv
