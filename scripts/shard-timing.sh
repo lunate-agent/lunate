@@ -4,7 +4,11 @@
 #
 # Usage:
 #   shard-timing.sh record --rid <rid> --shard <i> --shard-count <n> --profile <profile> \
-#     --seconds <n> --status <exit> [--out-dir <dir>] [--summary <file>]
+#     --seconds <n> --status <exit> [--primary <n>] [--out-dir <dir>] [--summary <file>]
+#
+# `--primary` records how much of that wall time went to the steps outside the test phase (tools,
+# build, publish, budgets, roundtrips) - the weight shard 1 carries on top of its tests. The
+# per-project records beside it come from scripts/shard-weights.sh.
 #   shard-timing.sh --self-test
 #
 # The JSON file goes to <out-dir>/verify-<rid>-<shard>-of-<count>.json (default
@@ -19,7 +23,7 @@ fail() {
 }
 
 record() {
-  local rid="" shard="" shard_count="" profile="" seconds="" status=""
+  local rid="" shard="" shard_count="" profile="" seconds="" status="" primary=""
   local out_dir="artifacts/verify-timing" summary=""
 
   while [ $# -gt 0 ]; do
@@ -46,6 +50,10 @@ record() {
         ;;
       --status)
         status="${2:-}"
+        shift 2
+        ;;
+      --primary)
+        primary="${2:-}"
         shift 2
         ;;
       --out-dir)
@@ -85,14 +93,20 @@ record() {
   case "$status" in
     "" | *[!0-9]*) fail "--status must be a non-negative integer, got '$status'" ;;
   esac
+  if [ -n "$primary" ]; then
+    case "$primary" in
+      *[!0-9]*) fail "--primary must be a non-negative integer, got '$primary'" ;;
+    esac
+  fi
   if [ "$shard" -lt 1 ] || [ "$shard_count" -lt 1 ] || [ "$shard" -gt "$shard_count" ]; then
     fail "shard ${shard}/${shard_count} is not a reachable shard"
   fi
 
   mkdir -p "$out_dir"
   local file="${out_dir}/verify-${rid}-${shard}-of-${shard_count}.json"
-  printf '{"rid":"%s","shard":%s,"shard_count":%s,"profile":"%s","seconds":%s,"exit_status":%s}\n' \
-    "$rid" "$shard" "$shard_count" "$profile" "$seconds" "$status" >"$file"
+  printf '{"rid":"%s","shard":%s,"shard_count":%s,"profile":"%s","seconds":%s,"exit_status":%s%s}\n' \
+    "$rid" "$shard" "$shard_count" "$profile" "$seconds" "$status" \
+    "${primary:+,\"primary\":${primary}}" >"$file"
 
   if [ -n "$summary" ]; then
     if [ ! -s "$summary" ]; then
@@ -145,6 +159,23 @@ _self_test_cases() {
     failures=$((failures + 1))
   fi
 
+  # Shard 1 records how much of its wall time was not the test phase; that number is the partition's
+  # `#primary` weight.
+  if ! bash "$0" record --rid win-x64 --shard 1 --shard-count 4 --profile full \
+    --seconds 640 --status 0 --primary 180 --out-dir "${dir}/out" >/dev/null; then
+    printf 'self-test: FAIL: a non-test time was rejected\n' >&2
+    return 1
+  fi
+  if ! grep -Fq '"seconds":640,"exit_status":0,"primary":180' "${dir}/out/verify-win-x64-1-of-4.json"; then
+    printf 'self-test: FAIL: the non-test time was not recorded: %s\n' \
+      "$(cat "${dir}/out/verify-win-x64-1-of-4.json")" >&2
+    failures=$((failures + 1))
+  fi
+  if grep -Fq '"primary"' "$file"; then
+    printf 'self-test: FAIL: a shard other than shard 1 recorded a non-test time\n' >&2
+    failures=$((failures + 1))
+  fi
+
   # A failed shard still records its wall time: the point is to find the pole even on a red run.
   if ! bash "$0" record --rid win-x64 --shard 4 --shard-count 4 --profile full \
     --seconds 981 --status 1 --out-dir "${dir}/out" --summary "$summary" >/dev/null; then
@@ -166,6 +197,9 @@ _self_test_cases() {
   _self_case "a non-numeric time is refused" 2 \
     bash "$0" record --rid linux-x64 --shard 1 --shard-count 4 --profile full --seconds nope --status 0 \
     --out-dir "${dir}/out" || failures=$((failures + 1))
+  _self_case "a non-numeric non-test time is refused" 2 \
+    bash "$0" record --rid linux-x64 --shard 1 --shard-count 4 --profile full --seconds 1 --status 0 \
+    --primary slow --out-dir "${dir}/out" || failures=$((failures + 1))
   _self_case "an unknown profile is refused" 2 \
     bash "$0" record --rid linux-x64 --shard 1 --shard-count 4 --profile slow --seconds 1 --status 0 \
     --out-dir "${dir}/out" || failures=$((failures + 1))

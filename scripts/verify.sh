@@ -16,10 +16,12 @@ VERIFY_START_EPOCH="$(date +%s)"
 # Linux job proves it once. The three are a closed set: a typo must fail here rather than quietly
 # run the longest gate or, worse, the shortest one.
 #
-# --shard i/n (default 1/1) partitions the test projects of lunate.slnx across n legs by
-# position (see scripts/test-parallel.sh): shard 1 also runs the non-test steps, shards > 1
-# run the build they need plus their slice of both test passes only. CI sharding: the `verify`
-# matrix jobs in .github/workflows/ci.yml pass one --shard each, and every shard must be green.
+# --shard i/n (default 1/1) partitions the test projects of lunate.slnx across n legs by recorded
+# weight (see scripts/test-parallel.sh and scripts/verify-shard-weights.tsv): the unit is one culture
+# pass of one project and the units are placed largest-first, so no leg carries a whole slow project.
+# Shard 1 also runs the non-test steps, shards > 1 run the build they need plus their slice of both
+# test passes only. CI sharding: the `verify` matrix jobs in .github/workflows/ci.yml pass one --shard
+# each, and every shard must be green.
 # The platform-independent steps are skipped in a CI OS leg (VERIFY_SKIP_PLATFORM_CHECKS=1),
 # because the `platform` job in ci.yml owns them there; locally the default still runs them.
 PROFILE="full"
@@ -167,6 +169,20 @@ PY
   fi
 }
 
+# Every gate run writes the wall time of each test project it ran, beside the shard's own record, so a
+# later change refreshes scripts/verify-shard-weights.tsv from a real run instead of estimating it
+# (#789). `VERIFY_TIMING_PASS` names the culture pass for the call; a recorder problem is a warning,
+# because the weights decide the balance and never the completeness of the partition.
+record_project_times() {
+  local log="$1" pass="$2"
+  bash "${SCRIPT_DIR}/shard-weights.sh" record \
+    --rid "$RID" \
+    --shard "$SHARD_I" \
+    --shard-count "$SHARD_N" \
+    --pass "$pass" <"$log" ||
+    echo "verify: could not record the ${pass} pass's per-project wall times" >&2
+}
+
 run_tests() {
   local label="$1"
   shift
@@ -209,6 +225,9 @@ run_tests() {
   cat "$output"
   if [ "$attempt" -eq 2 ]; then
     record_flake "$label" "$first_output"
+  fi
+  if [ -n "${VERIFY_TIMING_PASS:-}" ]; then
+    record_project_times "$output" "$VERIFY_TIMING_PASS"
   fi
   rm -f "$output" "$first_output"
 }
@@ -285,8 +304,16 @@ verify_cleanup() {
 # too: the pole matters most on the red run. Timing is observability, not a gate condition, so a
 # recorder problem is warned about instead of replacing the gate's own exit status.
 record_wall_time() {
-  local status="$1" seconds
+  local status="$1" seconds primary=""
+  local -a primary_arg=()
   seconds=$(( $(date +%s) - VERIFY_START_EPOCH ))
+  # Shard 1 owns the non-test steps, so its test phase is only part of its wall time. Recording the
+  # rest is what lets the partition give that leg a `#primary` weight instead of pretending the
+  # publish, the budgets and the roundtrips are free (#789).
+  if [ "$SHARD_I" -eq 1 ] && [ -n "${VERIFY_TEST_SECONDS:-}" ] && [ "$seconds" -gt "$VERIFY_TEST_SECONDS" ]; then
+    primary=$(( seconds - VERIFY_TEST_SECONDS ))
+    primary_arg=(--primary "$primary")
+  fi
   bash "${SCRIPT_DIR}/shard-timing.sh" record \
     --rid "$RID" \
     --shard "$SHARD_I" \
@@ -294,6 +321,7 @@ record_wall_time() {
     --profile "$PROFILE" \
     --seconds "$seconds" \
     --status "$status" \
+    ${primary_arg[@]+"${primary_arg[@]}"} \
     --summary "${GITHUB_STEP_SUMMARY:-}" ||
     echo "verify: could not record the shard wall time" >&2
 }
@@ -632,7 +660,8 @@ verify_primary_before_tests() {
 # forbids the build arguments with it, so the shard selects its own slice of
 # built assemblies through `--test-modules` instead — the same fan-out of
 # module processes a solution-wide run gets, minus the modules owned by the
-# other shards. `dotnet test --test-modules` does not build, so a shard > 1
+# other shards. The slice of each culture pass is its own list, because the
+# partition decides the two passes of a project separately (#789). `dotnet test --test-modules` does not build, so a shard > 1
 # runs its own build step first (a fresh CI workspace has nothing built; see
 # the dispatch at the bottom), while a local shard-2-plus run consumes the
 # build its shard-1 run left behind.
@@ -653,19 +682,25 @@ verify_test_phase() {
   # runner harder. CI keeps the solution-wide run below, which is what the gate has always
   # used; three timing-sensitive suites proved flaky under the pooled load on the Windows
   # runner (see the PR), so the default stays the proven path.
+  local test_start
+  test_start="$(date +%s)"
   if [ "$JOBS" -eq 0 ]; then
     if [ "$SHARD_N" -gt 1 ]; then
-      shard_modules="$(verify_shard_modules)"
-      run_tests "test" dotnet test --test-modules "$shard_modules" --filter-not-trait Category=Perf --nologo
+      # One module list per culture pass: the partition places the two passes of a project
+      # independently, so the shard runs different projects in the two passes (#789).
+      shard_modules_default="$(verify_shard_modules default)"
+      shard_modules_deat="$(verify_shard_modules de-at)"
+      VERIFY_TIMING_PASS=default run_tests "test" \
+        dotnet test --test-modules "$shard_modules_default" --filter-not-trait Category=Perf --nologo
       step "test (de-AT culture)"
       # Non-English culture pass (S-5 finding). Effective on macOS/Linux; Windows
       # runners keep the OS culture (LANG is not honored there).
-      LANG=de_AT.UTF-8 LC_ALL=de_AT.UTF-8 run_tests "test (de-AT culture)" \
-        dotnet test --test-modules "$shard_modules" --filter-not-trait Category=Perf --nologo
+      VERIFY_TIMING_PASS=de-at LANG=de_AT.UTF-8 LC_ALL=de_AT.UTF-8 run_tests "test (de-AT culture)" \
+        dotnet test --test-modules "$shard_modules_deat" --filter-not-trait Category=Perf --nologo
     else
-      run_tests "test" dotnet test --solution lunate.slnx -c "$CONFIGURATION" --filter-not-trait Category=Perf
+      VERIFY_TIMING_PASS=default run_tests "test" dotnet test --solution lunate.slnx -c "$CONFIGURATION" --filter-not-trait Category=Perf
       step "test (de-AT culture)"
-      LANG=de_AT.UTF-8 LC_ALL=de_AT.UTF-8 run_tests "test (de-AT culture)" dotnet test --solution lunate.slnx -c "$CONFIGURATION" --no-build --filter-not-trait Category=Perf
+      VERIFY_TIMING_PASS=de-at LANG=de_AT.UTF-8 LC_ALL=de_AT.UTF-8 run_tests "test (de-AT culture)" dotnet test --solution lunate.slnx -c "$CONFIGURATION" --no-build --filter-not-trait Category=Perf
     fi
   else
     test_missing=""
@@ -684,11 +719,11 @@ verify_test_phase() {
     test_queue=()
     while IFS= read -r item; do
       test_queue+=("$item")
-    done < <(verify_test_queue serial-first | verify_shard_queue)
+    done < <(verify_test_queue serial-first | verify_shard_queue default)
     culture_queue=()
     while IFS= read -r item; do
       culture_queue+=("$item")
-    done < <(verify_test_queue serial-last | verify_shard_queue)
+    done < <(verify_test_queue serial-last | verify_shard_queue de-at)
     if [ "${#test_queue[@]}" -eq 0 ]; then
       if [ "$SHARD_N" -gt 1 ]; then
         echo "verify: shard ${SHARD_I}/${SHARD_N} owns zero test projects — reachable shards only" >&2
@@ -712,12 +747,12 @@ verify_test_phase() {
     wait "$default_pid" || default_rc=$?
     wait "$culture_pid" || culture_rc=$?
 
-    verify_check_test_pass "$default_dir" "test"
+    verify_check_test_pass "$default_dir" "test" serial-first default
 
     step "test (de-AT culture)"
     # Non-English culture pass (S-5 finding). Effective on macOS/Linux; Windows
     # runners keep the OS culture (LANG is not honored there).
-    verify_check_test_pass "$culture_dir" "test (de-AT culture)"
+    verify_check_test_pass "$culture_dir" "test (de-AT culture)" serial-last de-at
 
     if [ "$default_rc" -ne 0 ] || [ "$culture_rc" -ne 0 ]; then
       echo "verify: the test phase runner failed (default ${default_rc}, de-AT ${culture_rc})" >&2
@@ -727,6 +762,9 @@ verify_test_phase() {
       exit 1
     fi
   fi
+  # The share of this leg's wall time the non-test steps took is recorded for shard 1 (see
+  # record_wall_time) and becomes the partition's `#primary` weight.
+  VERIFY_TEST_SECONDS=$(( $(date +%s) - test_start ))
 }
 
 # The steps that prove the artifact and the hygiene, once per commit: the two Perf
