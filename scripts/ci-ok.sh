@@ -898,8 +898,12 @@ self_test() {
     _self_verify_matrix "the live decision must require exactly the plan's pull-request legs"
     _self_workflow "the full matrix must be left out of a pull request and a merge group" \
         plan '^            pull_request \| merge_group\) macos=false ;;' 1
-    _self_workflow "the macOS legs must run two shards" \
-        plan 'macos_shards=\$\(\(SHARDS < 2 \? SHARDS : 2\)\)' 1
+    # Every lane runs the dispatch's shard count: the partition's third-of-the-lane bound needs four
+    # shards, and a lane capped below the others is balanced by a weaker rule (#789).
+    _self_workflow "every lane must run the dispatch's shard count, macOS included" \
+        plan '^            leg macos-latest .*"\$\{SHARDS\}"' 1
+    _self_workflow "no lane may cap its shard count below the dispatch's, which would weaken its bound" \
+        plan 'macos_shards' 0
     _self_workflow "Ubuntu and Windows must use the default four-shard count" \
         plan "SHARDS: \\\$\\{\\{ inputs\\.verify_shard_count \\|\\| '4' \\}\\}" 1
     _self_workflow "each verify shard must record its wall time" \

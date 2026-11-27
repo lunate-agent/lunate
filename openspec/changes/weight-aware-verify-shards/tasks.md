@@ -50,3 +50,18 @@
       `openspec validate weight-aware-verify-shards --strict`.
 - [ ] 5.2 Run `openspec validate --all --strict`, sync, and archive the change as the branch's last
       commit.
+
+## 6. Rework — every lane on the same count, and both passes kept
+
+- [x] 6.1 Give the macOS lane the dispatch's shard count like Ubuntu and Windows
+      (`.github/workflows/ci.yml` drops its two-shard cap), so the card's third-of-the-lane bound applies
+      to all three lanes instead of exempting the one where two shards make it unattainable.
+- [x] 6.2 In `scripts/gate-tests.sh`, read the lanes' shard count and their per-lane leg counts out of
+      the workflow and run the one-third check at that count, failing when a lane is given a smaller
+      count; prove the check rejects two shards on the recorded table. Keep
+      `scripts/ci-ok.sh`'s workflow self-test asserting every lane's leg takes `"${SHARDS}"`.
+- [x] 6.3 In `scripts/shard-weights.sh`, put the culture pass in the per-project record's file name, so a
+      shard that runs both passes keeps both, and extend the self-test to the same shard's two passes
+      (the fold must still take the slower one and keep a pass-only project).
+- [x] 6.4 Update the delta spec, proposal, design and the ADR manifest to the reworked behaviour; write
+      the rework line in `changes/<pr-number>.md`.

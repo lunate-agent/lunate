@@ -48,7 +48,8 @@ verify_test_projects() {
 #
 #   * a project heavier than a shard's fair share has its default-culture and
 #     de-AT passes in different shards, so no shard carries a whole slow project;
-#   * no shard is over a third of the lane's recorded weight at four shards.
+#   * no shard is over a third of the lane's recorded weight on the shard count
+#     every lane runs (four), which gate-tests.sh reads from the workflow.
 #
 # The partition is computed inside every shard from the committed table alone, so
 # the legs of a lane agree without talking to each other, and it is a pure

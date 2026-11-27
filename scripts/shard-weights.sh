@@ -10,8 +10,9 @@
 #
 # `record` reads the test platform's own per-module summary out of one culture pass of a gate run -
 # `<path>/<Name>.Tests.dll (net11.0|arm64) passed [+N/x0/?M] (3s 445ms)` - and writes one JSON line per
-# project to <out-dir>/verify-<rid>-<shard>-of-<count>-projects.jsonl, beside the shard's own wall-time
-# record (scripts/shard-timing.sh).
+# project to <out-dir>/verify-<rid>-<shard>-of-<count>-<pass>-projects.jsonl, beside the shard's own
+# wall-time record (scripts/shard-timing.sh). The culture pass is part of the name because a shard runs
+# both of them: one file per (shard, pass) keeps both records, and the fold takes the slower.
 #
 # `weights` reads every shard's project records and shard records in a directory and prints the weight
 # table scripts/verify-shard-weights.tsv: one row per test project with the SLOWER of its two recorded
@@ -167,7 +168,7 @@ record() {
   fi
 
   mkdir -p "$out_dir"
-  local file="${out_dir}/verify-${rid}-${shard}-of-${shard_count}-projects.jsonl"
+  local file="${out_dir}/verify-${rid}-${shard}-of-${shard_count}-${pass}-projects.jsonl"
   : >"$file"
   local project duration ms seconds count=0
   while IFS="$TAB" read -r project duration; do
@@ -305,7 +306,7 @@ LOG
     printf 'self-test: FAIL: a readable pass output was rejected\n' >&2
     return 1
   fi
-  record="${dir}/out/verify-linux-x64-2-of-4-projects.jsonl"
+  record="${dir}/out/verify-linux-x64-2-of-4-default-projects.jsonl"
   if [ ! -f "$record" ]; then
     printf 'self-test: FAIL: record wrote no per-project file\n' >&2
     return 1
@@ -323,14 +324,24 @@ LOG
     failures=$((failures + 1))
   fi
 
-  # A second shard and pass, so the merge has two sources per project.
+  # The same shard, its other culture pass: a shard runs both, so each pass gets its own record. The
+  # de-AT record must not replace the default one, or the fold can never see the slower pass.
   printf '%s\n' \
     "${work}/tests/Lunate.Coding.Tests/bin/Release/net11.0/Lunate.Coding.Tests.dll (net11.0|arm64) passed [+221/x0/?0] (5m 0s 0ms)" \
     >"${dir}/run2.log"
-  if ! (cd "$work" && bash "$SELF" record --rid linux-x64 --shard 3 --shard-count 4 --pass de-at \
+  if ! (cd "$work" && bash "$SELF" record --rid linux-x64 --shard 2 --shard-count 4 --pass de-at \
     --out-dir "${dir}/out" <"${dir}/run2.log" >/dev/null); then
     printf 'self-test: FAIL: the de-AT pass output was rejected\n' >&2
     return 1
+  fi
+  if [ ! -f "${dir}/out/verify-linux-x64-2-of-4-de-at-projects.jsonl" ]; then
+    printf 'self-test: FAIL: the de-AT pass did not get its own record beside the default pass\n' >&2
+    failures=$((failures + 1))
+  fi
+  records="$(ls "${dir}/out" | grep -c -- '-projects.jsonl$' || true)"
+  if [ "$records" -ne 2 ]; then
+    printf 'self-test: FAIL: one shard wrote %s project records for its two culture passes\n' "$records" >&2
+    failures=$((failures + 1))
   fi
   printf '{"rid":"linux-x64","shard":1,"shard_count":4,"profile":"full","seconds":600,"exit_status":0,"primary":120}\n' \
     >"${dir}/out/verify-linux-x64-1-of-4.json"

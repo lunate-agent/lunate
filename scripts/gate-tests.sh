@@ -489,20 +489,41 @@ if [ "$shard_plan_once" != "$shard_plan_twice" ]; then
   shard_fail "the four-shard plan is not deterministic"
 fi
 
-echo "gate-tests: at four shards no shard may carry more than a third of the lane's recorded weight"
+# The one-third bound is a property of every lane, so the gate reads the lanes' shard count out of the
+# workflow instead of assuming it. A lane capped below the others is partitioned by a weaker rule than
+# this one: macOS ran two shards, and two always leave one shard carrying at least half the lane (#789).
+WORKFLOW="${SCRIPT_DIR}/../.github/workflows/ci.yml"
+lane_legs="$(grep -E '^ +leg [a-z-]+-latest ' "$WORKFLOW" | awk '{ print $2, $6 }' | LC_ALL=C sort -u)"
+lane_legs_expected="$(printf '%s\n' \
+  'macos-latest "${SHARDS}"' 'ubuntu-latest "${SHARDS}"' 'windows-latest "${SHARDS}"' | LC_ALL=C sort -u)"
+if [ "$lane_legs" != "$lane_legs_expected" ]; then
+  shard_fail "the verify lanes do not all run the dispatch's shard count, so one of them is balanced by a weaker rule than the one this gate checks (got: ${lane_legs//$'\n'/; }; expected: ${lane_legs_expected//$'\n'/; })"
+fi
+lane_shard_count="$(grep -oE "verify_shard_count \|\| '[0-9]+'" "$WORKFLOW" | head -n 1 | grep -oE '[0-9]+' || true)"
+case "$lane_shard_count" in
+  "" | *[!0-9]*) shard_fail "the workflow's default verify shard count is unreadable ('${lane_shard_count}')" ;;
+esac
+if ! grep -Fq "default: \"${lane_shard_count}\"" "$WORKFLOW"; then
+  shard_fail "the dispatch input's default and the lanes' fallback count disagree (${lane_shard_count})"
+fi
+
+# Fails when the lanes' own count cannot meet the card's third: two shards always leave one carrying
+# half the lane, and only the count the matrix runs is worth checking, because a manual dispatch that
+# picks a smaller count is a baseline measurement.
+echo "gate-tests: no shard may carry more than a third of its lane's recorded weight on the count every lane runs (${lane_shard_count})"
 lane_total=0
 shard_loads=""
-for shard_index in 1 2 3 4; do
-  shard_load_one="$(shard_load "$shard_index" 4)"
+for shard_index in $(seq 1 "$lane_shard_count"); do
+  shard_load_one="$(shard_load "$shard_index" "$lane_shard_count")"
   shard_loads="${shard_loads}${shard_index}:${shard_load_one}s "
   lane_total=$((lane_total + shard_load_one))
 done
 if [ "$lane_total" -le 0 ]; then
   shard_fail "the lane's recorded weight is $lane_total s - scripts/verify-shard-weights.tsv carries no weights"
 fi
-shard_over="$(shard_over_a_third 4)"
+shard_over="$(shard_over_a_third "$lane_shard_count")"
 if [ -n "$shard_over" ]; then
-  shard_fail "shard $(printf '%s' "$shard_over" | cut -d' ' -f1)/4 carries $(printf '%s' "$shard_over" | cut -d' ' -f2)s of the lane's $(printf '%s' "$shard_over" | cut -d' ' -f3)s, over a third (${shard_loads})"
+  shard_fail "shard $(printf '%s' "$shard_over" | cut -d' ' -f1)/${lane_shard_count} carries $(printf '%s' "$shard_over" | cut -d' ' -f2)s of the lane's $(printf '%s' "$shard_over" | cut -d' ' -f3)s, over a third (${shard_loads})"
 fi
 
 echo "gate-tests: every shard count must stay within the longest-processing-time bound"
@@ -530,14 +551,14 @@ while IFS= read -r shard_project; do
   fi
 done < <(verify_test_projects)
 lane_total=0
-for shard_index in 1 2 3 4; do
-  lane_total=$((lane_total + $(shard_load "$shard_index" 4)))
+for shard_index in $(seq 1 "$lane_shard_count"); do
+  lane_total=$((lane_total + $(shard_load "$shard_index" "$lane_shard_count")))
 done
-if [ -n "$heaviest_project" ] && [ $((heaviest_weight * 4)) -gt "$lane_total" ]; then
-  heaviest_default="$(SHARD_I=1 SHARD_N=4 verify_shard_plan | awk -F'\t' -v project="$heaviest_project" '$1 == "default" && $2 == project { print $3 }')"
-  heaviest_deat="$(SHARD_I=1 SHARD_N=4 verify_shard_plan | awk -F'\t' -v project="$heaviest_project" '$1 == "de-at" && $2 == project { print $3 }')"
+if [ -n "$heaviest_project" ] && [ $((heaviest_weight * lane_shard_count)) -gt "$lane_total" ]; then
+  heaviest_default="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan | awk -F'\t' -v project="$heaviest_project" '$1 == "default" && $2 == project { print $3 }')"
+  heaviest_deat="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan | awk -F'\t' -v project="$heaviest_project" '$1 == "de-at" && $2 == project { print $3 }')"
   if [ -z "$heaviest_default" ] || [ -z "$heaviest_deat" ]; then
-    shard_fail "the heaviest project $heaviest_project has no unit in the four-shard plan"
+    shard_fail "the heaviest project $heaviest_project has no unit in the ${lane_shard_count}-shard plan"
   fi
   if [ "$heaviest_default" = "$heaviest_deat" ]; then
     shard_fail "the heaviest project $heaviest_project (${heaviest_weight}s a pass) has both culture passes in shard ${heaviest_default}"
@@ -589,8 +610,15 @@ pole_split="$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/pole.tsv" SHARD_I=1 SHARD_
 if [ "$pole_split" -ne 2 ]; then
   shard_fail "the pole's two culture passes were planned into ${pole_split} shard(s), not 2"
 fi
-if [ -n "$(shard_over_a_third 4)" ]; then
-  shard_fail "the recorded table's own partition is over a third, which the check above should have failed on"
+echo "gate-tests: the balance check must reject two shards, which is why every lane runs the dispatch's count"
+# The recorded table at two shards leaves one shard carrying about half the lane. A lane capped at two
+# - as macOS was - would silently pass a check that only looked at four (#789).
+if [ -z "$(shard_over_a_third 2)" ]; then
+  shard_fail "the balance check accepted two shards on the recorded table, so a lane capped at two would pass"
+fi
+
+if [ -n "$(shard_over_a_third "$lane_shard_count")" ]; then
+  shard_fail "the recorded table's own partition is over a third at ${lane_shard_count} shards, which the check above should have failed on"
 fi
 
 echo "gate-tests: the shard module expression must be one built-assembly path per culture pass, joined with ';'"

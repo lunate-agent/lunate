@@ -20,16 +20,21 @@ whose pole is one project running as one unit, so the scheduler has to be given 
   input the partition reads, in every lane, so the four shards of a lane agree without talking to each
   other.
 - Record **per-project** wall times in every gate run, beside the per-shard records
-  `scripts/shard-timing.sh` already writes, and teach `shard-timing.sh` to fold a run's records back
-  into the table (`weights --from <dir>`), so the next real run refreshes the weights instead of
-  guessing them.
+  `scripts/shard-timing.sh` already writes, and teach `scripts/shard-weights.sh` to fold a run's records
+  back into the table (`weights --from <dir>`), so the next real run refreshes the weights instead of
+  guessing them. Each record names its culture pass, so a shard that ran both passes keeps both and the
+  fold takes the slower one.
+- Give every lane the dispatch's shard count: macOS runs four like Ubuntu and Windows instead of two, so
+  the third-of-the-lane bound can hold on all three lanes — two shards always leave one carrying at
+  least half the lane.
 - Give shard 1's non-test work a weight in the partition: it starts pre-loaded with the recorded cost
   of its publish, startup budget, roundtrip, formatting, docs and public-API steps, so the leg that
   owns them is not silently the heaviest.
 - Make `scripts/gate-tests.sh` check the property instead of the position rule: every culture pass of
   every `lunate.slnx` test project is in exactly one shard, no shard is empty, the bound rows name
-  projects that exist, the partition is deterministic, and for four shards no shard's weight exceeds a
-  third of the lane's summed weight.
+  projects that exist, the partition is deterministic, and on the shard count every lane runs no
+  shard's weight exceeds a third of the lane's summed weight. The gate reads that count out of the
+  workflow and fails when a lane is given a smaller one, so no lane is balanced by a weaker rule.
 - Keep the pooled local runner (`LUNATE_VERIFY_JOBS`) on the same assignment: a pass's queue and its
   module list come from one partition, so the two runners cannot disagree about who runs what.
 
@@ -43,7 +48,8 @@ None.
 
 - `ci-pipeline`: the verify shards' partition. A new requirement fixes the unit (one culture pass of
   one test project), the order (largest recorded weight first), the recorded weight table as the only
-  input, shard 1's non-test pre-load, the balance bound at four shards, and the completeness,
+  input, shard 1's non-test pre-load, the same shard count on every lane with the balance bound on the
+  count the lanes run, one per-project record per shard and culture pass, and the completeness,
   disjointness, determinism and staleness rules the gate self-tests enforce.
 
 ## Impact
@@ -52,11 +58,16 @@ None.
   the pass checker work per culture pass and read the weight table.
 - `scripts/verify.sh`: the test phase asks for a module list per culture pass; the run records its
   per-project wall times; the header comment stops describing a position partition.
-- `scripts/shard-timing.sh`: a `projects` record written next to the shard record, and a `weights`
-  command that folds recorded project timings into the table; the self-test covers both.
-- `scripts/gate-tests.sh`: the partition checks become per-pass, weight-aware and table-aware, and the
-  shard-timing self-test gains the new commands.
+- `scripts/shard-timing.sh`: the header describes the per-project record that sits beside its own shard
+  record.
+- `scripts/shard-weights.sh` (new): `record` writes one per-project record per shard and culture pass,
+  and `weights` folds recorded project timings into the table; the self-test covers both.
+- `scripts/gate-tests.sh`: the partition checks become per-pass, weight-aware and table-aware; the
+  balance check runs at the shard count the lanes actually run, read from the workflow; the
+  shard-weights and shard-timing self-tests are required to pass.
 - `scripts/verify-shard-weights.tsv` (new): the recorded weight table.
-- `.github/workflows/ci.yml`: the comment on the verify matrix describes the weight partition; no job,
-  matrix entry or artifact name changes.
+- `.github/workflows/ci.yml`: the comment on the verify matrix describes the weight partition, and the
+  macOS lane runs the dispatch's shard count like the other two, so the third-of-the-lane bound holds on
+  all three lanes; no other job, artifact name or event changes.
+- `scripts/ci-ok.sh`: the workflow self-test keeps every lane on the dispatch's shard count.
 - No new NuGet package, no src change, no public API change, no session-format change.

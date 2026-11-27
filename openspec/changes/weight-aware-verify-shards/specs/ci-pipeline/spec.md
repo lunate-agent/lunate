@@ -24,8 +24,12 @@ never fails the gate; a row naming a project that is not in `lunate.slnx` SHALL 
 the balance only: every culture pass of every test project SHALL be assigned to exactly one shard
 whatever the weights say.
 
-For four shards, no shard SHALL carry more than one third of the lane's summed recorded weight,
-counting shard 1's non-test pre-load in both the shard and the lane. At every shard count `n` the
+The CI matrix SHALL give every lane the same shard count, the manual dispatch's count -- four unless it
+picks another -- so Ubuntu, macOS and Windows are partitioned the same way and no lane is held to a
+weaker rule than the others. At that count, no shard SHALL carry more than one third of its lane's
+summed recorded weight, counting shard 1's non-test pre-load in both the shard and the lane. A dispatch
+that picks fewer shards is a baseline measurement: below four the third cannot be met by any partition,
+because two shards always leave one carrying at least half the lane. At every shard count `n` the
 busiest shard SHALL stay within the longest-processing-time bound on the fair share,
 `(4n-1)/(3n)` of the lane's weight divided by `n`; at four shards that is 31.25 %, which is stricter
 than the third. Every shard SHALL own at least one unit of every culture pass at every shard count the
@@ -35,12 +39,15 @@ pass is not the gate.
 `scripts/gate-tests.sh` SHALL enforce the partition: for each shard count in use it SHALL check that
 the units are complete and non-overlapping, that no shard is empty, that the partition is
 byte-identical across calls, and that the balance bound holds; it SHALL fail naming the shard and the
-weight when any of them does not.
+weight when any of them does not. It SHALL check the third at the shard count the lanes actually run,
+read from the workflow, and SHALL fail when a lane is given a count below that, so a lane cannot be
+quietly balanced by a weaker rule.
 
 Every gate run SHALL record the wall time of each test project it runs, next to the per-shard record
-`scripts/shard-timing.sh` already writes, and `scripts/shard-timing.sh weights --from <dir>` SHALL fold
-such records back into `scripts/verify-shard-weights.tsv`, so a real run refreshes the weights instead
-of anyone estimating them.
+`scripts/shard-timing.sh` already writes, one record per shard and culture pass so that a shard which
+ran both passes keeps both; `scripts/shard-weights.sh weights --from <dir>` SHALL fold such records
+back into `scripts/verify-shard-weights.tsv`, taking a project's slower recorded pass, so a real run
+refreshes the weights instead of anyone estimating them.
 
 #### Scenario: A heavy project's culture passes land in different shards
 
@@ -48,11 +55,23 @@ of anyone estimating them.
 - **WHEN** the four-shard partition is computed
 - **THEN** that project's default-culture pass and its de-AT pass are assigned to different shards, and the shard holding either one is not the shard holding the other
 
-#### Scenario: No shard exceeds a third at four shards
+#### Scenario: No shard exceeds a third on any lane
 
 - **GIVEN** the recorded weight table
-- **WHEN** the four-shard partition is computed
-- **THEN** every shard's weight, including shard 1's non-test pre-load, is at most one third of the summed weight of all four shards
+- **WHEN** the partition each lane runs is computed
+- **THEN** every shard's weight, including shard 1's non-test pre-load, is at most one third of the summed weight of that lane's shards
+
+#### Scenario: Every lane runs the same shard count
+
+- **GIVEN** the CI matrix's verify legs
+- **WHEN** the plan decides the legs for a push, the nightly or a manual dispatch
+- **THEN** `ubuntu-latest`, `macos-latest` and `windows-latest` each have the dispatch's shard count - four unless the dispatch picks another - so no lane is partitioned by a weaker rule
+
+#### Scenario: A lane below the count the third needs fails the gate
+
+- **GIVEN** a workflow whose macOS lane runs two shards while the other lanes run four
+- **WHEN** `scripts/gate-tests.sh` reads the lanes' shard counts
+- **THEN** it fails and names the lane counts, because two shards leave one shard carrying at least half the lane
 
 #### Scenario: The partition is complete and non-overlapping for every shard count
 
@@ -82,4 +101,10 @@ of anyone estimating them.
 
 - **GIVEN** a gate run that executed test projects
 - **WHEN** the run finishes
-- **THEN** `artifacts/verify-timing/` holds a per-project record naming each project's wall time beside the shard's own record, and `scripts/shard-timing.sh weights --from` folds it into a weight table
+- **THEN** `artifacts/verify-timing/` holds a per-project record naming each project's wall time beside the shard's own record, and `scripts/shard-weights.sh weights --from` folds it into a weight table
+
+#### Scenario: A shard's two culture passes are both kept
+
+- **GIVEN** a shard that ran its default-culture pass and its de-AT pass
+- **WHEN** the run records the per-project wall times
+- **THEN** it writes one record for each pass, neither pass replacing the other, and the fold takes the project's slower recorded pass
