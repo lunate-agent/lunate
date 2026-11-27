@@ -160,7 +160,7 @@ verify_shard_units() {
 # anyway) and it guarantees the property the gate checks: with at least as many
 # projects in a pass as shards, every shard runs something in both passes.
 verify_shard_plan() {
-  local weight pass project target shard index count=0 seeded
+  local weight pass project target shard index count=0 seeded seeded_shards
   local -a unit_weight=() unit_pass=() unit_project=() placed=() load=()
 
   while IFS="$VERIFY_SHARD_TAB" read -r weight pass project; do
@@ -177,15 +177,21 @@ verify_shard_plan() {
 
   for pass in $VERIFY_SHARD_PASSES; do
     seeded=0
+    seeded_shards=" "
     for ((index = 0; index < count; index++)); do
       [ "$seeded" -lt "$SHARD_N" ] || break
       [ "${unit_pass[$index]}" = "$pass" ] || continue
-      target=1
-      for ((shard = 2; shard <= SHARD_N; shard++)); do
-        if [ "${load[$shard]}" -lt "${load[$target]}" ]; then
+      target=""
+      for ((shard = 1; shard <= SHARD_N; shard++)); do
+        case "$seeded_shards" in
+          *" $shard "*) continue ;;
+        esac
+        if [ -z "$target" ] || [ "${load[$shard]}" -lt "${load[$target]}" ]; then
           target=$shard
         fi
       done
+      [ -n "$target" ] || break
+      seeded_shards="${seeded_shards}${target} "
       load[$target]=$((load[$target] + ${unit_weight[$index]}))
       placed[$index]=1
       printf '%s\t%s\t%s\n' "$pass" "${unit_project[$index]}" "$target"

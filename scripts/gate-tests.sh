@@ -636,11 +636,12 @@ if ! bash "${SCRIPT_DIR}/shard-weights.sh" --self-test >/dev/null; then
 fi
 
 echo "gate-tests: a shard that would own zero test projects must fail instead of running nothing"
+# More shards than units: shard 64 owns nothing, and a shard that runs nothing must never look green.
 for shard_pass in default de-at; do
   shard_rc=0
-  ( CONFIGURATION=Release SHARD_I=25 SHARD_N=25 verify_shard_modules "$shard_pass" ) >/dev/null 2>&1 || shard_rc=$?
+  ( CONFIGURATION=Release SHARD_I=64 SHARD_N=64 verify_shard_modules "$shard_pass" ) >/dev/null 2>&1 || shard_rc=$?
   if [ "$shard_rc" -eq 0 ]; then
-    shard_fail "shard 25/25 produced a ${shard_pass} module expression for zero projects"
+    shard_fail "shard 64/64 produced a ${shard_pass} module expression for zero projects"
   fi
 done
 

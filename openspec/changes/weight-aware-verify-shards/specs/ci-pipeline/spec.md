@@ -25,10 +25,12 @@ the balance only: every culture pass of every test project SHALL be assigned to 
 whatever the weights say.
 
 For four shards, no shard SHALL carry more than one third of the lane's summed recorded weight,
-counting shard 1's non-test pre-load in both the shard and the lane. For every other shard count the
-busiest shard SHALL stay within the longest-processing-time bound of the fairest possible partition,
-which at four shards is stricter than the third. Every shard SHALL own at least one unit at every
-shard count the CI matrix runs, because a shard that runs nothing is not a shard.
+counting shard 1's non-test pre-load in both the shard and the lane. At every shard count `n` the
+busiest shard SHALL stay within the longest-processing-time bound on the fair share,
+`(4n-1)/(3n)` of the lane's weight divided by `n`; at four shards that is 31.25 %, which is stricter
+than the third. Every shard SHALL own at least one unit of every culture pass at every shard count the
+CI matrix runs, because a shard that runs nothing is not a shard and a shard that runs only one culture
+pass is not the gate.
 
 `scripts/gate-tests.sh` SHALL enforce the partition: for each shard count in use it SHALL check that
 the units are complete and non-overlapping, that no shard is empty, that the partition is
@@ -56,7 +58,7 @@ of anyone estimating them.
 
 - **GIVEN** a shard count of 1, 2, 3 or 4
 - **WHEN** the shards' assignments are collected
-- **THEN** every culture pass of every `lunate.slnx` test project appears in exactly one shard, and every shard owns at least one unit
+- **THEN** every culture pass of every `lunate.slnx` test project appears in exactly one shard, and every shard owns at least one unit of each pass
 
 #### Scenario: The partition is deterministic
 

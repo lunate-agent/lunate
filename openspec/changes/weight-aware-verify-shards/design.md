@@ -63,9 +63,15 @@ pass-level unit already delivers, and the card offers it as the alternative, not
 `verify_shard_plan` reads `scripts/verify-shard-weights.tsv`, builds one unit per culture pass, sorts by
 recorded weight descending (ties by project path, then by pass, so the order never depends on the shell
 or the platform), and drops each unit into the currently least-loaded shard, ties to the lowest shard
-number. That is the classic LPT rule; its guarantee — the busiest shard is at most
-`(4n-1)/(3n)` of the fairest possible partition — is the bound `gate-tests.sh` enforces, and at four
-shards that bound is 31.25 %, inside the card's third.
+number. That is the classic LPT rule. `gate-tests.sh` enforces its bound on the fair share — the
+busiest shard is at most `(4n-1)/(3n)` of the lane's weight divided by the shard count — which at four
+shards is 31.25 %, inside the card's third, and it adds the card's stricter clause for four shards on
+top.
+
+Before the rest, the heaviest unit of each pass is handed out once per shard. That is the first move
+LPT would make anyway, and it is what keeps every shard running both culture passes when the recorded
+weights are flat: without it, equal weights make the placement alternate passes, and a shard can end up
+owning a pass it never runs.
 
 Shard 1 starts pre-loaded with the table's `#primary` weight: that leg pays the publish, the startup
 budget, the install/tool/extension roundtrips and the two `Category=Perf` budgets on top of its tests,

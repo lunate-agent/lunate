@@ -1,0 +1,30 @@
+# Lunate verify shard weights - the recorded wall time of ONE culture pass of each `lunate.slnx`
+# test project, in seconds, plus the `#primary` row: the wall time shard 1 spends on its non-test
+# steps (tools, build, publish, startup budget, install/tool/extension roundtrips, the two
+# Category=Perf budgets). scripts/test-parallel.sh reads this file and nothing else to partition the
+# test phase: one unit per (project, culture pass), placed largest recorded weight first into the
+# least-loaded shard, so both culture passes of a heavy project land in different shards (#789).
+#
+# A project with no row here is partitioned at the default weight (VERIFY_SHARD_DEFAULT_WEIGHT), so
+# adding a test project does not fail the gate; a row naming a project lunate.slnx no longer has fails
+# scripts/gate-tests.sh, so a rename or a deletion is what asks for a refresh.
+#
+# Every gate run records the wall time of each test project it ran, so a refresh reads a real run
+# rather than an estimate:
+#   scripts/shard-weights.sh weights --from <dir holding verify-timing artifacts> \
+#     --out scripts/verify-shard-weights.tsv
+# Download the four `verify-timing-<rid>-*` artifacts of one lane into one directory first; the fold
+# takes the slower of a project's two recorded passes and the longest recorded non-test time.
+#
+# What this first table records, and what it leaves to the default:
+#   * `Lunate.Coding.Tests` 226 s - the reference Mac measurement scripts/test-parallel.sh records
+#     (2026-10-20: 3m46s alone, 3m47s beside the whole suite). It is the project the card names as the
+#     pole: parked whole beside five light projects it made the Windows leg 900 s of a 2090 s lane.
+#   * `#primary` 110 s - the same reference run, its full gate 7m46s minus its two test passes
+#     5m55s-5m58s, rounded up. CI skips the platform checks on an OS leg and adds the install
+#     roundtrips, so refresh it from a run's own record too.
+#   * every other project - the default weight until a run records it. The partition still separates
+#     the two passes of every project, which is what removes the pole; the weights refine the rest.
+#
+#primary	110
+tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj	226
