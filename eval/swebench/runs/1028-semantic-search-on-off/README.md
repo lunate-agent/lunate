@@ -1,7 +1,7 @@
 # 1028-semantic-search-on-off
 
-Four arms of the `semantic_search` comparison, run on Wall-E (bosgame) against the v0.8.0 linux-x64
-release binary, on the first published run's five Verified instances.
+Four arms of the `semantic_search` comparison, run on the benchmark host (the Strix Halo box) against
+the v0.8.0 linux-x64 release binary, on the first published run's five Verified instances.
 
 - `lunate-tool-off/` — `--arm lunate` without a prepared home (budget and frontier).
 - `lunate-tool-on/` — the budget arm rerun with `--lunate-home` and the adapter fix that forwards the

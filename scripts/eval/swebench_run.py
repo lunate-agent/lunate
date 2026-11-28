@@ -35,6 +35,7 @@ from swebench_run_support import (
     decision_home_files,
     decision_model_id,
     elapsed_seconds,
+    evidence_path,
     load_definition,
     load_subset,
     model_pricing,
@@ -143,7 +144,7 @@ def write_decision_home(work_root: Path, model: dict) -> Path:
 
 
 def read_lunate_row(
-    definition: dict, instance_id: str, model: dict, run_dir: Path, returncode: int
+    definition: dict, instance_id: str, model: dict, work_root: Path, run_dir: Path, returncode: int
 ) -> dict:
     run_json = {}
     if (run_dir / "run.json").is_file():
@@ -182,7 +183,7 @@ def read_lunate_row(
         "outputTokens": totals["outputTokens"],
         "limit": totals.get("limit"),
         "failure": failure,
-        "workDir": str(run_dir.relative_to(REPOSITORY)) if run_dir.is_relative_to(REPOSITORY) else str(run_dir),
+        "workDir": evidence_path(run_dir, work_root),
     }
 
 
@@ -201,7 +202,7 @@ def run_lunate_instance(
     log = work_root / "logs" / f"lunate-{model['tier']}-{safe(instance_id)}.log"
     result = run_command(command, cwd=REPOSITORY, env=env, log=log)
     run_dir = run_root / f"{model['tier']}-{safe(instance_id)}"
-    return read_lunate_row(definition, instance_id, model, run_dir, result.returncode)
+    return read_lunate_row(definition, instance_id, model, work_root, run_dir, result.returncode)
 
 
 def run_arm(
@@ -228,7 +229,9 @@ def run_arm(
         for model in models:
             run_dir = arm_root / f"{model['tier']}-{safe(instance_id)}"
             if arm == "lunate" and definition.get("_resume") and (run_dir / "run.json").is_file():
-                rows_by_model[model["tier"]] = read_lunate_row(definition, instance_id, model, run_dir, 0)
+                rows_by_model[model["tier"]] = read_lunate_row(
+                    definition, instance_id, model, work_root, run_dir, 0
+                )
             else:
                 if run_dir.exists():
                     shutil.rmtree(run_dir)

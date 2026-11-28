@@ -32,7 +32,7 @@
           "outputTokens": 16389,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -46,7 +46,7 @@
           "outputTokens": 7628,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-django__django-13128"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -60,7 +60,7 @@
           "outputTokens": 8839,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-django__django-15572"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -74,7 +74,7 @@
           "outputTokens": 6463,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-pydata__xarray-3151"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -88,7 +88,7 @@
           "outputTokens": 9798,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/budget-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 4,
@@ -136,7 +136,7 @@
           "outputTokens": 753,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -150,7 +150,7 @@
           "outputTokens": 5588,
           "limit": null,
           "failure": "empty patch",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-django__django-13128"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -164,7 +164,7 @@
           "outputTokens": 2363,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-django__django-15572"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -178,7 +178,7 @@
           "outputTokens": 1361,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-pydata__xarray-3151"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -192,7 +192,7 @@
           "outputTokens": 1837,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-off/frontier-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 4,
@@ -228,7 +228,7 @@
           "outputTokens": 13367,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -242,7 +242,7 @@
           "outputTokens": 10790,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-django__django-13128"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -256,7 +256,7 @@
           "outputTokens": 2725,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-django__django-15572"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -270,7 +270,7 @@
           "outputTokens": 10287,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-pydata__xarray-3151"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -284,7 +284,7 @@
           "outputTokens": 16789,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/budget-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 4,
@@ -334,7 +334,7 @@
           "outputTokens": 1183,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-astropy__astropy-12907"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -348,7 +348,7 @@
           "outputTokens": 7166,
           "limit": null,
           "failure": "empty patch",
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-django__django-13128"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -362,7 +362,7 @@
           "outputTokens": 1433,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-django__django-15572"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -376,7 +376,7 @@
           "outputTokens": 1585,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-pydata__xarray-3151"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -390,7 +390,7 @@
           "outputTokens": 3189,
           "limit": null,
           "failure": null,
-          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-sphinx-doc__sphinx-8120"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on-prefix/frontier-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 4,
@@ -426,7 +426,7 @@
           "resolved": true,
           "spendUsd": 0.019590689999999997,
           "steps": 50,
-          "workDir": "runs-budget-on/astropy__astropy-12907/budget-on"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on/budget-astropy__astropy-12907"
         },
         {
           "completed": false,
@@ -440,7 +440,7 @@
           "resolved": false,
           "spendUsd": 0.017574215999999997,
           "steps": 50,
-          "workDir": "runs-budget-on/django__django-13128/budget-on"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on/budget-django__django-13128"
         },
         {
           "completed": false,
@@ -454,7 +454,7 @@
           "resolved": true,
           "spendUsd": 0.020836896000000004,
           "steps": 50,
-          "workDir": "runs-budget-on/django__django-15572/budget-on"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on/budget-django__django-15572"
         },
         {
           "completed": true,
@@ -468,7 +468,7 @@
           "resolved": true,
           "spendUsd": 0.008717693999999998,
           "steps": 30,
-          "workDir": "runs-budget-on/pydata__xarray-3151/budget-on"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on/budget-pydata__xarray-3151"
         },
         {
           "completed": false,
@@ -482,7 +482,7 @@
           "resolved": false,
           "spendUsd": 0.02104038,
           "steps": 50,
-          "workDir": "runs-budget-on/sphinx-doc__sphinx-8120/budget-on"
+          "workDir": "eval/swebench/runs/1028-semantic-search-on-off/lunate-tool-on/budget-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 3,
