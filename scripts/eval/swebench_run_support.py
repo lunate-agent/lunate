@@ -14,6 +14,16 @@ SINGLE_MODEL_TIERS = ("budget", "frontier")
 DECISION_TIER = "decision"
 TIERS = (*SINGLE_MODEL_TIERS, DECISION_TIER)
 DECISION_LAYERS = ("on", "off")
+REPOSITORY = Path(__file__).resolve().parents[2]
+PRESETS = REPOSITORY / "src" / "Lunate.Ai" / "providers.json"
+PRESET_FIELDS = (
+    "baseUrl",
+    "baseUrls",
+    "modelsUrl",
+    "headers",
+    "familyHeaders",
+    "credentialPlacement",
+)
 
 
 def load_definition(path: Path) -> dict:
@@ -85,32 +95,65 @@ def provider_preset(model_id: str) -> str:
     return model_id.split("/", 1)[0]
 
 
-def decision_home_files(model: dict) -> dict[str, dict]:
+def load_presets(path: Path = PRESETS) -> dict[str, dict]:
+    """The repository's preset table, by id. It is JSON with ``//`` comment lines."""
+    lines = [
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if not line.lstrip().startswith("//")
+    ]
+    return {preset["id"]: preset for preset in json.loads("\n".join(lines))["providers"]}
+
+
+def decision_home_files(model: dict, presets: dict[str, dict] | None = None) -> dict[str, dict]:
     """The prepared home that turns the arm's definition into an in-image configuration.
 
-    The home is the arm as data: one profile per model, and — when the arm says the layer is on —
-    the ``decisions`` block with the decision profile and routing in shadow, so the decision model
-    advises and the main model stays the chat model.
+    The home is the arm as data: one profile per model over a provider entry named for the
+    preset, the decision-object block when the layer is on (the decision profile, and routing in
+    shadow so the decision model advises and the main model stays the chat model). The provider
+    entry is the preset's own endpoints and headers with the arm's ``credential`` as an ``env:``
+    reference, because a profile resolves only against a configured provider and the value itself
+    stays in the environment.
     """
     main = arm_chat_model(model)
     decision = decision_model_id(model)
     if decision is None:
         raise ValueError("only a decision arm carries a prepared home")
-    settings: dict = {
-        "schemaVersion": 2,
-        "profiles": {
-            "main": {"provider": provider_preset(main), "model": main},
-            "decision": {"provider": provider_preset(decision), "model": decision},
-        },
-        "usages": {"chat": "main"},
-    }
+    presets = load_presets() if presets is None else presets
+    providers: list[dict] = []
+    entry_by_key: dict[tuple[str, str], str] = {}
+    profiles: dict[str, dict] = {}
+    for profile, model_id in (("main", main), ("decision", decision)):
+        kind = provider_preset(model_id)
+        credential = arm_credential_for(model, profile)
+        preset = presets.get(kind)
+        if preset is None:
+            raise ValueError(f"model '{model_id}' names provider '{kind}', which is not a preset")
+        key = (kind, credential)
+        if key not in entry_by_key:
+            name = f"bench-{kind}" if not entry_by_key else f"bench-{kind}-{len(entry_by_key) + 1}"
+            entry_by_key[key] = name
+            entry = {"name": name, "kind": kind, "credentialReference": f"env:{credential}"}
+            entry.update({field: preset[field] for field in PRESET_FIELDS if field in preset})
+            providers.append(entry)
+        profiles[profile] = {"provider": entry_by_key[key], "model": model_id}
+    settings: dict = {"schemaVersion": 2, "profiles": profiles, "usages": {"chat": "main"}}
     if model.get("decisionLayer") == "on":
         settings["decisions"] = {
             "profile": "decision",
             "routing": "shadow",
             "routingProfiles": ["main", "decision"],
         }
-    return {"settings.json": settings}
+    return {
+        "settings.json": settings,
+        "providers.json": {"schemaVersion": 1, "providers": providers},
+    }
+
+
+def arm_credential_for(model: dict, role: str) -> str:
+    """The credential variable a decision arm's model carries."""
+    nested = model.get(role) or {}
+    return nested.get("credential") or model.get("credential") or ""
 
 
 def load_subset(path: Path) -> list[str]:

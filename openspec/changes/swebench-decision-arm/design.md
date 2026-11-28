@@ -48,10 +48,10 @@ committed summary's shape for no gain.
 
 ### D2 — the prepared home is generated from the arm, in the run tree
 
-The orchestrator writes `<work-root>/lunate-home/<tier>/settings.json` and passes it as
-`--lunate-home`; the adapter copies exactly that file into the instance run, which is the committed
-evidence for the configuration. The home holds two chat profiles (the arm's `main` and `decision`
-ids, on the provider preset the id names) and the `decisions` block:
+The orchestrator writes `<work-root>/lunate-home/<tier>/settings.json` and `providers.json` and
+passes that directory as `--lunate-home`; the adapter copies exactly those files into the instance
+run, which is the committed evidence for the configuration. `settings.json` holds one profile per
+model and the `decisions` block:
 
 ```json
 {"decisions": {"profile": "decision", "routing": "shadow",
@@ -63,11 +63,17 @@ says the decision model advises on routing and the run stops there. Shadow routi
 model as the chat model (only `enforce` can switch it), so the arm really does measure "the main
 model with the decision model advising". Consumers that act are deliberately out: with `--yolo` an
 `enforce` approval gate fails closed on a deny, which would measure the gate rather than the agent.
-The profile names the provider preset (`opencode-go`) instead of a `providers.json` entry because a
-generated entry would have to copy the preset's base URL into a second place, and the preset's
-`auth:opencode-go` reference already resolves `OPENCODE_GO_API_KEY` (documented alias of
-`OPENCODE_API_KEY`). The arm's `credential` fields drive `--env NAME` forwarding, so the variable
-name in the card's JSON is what the container receives.
+
+A profile resolves only against a *configured* provider: `ModelProfileResolver.Resolve` looks the
+profile's provider name up in the provider store, and the store holds `providers.json` entries plus
+presets migrated from stored keys — an in-image `LUNATE_HOME` has neither, so a profile naming
+`opencode-go` would fail with "does not name a configured provider" while `--model
+opencode-go/…` succeeds through the preset fallback. The generated `providers.json` therefore names
+one entry per preset/credential pair (`bench-opencode-go`) built from the repository's own preset
+table — endpoints, models URL, headers and family headers — with `credentialReference:
+env:OPENCODE_GO_API_KEY` instead of the preset's `keyVariable`. One entry per pair, not two, so the
+print-mode selection string never sees two entries of one kind; the credential appears only as a
+variable name, and the arm's `credential` field drives both the reference and `--env` forwarding.
 
 ### D3 — spend for a multi-model arm comes from the priced records
 

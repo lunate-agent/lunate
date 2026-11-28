@@ -238,15 +238,43 @@ class SwebenchRunAdapterCommandTests(unittest.TestCase):
             "note": "advises on routing and stops",
         }
 
-        settings = decision_home_files(model)["settings.json"]
+        home = decision_home_files(model)
+        settings = home["settings.json"]
+        providers = home["providers.json"]["providers"]
 
         self.assertEqual("opencode-go/main", settings["profiles"]["main"]["model"])
         self.assertEqual("opencode-go/decision", settings["profiles"]["decision"]["model"])
-        self.assertEqual("opencode-go", settings["profiles"]["decision"]["provider"])
         self.assertEqual("main", settings["usages"]["chat"])
         self.assertEqual("decision", settings["decisions"]["profile"])
         self.assertEqual("shadow", settings["decisions"]["routing"])
         self.assertEqual(["main", "decision"], settings["decisions"]["routingProfiles"])
+        # A profile resolves only against a configured provider, so the home names one per preset
+        # and resolves the credential from the environment, never from the file.
+        self.assertEqual(1, len(providers))
+        entry = providers[0]
+        self.assertEqual(settings["profiles"]["main"]["provider"], entry["name"])
+        self.assertEqual(settings["profiles"]["decision"]["provider"], entry["name"])
+        self.assertEqual("opencode-go", entry["kind"])
+        self.assertEqual("env:KEY", entry["credentialReference"])
+        self.assertEqual(
+            "https://opencode.ai/inference/go/openai/v1", entry["baseUrls"]["openai-chat"]
+        )
+        self.assertIn("x-opencode-session", entry["headers"])
+        self.assertNotIn("KEY", json.dumps(home).replace("env:KEY", ""))
+
+    def test_a_model_on_an_unknown_provider_is_refused(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "nowhere/decision", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+
+        with self.assertRaises(ValueError) as raised:
+            decision_home_files(model)
+
+        self.assertIn("nowhere/decision", str(raised.exception))
 
     def test_a_layer_off_arm_writes_no_decisions_block(self) -> None:
         model = {
@@ -274,8 +302,14 @@ class SwebenchRunAdapterCommandTests(unittest.TestCase):
             home = swebench_run.write_decision_home(Path(directory), model)
 
             written = (home / "settings.json").read_bytes()
+            providers = (home / "providers.json").read_bytes()
             self.assertNotIn(b"\r\n", written)
+            self.assertNotIn(b"\r\n", providers)
+            self.assertNotIn(b"\xef\xbb\xbf", written)
             self.assertEqual("decision", json.loads(written)["decisions"]["profile"])
+            self.assertEqual(
+                "env:KEY", json.loads(providers)["providers"][0]["credentialReference"]
+            )
 
     def test_only_a_decision_arm_carries_a_prepared_home(self) -> None:
         with self.assertRaises(ValueError):

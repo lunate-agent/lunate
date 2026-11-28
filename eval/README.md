@@ -175,14 +175,18 @@ were produced under:
 ```
 
 The orchestrator turns that entry into the arm's `LUNATE_HOME` instead of asking for a prepared
-directory: it writes `<work-dir>/<run-id>/lunate-home/decision/settings.json` with one profile per
-model and, for `decisionLayer: "on"`, the `decisions` block — the decision profile plus routing in
-shadow, so the decision model advises and the main model stays the chat model. Enabling an acting
-consumer is a different arm: under `--yolo` an enforcing approval gate fails closed on a deny, which
-measures the gate rather than the agent. The home is copied into each instance's run directory, so a
-committed run carries the exact settings that produced it. Each model entry's `credential` names the
-environment variable the orchestrator forwards with `--env`; the value never enters the run
-definition. The baseline has no decision arm: mini-swe-agent has no decision layer.
+directory: it writes `<work-dir>/<run-id>/lunate-home/decision/settings.json` and `providers.json`,
+with one profile per model and, for `decisionLayer: "on"`, the `decisions` block — the decision
+profile plus routing in shadow, so the decision model advises and the main model stays the chat
+model. Enabling an acting consumer is a different arm: under `--yolo` an enforcing approval gate
+fails closed on a deny, which measures the gate rather than the agent. The `providers.json` entry is
+built from the repository's preset table (`src/Lunate.Ai/providers.json`) — endpoints, models URL
+and headers — because a profile resolves only against a configured provider, and the in-image home
+starts with an empty provider store. Its `credentialReference` is `env:<the arm's credential>`:
+the credential appears as a variable name only, and the arm's `credential` fields also drive the
+`--env` forwarding, so the value never enters the run definition. The home is copied into each
+instance's run directory, so a committed run carries the exact settings that produced it. The
+baseline has no decision arm: mini-swe-agent has no decision layer.
 
 Every instance row records resolved, spend, steps, `decisionSteps` and wall time (`seconds`), and
 every arm records `costPerResolvedUsd` — its spend divided by its resolved count, unknown when the
