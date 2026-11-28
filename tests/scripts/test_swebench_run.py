@@ -858,6 +858,153 @@ run_dir = output / run_id
             resumed_arm = json.loads((summary / "run-1.lunate.json").read_text(encoding="utf-8"))
             self.assertEqual(1, resumed_arm["arms"][0]["resolved"])
 
+    def test_the_decision_arm_is_a_third_lunate_arm_with_its_own_home(self) -> None:
+        import subprocess
+
+        fake_adapter = """\
+import json
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+def value(flag):
+    return args[args.index(flag) + 1]
+
+instance = value("--instance")
+model = value("--model")
+output = Path(value("--output-dir"))
+run_dir = output / value("--run-id")
+(run_dir / instance).mkdir(parents=True, exist_ok=True)
+records = [{
+    "type": "usage_updated",
+    "modelId": model,
+    "usage": {"inputTokenCount": 1000, "outputTokenCount": 10},
+    "costUsd": 0.01,
+}]
+if "--lunate-home" in args:
+    home = Path(value("--lunate-home"))
+    settings = json.loads((home / "settings.json").read_text(encoding="utf-8"))
+    records.append({
+        "type": "usage_updated",
+        "modelId": settings["profiles"]["decision"]["model"],
+        "usage": {"inputTokenCount": 100, "outputTokenCount": 5},
+        "costUsd": 0.02,
+    })
+(run_dir / instance / "trajectory.jsonl").write_text(
+    "\\n".join(json.dumps(record) for record in records), encoding="utf-8"
+)
+(run_dir / "run.json").write_text(
+    json.dumps({
+        "instances": [{
+            "instanceId": instance,
+            "exitCode": 0,
+            "hasPatch": True,
+            "startedAt": "2026-11-14T11:25:15Z",
+            "finishedAt": "2026-11-14T11:26:15Z",
+        }],
+        "evaluation": {"requested": True},
+    }),
+    encoding="utf-8",
+)
+(run_dir / "official-results.json").write_text(
+    json.dumps({
+        "resolved_instances": 1,
+        "unresolved_instances": 0,
+        "dataset_instances": 1,
+        "resolved_ids": [instance],
+    }),
+    encoding="utf-8",
+)
+"""
+        decision_main = "opencode-go/deepseek-v4.1-flash"
+        decision_model = "opencode-go/glm-5.3-flash"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "instances.txt").write_text("alpha__one-1\n", encoding="utf-8")
+            config = root / "run.json"
+            config.write_text(
+                json.dumps(
+                    {
+                        "dataset": "SWE-bench/SWE-bench_Verified",
+                        "split": "test",
+                        "instancesFile": "instances.txt",
+                        "limits": {"maxCostUsd": 2, "maxTimeSeconds": 60},
+                        "instanceTimeoutSeconds": 60,
+                        "models": [
+                            {"tier": "budget", "id": "opencode-go/budget", "credential": "FAKE_KEY"},
+                            {
+                                "tier": "frontier",
+                                "id": "openrouter/anthropic/claude-opus-5.5",
+                                "credential": "FAKE_KEY",
+                            },
+                            {
+                                "tier": "decision",
+                                "main": {"id": decision_main, "credential": "FAKE_KEY"},
+                                "decision": {"id": decision_model, "credential": "FAKE_KEY"},
+                                "decisionLayer": "on",
+                                "note": "advises on routing and stops",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            adapter = root / "fake_adapter.py"
+            adapter.write_text(fake_adapter, encoding="utf-8")
+            binary = root / "lunate"
+            binary.write_bytes(b"\x7fELF" + b"\x00" * 64)
+            binary.chmod(0o755)
+            work = root / "work"
+            summary = root / "summary"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPOSITORY / "scripts" / "eval" / "swebench_run.py"),
+                    "--config",
+                    str(config),
+                    "--work-dir",
+                    str(work),
+                    "--summary-dir",
+                    str(summary),
+                    "--run-id",
+                    "run-1",
+                    "--arm",
+                    "lunate",
+                    "--adapter",
+                    str(adapter),
+                    "--lunate-bin",
+                    str(binary),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**__import__("os").environ, "FAKE_KEY": "placeholder"},
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            arm = json.loads((summary / "run-1.lunate.json").read_text(encoding="utf-8"))
+            self.assertEqual(["budget", "frontier", "decision"], [item["tier"] for item in arm["arms"]])
+            decision_row = arm["arms"][2]
+            self.assertEqual("lunate", decision_row["arm"])
+            self.assertEqual(decision_main, decision_row["model"])
+            self.assertEqual(decision_model, decision_row["decisionModel"])
+            self.assertEqual("on", decision_row["decisionLayer"])
+            self.assertEqual(1, decision_row["resolved"])
+            self.assertEqual(1, decision_row["steps"])
+            self.assertEqual(1, decision_row["decisionSteps"])
+            self.assertAlmostEqual(0.03, decision_row["spendUsd"])
+            self.assertEqual(60.0, decision_row["instances"][0]["seconds"])
+            self.assertAlmostEqual(0.03, decision_row["costPerResolvedUsd"])
+            # The configuration travels with the numbers: the generated home is in the run tree.
+            home = json.loads(
+                (work / "run-1" / "lunate-home" / "decision" / "settings.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual("decision", home["decisions"]["profile"])
+            self.assertEqual(decision_model, home["profiles"]["decision"]["model"])
+
 
 class SwebenchRunCapTests(unittest.TestCase):
     def definition(self, cap: float = 30.0) -> dict:
