@@ -36,7 +36,8 @@ public sealed partial class Session
         }
 
         AddEntry(
-            new SessionActiveLeafEntry(NextEntryId(), from, _timeProvider.GetUtcNow(), leafId)
+            (id, parent) =>
+                new SessionActiveLeafEntry(id, parent, _timeProvider.GetUtcNow(), leafId)
         );
     }
 
@@ -65,13 +66,14 @@ public sealed partial class Session
         }
 
         AddEntry(
-            new SessionBranchSummaryEntry(
-                NextEntryId(),
-                leaf,
-                _timeProvider.GetUtcNow(),
-                fromLeafId,
-                summary
-            )
+            (id, parent) =>
+                new SessionBranchSummaryEntry(
+                    id,
+                    parent,
+                    _timeProvider.GetUtcNow(),
+                    fromLeafId,
+                    summary
+                )
         );
     }
 

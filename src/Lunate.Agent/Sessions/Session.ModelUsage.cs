@@ -18,15 +18,16 @@ public sealed partial class Session
         }
 
         AddEntry(
-            new SessionModelUsageEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                model,
-                usage,
-                attribution,
-                decisionOption
-            )
+            (id, parent) =>
+                new SessionModelUsageEntry(
+                    id,
+                    parent,
+                    _timeProvider.GetUtcNow(),
+                    model,
+                    usage,
+                    attribution,
+                    decisionOption
+                )
         );
     }
 }

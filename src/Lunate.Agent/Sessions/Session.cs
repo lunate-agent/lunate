@@ -19,6 +19,9 @@ internal sealed record SessionHistoryItem(ChatMessage Message, string? EntryId, 
 /// The byte format is frozen by the golden tests in tests/fixtures/sessions.
 /// A session file has one writer, enforced across processes by <see cref="SessionWriterClaims"/>:
 /// a second process that appends is refused instead of minting duplicate ids and stale parents.
+/// Within the process the appends of that one writer are serialized (<c>AddEntry</c>), because a
+/// session is appended to from more than one thread: the run's loop and the consumer of the events
+/// it emits.
 /// </summary>
 public sealed partial class Session
 {
@@ -27,6 +30,13 @@ public sealed partial class Session
 
     private readonly TimeProvider _timeProvider;
     private readonly List<SessionEntry> _entries = [];
+
+    /// <summary>
+    /// Serializes appends: one session is appended to from the loop that runs it and from what
+    /// records a usage beside it (a tool's call is charged while its result message is appended).
+    /// </summary>
+    private readonly object _appendGate = new();
+
     private SessionHeaderEntry? _header;
     private SessionImages? _images;
 
@@ -291,14 +301,15 @@ public sealed partial class Session
     {
         ArgumentNullException.ThrowIfNull(message);
         AddEntry(
-            new SessionMessageEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                message,
-                model,
-                NormalizeUsage(usage)
-            )
+            (id, parent) =>
+                new SessionMessageEntry(
+                    id,
+                    parent,
+                    _timeProvider.GetUtcNow(),
+                    message,
+                    model,
+                    NormalizeUsage(usage)
+                )
         );
     }
 
@@ -316,17 +327,18 @@ public sealed partial class Session
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(skill);
         AddEntry(
-            new SessionMessageEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                message,
-                model,
-                NormalizeUsage(usage)
-            )
-            {
-                Skill = skill,
-            }
+            (id, parent) =>
+                new SessionMessageEntry(
+                    id,
+                    parent,
+                    _timeProvider.GetUtcNow(),
+                    message,
+                    model,
+                    NormalizeUsage(usage)
+                )
+                {
+                    Skill = skill,
+                }
         );
     }
 
@@ -339,13 +351,14 @@ public sealed partial class Session
         ArgumentException.ThrowIfNullOrWhiteSpace(summary);
         ArgumentNullException.ThrowIfNull(replaces);
         AddEntry(
-            new SessionCompactionEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                summary,
-                [.. replaces]
-            )
+            (id, parent) =>
+                new SessionCompactionEntry(
+                    id,
+                    parent,
+                    _timeProvider.GetUtcNow(),
+                    summary,
+                    [.. replaces]
+                )
         );
     }
 
@@ -354,12 +367,8 @@ public sealed partial class Session
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
         AddEntry(
-            new SessionModelChangeEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                model
-            )
+            (id, parent) =>
+                new SessionModelChangeEntry(id, parent, _timeProvider.GetUtcNow(), model)
         );
     }
 
@@ -368,12 +377,8 @@ public sealed partial class Session
     {
         ArgumentNullException.ThrowIfNull(tools);
         AddEntry(
-            new SessionActiveToolsEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                [.. tools]
-            )
+            (id, parent) =>
+                new SessionActiveToolsEntry(id, parent, _timeProvider.GetUtcNow(), [.. tools])
         );
     }
 
@@ -383,13 +388,8 @@ public sealed partial class Session
         ArgumentException.ThrowIfNullOrWhiteSpace(section);
         ArgumentNullException.ThrowIfNull(text);
         AddEntry(
-            new SessionPromptSectionEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                section,
-                text
-            )
+            (id, parent) =>
+                new SessionPromptSectionEntry(id, parent, _timeProvider.GetUtcNow(), section, text)
         );
     }
 
@@ -399,13 +399,14 @@ public sealed partial class Session
         ArgumentException.ThrowIfNullOrWhiteSpace(childSessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         AddEntry(
-            new SessionChildSessionEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                childSessionId,
-                runId
-            )
+            (id, parent) =>
+                new SessionChildSessionEntry(
+                    id,
+                    parent,
+                    _timeProvider.GetUtcNow(),
+                    childSessionId,
+                    runId
+                )
         );
     }
 
@@ -445,13 +446,8 @@ public sealed partial class Session
         }
 
         AddEntry(
-            new SessionNestedCallsEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                callId,
-                bounded
-            )
+            (id, parent) =>
+                new SessionNestedCallsEntry(id, parent, _timeProvider.GetUtcNow(), callId, bounded)
         );
     }
 
@@ -482,13 +478,14 @@ public sealed partial class Session
         }
 
         AddEntry(
-            new SessionExtensionEntry(
-                NextEntryId(),
-                LastEntryId,
-                _timeProvider.GetUtcNow(),
-                extensionType,
-                payloadJson
-            )
+            (id, parent) =>
+                new SessionExtensionEntry(
+                    id,
+                    parent,
+                    _timeProvider.GetUtcNow(),
+                    extensionType,
+                    payloadJson
+                )
         );
     }
 
@@ -574,14 +571,23 @@ public sealed partial class Session
         SessionFiles.WriteText(Path, Redactor.Redact(SessionFormat.Serialize(header) + "\n"));
     }
 
-    private void AddEntry(SessionEntry entry)
+    private void AddEntry(Func<string, string?, SessionEntry> create)
     {
-        // The claim comes before the line it protects: a refused writer appends nothing.
-        SessionWriterClaims.Claim(Path);
-        // The line lands first: an append that throws leaves the session's entries exactly as the
-        // file has them, so a caller that carries on does not hold an entry nothing can reload.
-        SessionFiles.AppendText(Path, Redactor.Redact(SessionFormat.Serialize(entry) + "\n"));
-        _entries.Add(entry);
+        lock (_appendGate)
+        {
+            // The id and the parent are read from the file's own sequence inside the gate: two
+            // appends that read it at the same time mint the same id, and on macOS the second
+            // line then lands on top of the first one's head (#1050).
+            string id = NextEntryId();
+            SessionEntry entry = create(id, LastEntryId);
+            // The claim comes before the line it protects: a refused writer appends nothing.
+            SessionWriterClaims.Claim(Path);
+            // The line lands first: an append that throws leaves the session's entries exactly as
+            // the file has them, so a caller that carries on does not hold an entry nothing can
+            // reload.
+            SessionFiles.AppendText(Path, Redactor.Redact(SessionFormat.Serialize(entry) + "\n"));
+            _entries.Add(entry);
+        }
     }
 
     /// <summary>
