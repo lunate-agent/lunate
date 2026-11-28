@@ -109,8 +109,10 @@ def decision_home_files(model: dict, presets: dict[str, dict] | None = None) -> 
     """The prepared home that turns the arm's definition into an in-image configuration.
 
     The home is the arm as data: one profile per model over a provider entry named for the
-    preset, the decision-object block when the layer is on (the decision profile, and routing in
-    shadow so the decision model advises and the main model stays the chat model). The provider
+    preset, the decisions block when the layer is on. The block names the decision profile and
+    turns on the two consumers the arm's note declares — routing and the approval gate — both in
+    shadow: the decision model advises on routing and on stops, records what it would have done,
+    and the main model stays the chat model because only ``enforce`` can switch it. The provider
     entry is the preset's own endpoints and headers with the arm's ``credential`` as an ``env:``
     reference, because a profile resolves only against a configured provider and the value itself
     stays in the environment.
@@ -143,6 +145,7 @@ def decision_home_files(model: dict, presets: dict[str, dict] | None = None) -> 
             "profile": "decision",
             "routing": "shadow",
             "routingProfiles": ["main", "decision"],
+            "approvals": "shadow",
         }
     return {
         "settings.json": settings,

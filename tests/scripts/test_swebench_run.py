@@ -248,6 +248,10 @@ class SwebenchRunAdapterCommandTests(unittest.TestCase):
         self.assertEqual("decision", settings["decisions"]["profile"])
         self.assertEqual("shadow", settings["decisions"]["routing"])
         self.assertEqual(["main", "decision"], settings["decisions"]["routingProfiles"])
+        self.assertEqual("shadow", settings["decisions"]["approvals"])
+        # The note says the decision model advises on routing and stops, so the home turns on
+        # both consumers — the approval gate included — and neither acts (all shadow).
+        self.assertNotIn("enforce", settings["decisions"].values())
         # A profile resolves only against a configured provider, so the home names one per preset
         # and resolves the credential from the environment, never from the file.
         self.assertEqual(1, len(providers))
@@ -307,6 +311,7 @@ class SwebenchRunAdapterCommandTests(unittest.TestCase):
             self.assertNotIn(b"\r\n", providers)
             self.assertNotIn(b"\xef\xbb\xbf", written)
             self.assertEqual("decision", json.loads(written)["decisions"]["profile"])
+            self.assertEqual("shadow", json.loads(written)["decisions"]["approvals"])
             self.assertEqual(
                 "env:KEY", json.loads(providers)["providers"][0]["credentialReference"]
             )
@@ -1037,6 +1042,7 @@ if "--lunate-home" in args:
                 )
             )
             self.assertEqual("decision", home["decisions"]["profile"])
+            self.assertEqual("shadow", home["decisions"]["approvals"])
             self.assertEqual(decision_model, home["profiles"]["decision"]["model"])
 
 

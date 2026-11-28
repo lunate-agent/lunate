@@ -55,14 +55,20 @@ model and the `decisions` block:
 
 ```json
 {"decisions": {"profile": "decision", "routing": "shadow",
-               "routingProfiles": ["main", "decision"]}}
+               "routingProfiles": ["main", "decision"], "approvals": "shadow"}}
 ```
 
-`decisionLayer: "on"` maps to the documented "turn it on" block, plus routing in shadow: the note
-says the decision model advises on routing and the run stops there. Shadow routing keeps the main
-model as the chat model (only `enforce` can switch it), so the arm really does measure "the main
-model with the decision model advising". Consumers that act are deliberately out: with `--yolo` an
-`enforce` approval gate fails closed on a deny, which would measure the gate rather than the agent.
+`decisionLayer: "on"` maps to the documented "turn it on" block with the two consumers the note
+names: routing in shadow and the approval gate in shadow. The note says the decision model advises
+on routing *and stops*, so a home that enabled only routing would make the arm's recorded
+configuration disagree with the behaviour it claims — a stop never reaches the decision model at
+all. `approvals` defaults to `off`, and the print mode's `NonInteractiveApprover` is still an
+approver, so `shadow` is what makes the harness evaluate a stop while the ordinary approval flow
+answers it: shadow records the would-have result and cannot change an approval outcome, delay a
+call or fail closed (#859 review). Shadow routing keeps the main model as the chat model (only
+`enforce` can switch it), so the arm really does measure "the main model with the decision model
+advising". Consumers that act are deliberately out: with `--yolo` an `enforce` approval gate fails
+closed on a deny, which would measure the gate rather than the agent.
 
 A profile resolves only against a *configured* provider: `ModelProfileResolver.Resolve` looks the
 profile's provider name up in the provider store, and the store holds `providers.json` entries plus

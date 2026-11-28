@@ -8,6 +8,7 @@
 - [x] 2.1 `arm_chat_model` / `arm_credentials` answer the `--model` id and the credential variables for either arm shape.
 - [x] 2.2 `decision_home_files` renders the arm's `settings.json` (main and decision profiles, `decisions` block) from the definition; the orchestrator writes it under the run tree and passes `--lunate-home`.
 - [x] 2.3 `adapter_command` passes the main model id, the arm's credential variables by name and the generated home for a decision arm.
+- [x] 2.4 The generated `decisions` block turns on both consumers the arm's note declares — routing and the approval gate, each in shadow — so the recorded configuration matches the behaviour it claims; the home tests assert it.
 
 ## 3. Measurements in the summary
 
