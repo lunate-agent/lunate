@@ -104,7 +104,7 @@ An attachment SHALL be accepted only when its magic bytes identify PNG (`89 50 4
 
 ### Requirement: Placeholder contract
 
-The text representation of an attached image SHALL be exactly `[image <width>x<height>]` with a lowercase `x` and culture-invariant integers. The placeholder SHALL appear in the processed user text, the transcript entry, the scrollback user block and a successful `read` tool result. Image bytes SHALL NOT appear in events, print-mode JSON, session message parts or fixture files; only the content digest identifies them.
+The text representation of an attached image SHALL be exactly `[image <width>x<height>]` with a lowercase `x` and culture-invariant integers. The placeholder SHALL appear in the processed user text, the transcript entry, the scrollback user block, a successful `read` tool result and a successful `generate_image` tool result. Image bytes SHALL NOT appear in events, print-mode JSON, session message parts or fixture files; only the content digest identifies them.
 
 #### Scenario: The placeholder is the only text
 
@@ -117,6 +117,12 @@ The text representation of an attached image SHALL be exactly `[image <width>x<h
 - **GIVEN** `lunate -p --json` with an attached image
 - **WHEN** the event lines are inspected
 - **THEN** no event contains base64 image data and the tool result text is the placeholder
+
+#### Scenario: A generated image names itself with the placeholder
+
+- **GIVEN** a `generate_image` call that returned a 640×480 PNG
+- **WHEN** its tool result and the transcript entry are rendered
+- **THEN** both carry `[image 640x480]` and neither contains base64 image data
 
 ### Requirement: Vision gating with usages.vision
 
