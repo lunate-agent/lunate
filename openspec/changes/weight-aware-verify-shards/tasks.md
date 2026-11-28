@@ -40,15 +40,15 @@
 - [x] 4.1 Update the `.github/workflows/ci.yml` comment on the verify matrix and the `shard-timing.sh`
       header to describe the weight partition and the per-project record; nothing under `docs/`
       describes the shard partition today, so no page changes.
-- [x] 4.2 Write `changes/<pr-number>.md` and commit it before the archive.
+- [ ] 4.2 Write `changes/<pr-number>.md` and commit it before the archive.
 
 ## 5. Verification
 
-- [x] 5.1 Run the sourced partition checks, `bash scripts/shard-timing.sh --self-test`,
+- [ ] 5.1 Run the sourced partition checks, `bash scripts/shard-timing.sh --self-test`,
       `bash scripts/gate-tests.sh` where the published binary allows it, `bash -n`/`shellcheck`-style
       syntax checks on every touched script, `dotnet csharpier format .` and
       `openspec validate weight-aware-verify-shards --strict`.
-- [x] 5.2 Run `openspec validate --all --strict`, sync, and archive the change as the branch's last
+- [ ] 5.2 Run `openspec validate --all --strict`, sync, and archive the change as the branch's last
       commit.
 
 ## 6. Rework — every lane on the same count, and both passes kept
