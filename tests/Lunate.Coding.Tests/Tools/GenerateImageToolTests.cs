@@ -338,7 +338,11 @@ public sealed class GenerateImageToolTests
                 "gpt-image-1"
             )
         );
-        var context = new ToolContext(temp.Root, new NullAgentEvents())
+        // The run's working directory is the canonical workspace root, exactly as the harness
+        // passes it (InteractiveSession hands over Workspace.WorktreeRoot). A raw temp path is not
+        // canonical on macOS, where the temp root sits under the /var -> /private/var symlink, so a
+        // file-change event's workspace id would not be the workspace's own root.
+        var context = new ToolContext(workspace.WorktreeRoot, new NullAgentEvents())
         {
             RunId = "run_test",
             FileChanges = sink is null ? NullFileChangeSink.Instance : sink,
