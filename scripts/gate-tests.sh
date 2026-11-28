@@ -467,8 +467,10 @@ shard_pole() {
 }
 
 # A shard's wall time as the table predicts it: the two culture passes run back to back, and within a
-# pass the test platform starts every module at once, so the pass costs its heaviest unit. The weight
-# partition places the passes separately, which is what lowers the pole; reported, not enforced (#789).
+# pass the test platform starts every module at once, so the pass costs its heaviest project, paid
+# twice because both passes stay in the project's own shard; shard 1 adds its non-test pre-load. The
+# position partition paid the same twice but parked a heavy project beside light ones, so its heaviest
+# project was heavier; reported, not enforced (#789).
 shard_wall() {
   local shard_index="$1" shard_count="$2" pass project shard weight wall=0
   local heaviest_default=0 heaviest_deat=0
