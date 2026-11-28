@@ -26,6 +26,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SELF="${SCRIPT_DIR}/$(basename "${BASH_SOURCE[0]}")"
 TABLE="${SCRIPT_DIR}/verify-shard-weights.tsv"
 
+# strip_ansi, so a colored pass output parses the same as a plain one.
+. "${SCRIPT_DIR}/lib.sh"
+
 fail() {
   printf 'shard-weights: %s\n' "$1" >&2
   exit 2
@@ -136,9 +139,12 @@ record() {
 
   # The summary block repeats each module line with leading spaces, so the same module can appear
   # twice: the last value per project wins and the records are sorted by project, which keeps the file
-  # stable across runs.
+  # stable across runs. The runner colors the line when it believes it is on CI
+  # (`GITHUB_ACTIONS=true`), escapes and all, even with the pass redirected to a file, so the escapes
+  # come off first: they sit after the duration and around the verdict, and a parser that keeps them
+  # matches no line at all - which is how every CI run recorded its shard but no project (#1043).
   local parsed
-  parsed="$(awk -v root="${PWD}/" '
+  parsed="$(strip_ansi | awk -v root="${PWD}/" '
     /\.dll \(/ && /\) (passed|failed) / {
       line = $0
       if (match(line, /\(([0-9]+m )?([0-9]+s )?[0-9]+ms\)[[:space:]]*$/) == 0) {
@@ -164,7 +170,7 @@ record() {
     }' | LC_ALL=C sort)"
 
   if [ -z "$parsed" ]; then
-    fail "no per-module result found in the ${pass} pass output — the test platform summary changed shape?"
+    fail "no per-module result found in the ${pass} pass output - the test platform summary changed shape? (see the header)"
   fi
 
   mkdir -p "$out_dir"
@@ -341,6 +347,23 @@ LOG
   records="$(ls "${dir}/out" | grep -c -- '-projects.jsonl$' || true)"
   if [ "$records" -ne 2 ]; then
     printf 'self-test: FAIL: one shard wrote %s project records for its two culture passes\n' "$records" >&2
+    failures=$((failures + 1))
+  fi
+
+  # The runner colors its output when it knows it is on CI (`GITHUB_ACTIONS=true`), even with the pass
+  # redirected to a file, so the module summary line carries escape sequences around the verdict and
+  # after the duration. A parser anchored on the duration at the end of the line then matches nothing
+  # and no run records a weight; this is the shape that made every CI artifact carry only the shard's
+  # own record (#1043).
+  printf '\033[m%s (net11.0|arm64) \033[32mpassed\033[m [\033[32m+481\033[m/\033[31mx0\033[m/\033[33m?10\033[m] \033[90m(3s 445ms)\033[m\n' \
+    "${work}/tests/Lunate.Ai.Tests/bin/Release/net11.0/Lunate.Ai.Tests.dll" >"${dir}/colored.log"
+  if ! (cd "$work" && bash "$SELF" record --rid linux-x64 --shard 1 --shard-count 4 --pass default \
+    --out-dir "${dir}/out-colored" <"${dir}/colored.log" >/dev/null 2>&1); then
+    printf 'self-test: FAIL: a colored pass output was rejected\n' >&2
+    failures=$((failures + 1))
+  elif ! grep -Fq '"project":"tests/Lunate.Ai.Tests/Lunate.Ai.Tests.csproj","seconds":4' \
+    "${dir}/out-colored/verify-linux-x64-1-of-4-default-projects.jsonl" 2>/dev/null; then
+    printf 'self-test: FAIL: a colored pass output recorded no project weight\n' >&2
     failures=$((failures + 1))
   fi
   printf '{"rid":"linux-x64","shard":1,"shard_count":4,"profile":"full","seconds":600,"exit_status":0,"primary":120}\n' \
