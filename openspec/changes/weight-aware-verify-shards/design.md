@@ -1,7 +1,7 @@
 ## Context
 
 `scripts/verify.sh --shard i/n` splits the solution's test projects across the matrix legs
-(`.github/workflows/ci.yml`, four shards on every lane: Ubuntu, macOS and Windows). The split is
+(`.github/workflows/ci.yml`, four shards on Ubuntu and Windows, two on macOS). The split is
 positional: `scripts/test-parallel.sh` numbers the `LC_ALL=C`-sorted project list and shard `i` takes
 every project whose index is `i-1 mod n`. Every shard builds the whole solution and runs both culture
 passes over its slice, so a lane's wall time is roughly `4 × build + Σ(per-shard test wall)`.
@@ -23,8 +23,10 @@ dependency.
 **Goals:**
 
 - No shard carries a whole slow project: a project's two culture passes are placed independently.
-- At four shards no shard is above a third of its lane's summed recorded wall time, on every lane,
-  from one table the shards read without coordinating.
+- At four shards no shard is above a third of its lane's summed recorded wall time, on the Ubuntu and
+  Windows lanes, from one table the shards read without coordinating.
+- Within the macOS lane's two shards, the weight partition is no heavier than the position partition it
+  replaced, and the gate reports both numbers.
 - The partition stays complete, non-overlapping and deterministic, enforced by `scripts/gate-tests.sh`.
 - The weights are recorded, not estimated: a real run writes per-project wall times, and one command
   folds them back into the table.
@@ -33,9 +35,10 @@ dependency.
 
 - Splitting `Lunate.Coding.Tests` into two projects; the pass-level unit makes that unnecessary here and
   a project split stays a separate change if the measured numbers ever ask for it.
-- Changing the number of shards a lane runs: every lane stays at the dispatch's count (four by default).
-  The macOS lane joins that count instead of keeping its own cap of two, because two shards leave one
-  carrying at least half the lane and the card's third cannot be met there by any partition (#789).
+- Changing the number of shards a lane runs: Ubuntu and Windows stay at the dispatch's count (four by
+  default) and macOS keeps its two-shard cap. The card claims the third for Ubuntu and Windows and gives
+  macOS the best-wall-time-within-two-shards acceptance instead, because two shards leave one carrying
+  at least half the lane and no partition can meet the third there (#789).
 - Changing the matrix's events, the artifact names, the retry/flake budget or `verify.ps1` (the Windows
   twin runs the gate unsharded).
 - Making the weights authoritative for correctness: they decide balance only.
@@ -69,8 +72,10 @@ or the platform), and drops each unit into the currently least-loaded shard, tie
 number. That is the classic LPT rule. `gate-tests.sh` enforces its bound on the fair share — the
 busiest shard is at most `(4n-1)/(3n)` of the lane's weight divided by the shard count — which at four
 shards is 31.25 %, inside the card's third, and it adds the card's stricter third on top at the shard
-count the lanes run, read from the workflow so a lane that is given fewer shards fails the gate instead
-of being checked against a weaker bound.
+count Ubuntu and Windows run, read from the workflow so a lane that is given fewer shards fails the gate
+instead of being checked against a weaker bound. macOS is read from the same workflow: the gate fails
+unless the lane is capped at two, and reports the two-shard pole beside the position partition's so the
+card's macOS acceptance is a number in the gate's own output rather than a claim.
 
 Before the rest, the heaviest unit of each pass is handed out once per shard. That is the first move
 LPT would make anyway, and it is what keeps every shard running both culture passes when the recorded
@@ -156,10 +161,11 @@ Lightweight C4, dynamic: one gate run, one lane.
   check make the drift visible, and the PR that changes a suite's cost is where the refresh belongs.
 - **The weights are one reference measurement for all lanes.** Relative cost is a property of the suite
   (process-bound projects are slow everywhere); a lane that disagrees is corrected by refreshing the
-  table from its own run. The third holds only at the lanes' four shards: below four the fair share is
-  at least half the lane, so the macOS lane moves from two shards to four rather than keeping a bound
-  the card does not accept. LPT's own guarantee stays checked at every count `n` as the fallback for a
-  baseline dispatch that picks fewer shards.
+  table from its own run. The third holds only at four shards: below four the fair share is at least
+  half the lane, which is why the card claims it for Ubuntu and Windows and caps macOS at two with the
+  best-wall-time acceptance instead of a bound no partition can meet. LPT's own guarantee stays checked
+  at every count `n`, macOS's two included, as the fallback for a baseline dispatch that picks fewer
+  shards.
 - **A split pass changes what a shard runs.** A failure is reported against the same project and pass
   as before (`verify_check_test_pass` prints per project), and the retry budget is per pass, unchanged.
 - **Rollback:** dropping `--shard` to 1/1 or emptying the table both keep the gate complete
@@ -174,6 +180,6 @@ Lightweight C4, dynamic: one gate run, one lane.
 
 ## Open Questions
 
-None. The macOS lane runs the dispatch's four shards, so the card's third applies to all three lanes
-and no lane keeps a weaker bound; a manual dispatch that picks fewer shards is a baseline measurement
-held to LPT's bound.
+None. The card claims the third for the Ubuntu and Windows lanes, which run the dispatch's four
+shards, and keeps the macOS lane at two with the best-wall-time acceptance; a manual dispatch that
+picks fewer shards is a baseline measurement held to LPT's bound.

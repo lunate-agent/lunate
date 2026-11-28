@@ -24,24 +24,27 @@ never fails the gate; a row naming a project that is not in `lunate.slnx` SHALL 
 the balance only: every culture pass of every test project SHALL be assigned to exactly one shard
 whatever the weights say.
 
-The CI matrix SHALL give every lane the same shard count, the manual dispatch's count -- four unless it
-picks another -- so Ubuntu, macOS and Windows are partitioned the same way and no lane is held to a
-weaker rule than the others. At that count, no shard SHALL carry more than one third of its lane's
-summed recorded weight, counting shard 1's non-test pre-load in both the shard and the lane. A dispatch
-that picks fewer shards is a baseline measurement: below four the third cannot be met by any partition,
-because two shards always leave one carrying at least half the lane. At every shard count `n` the
-busiest shard SHALL stay within the longest-processing-time bound on the fair share,
-`(4n-1)/(3n)` of the lane's weight divided by `n`; at four shards that is 31.25 %, which is stricter
-than the third. Every shard SHALL own at least one unit of every culture pass at every shard count the
-CI matrix runs, because a shard that runs nothing is not a shard and a shard that runs only one culture
-pass is not the gate.
+The CI matrix SHALL run the Ubuntu and Windows lanes at the manual dispatch's shard count -- four
+unless it picks another -- and SHALL keep the macOS lane at its cap of two shards, so macOS never gains
+a third. At the Ubuntu and Windows count, no shard SHALL carry more than one third of its lane's summed
+recorded weight, counting shard 1's non-test pre-load in both the shard and the lane. A dispatch that
+picks fewer shards is a baseline measurement: below four the third cannot be met by any partition,
+because two shards always leave one carrying at least half the lane. The macOS lane's acceptance is the
+best wall time within two shards instead: its two-shard partition SHALL be no heavier -- in its busiest
+shard's summed recorded weight, and in the wall time its heaviest unit per culture pass predicts -- than
+the position partition it replaced. At every shard count `n` the busiest shard SHALL stay within the
+longest-processing-time bound on the fair share, `(4n-1)/(3n)` of the lane's weight divided by `n`; at
+four shards that is 31.25 %, which is stricter than the third. Every shard SHALL own at least one unit
+of every culture pass at every shard count the CI matrix runs, because a shard that runs nothing is not
+a shard and a shard that runs only one culture pass is not the gate.
 
 `scripts/gate-tests.sh` SHALL enforce the partition: for each shard count in use it SHALL check that
 the units are complete and non-overlapping, that no shard is empty, that the partition is
 byte-identical across calls, and that the balance bound holds; it SHALL fail naming the shard and the
-weight when any of them does not. It SHALL check the third at the shard count the lanes actually run,
-read from the workflow, and SHALL fail when a lane is given a count below that, so a lane cannot be
-quietly balanced by a weaker rule.
+weight when any of them does not. It SHALL read every lane's shard count from the workflow and fail
+when the Ubuntu or Windows lane is below four, where the third cannot hold, or when the macOS lane is
+not at its two-shard cap; it SHALL report the Ubuntu and Windows pole against the third and the macOS
+two-shard pole against the position partition it replaced.
 
 Every gate run SHALL record the wall time of each test project it runs, next to the per-shard record
 `scripts/shard-timing.sh` already writes, one record per shard and culture pass so that a shard which
@@ -55,23 +58,29 @@ refreshes the weights instead of anyone estimating them.
 - **WHEN** the four-shard partition is computed
 - **THEN** that project's default-culture pass and its de-AT pass are assigned to different shards, and the shard holding either one is not the shard holding the other
 
-#### Scenario: No shard exceeds a third on any lane
+#### Scenario: No shard exceeds a third on Ubuntu and Windows
 
 - **GIVEN** the recorded weight table
-- **WHEN** the partition each lane runs is computed
-- **THEN** every shard's weight, including shard 1's non-test pre-load, is at most one third of the summed weight of that lane's shards
+- **WHEN** the four-shard partition the Ubuntu and Windows lanes run is computed
+- **THEN** every shard's weight, including shard 1's non-test pre-load, is at most one third of the summed weight of the lane's shards
 
-#### Scenario: Every lane runs the same shard count
+#### Scenario: macOS keeps its two-shard cap
 
 - **GIVEN** the CI matrix's verify legs
 - **WHEN** the plan decides the legs for a push, the nightly or a manual dispatch
-- **THEN** `ubuntu-latest`, `macos-latest` and `windows-latest` each have the dispatch's shard count - four unless the dispatch picks another - so no lane is partitioned by a weaker rule
+- **THEN** `ubuntu-latest` and `windows-latest` each have the dispatch's shard count - four unless the dispatch picks another - and `macos-latest` has two shards, never a third
 
-#### Scenario: A lane below the count the third needs fails the gate
+#### Scenario: macOS's weight partition is no worse than the position partition within two shards
 
-- **GIVEN** a workflow whose macOS lane runs two shards while the other lanes run four
+- **GIVEN** the recorded weight table and the two-shard partition the macOS lane runs
+- **WHEN** `scripts/gate-tests.sh` compares it with the position partition it replaced
+- **THEN** the weight partition's busiest shard carries no more recorded weight, and its heaviest unit per culture pass predicts no more wall time, and the gate reports both numbers
+
+#### Scenario: A lane given the wrong shard count fails the gate
+
+- **GIVEN** a workflow whose macOS lane runs three shards, or whose Ubuntu or Windows lane runs two
 - **WHEN** `scripts/gate-tests.sh` reads the lanes' shard counts
-- **THEN** it fails and names the lane counts, because two shards leave one shard carrying at least half the lane
+- **THEN** it fails and names the lane, because macOS's cap is two and the third leaves no room below four shards
 
 #### Scenario: The partition is complete and non-overlapping for every shard count
 

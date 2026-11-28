@@ -6,13 +6,13 @@
 ## Review Summary
 
 ADR review completed for this change. The change is confined to the gate scripts under `scripts/` and the
-verify matrix's shard count: it replaces the positional verify-shard assignment with a weight-aware one,
-records the weights a run measures, and puts the macOS lane on the same four shards as Ubuntu and
-Windows so the balance bound applies to every lane. It introduces no dependency edge, no change to the
-agent loop, the tool contract, the protocols, the public API or the session format, and no new
-long-lived architectural commitment: the partition rule is a property of the build tooling, expressed
-as a `ci-pipeline` requirement, and it can be replaced by another scheduler without touching the
-product. No repository-level ADR is created.
+verify matrix's shard counts: it replaces the positional verify-shard assignment with a weight-aware one,
+records the weights a run measures, keeps Ubuntu and Windows on the dispatch's count so the balance bound
+applies there, and keeps the macOS lane at its two-shard cap with the card's best-wall-time acceptance.
+It introduces no dependency edge, no change to the agent loop, the tool contract, the protocols, the
+public API or the session format, and no new long-lived architectural commitment: the partition rule is
+a property of the build tooling, expressed as a `ci-pipeline` requirement, and it can be replaced by
+another scheduler without touching the product. No repository-level ADR is created.
 
 ## In-Force ADRs Reviewed
 

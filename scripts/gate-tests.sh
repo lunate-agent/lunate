@@ -437,6 +437,123 @@ shard_over_a_third() {
   return 0
 }
 
+# The partition the weight rule replaced: sorted project p belongs to shard (p % n) + 1, and both
+# culture passes ran over the shard's whole project list, so its recorded weight is twice each
+# project's plus shard 1's pre-load. Kept only to report the weight partition's before/after (#789).
+shard_position_load() {
+  local shard_count="$1" shard_index="$2" index=0 load=0 project
+  while IFS= read -r project; do
+    if [ $((index % shard_count)) -eq $((shard_index - 1)) ]; then
+      load=$((load + 2 * $(verify_shard_weight "$project")))
+    fi
+    index=$((index + 1))
+  done < <(verify_test_projects)
+  if [ "$shard_index" -eq 1 ]; then
+    load=$((load + $(verify_shard_primary_weight)))
+  fi
+  printf '%s\n' "$load"
+}
+
+# The busiest shard's recorded weight at one shard count, through a load function.
+shard_pole() {
+  local load_fn="$1" shard_count="$2" shard_index load pole=0
+  for shard_index in $(seq 1 "$shard_count"); do
+    load="$("$load_fn" "$shard_index" "$shard_count")"
+    if [ "$load" -gt "$pole" ]; then
+      pole="$load"
+    fi
+  done
+  printf '%s\n' "$pole"
+}
+
+# A shard's wall time as the table predicts it: the two culture passes run back to back, and within a
+# pass the test platform starts every module at once, so the pass costs its heaviest unit. The weight
+# partition places the passes separately, which is what lowers the pole; reported, not enforced (#789).
+shard_wall() {
+  local shard_index="$1" shard_count="$2" pass project shard weight wall=0
+  local heaviest_default=0 heaviest_deat=0
+  while IFS="$VERIFY_SHARD_TAB" read -r pass project shard; do
+    [ "$shard" = "$shard_index" ] || continue
+    weight="$(verify_shard_weight "$project")"
+    case "$pass" in
+      default) [ "$weight" -gt "$heaviest_default" ] && heaviest_default="$weight" ;;
+      de-at) [ "$weight" -gt "$heaviest_deat" ] && heaviest_deat="$weight" ;;
+    esac
+  done < <(SHARD_I=1 SHARD_N="$shard_count" verify_shard_plan)
+  if [ "$shard_index" -eq 1 ]; then
+    wall="$(verify_shard_primary_weight)"
+  fi
+  wall=$((wall + heaviest_default + heaviest_deat))
+  printf '%s\n' "$wall"
+}
+
+# The wall time the position partition produced the same way: both passes ran over the shard's whole
+# project list, so its heaviest unit is paid twice.
+shard_position_wall() {
+  local shard_index="$1" shard_count="$2" index=0 heaviest=0 project weight wall
+  while IFS= read -r project; do
+    if [ $((index % shard_count)) -eq $((shard_index - 1)) ]; then
+      weight="$(verify_shard_weight "$project")"
+      if [ "$weight" -gt "$heaviest" ]; then
+        heaviest="$weight"
+      fi
+    fi
+    index=$((index + 1))
+  done < <(verify_test_projects)
+  wall=$((2 * heaviest))
+  if [ "$shard_index" -eq 1 ]; then
+    wall=$((wall + $(verify_shard_primary_weight)))
+  fi
+  printf '%s\n' "$wall"
+}
+
+# The shard count each verify lane runs, as "<os><TAB><count>", read from the workflow's leg lines
+# and the variable each one passes: Ubuntu and Windows pass the dispatch's count (whose fallback is
+# the dispatch input's default), macOS passes its own cap. Fails when a lane passes a variable this
+# gate does not know, so a lane cannot be given a count the balance check never sees.
+shard_lane_counts() {
+  local workflow="$1" dispatch macos_cap os variable count
+  dispatch="$(grep -oE "verify_shard_count \|\| '[0-9]+'" "$workflow" | head -n 1 | grep -oE '[0-9]+' || true)"
+  macos_cap="$(grep -oE 'macos_shards=\$\(\(SHARDS < [0-9]+ \? SHARDS : [0-9]+\)\)' "$workflow" |
+    head -n 1 | grep -oE ': [0-9]+\)' | grep -oE '[0-9]+' || true)"
+  case "$dispatch" in
+    "" | *[!0-9]*) return 1 ;;
+  esac
+  case "$macos_cap" in
+    "" | *[!0-9]*) return 1 ;;
+  esac
+  while read -r os variable; do
+    variable="${variable%\"}"
+    variable="${variable#\"}"
+    case "$variable" in
+      '${SHARDS}') count="$dispatch" ;;
+      '${macos_shards}') count="$macos_cap" ;;
+      *) return 1 ;;
+    esac
+    printf '%s\t%s\n' "$os" "$count"
+  done < <(grep -E '^ +leg [a-z-]+-latest ' "$workflow" | awk '{ print $2, $6 }' | LC_ALL=C sort -u)
+}
+
+# Why the lanes' shard counts are not the ones the card asks for; nothing when both are right.
+# Ubuntu and Windows need the dispatch's count, four at the default, because the card's third is not
+# attainable below it; macOS keeps its two-shard cap, where the card asks for the best wall time
+# within two shards instead (#789).
+shard_lane_count_problem() {
+  local lane_count="$1" macos_count="$2"
+  case "$lane_count" in
+    "" | *[!0-9]*) printf 'the Ubuntu and Windows shard count is unreadable (%s)\n' "$lane_count"; return 0 ;;
+  esac
+  if [ "$lane_count" -lt 4 ]; then
+    printf 'the Ubuntu and Windows lanes run %s shards; the third needs four, because two always leave one shard carrying at least half the lane\n' "$lane_count"
+    return 0
+  fi
+  if [ "$macos_count" != "2" ]; then
+    printf 'the macOS lane runs %s shards; the card keeps its two-shard cap and asks for the best wall time within two\n' "$macos_count"
+    return 0
+  fi
+  return 0
+}
+
 shard_fail() {
   echo "gate-tests: FAIL: $1" >&2
   exit 1
@@ -489,28 +606,33 @@ if [ "$shard_plan_once" != "$shard_plan_twice" ]; then
   shard_fail "the four-shard plan is not deterministic"
 fi
 
-# The one-third bound is a property of every lane, so the gate reads the lanes' shard count out of the
-# workflow instead of assuming it. A lane capped below the others is partitioned by a weaker rule than
-# this one: macOS ran two shards, and two always leave one shard carrying at least half the lane (#789).
+# The third is the Ubuntu and Windows lanes' rule: they run the dispatch's shard count. macOS keeps
+# the card's two-shard cap, where no partition can hold the third (two shards always leave one
+# carrying at least half the lane), and its acceptance is the best wall time within two shards (#789).
+# The gate reads every lane's count out of the workflow and checks each against its own rule.
 WORKFLOW="${SCRIPT_DIR}/../.github/workflows/ci.yml"
-lane_legs="$(grep -E '^ +leg [a-z-]+-latest ' "$WORKFLOW" | awk '{ print $2, $6 }' | LC_ALL=C sort -u)"
-lane_legs_expected="$(printf '%s\n' \
-  'macos-latest "${SHARDS}"' 'ubuntu-latest "${SHARDS}"' 'windows-latest "${SHARDS}"' | LC_ALL=C sort -u)"
-if [ "$lane_legs" != "$lane_legs_expected" ]; then
-  shard_fail "the verify lanes do not all run the dispatch's shard count, so one of them is balanced by a weaker rule than the one this gate checks (got: ${lane_legs//$'\n'/; }; expected: ${lane_legs_expected//$'\n'/; })"
+lane_counts="$(shard_lane_counts "$WORKFLOW")"
+if [ -z "$lane_counts" ]; then
+  shard_fail "the verify lanes' shard counts are unreadable from .github/workflows/ci.yml (expected Ubuntu and Windows on \"\${SHARDS}\" and macOS on \"\${macos_shards}\")"
 fi
-lane_shard_count="$(grep -oE "verify_shard_count \|\| '[0-9]+'" "$WORKFLOW" | head -n 1 | grep -oE '[0-9]+' || true)"
-case "$lane_shard_count" in
-  "" | *[!0-9]*) shard_fail "the workflow's default verify shard count is unreadable ('${lane_shard_count}')" ;;
-esac
+lane_shard_count="$(printf '%s\n' "$lane_counts" | awk -F'\t' '$1 == "ubuntu-latest" { print $2 }')"
+windows_shard_count="$(printf '%s\n' "$lane_counts" | awk -F'\t' '$1 == "windows-latest" { print $2 }')"
+macos_shard_count="$(printf '%s\n' "$lane_counts" | awk -F'\t' '$1 == "macos-latest" { print $2 }')"
+if [ "$lane_shard_count" != "$windows_shard_count" ]; then
+  shard_fail "Ubuntu runs ${lane_shard_count} verify shards and Windows ${windows_shard_count}; the same partition has to be checked on both"
+fi
+lane_count_problem="$(shard_lane_count_problem "$lane_shard_count" "$macos_shard_count")"
+if [ -n "$lane_count_problem" ]; then
+  shard_fail "$lane_count_problem"
+fi
 if ! grep -Fq "default: \"${lane_shard_count}\"" "$WORKFLOW"; then
-  shard_fail "the dispatch input's default and the lanes' fallback count disagree (${lane_shard_count})"
+  shard_fail "the dispatch input's default and the Ubuntu and Windows fallback count disagree (${lane_shard_count})"
 fi
 
-# Fails when the lanes' own count cannot meet the card's third: two shards always leave one carrying
-# half the lane, and only the count the matrix runs is worth checking, because a manual dispatch that
-# picks a smaller count is a baseline measurement.
-echo "gate-tests: no shard may carry more than a third of its lane's recorded weight on the count every lane runs (${lane_shard_count})"
+# Fails when the Ubuntu and Windows lanes' own count cannot meet the card's third: two shards always
+# leave one carrying half the lane, and only the count the matrix runs is worth checking, because a
+# manual dispatch that picks a smaller count is a baseline measurement.
+echo "gate-tests: no shard may carry more than a third of its lane's recorded weight on the Ubuntu and Windows lanes' count (${lane_shard_count})"
 lane_total=0
 shard_loads=""
 for shard_index in $(seq 1 "$lane_shard_count"); do
@@ -521,9 +643,43 @@ done
 if [ "$lane_total" -le 0 ]; then
   shard_fail "the lane's recorded weight is $lane_total s - scripts/verify-shard-weights.tsv carries no weights"
 fi
+printf 'gate-tests: Ubuntu and Windows at %s shards: %spole %ss of %ss; wall pole %ss, position wall pole %ss\n' \
+  "$lane_shard_count" "$shard_loads" \
+  "$(shard_pole shard_load "$lane_shard_count")" "$lane_total" \
+  "$(shard_pole shard_wall "$lane_shard_count")" "$(shard_pole shard_position_wall "$lane_shard_count")"
 shard_over="$(shard_over_a_third "$lane_shard_count")"
 if [ -n "$shard_over" ]; then
   shard_fail "shard $(printf '%s' "$shard_over" | cut -d' ' -f1)/${lane_shard_count} carries $(printf '%s' "$shard_over" | cut -d' ' -f2)s of the lane's $(printf '%s' "$shard_over" | cut -d' ' -f3)s, over a third (${shard_loads})"
+fi
+
+# macOS keeps the card's two-shard cap. Its acceptance is the best wall time within two shards, so the
+# gate reports the recorded before/after and requires the weight partition to be no heavier than the
+# position partition it replaced; the longest-processing-time bound below covers the rest.
+echo "gate-tests: macOS keeps its two-shard cap (${macos_shard_count}) and its weight partition must be no heavier than the position one"
+macos_total=0
+macos_loads=""
+for shard_index in $(seq 1 "$macos_shard_count"); do
+  shard_load_one="$(shard_load "$shard_index" "$macos_shard_count")"
+  macos_loads="${macos_loads}${shard_index}:${shard_load_one}s "
+  macos_total=$((macos_total + shard_load_one))
+done
+if [ "$macos_total" -le 0 ]; then
+  shard_fail "the macOS lane's recorded weight is $macos_total s - scripts/verify-shard-weights.tsv carries no weights"
+fi
+macos_pole="$(shard_pole shard_load "$macos_shard_count")"
+macos_position_pole="$(shard_pole shard_position_load "$macos_shard_count")"
+macos_wall_pole="$(shard_pole shard_wall "$macos_shard_count")"
+macos_position_wall_pole="$(shard_pole shard_position_wall "$macos_shard_count")"
+printf 'gate-tests: macOS at %s shards: %spole %ss of %ss (%s%%), position pole %ss (%s%%); wall pole %ss, position wall pole %ss\n' \
+  "$macos_shard_count" "$macos_loads" \
+  "$macos_pole" "$macos_total" "$(awk -v p="$macos_pole" -v t="$macos_total" 'BEGIN { printf "%.1f", 100 * p / t }')" \
+  "$macos_position_pole" "$(awk -v p="$macos_position_pole" -v t="$macos_total" 'BEGIN { printf "%.1f", 100 * p / t }')" \
+  "$macos_wall_pole" "$macos_position_wall_pole"
+if [ "$macos_pole" -gt "$macos_position_pole" ]; then
+  shard_fail "macOS's weight partition carries ${macos_pole}s at two shards, heavier than the position partition's ${macos_position_pole}s"
+fi
+if [ "$macos_wall_pole" -gt "$macos_position_wall_pole" ]; then
+  shard_fail "macOS's weight partition costs ${macos_wall_pole}s at two shards, more than the position partition's ${macos_position_wall_pole}s"
 fi
 
 echo "gate-tests: every shard count must stay within the longest-processing-time bound"
@@ -610,11 +766,46 @@ pole_split="$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/pole.tsv" SHARD_I=1 SHARD_
 if [ "$pole_split" -ne 2 ]; then
   shard_fail "the pole's two culture passes were planned into ${pole_split} shard(s), not 2"
 fi
-echo "gate-tests: the balance check must reject two shards, which is why every lane runs the dispatch's count"
-# The recorded table at two shards leaves one shard carrying about half the lane. A lane capped at two
-# - as macOS was - would silently pass a check that only looked at four (#789).
+echo "gate-tests: the third is a four-shard property, which is why macOS keeps its two-shard cap and its own acceptance"
+# The recorded table at two shards leaves one shard carrying about half the lane. The card does not ask
+# macOS for the third; it asks for the best wall time within two shards (#789).
 if [ -z "$(shard_over_a_third 2)" ]; then
-  shard_fail "the balance check accepted two shards on the recorded table, so a lane capped at two would pass"
+  shard_fail "the balance check accepted two shards on the recorded table, so the third cannot be why macOS is capped"
+fi
+
+echo "gate-tests: the lane-count reader must resolve both count variables and reject a lane it cannot read"
+lane_counts_real="$(shard_lane_counts "$WORKFLOW")"
+lane_counts_want="$(printf '%s\t%s\n' macos-latest "$macos_shard_count" ubuntu-latest "$lane_shard_count" windows-latest "$lane_shard_count" | LC_ALL=C sort)"
+if [ "$lane_counts_real" != "$lane_counts_want" ]; then
+  shard_fail "the lane-count reader does not read the workflow's lanes (got: ${lane_counts_real//$'\n'/; }; expected: ${lane_counts_want//$'\n'/; })"
+fi
+{
+  printf "          SHARDS: \${{ inputs.verify_shard_count || '4' }}\n"
+  printf '          macos_shards=$((SHARDS < 3 ? SHARDS : 3))\n'
+  printf '          leg ubuntu-latest linux-x64 250 150 "${SHARDS}" ""\n'
+  printf '          leg windows-latest win-x64 350 150 "${SHARDS}" ""\n'
+  printf '          leg macos-latest osx-arm64 300 150 "${macos_shards}" ""\n'
+} >"${SHARD_DIR}/ci-capped.yml"
+capped_macos="$(shard_lane_counts "${SHARD_DIR}/ci-capped.yml" | awk -F'\t' '$1 == "macos-latest" { print $2 }')"
+if [ "$capped_macos" != "3" ]; then
+  shard_fail "the lane-count reader read macOS's cap as '${capped_macos}' instead of 3 on a fixture workflow"
+fi
+if [ -z "$(shard_lane_count_problem 4 "$capped_macos")" ]; then
+  shard_fail "the lane-count check accepted a macOS lane that runs three shards"
+fi
+if [ -z "$(shard_lane_count_problem 2 2)" ]; then
+  shard_fail "the lane-count check accepted two shards on the Ubuntu and Windows lanes, where the third cannot hold"
+fi
+if [ -n "$(shard_lane_count_problem 4 2)" ]; then
+  shard_fail "the lane-count check rejected the card's four Ubuntu/Windows shards and two macOS shards: $(shard_lane_count_problem 4 2)"
+fi
+{
+  printf "          SHARDS: \${{ inputs.verify_shard_count || '4' }}\n"
+  printf '          macos_shards=$((SHARDS < 2 ? SHARDS : 2))\n'
+  printf '          leg macos-latest osx-arm64 300 150 "${SHARDS_OTHER}" ""\n'
+} >"${SHARD_DIR}/ci-unknown.yml"
+if [ -n "$(shard_lane_counts "${SHARD_DIR}/ci-unknown.yml")" ]; then
+  shard_fail "the lane-count reader accepted a lane whose shard count variable it does not know"
 fi
 
 if [ -n "$(shard_over_a_third "$lane_shard_count")" ]; then
