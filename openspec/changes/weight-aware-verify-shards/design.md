@@ -94,13 +94,13 @@ measurement run on the split (`measure-timing-win-x64-*`, run 46114774702, commi
 `715 / 759 / 517 / 331` s from verify-start to verify-end, so the pole fell to 759 s (14.4 % below the
 same run's 887 s and 15.7 % below the issue's 900 s). The final table restores `#primary`, which moves
 the 480 s `Lunate.Extensibility.Testing.Tests` from the 715 s shard that carried it beside ten small
-projects to a shard of its own; the Coding shard remains the measured 759 s pole, now beside a lighter
-set of projects, so the final `#primary`-aware assignment's pole is the measured 759 s rather than the
-715 s shard it splits.
+projects to a shard of its own and leaves the Coding project on the heavier measured shard. The 759 s
+split-run pole is therefore the recorded reference for the final assignment; a separate Windows run of
+the exact `#primary`-aware table was not available in this session.
 
 macOS is measured at two shards rather than argued from the weights. The local same-machine run of the
-test phase measured the position partition at `172` s and `3627` s and the weight partition at `954` s
-and `966` s, so the busiest shard fell from 3627 s to 966 s; the position shard's de-AT pass includes
+test phase measured the position partition at `172` s and `3627` s and the weight partition at `624` s
+and `938` s, so the busiest shard fell from 3627 s to 938 s; the position shard's de-AT pass includes
 the sandbox's process-tree timeout, recorded here as the environment skew rather than hidden. The
 position partition's own CI run (`46105412860`) measured the macOS verify step at `398` and `913` s, a
 913 s pole. The gate reports the recorded-weight comparison -- the weight partition's busiest shard at
