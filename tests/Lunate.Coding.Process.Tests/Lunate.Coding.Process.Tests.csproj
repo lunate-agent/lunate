@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <RootNamespace>Lunate.Coding.Tests</RootNamespace>
+        <AssemblyName>Lunate.Coding.Process.Tests</AssemblyName>
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- The process suite is a project of its own so a shard never carries the whole slow
+             Coding suite. The files stay under tests/Lunate.Coding.Tests, where the source folders
+             they mirror live; this project compiles them by link. -->
+        <Compile Include="InteractiveSessionWait.cs" />
+        <Compile Include="NullAgentEvents.cs" />
+        <Compile Include="../Lunate.Coding.Tests/Bash/**/*.cs" Link="Bash/%(RecursiveDir)%(Filename)%(Extension)" />
+        <Compile Include="../Lunate.Coding.Tests/Process/**/*.cs" Link="Process/%(RecursiveDir)%(Filename)%(Extension)" />
+        <Compile Include="../Lunate.Coding.Tests/Cli/CommandUnderTest.cs" Link="Shared/CommandUnderTest.cs" />
+        <Compile Include="../Lunate.Coding.Tests/FakeWorkspaceBackend.cs" Link="Shared/FakeWorkspaceBackend.cs" />
+        <Compile Include="../Lunate.Coding.Tests/GitTestRepo.cs" Link="Shared/GitTestRepo.cs" />
+        <Compile Include="../Lunate.Coding.Tests/ImageSamples.cs" Link="Shared/ImageSamples.cs" />
+        <Compile Include="../Lunate.Coding.Tests/LayeringChecker.cs" Link="Shared/LayeringChecker.cs" />
+        <Compile Include="../Lunate.Coding.Tests/LayoutRule.cs" Link="Shared/LayoutRule.cs" />
+        <Compile Include="../Lunate.Coding.Tests/PosixFactAttribute.cs" Link="Shared/PosixFactAttribute.cs" />
+        <Compile Include="../Lunate.Coding.Tests/ScriptedChatClient.cs" Link="Shared/ScriptedChatClient.cs" />
+        <Compile Include="../Lunate.Coding.Tests/Extensions/ExtensionSessionTestSupport.cs" Link="Shared/ExtensionSessionTestSupport.cs" />
+        <Compile Include="../Lunate.Coding.Tests/Print/PrintModeTestSupport.cs" Link="Shared/PrintModeTestSupport.cs" />
+        <Compile Include="../Lunate.Coding.Tests/Sessions/InteractiveSessionTestSupport.cs" Link="Shared/InteractiveSessionTestSupport.cs" />
+        <Compile Include="../Lunate.Coding.Tests/TempDirectory.cs" Link="Shared/TempDirectory.cs" />
+        <Compile Include="../Lunate.Coding.Tests/Tools/ToolEnvironmentCollection.cs" Link="Shared/ToolEnvironmentCollection.cs" />
+        <Compile Include="../Lunate.Coding.Tests/TerminalRestorePty.cs" Link="Shared/TerminalRestorePty.cs" />
+        <Compile Include="../Lunate.Coding.Tests/TestPaths.cs" Link="Shared/TestPaths.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../../src/Lunate.Agent/Lunate.Agent.csproj" />
+        <ProjectReference Include="../../src/Lunate.Ai/Lunate.Ai.csproj" />
+        <ProjectReference Include="../../src/Lunate.Coding/Lunate.Coding.csproj" />
+        <ProjectReference Include="../../src/Lunate.Extensibility.Abstractions/Lunate.Extensibility.Abstractions.csproj" />
+        <ProjectReference Include="../../src/Lunate.Extensibility/Lunate.Extensibility.csproj" />
+        <ProjectReference Include="../../src/Lunate.Tui/Lunate.Tui.csproj" />
+        <ProjectReference Include="../Lunate.TestSupport/Lunate.TestSupport.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="xunit.v3" Version="4.0.1" />
+        <PackageReference Include="Spectre.Console.Testing" Version="0.57.2" />
+        <Using Include="Xunit" />
+        <Using Include="Lunate.TestSupport" />
+    </ItemGroup>
+</Project>

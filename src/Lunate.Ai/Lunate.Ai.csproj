@@ -49,6 +49,7 @@
         <!-- The credential probe applies the same own-endpoint rule as the client factory. -->
         <InternalsVisibleTo Include="Lunate.Coding" />
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
+        <InternalsVisibleTo Include="Lunate.Coding.Process.Tests" />
         <!-- The CLI refresh reuses the one default managed-catalog path instead of duplicating it. -->
         <InternalsVisibleTo Include="lunate" />
         <!-- The session format tests pin request digests with the replay format's own hash. -->

@@ -599,6 +599,16 @@ for shard_count in 1 2 3 4; do
   done
 done
 
+echo "gate-tests: every test project must be in exactly one shard for both culture passes"
+for shard_count in 1 2 3 4; do
+  split_projects="$(SHARD_I=1 SHARD_N="$shard_count" verify_shard_plan | awk -F'\t' '
+    { if (!($2 in first)) { first[$2] = $3 } else if (first[$2] != $3) { print $2 } }
+  ')"
+  if [ -n "$split_projects" ]; then
+    shard_fail "at ${shard_count} shards these projects are not in exactly one shard: $(printf '%s' "$split_projects" | tr '\n' ' ')"
+  fi
+done
+
 echo "gate-tests: the partition must be byte-identical across calls"
 shard_plan_once="$(SHARD_I=1 SHARD_N=4 verify_shard_plan)"
 shard_plan_twice="$(SHARD_I=1 SHARD_N=4 verify_shard_plan)"
@@ -696,7 +706,7 @@ for shard_count in 1 2 3 4; do
   done
 done
 
-echo "gate-tests: a project heavier than a shard's fair share must have its two culture passes in different shards"
+echo "gate-tests: the heaviest project must be planned as one project, not one unit per culture pass"
 heaviest_project=""
 heaviest_weight=0
 while IFS= read -r shard_project; do
@@ -706,18 +716,13 @@ while IFS= read -r shard_project; do
     heaviest_project="$shard_project"
   fi
 done < <(verify_test_projects)
-lane_total=0
-for shard_index in $(seq 1 "$lane_shard_count"); do
-  lane_total=$((lane_total + $(shard_load "$shard_index" "$lane_shard_count")))
-done
-if [ -n "$heaviest_project" ] && [ $((heaviest_weight * lane_shard_count)) -gt "$lane_total" ]; then
-  heaviest_default="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan | awk -F'\t' -v project="$heaviest_project" '$1 == "default" && $2 == project { print $3 }')"
-  heaviest_deat="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan | awk -F'\t' -v project="$heaviest_project" '$1 == "de-at" && $2 == project { print $3 }')"
-  if [ -z "$heaviest_default" ] || [ -z "$heaviest_deat" ]; then
-    shard_fail "the heaviest project $heaviest_project has no unit in the ${lane_shard_count}-shard plan"
-  fi
-  if [ "$heaviest_default" = "$heaviest_deat" ]; then
-    shard_fail "the heaviest project $heaviest_project (${heaviest_weight}s a pass) has both culture passes in shard ${heaviest_default}"
+if [ -n "$heaviest_project" ]; then
+  heaviest_units="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan |
+    awk -F'\t' -v project="$heaviest_project" '$2 == project { print }' | grep -c . || true)"
+  heaviest_shards="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan |
+    awk -F'\t' -v project="$heaviest_project" '$2 == project { print $3 }' | LC_ALL=C sort -u | grep -c . || true)"
+  if [ "$heaviest_units" -ne 2 ] || [ "$heaviest_shards" -ne 1 ]; then
+    shard_fail "the heaviest project $heaviest_project (${heaviest_weight}s a pass) has ${heaviest_units} unit(s) in ${heaviest_shards} shard(s) at ${lane_shard_count} shards, not one project in one shard"
   fi
 fi
 
@@ -743,9 +748,9 @@ if [ -z "$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/stale.tsv" verify_shard_stale
 fi
 
 echo "gate-tests: the balance check must reject a lane whose pole is a third of it, not wave it through"
-# Every project weighs 1 s and the pole weighs 5000 s: its two culture passes still land in different
-# shards, but one pass alone is then over a third of the lane, which no partition can fix - the check
-# has to say so rather than report a partition it cannot balance.
+# Every project weighs 1 s and the pole weighs 5000 s: the project lands in one shard whatever the
+# table says, but its two passes then put that shard over a third of the lane, which no partition can
+# fix - the check has to say so rather than report a partition it cannot balance.
 {
   printf '#primary\t0\n'
   while IFS= read -r shard_project; do
@@ -763,8 +768,8 @@ fi
 pole_split="$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/pole.tsv" SHARD_I=1 SHARD_N=4 verify_shard_plan |
   awk -F'\t' '$2 == "tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj" { print $3 }' |
   LC_ALL=C sort -u | grep -c . || true)"
-if [ "$pole_split" -ne 2 ]; then
-  shard_fail "the pole's two culture passes were planned into ${pole_split} shard(s), not 2"
+if [ "$pole_split" -ne 1 ]; then
+  shard_fail "the pole's project was planned into ${pole_split} shard(s), not one"
 fi
 echo "gate-tests: the third is a four-shard property, which is why macOS keeps its two-shard cap and its own acceptance"
 # The recorded table at two shards leaves one shard carrying about half the lane. The card does not ask

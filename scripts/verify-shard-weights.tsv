@@ -41,7 +41,8 @@ samples/extensions/worktree-tasks/WorktreeTasksExtension.Tests/WorktreeTasksExte
 templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj	4
 tests/Lunate.Agent.Tests/Lunate.Agent.Tests.csproj	22
 tests/Lunate.Ai.Tests/Lunate.Ai.Tests.csproj	7
-tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj	406
+tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj	300
+tests/Lunate.Coding.Process.Tests/Lunate.Coding.Process.Tests.csproj	116
 tests/Lunate.Extensibility.Compile.Tests/Lunate.Extensibility.Compile.Tests.csproj	29
 tests/Lunate.Extensibility.Remote.Tests/Lunate.Extensibility.Remote.Tests.csproj	5
 tests/Lunate.Extensibility.Restore.Tests/Lunate.Extensibility.Restore.Tests.csproj	54

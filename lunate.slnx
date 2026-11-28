@@ -76,6 +76,7 @@
     <Project Path="tests/Lunate.Agent.Tests/Lunate.Agent.Tests.csproj" />
     <Project Path="tests/Lunate.Ai.Tests/Lunate.Ai.Tests.csproj" />
     <Project Path="tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj" />
+    <Project Path="tests/Lunate.Coding.Process.Tests/Lunate.Coding.Process.Tests.csproj" />
     <Project Path="tests/Lunate.Extensibility.Compile.Tests/Lunate.Extensibility.Compile.Tests.csproj" />
     <Project Path="tests/Lunate.Extensibility.Remote.Tests/Lunate.Extensibility.Remote.Tests.csproj" />
     <Project Path="tests/Lunate.Extensibility.Restore.Tests/Lunate.Extensibility.Restore.Tests.csproj" />

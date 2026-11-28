@@ -85,6 +85,14 @@ internal static class LayeringChecker
             // cacheable prefix; the loop under test is still Agent.
             ("Lunate.Agent.Tests", "Lunate.Coding"),
             ("Lunate.Ai.Tests", "Lunate.Ai"),
+            // The process and shell suites are their own project; they reach the same host layers.
+            ("Lunate.Coding.Process.Tests", "Lunate.Agent"),
+            ("Lunate.Coding.Process.Tests", "Lunate.Ai"),
+            ("Lunate.Coding.Process.Tests", "Lunate.Coding"),
+            ("Lunate.Coding.Process.Tests", "Lunate.Extensibility.Abstractions"),
+            ("Lunate.Coding.Process.Tests", "Lunate.Extensibility"),
+            ("Lunate.Coding.Process.Tests", "Lunate.Tui"),
+            ("Lunate.Coding.Process.Tests", "Lunate.TestSupport"),
             ("Lunate.Coding.Tests", "Lunate.Coding"),
             ("Lunate.Coding.Tests", "Lunate.Roslyn.BuiltIn"),
             ("Lunate.Coding.Tests", "HelloExtension"),

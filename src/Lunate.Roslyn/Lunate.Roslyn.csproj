@@ -26,6 +26,7 @@
         <!-- The Coding integration proofs drive the backend through the registry and read the
              load counter and the bootstrap seam. -->
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
+        <InternalsVisibleTo Include="Lunate.Coding.Process.Tests" />
     </ItemGroup>
 
     <ItemGroup>
