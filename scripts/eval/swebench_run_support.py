@@ -368,13 +368,18 @@ def render_markdown(summary: dict) -> str:
         f"Dataset: `{summary['dataset']}` (`{summary['split']}`), subset: {summary['total']} instances.",
         f"Cost cap: ${summary['maxCostUsd']:.2f}; reported spend: {total}.",
         "",
-        "| Arm | Model | Tier | Resolved | Spend | Steps | Wall time | $/resolved | Failures |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Arm | Model | Decision model | Tier | Resolved | Spend | Steps | Wall time "
+        "| $/resolved | Failures |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for arm in summary["arms"]:
         spend = "unpriced" if arm["spendUsd"] is None else f"${arm['spendUsd']:.4f}"
+        # A decision arm runs two models; both ids travel with its numbers, in the rendered
+        # summary as well as in summary.json.
+        decision_model = arm.get("decisionModel")
+        decision = f"`{decision_model}`" if decision_model else "—"
         lines.append(
-            f"| {arm['arm']} | `{arm['model']}` | {arm['tier']} | "
+            f"| {arm['arm']} | `{arm['model']}` | {decision} | {arm['tier']} | "
             f"{arm['resolved']}/{arm['total']} | {spend} | {arm.get('steps', 'unknown')} | "
             f"{format_seconds(arm.get('seconds'))} | "
             f"{format_usd(arm.get('costPerResolvedUsd'))} | {len(arm['failures'])} |"

@@ -727,6 +727,56 @@ class SwebenchRunSummaryTests(unittest.TestCase):
         self.assertIn("$0.4000", markdown)
         self.assertIn("| 12 |", markdown)
 
+    def test_the_markdown_records_the_decision_arm_under_both_model_ids(self) -> None:
+        main = "opencode-go/deepseek-v4.1-flash"
+        decision = "opencode-go/glm-5.3-flash"
+        summary = {
+            "runId": "run-1",
+            "dataset": "SWE-bench/SWE-bench_Verified",
+            "split": "test",
+            "total": 1,
+            "maxCostUsd": 2.0,
+            "totalSpendUsd": 0.4,
+            "capReached": False,
+            "arms": [
+                {
+                    "arm": "lunate",
+                    "tier": "decision",
+                    "model": main,
+                    "decisionModel": decision,
+                    "resolved": 1,
+                    "total": 1,
+                    "spendUsd": 0.4,
+                    "steps": 12,
+                    "failures": [],
+                },
+                {
+                    "arm": "lunate",
+                    "tier": "budget",
+                    "model": main,
+                    "resolved": 1,
+                    "total": 1,
+                    "spendUsd": 0.1,
+                    "steps": 7,
+                    "failures": [],
+                },
+            ],
+        }
+
+        markdown = render_markdown(summary)
+        header = next(line for line in markdown.splitlines() if line.startswith("| Arm |"))
+        rows = [line for line in markdown.splitlines() if line.startswith("| lunate |")]
+
+        self.assertIn("Decision model", header)
+        self.assertEqual(2, len(rows))
+        by_tier = {row.split("|")[4].strip(): row for row in rows}
+        decision_cells = [cell.strip() for cell in by_tier["decision"].strip("|").split("|")]
+        single_cells = [cell.strip() for cell in by_tier["budget"].strip("|").split("|")]
+        self.assertEqual(f"`{main}`", decision_cells[1])
+        self.assertEqual(f"`{decision}`", decision_cells[2])
+        self.assertEqual(f"`{main}`", single_cells[1])
+        self.assertEqual("—", single_cells[2])
+
     def test_official_counts_come_from_the_harness_summary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1044,6 +1094,35 @@ if "--lunate-home" in args:
             self.assertEqual("decision", home["decisions"]["profile"])
             self.assertEqual("shadow", home["decisions"]["approvals"])
             self.assertEqual(decision_model, home["profiles"]["decision"]["model"])
+            # The rendered summary names the arm under both model ids, not only the JSON.
+            merged = subprocess.run(
+                [
+                    sys.executable,
+                    str(REPOSITORY / "scripts" / "eval" / "swebench_run.py"),
+                    "--config",
+                    str(config),
+                    "--work-dir",
+                    str(work),
+                    "--summary-dir",
+                    str(summary),
+                    "--run-id",
+                    "run-1",
+                    "--arm",
+                    "merge",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(0, merged.returncode, merged.stderr)
+            markdown = (summary / "summary.md").read_text(encoding="utf-8")
+            decision_line = next(
+                line
+                for line in markdown.splitlines()
+                if line.startswith("| lunate |") and line.split("|")[4].strip() == "decision"
+            )
+            self.assertIn(f"`{decision_main}`", decision_line)
+            self.assertIn(f"`{decision_model}`", decision_line)
 
 
 class SwebenchRunCapTests(unittest.TestCase):
