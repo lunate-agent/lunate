@@ -15,22 +15,22 @@
 #   scripts/shard-weights.sh weights --from <dir holding verify-timing artifacts> \
 #     --out scripts/verify-shard-weights.tsv
 #
-# Recorded from a real run's own per-project records, not estimated: the four shards of
+# Recorded from a real run's own per-project records: the four shards of
 # `bash scripts/verify.sh --shard i/4` on 2026-11-28 (osx-arm64, macOS 26.3.1, Mac mini M4, 10 cores),
 # each shard's default and de-AT pass recorded by scripts/shard-weights.sh and folded with
 # `weights --from`, taking the slower of a project's two recorded passes. Before this run the table
 # named one project and left the other twenty-two on the default weight, which is what the review
-# sent back (#1043).
+# sent back (#1043). The split's two Coding rows are the recorded suite's 406 s divided at the
+# process boundary (300 + 116); the next run's records replace them.
 #
 # Known skew, recorded with the numbers rather than hidden: the lane sandbox blocks 19 process-tree
 # and pty tests in the Coding suite (ProcessSession, BashBackgroundJob, ProcessRunner,
 # UnixChildProcess, SignalTerminalRestore, DiagnosticScrubber, BashGuardTool and WaitDiagnosis tests),
 # and their timeout waits are part of the suite's recorded 406 s. The split moves those tests into
-# `Lunate.Coding.Process.Tests`; its 116 s and `Lunate.Coding.Tests`' 300 s are the recorded suite
-# divided at the process boundary, and the next run's records refresh both. The Windows lane's own
-# record for one pass of the old suite is about 390 s. `#primary` is the reference run's 110 s: a full
-# local gate run is not measurable on this machine (the sandbox kills it), and the same fold refreshes
-# it from a run's `verify-<rid>-<shard>-of-<n>.json`.
+# `Lunate.Coding.Process.Tests`, whose 116 s and `Lunate.Coding.Tests`' 300 s are the split above.
+# The Windows lane's own record for one pass of the old suite is about 390 s. `#primary` is the
+# reference run's 110 s: a full local gate run is not measurable on this machine (the sandbox kills
+# it), and the same fold refreshes it from a run's `verify-<rid>-<shard>-of-<n>.json`.
 #primary	110
 extensions/lsp-diagnostics/LspDiagnosticsExtension.Tests/LspDiagnosticsExtension.Tests.csproj	16
 extensions/permission-gate/PermissionGateExtension.Tests/PermissionGateExtension.Tests.csproj	4

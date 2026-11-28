@@ -86,6 +86,14 @@ because no partition can beat a single project heavier than the fair share. On t
 four shards the heaviest project alone is over a quarter of the lane, so the fair-share-only form of
 the bound would reject the best possible partition; the gate names the lower bound it used when it
 fails.
+On the recorded table the four-shard Ubuntu and Windows loads are `704 / 960 / 704 / 704` s of
+3072 s, a pole of 31.25 %, inside the third. The Windows measurement run on the split
+(`measure-timing-win-x64-*`, run 46114774702) took `715 / 759 / 517 / 331` s from verify-start to
+verify-end, so the pole fell from the recorded 900 s to 759 s (15.7 %); the final table also restores
+`#primary`, which moves `Lunate.Extensibility.Testing.Tests` from the 715 s shard that carried it
+beside ten small projects to a shard of its own. Within macOS's two shards the gate reports the weight
+partition's busiest shard at 1536 s against the position partition's 2216 s, and its predicted wall
+pole at 960 s against 1070 s.
 
 ### The table is recorded, reviewed and refreshable
 
