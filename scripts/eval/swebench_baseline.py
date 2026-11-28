@@ -6,7 +6,8 @@ import json
 import os
 from pathlib import Path
 
-from swebench_process import instance_image, run_command, safe
+from swebench_process import instance_image, run_command, safe, utc_now
+from swebench_run_support import elapsed_seconds
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 SWEBENCH_DIR = REPOSITORY / "eval" / "swebench"
@@ -103,12 +104,14 @@ def run_baseline_instance(
     trajectory = baseline_root / f"{model['tier']}-{safe(instance_id)}.traj.json"
     env = baseline_environment(definition, model)
     log = work_root / "logs" / f"baseline-{model['tier']}-{safe(instance_id)}.log"
+    started = utc_now()
     result = run_command(
         baseline_command(definition, instance_id, model, trajectory, remaining),
         cwd=baseline_root,
         env=env,
         log=log,
     )
+    finished = utc_now()
     info = {}
     if trajectory.is_file():
         info = json.loads(trajectory.read_text(encoding="utf-8")).get("info") or {}
@@ -166,6 +169,8 @@ def run_baseline_instance(
         "resolved": resolved,
         "spendUsd": spend,
         "steps": int(stats.get("api_calls") or 0),
+        "decisionSteps": 0,
+        "seconds": elapsed_seconds(started, finished),
         "inputTokens": 0,
         "outputTokens": 0,
         "limit": None,

@@ -160,6 +160,54 @@ from the official harness, so the comparison reads: steps, tokens and resolve ra
 The comparison itself needs Docker and a live provider credential; it is a maintainer step, not a
 repository test.
 
+### The decision arm
+
+`run.json`'s third Lunate arm runs the decision layer: a `main` chat model with a `decision` model
+advising it. Its whole configuration is the arm entry, so the numbers travel with the settings they
+were produced under:
+
+```json
+{
+  "tier": "decision",
+  "main": { "id": "opencode-go/deepseek-v4.1-flash", "credential": "OPENCODE_GO_API_KEY" },
+  "decision": { "id": "opencode-go/glm-5.3-flash", "credential": "OPENCODE_GO_API_KEY" },
+  "decisionLayer": "on",
+  "note": "The decision layer runs the main model with the decision model advising on routing and stops. Committed with the run so the configuration travels with the numbers."
+}
+```
+
+The orchestrator turns that entry into the arm's `LUNATE_HOME` instead of asking for a prepared
+directory: it writes `<work-dir>/<run-id>/lunate-home/decision/settings.json` and `providers.json`,
+with one profile per model and, for `decisionLayer: "on"`, the `decisions` block — the decision
+profile with the two consumers the arm's note declares, routing and the approval gate, both in
+shadow. The decision model therefore advises on routing and on stops: it records what it would have
+done for a routed selection and for an approval ask, the main model stays the chat model, and the
+ordinary approval flow answers every ask, because only `enforce` changes execution (an enforcing
+gate fails closed on a deny under `--yolo`, which would measure the gate rather than the agent).
+The `providers.json` entry is
+built from the repository's preset table (`src/Lunate.Ai/providers.json`) — endpoints, models URL
+and headers — because a profile resolves only against a configured provider, and the in-image home
+starts with an empty provider store. Its `credentialReference` is `env:<the arm's credential>`:
+the credential appears as a variable name only, and the arm's `credential` fields also drive the
+`--env` forwarding, so the value never enters the run definition. The home is copied into each
+instance's run directory, so a committed run carries the exact settings that produced it. The
+baseline has no decision arm: mini-swe-agent has no decision layer.
+
+Every instance row records resolved, spend, steps, `decisionSteps` and wall time (`seconds`), and
+every arm records `costPerResolvedUsd` — its spend divided by its resolved count, unknown when the
+arm resolved nothing or its spend is unpriced. `steps` counts the chat model's calls only, so a
+decision call never inflates the arm's step count against a single-model arm. A decision arm's spend
+is the sum of the per-record prices the run stamped on its usage events, which prices the main and
+decision models at their own catalog rates; one unpriced record makes the instance unpriced.
+
+```bash
+python3 scripts/eval/swebench_run.py --arm all --lunate-bin artifacts/linux-x64/lunate \
+  --mini-extra mini-extra --run-id <run-id>
+```
+
+That one command runs all three Lunate arms and both baseline arms under the one cap in
+`run.json` (US$2.00); reaching it stops the run and the summary reports the spend and the limit stop.
+
 ## Published SWE-bench run
 
 The first published run is pinned in `eval/swebench/`:
@@ -167,7 +215,7 @@ The first published run is pinned in `eval/swebench/`:
 | File | Contents |
 | --- | --- |
 | `instances.txt` | The fixed five-instance subset: every 100th id in lexicographic order of the 500-instance Verified test split. |
-| `run.json` | The dataset and split, the budget and frontier models, one run cost cap, the timeout, the evaluation worker count and the mini-swe-agent settings. |
+| `run.json` | The dataset and split, the budget and frontier models, the decision arm (a `main` and a `decision` model with the layer on), one run cost cap, the timeout, the evaluation worker count and the mini-swe-agent settings. |
 | `litellm-models.json` | The baseline models' token prices, because LiteLLM does not know these new ids. |
 | `mini-swe-agent.yaml` | The `x-opencode-session` header that OpenCode Go requires and LiteLLM does not send. |
 
@@ -194,8 +242,10 @@ The first two write `<run-id>.lunate.json` and `<run-id>.baseline.json`; `merge`
 committed `summary.json` and `summary.md`. `--resume` reuses a completed Lunate instance run.
 
 The orchestrator passes the run's remaining budget to each Lunate invocation as `--max-cost`, runs
-mini-swe-agent on the same subset and models with its own cost limit, and takes every resolved count
-from `swebench.harness.run_evaluation`. When an instance's spend cannot be priced in either arm,
+mini-swe-agent on the same subset and single-model models with its own cost limit, and takes every
+resolved count from `swebench.harness.run_evaluation`. The summary records each arm's resolved
+count, spend, steps, wall time and cost per resolved instance, and each instance row's own resolved
+verdict, spend, steps and `seconds`. When an instance's spend cannot be priced in either arm,
 the run stops and the summary reports that instance as unpriced and the run total as unknown —
 never the cap or a number above it. A mini-swe-agent trajectory whose `instance_cost` is missing or
 non-positive is unpriced, not zero spend. The committed `eval/swebench/summary.json` and
