@@ -135,34 +135,57 @@ that handoff. A second adapter for ProgramBench, if wanted, is a separate change
 official `programbench` CLI.
 
 
-### Comparing an optional tool on and off
+### The three-arm comparison sample
 
 `semantic_search` is off unless `tools.extra` names it and `usages.embeddings` resolves to an
-embedding profile, so the two arms of a comparison differ in one prepared home:
+embedding profile, so a comparison of the tool is two arms that differ in it, plus the baseline:
+
+| Arm | Tool | `semanticSearch` | Model |
+| --- | --- | --- | --- |
+| `semantic-search-off` | lunate | off, no prepared home | `opencode-go/deepseek-v4.1-flash` |
+| `semantic-search-on` | lunate | on, `google/gemini-embedding-001` | `opencode-go/deepseek-v4.1-flash` |
+| `baseline` | mini-swe-agent | — | `opencode-go/deepseek-v4.1-flash` |
+
+The arms are data in `eval/swebench/run.json`: each names its `tool` (`lunate` or `mini-swe-agent`),
+its `tier`, its model id and the credential variable that serves it, and a Lunate arm names
+`semanticSearch` (`on` or `off`). An `on` arm also names the embeddings model and that model's
+credential (`GOOGLE_API_KEY` for `google/gemini-embedding-001`); an `off` arm names neither, and a
+`mini-swe-agent` arm cannot enable a Lunate tool. The definition loader refuses a malformed arm
+instead of skipping it, and a baseline arm whose model no Lunate arm runs.
+
+The orchestrator turns an `on` arm into a prepared home in the run tree
+(`<run>/lunate-home/semantic-search-on/settings.json` and `providers.json`): `tools.extra` names the
+tool, `usages.embeddings` is bound to the embeddings profile, and no chat profile is written because
+the chat model still comes from `--model`. The off arm runs with no home at all, so the two
+container commands differ only by `--lunate-home`. As in a decision arm's home, the provider entry
+is the preset's endpoints, models URL and headers with `credentialReference: "env:<variable>"`, so
+the value stays in the environment and the arm's `credential` fields drive the `--env` forwarding.
+The index the tool builds is cached under `LUNATE_HOME`, inside the per-instance run directory;
+`runs/.gitignore` keeps that cache out of a committed run.
+
+`--arm all` runs the two Lunate arms and then the baseline arm on the one pinned sample:
 
 ```bash
-# the tool-off arm: no --lunate-home, exactly the published command
-python3 scripts/eval/swebench.py --instance <id> --model <id> --lunate-bin artifacts/linux-x64/lunate \
-  --run-id tool-off
-
-# the tool-on arm: a home whose settings.json names the tool and binds the usage
-python3 scripts/eval/swebench_run.py --arm lunate --lunate-bin artifacts/linux-x64/lunate \
-  --lunate-home /path/to/prepared-home --run-id tool-on
+export OPENCODE_GO_API_KEY=... GOOGLE_API_KEY=...
+python3 scripts/eval/swebench_run.py --arm all \
+  --lunate-bin artifacts/linux-x64/lunate --mini-extra mini-extra --run-id <run-id>
 ```
 
-The prepared home holds `settings.json` (`"tools": {"extra": ["semantic_search"]}` and
-`"usages": {"embeddings": "<profile>"}`) and `providers.json`; nothing else from the directory is
-copied, and the provider credential is still forwarded by name. Both arms record their own
-`steps`, `inputTokens` and `outputTokens` per instance in `summary.json`, and resolve counts come
-from the official harness, so the comparison reads: steps, tokens and resolve rate, arm against arm.
-The comparison itself needs Docker and a live provider credential; it is a maintainer step, not a
-repository test.
+Every instance row records resolved, spend, steps, input and output tokens, wall time,
+`semanticSearchCalls` and `embeddingCalls`; every arm records its own name, the sum of its rows'
+search calls and `costPerResolvedUsd`. A `semantic_search` call is counted from the `tool_call_start`
+event that names the tool, so a call inside a step never becomes a step, and an embeddings usage
+record is not an agent step either. An arm that runs a non-chat usage model — a decision model or an
+embeddings model — is priced from the per-record prices on its usage events, so the on arm's
+embedding tokens are charged at the embeddings model's own rate; one unpriced record makes the
+instance unpriced. The comparison itself needs Docker with the official images and live provider
+credentials.
 
 ### The decision arm
 
-`run.json`'s third Lunate arm runs the decision layer: a `main` chat model with a `decision` model
-advising it. Its whole configuration is the arm entry, so the numbers travel with the settings they
-were produced under:
+A run definition may name a decision arm: a `main` chat model with a `decision` model advising it.
+Its whole configuration is the arm entry, so the numbers travel with the settings they were produced
+under:
 
 ```json
 {
@@ -203,26 +226,33 @@ python3 scripts/eval/swebench_run.py --arm all --lunate-bin artifacts/linux-x64/
   --mini-extra mini-extra --run-id <run-id>
 ```
 
-That one command runs all three Lunate arms and both baseline arms under the one cap in
-`run.json` (US$2.00); reaching it stops the run and the summary reports the spend and the limit stop.
+That one command runs every arm the definition names — the pinned definition's two Lunate arms and
+its baseline arm — on the one pinned sample under the definition's one cap; reaching it stops the
+run and the summary reports the spend and the limit stop.
 
 ## Published SWE-bench run
 
-The first published run is pinned in `eval/swebench/`:
+The current run definition is pinned in `eval/swebench/`:
 
 | File | Contents |
 | --- | --- |
-| `instances.txt` | The fixed five-instance subset: every 100th id in lexicographic order of the 500-instance Verified test split. |
-| `run.json` | The dataset and split, the budget and frontier models, the decision arm (a `main` and a `decision` model with the layer on), one run cost cap, the timeout, the evaluation worker count and the mini-swe-agent settings. |
+| `instances.txt` | The fixed 50-instance sample: every 10th id in lexicographic order of the 500-instance Verified test split (indices 0, 10, …, 490), the rule in its header. |
+| `run.json` | The dataset, split and selection rule; the three arms (`semantic-search-off`, `semantic-search-on`, `baseline`) with their tool, tier, model, credential and tool state; one run cost cap (US$4.00); the timeout, the evaluation worker count and the mini-swe-agent settings. |
 | `litellm-models.json` | The baseline models' token prices, because LiteLLM does not know these new ids. |
 | `mini-swe-agent.yaml` | The `x-opencode-session` header that OpenCode Go requires and LiteLLM does not send. |
 
-Run both arms and write the committed summary:
+The committed `summary.json` and `summary.md` are the record of the five-instance run
+`rerun-624-bosgame-2` made under the previous definition; that definition is kept with its evidence
+under `runs/rerun-624-bosgame-2/definition/`, so the numbers can still be read against the
+definition that produced them. A run of the pinned 50-instance definition writes its own summary
+and its evidence under `runs/<run-id>/`.
+
+Run every arm and write the summary:
 
 ```bash
 dotnet publish src/Lunate.Coding -c Release -r linux-x64 --self-contained true \
   -p:PublishSingleFile=true -o artifacts/linux-x64
-export OPENCODE_GO_API_KEY=... OPENROUTER_API_KEY=...
+export OPENCODE_GO_API_KEY=... GOOGLE_API_KEY=...
 python3 scripts/eval/swebench_run.py --arm all \
   --lunate-bin artifacts/linux-x64/lunate --mini-extra mini-extra --run-id <run-id>
 ```
@@ -240,10 +270,10 @@ The first two write `<run-id>.lunate.json` and `<run-id>.baseline.json`; `merge`
 committed `summary.json` and `summary.md`. `--resume` reuses a completed Lunate instance run.
 
 The orchestrator passes the run's remaining budget to each Lunate invocation as `--max-cost`, runs
-mini-swe-agent on the same subset and single-model models with its own cost limit, and takes every
+mini-swe-agent on the same subset and model with its own cost limit, and takes every
 resolved count from `swebench.harness.run_evaluation`. The summary records each arm's resolved
 count, spend, steps, wall time and cost per resolved instance, and each instance row's own resolved
-verdict, spend, steps and `seconds`. When an instance's spend cannot be priced in either arm,
+verdict, spend, steps, tokens, search calls and `seconds`. When an instance's spend cannot be priced in either arm,
 the run stops and the summary reports that instance as unpriced and the run total as unknown —
 never the cap or a number above it. A mini-swe-agent trajectory whose `instance_cost` is missing or
 non-positive is unpriced, not zero spend. The committed `eval/swebench/summary.json` and

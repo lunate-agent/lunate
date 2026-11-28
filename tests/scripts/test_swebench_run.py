@@ -11,10 +11,13 @@ sys.path.insert(0, str(REPOSITORY / "scripts" / "eval"))
 from swebench_run_support import (  # noqa: E402
     arm_chat_model,
     arm_credentials,
+    arm_id,
     arm_instance_spend,
+    arm_tool,
     decision_home_files,
     decision_model_id,
     elapsed_seconds,
+    embeddings_model_id,
     instance_spend,
     load_definition,
     load_subset,
@@ -22,6 +25,8 @@ from swebench_run_support import (  # noqa: E402
     priced_spend,
     record_spend,
     render_markdown,
+    semantic_search_enabled,
+    semantic_search_home_files,
     summarize_arm,
     trajectory_totals,
 )
@@ -44,32 +49,78 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
         ]
 
         self.assertEqual(500, len(official))
+        # The card's sample: 50 instances, every 10th id of the official order.
+        self.assertEqual(50, len(subset))
+        self.assertEqual([official[index] for index in range(0, 500, 10)], subset)
+
+    def test_the_pinned_arms_are_the_three_comparison_arms(self) -> None:
+        definition = load_definition(EVAL / "run.json")
+        arms = definition["models"]
+
         self.assertEqual(
-            [official[index] for index in (0, 100, 200, 300, 400)],
-            subset,
+            ["semantic-search-off", "semantic-search-on", "baseline"],
+            [arm_id(arm) for arm in arms],
+        )
+        self.assertEqual(
+            ["lunate", "lunate", "mini-swe-agent"], [arm_tool(arm) for arm in arms]
+        )
+        self.assertEqual("SWE-bench/SWE-bench_Verified", definition["dataset"])
+        self.assertIn("Every 10th instance id", definition["selection"])
+        # The card's cap: one run stops at US$4.00 and reports what it got.
+        self.assertEqual(4, definition["limits"]["maxCostUsd"])
+        # All three arms run the one budget model, so the comparison is the tool, not the model.
+        self.assertEqual(
+            {"opencode-go/deepseek-v4.1-flash"}, {arm_chat_model(arm) for arm in arms}
         )
 
-    def test_the_pinned_models_are_one_budget_one_frontier_and_the_decision_arm(self) -> None:
+    def test_the_comparison_arms_name_the_tool_state_as_data(self) -> None:
         definition = load_definition(EVAL / "run.json")
+        off, on, baseline = definition["models"]
 
-        tiers = sorted(model["tier"] for model in definition["models"])
-        self.assertEqual(["budget", "decision", "frontier"], tiers)
-        self.assertEqual("SWE-bench/SWE-bench_Verified", definition["dataset"])
-        self.assertGreater(definition["limits"]["maxCostUsd"], 0)
-        # The card's cap: one run stops at US$2.00 and reports what it got.
-        self.assertEqual(2, definition["limits"]["maxCostUsd"])
+        self.assertEqual("off", off["semanticSearch"])
+        self.assertFalse(semantic_search_enabled(off))
+        self.assertIsNone(embeddings_model_id(off))
+        self.assertEqual(["OPENCODE_GO_API_KEY"], arm_credentials(off))
+        self.assertEqual("on", on["semanticSearch"])
+        self.assertTrue(semantic_search_enabled(on))
+        self.assertEqual("google/gemini-embedding-001", embeddings_model_id(on))
+        self.assertEqual(
+            {"OPENCODE_GO_API_KEY", "GOOGLE_API_KEY"}, set(arm_credentials(on))
+        )
+        # Apart from the tool's state and the note, the two Lunate arms are the same arm.
+        tool_only = ("arm", "semanticSearch", "embeddings", "note")
+        self.assertEqual(
+            {key: value for key, value in on.items() if key not in tool_only},
+            {key: value for key, value in off.items() if key not in tool_only},
+        )
+        self.assertNotIn("semanticSearch", baseline)
+        self.assertEqual("mini-swe-agent", arm_tool(baseline))
 
-    def test_the_decision_arm_is_the_card_configuration(self) -> None:
-        definition = load_definition(EVAL / "run.json")
-        decision = next(model for model in definition["models"] if model["tier"] == "decision")
+    def test_the_on_arm_carries_a_prepared_home(self) -> None:
+        on = next(
+            arm for arm in load_definition(EVAL / "run.json")["models"] if semantic_search_enabled(arm)
+        )
 
-        self.assertEqual("opencode-go/deepseek-v4.1-flash", arm_chat_model(decision))
-        self.assertEqual("opencode-go/glm-5.3-flash", decision_model_id(decision))
-        self.assertEqual("on", decision["decisionLayer"])
-        self.assertEqual("OPENCODE_GO_API_KEY", decision["main"]["credential"])
-        self.assertEqual("OPENCODE_GO_API_KEY", decision["decision"]["credential"])
-        self.assertIn("decision layer", decision["note"])
-        self.assertEqual(["OPENCODE_GO_API_KEY"], arm_credentials(decision))
+        home = semantic_search_home_files(on)
+        settings = home["settings.json"]
+        providers = home["providers.json"]["providers"]
+
+        self.assertEqual(["semantic_search"], settings["tools"]["extra"])
+        self.assertEqual("embeddings", settings["usages"]["embeddings"])
+        self.assertEqual(
+            "google/gemini-embedding-001",
+            settings["profiles"]["embeddings"]["model"],
+        )
+        # The chat model stays on --model, so the home carries no chat profile.
+        self.assertNotIn("chat", settings["usages"])
+        self.assertEqual(1, len(providers))
+        entry = providers[0]
+        self.assertEqual("google", entry["kind"])
+        self.assertEqual("env:GOOGLE_API_KEY", entry["credentialReference"])
+        self.assertEqual(
+            settings["profiles"]["embeddings"]["provider"], entry["name"]
+        )
+        self.assertNotIn("GOOGLE_API_KEY", json.dumps(home).replace("env:GOOGLE_API_KEY", ""))
 
     def test_a_second_decision_arm_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -154,11 +205,12 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
 
     def test_the_baseline_command_carries_the_registry_and_session_header(self) -> None:
         definition = load_definition(EVAL / "run.json")
+        baseline = next(arm for arm in definition["models"] if arm_tool(arm) == "mini-swe-agent")
 
         command = baseline_command(
             definition,
             "alpha__one-1",
-            definition["models"][0],
+            baseline,
             Path("trajectory.json"),
             5.0,
         )
@@ -170,7 +222,7 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
         self.assertTrue(any("model.litellm_model_registry=" in part for part in command))
         self.assertTrue(any("model.model_kwargs.api_base=" in part for part in command))
         self.assertIn("agent.step_limit=50", command)
-        self.assertIn("agent.cost_limit=3.0000", command)
+        self.assertIn("agent.cost_limit=4.0000", command)
 
 
 class SwebenchRunAdapterCommandTests(unittest.TestCase):
@@ -1141,6 +1193,19 @@ class SwebenchRunCapTests(unittest.TestCase):
             "_resume": False,
         }
 
+    def with_baseline(self, definition: dict) -> dict:
+        """The same run plus the one baseline arm the tool runs explicitly."""
+        definition["models"] = definition["models"] + [
+            {
+                "arm": "baseline",
+                "tool": "mini-swe-agent",
+                "tier": "budget",
+                "id": "opencode-go/budget",
+                "credential": "KEY",
+            }
+        ]
+        return definition
+
     def test_an_unpriced_instance_stops_the_run_and_leaves_the_total_unknown(self) -> None:
         from unittest import mock
 
@@ -1207,14 +1272,16 @@ class SwebenchRunCapTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with mock.patch.object(swebench_run, "run_baseline_instance", side_effect=runner):
                 arm = swebench_run.run_arm(
-                    self.definition(), ["alpha__one-1", "beta__two-2"], "baseline", Path(directory)
+                    self.with_baseline(self.definition()),
+                    ["alpha__one-1", "beta__two-2"],
+                    "baseline",
+                    Path(directory),
                 )
 
-        self.assertEqual(
-            {("alpha__one-1", "budget"), ("alpha__one-1", "frontier")}, set(calls)
-        )
+        self.assertEqual({("alpha__one-1", "budget")}, set(calls))
         self.assertIsNone(arm["totalSpendUsd"])
         self.assertTrue(arm["capReached"])
+        self.assertEqual(["baseline"], [item["armId"] for item in arm["arms"]])
 
     def test_the_cap_stops_before_the_next_instance(self) -> None:
         from unittest import mock
@@ -1285,8 +1352,12 @@ class SwebenchRunCapTests(unittest.TestCase):
                         "instancesFile": "instances.txt",
                         "limits": {"maxCostUsd": 10, "maxTimeSeconds": 60},
                         "models": [
-                            {"tier": "budget", "id": "opencode-go/budget"},
-                            {"tier": "frontier", "id": "opencode-go/frontier"},
+                            {"tier": "budget", "id": "opencode-go/budget", "credential": "KEY"},
+                            {
+                                "tier": "frontier",
+                                "id": "opencode-go/frontier",
+                                "credential": "KEY",
+                            },
                         ],
                     }
                 ),
@@ -1342,6 +1413,7 @@ class SwebenchRunCapTests(unittest.TestCase):
                 "note": "advises on routing and stops",
             }
         ]
+        self.with_baseline(definition)
 
         with tempfile.TemporaryDirectory() as directory:
             with mock.patch.object(swebench_run, "run_baseline_instance", side_effect=runner):
@@ -1349,8 +1421,10 @@ class SwebenchRunCapTests(unittest.TestCase):
                     definition, ["alpha__one-1"], "baseline", Path(directory)
                 )
 
-        self.assertEqual({"budget", "frontier"}, set(tiers))
-        self.assertEqual(["budget", "frontier"], [item["tier"] for item in arm["arms"]])
+        # mini-swe-agent has no decision layer: the baseline arm is the explicit baseline entry,
+        # never the decision arm beside it.
+        self.assertEqual(["budget"], tiers)
+        self.assertEqual(["baseline"], [item["armId"] for item in arm["arms"]])
 
 
 class SwebenchRunRowTests(unittest.TestCase):

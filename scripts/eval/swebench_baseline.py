@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from swebench_process import instance_image, run_command, safe, utc_now
-from swebench_run_support import elapsed_seconds
+from swebench_run_support import arm_id, elapsed_seconds
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 SWEBENCH_DIR = REPOSITORY / "eval" / "swebench"
@@ -93,7 +93,7 @@ def run_baseline_instance(
     baseline_root = work_root / "baseline"
     baseline_root.mkdir(parents=True, exist_ok=True)
     image = instance_image(instance_id)
-    pull_log = work_root / "logs" / f"baseline-pull-{model['tier']}-{safe(instance_id)}.log"
+    pull_log = work_root / "logs" / f"baseline-pull-{arm_id(model)}-{safe(instance_id)}.log"
     run_command(
         [definition["_docker"], "pull", "--platform", "linux/amd64", image],
         cwd=baseline_root,
@@ -101,9 +101,9 @@ def run_baseline_instance(
         log=pull_log,
         timeout=900,
     )
-    trajectory = baseline_root / f"{model['tier']}-{safe(instance_id)}.traj.json"
+    trajectory = baseline_root / f"{arm_id(model)}-{safe(instance_id)}.traj.json"
     env = baseline_environment(definition, model)
-    log = work_root / "logs" / f"baseline-{model['tier']}-{safe(instance_id)}.log"
+    log = work_root / "logs" / f"baseline-{arm_id(model)}-{safe(instance_id)}.log"
     started = utc_now()
     result = run_command(
         baseline_command(definition, instance_id, model, trajectory, remaining),
@@ -119,8 +119,8 @@ def run_baseline_instance(
     spend = baseline_spend(info)
     exit_status = info.get("exit_status")
     submission = info.get("submission") or ""
-    run_id = f"baseline-{model['tier']}-{safe(instance_id)}"
-    predictions = baseline_root / f"{model['tier']}-{safe(instance_id)}.predictions.jsonl"
+    run_id = f"baseline-{arm_id(model)}-{safe(instance_id)}"
+    predictions = baseline_root / f"{arm_id(model)}-{safe(instance_id)}.predictions.jsonl"
     prediction = {
         "instance_id": instance_id,
         "model_name_or_path": model["id"],
@@ -146,7 +146,7 @@ def run_baseline_instance(
         "--timeout",
         str(definition["instanceTimeoutSeconds"]),
     ]
-    eval_log = work_root / "logs" / f"baseline-eval-{model['tier']}-{safe(instance_id)}.log"
+    eval_log = work_root / "logs" / f"baseline-eval-{arm_id(model)}-{safe(instance_id)}.log"
     eval_result = run_command(eval_command, cwd=baseline_root, env=os.environ.copy(), log=eval_log)
     counts = baseline_counts(baseline_root, run_id)
     resolved = bool(counts and instance_id in (counts.get("resolvedIds") or []))

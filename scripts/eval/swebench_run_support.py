@@ -14,6 +14,8 @@ SINGLE_MODEL_TIERS = ("budget", "frontier")
 DECISION_TIER = "decision"
 TIERS = (*SINGLE_MODEL_TIERS, DECISION_TIER)
 DECISION_LAYERS = ("on", "off")
+ARM_TOOLS = ("lunate", "mini-swe-agent")
+SEMANTIC_SEARCH_STATES = ("on", "off")
 REPOSITORY = Path(__file__).resolve().parents[2]
 PRESETS = REPOSITORY / "src" / "Lunate.Ai" / "providers.json"
 PRESET_FIELDS = (
@@ -29,17 +31,6 @@ PRESET_FIELDS = (
 def load_definition(path: Path) -> dict:
     definition = json.loads(path.read_text(encoding="utf-8"))
     models = definition.get("models") or []
-    single = [model for model in models if model.get("tier") in SINGLE_MODEL_TIERS]
-    decisions = [model for model in models if model.get("tier") == DECISION_TIER]
-    unknown = [model.get("tier") for model in models if model.get("tier") not in TIERS]
-    if unknown:
-        raise ValueError("run.json names an unknown arm tier: " + ", ".join(map(str, unknown)))
-    if sorted(model.get("tier") for model in single) != sorted(SINGLE_MODEL_TIERS):
-        raise ValueError("run.json must name exactly one budget model and one frontier model")
-    if len(decisions) > 1:
-        raise ValueError("run.json may name at most one decision arm")
-    for model in decisions:
-        validate_decision_arm(model)
     if not definition.get("dataset") or not definition.get("split"):
         raise ValueError("run.json must record the dataset name and split")
     limits = definition.get("limits") or {}
@@ -47,7 +38,85 @@ def load_definition(path: Path) -> dict:
         raise ValueError("run.json must record a positive maxCostUsd")
     if not definition.get("instancesFile"):
         raise ValueError("run.json must name the instancesFile")
+    if not models:
+        raise ValueError("run.json must name at least one arm")
+    unknown = [model.get("tier") for model in models if model.get("tier") not in TIERS]
+    if unknown:
+        raise ValueError("run.json names an unknown arm tier: " + ", ".join(map(str, unknown)))
+    seen: list[str] = []
+    decisions = [model for model in models if model.get("tier") == DECISION_TIER]
+    if len(decisions) > 1:
+        raise ValueError("run.json may name at most one decision arm")
+    for model in decisions:
+        validate_decision_arm(model)
+    for model in models:
+        name = arm_id(model)
+        if name in seen:
+            raise ValueError(f"run.json names the arm '{name}' twice")
+        seen.append(name)
+    for model in models:
+        tool = arm_tool(model)
+        if tool not in ARM_TOOLS:
+            raise ValueError(
+                f"arm '{arm_id(model)}' names tool '{tool}', which the harness does not run; "
+                "use 'lunate' or 'mini-swe-agent'"
+            )
+        if model.get("tier") != DECISION_TIER:
+            validate_single_model_arm(model)
+        validate_semantic_search(model, tool)
+    lunate_models = {arm_chat_model(model) for model in models if arm_tool(model) == "lunate"}
+    if not lunate_models:
+        raise ValueError("run.json must name at least one lunate arm")
+    for model in models:
+        if arm_tool(model) == "mini-swe-agent" and arm_chat_model(model) not in lunate_models:
+            raise ValueError(
+                f"baseline arm '{arm_id(model)}' names model '{arm_chat_model(model)}', "
+                "which no lunate arm runs"
+            )
     return definition
+
+
+def validate_single_model_arm(model: dict) -> None:
+    """A single-model arm names one model and the credential that serves it."""
+    if not model.get("id"):
+        raise ValueError(f"arm '{arm_id(model)}' must name a model id")
+    if not model.get("credential"):
+        raise ValueError(f"arm '{arm_id(model)}' must name its credential variable")
+
+
+def validate_semantic_search(model: dict, tool: str) -> None:
+    """The two comparison arms state the tool's state; only a Lunate arm can enable it."""
+    state = model.get("semanticSearch")
+    if state is None:
+        if model.get("embeddings") is not None:
+            raise ValueError(
+                f"arm '{arm_id(model)}' names an embeddings model but no semanticSearch state"
+            )
+        return
+    if state not in SEMANTIC_SEARCH_STATES:
+        raise ValueError(
+            f"arm '{arm_id(model)}' names semanticSearch '{state}'; use 'on' or 'off'"
+        )
+    if tool != "lunate":
+        raise ValueError(
+            f"arm '{arm_id(model)}' names semanticSearch on a '{tool}' arm; semantic_search is a "
+            "lunate tool"
+        )
+    if state == "off":
+        if model.get("embeddings") is not None:
+            raise ValueError(
+                f"arm '{arm_id(model)}' has semanticSearch off but names an embeddings model"
+            )
+        return
+    nested = model.get("embeddings")
+    if not isinstance(nested, dict) or not nested.get("id"):
+        raise ValueError(
+            f"arm '{arm_id(model)}' enables semantic_search but names no embeddings model"
+        )
+    if not nested.get("credential"):
+        raise ValueError(
+            f"arm '{arm_id(model)}' must name the embeddings model's credential variable"
+        )
 
 
 def validate_decision_arm(model: dict) -> None:
@@ -70,6 +139,32 @@ def decision_model_id(model: dict) -> str | None:
     return nested.get("id") if isinstance(nested, dict) else None
 
 
+def embeddings_model_id(model: dict) -> str | None:
+    """The embeddings model a semantic-search-on arm binds, or None."""
+    nested = model.get("embeddings")
+    return nested.get("id") if isinstance(nested, dict) else None
+
+
+def arm_id(model: dict) -> str:
+    """The arm's identity: its explicit name, or its tier for a definition without one."""
+    return model.get("arm") or model["tier"]
+
+
+def arm_tool(model: dict) -> str:
+    """The tool that runs the arm; a definition written before the tool field is all Lunate."""
+    return model.get("tool") or "lunate"
+
+
+def semantic_search_enabled(model: dict) -> bool:
+    """Whether the arm runs with the optional semantic search tool."""
+    return model.get("semanticSearch") == "on"
+
+
+def runs_attributed_models(model: dict) -> bool:
+    """Whether the arm's trajectory carries a non-chat usage model (decision or embeddings)."""
+    return decision_model_id(model) is not None or embeddings_model_id(model) is not None
+
+
 def arm_chat_model(model: dict) -> str:
     """The id the adapter passes as ``--model`` for either arm shape."""
     nested = model.get("main")
@@ -79,7 +174,7 @@ def arm_chat_model(model: dict) -> str:
 def arm_credentials(model: dict) -> list[str]:
     """The credential variables an arm forwards to the container, by name, without duplicates."""
     names: list[str] = []
-    for role in ("main", "decision"):
+    for role in ("main", "decision", "embeddings"):
         nested = model.get(role)
         name = nested.get("credential") if isinstance(nested, dict) else None
         if name and name not in names:
@@ -159,6 +254,44 @@ def arm_credential_for(model: dict, role: str) -> str:
     return nested.get("credential") or model.get("credential") or ""
 
 
+def semantic_search_home_files(
+    model: dict, presets: dict[str, dict] | None = None
+) -> dict[str, dict]:
+    """The prepared home that turns a semantic-search-on arm's definition into a configuration.
+
+    The home is the optional tool as data: one ``embeddings`` profile over the provider entry the
+    arm's embeddings model names, ``usages.embeddings`` bound to that profile, and ``tools.extra``
+    naming the tool. The chat model stays on the adapter's ``--model``, so the off arm runs with no
+    home at all and the two arms differ in exactly the tool. As in a decision arm's home, the
+    provider entry is the preset's own endpoints and headers with the arm's credential as an
+    ``env:`` reference: the value itself stays in the environment.
+    """
+    embeddings = embeddings_model_id(model)
+    if embeddings is None:
+        raise ValueError("only a semantic-search-on arm carries a prepared home")
+    presets = load_presets() if presets is None else presets
+    kind = provider_preset(embeddings)
+    preset = presets.get(kind)
+    if preset is None:
+        raise ValueError(f"model '{embeddings}' names provider '{kind}', which is not a preset")
+    credential = arm_credential_for(model, "embeddings")
+    entry: dict = {
+        "name": f"bench-{kind}",
+        "kind": kind,
+        "credentialReference": f"env:{credential}",
+    }
+    entry.update({field: preset[field] for field in PRESET_FIELDS if field in preset})
+    return {
+        "settings.json": {
+            "schemaVersion": 2,
+            "profiles": {"embeddings": {"provider": entry["name"], "model": embeddings}},
+            "usages": {"embeddings": "embeddings"},
+            "tools": {"extra": ["semantic_search"]},
+        },
+        "providers.json": {"schemaVersion": 1, "providers": [entry]},
+    }
+
+
 def load_subset(path: Path) -> list[str]:
     ids = [
         line.strip()
@@ -181,17 +314,24 @@ def model_pricing(catalog_path: Path, model_id: str) -> dict | None:
     return None
 
 
-def trajectory_totals(path: Path, decision_model: str | None = None) -> dict:
-    """The token, step, wall and price totals one trajectory carries.
+def trajectory_totals(
+    path: Path, decision_model: str | None = None, embeddings_model: str | None = None
+) -> dict:
+    """The token, step, wall, price and tool-call totals one trajectory carries.
 
     ``steps`` counts the chat model's calls only: a usage record that names the arm's decision model
-    is a ``decisionSteps`` call, so a decision arm's step count stays comparable with a single-model
-    arm's. ``uncostedRecords`` counts usage lines the run stamped no price on, which makes the
-    instance unpriced for a multi-model arm instead of pricing it at one model's rate.
+    is a ``decisionSteps`` call and one that names its embeddings model is an ``embeddingCalls``
+    request, so the arm's step count stays comparable with a single-model arm's.
+    ``uncostedRecords`` counts usage lines the run stamped no price on, which makes the instance
+    unpriced for a multi-model arm instead of pricing it at one model's rate. ``semanticSearchCalls``
+    counts the ``tool_call_start`` events that name the optional tool, so a tool call inside a step
+    is measured without becoming a step.
     """
     totals = {
         "steps": 0,
         "decisionSteps": 0,
+        "semanticSearchCalls": 0,
+        "embeddingCalls": 0,
         "usageRecords": 0,
         "uncostedRecords": 0,
         "inputTokens": 0,
@@ -211,8 +351,11 @@ def trajectory_totals(path: Path, decision_model: str | None = None) -> dict:
         kind = event.get("type")
         if kind == "usage_updated":
             totals["usageRecords"] += 1
-            if decision_model and event.get("modelId") == decision_model:
+            model_id = event.get("modelId")
+            if decision_model and model_id == decision_model:
                 totals["decisionSteps"] += 1
+            elif embeddings_model and model_id == embeddings_model:
+                totals["embeddingCalls"] += 1
             else:
                 totals["steps"] += 1
             usage = event.get("usage") or {}
@@ -226,6 +369,9 @@ def trajectory_totals(path: Path, decision_model: str | None = None) -> dict:
                 totals["recordCostUsd"] += float(cost)
             else:
                 totals["uncostedRecords"] += 1
+        elif kind == "tool_call_start":
+            if event.get("toolName") == "semantic_search":
+                totals["semanticSearchCalls"] += 1
         elif kind == "cost_limit_reached":
             totals["limit"] = {
                 "kind": "cost",
@@ -276,16 +422,17 @@ def record_spend(totals: dict) -> float | None:
 
 
 def arm_instance_spend(model: dict, totals: dict, pricing: dict | None) -> float | None:
-    """The instance's spend for either arm shape: the cap event first, then prices.
+    """The instance's spend for every arm shape: the cap event first, then prices.
 
-    A decision arm runs two models, so its spend is the sum of the per-record prices the run
-    stamped; a single-model arm keeps the lane price of its one model.
+    A decision arm runs two models and a semantic-search-on arm adds an embeddings model, so an arm
+    with a non-chat usage model is priced by the sum of the per-record prices the run stamped; a
+    single-model arm keeps the lane price of its one model.
     """
     limit = totals.get("limit") or {}
     spend = limit.get("spendUsd")
     if limit.get("kind") == "cost" and isinstance(spend, (int, float)):
         return float(spend)
-    if decision_model_id(model) is not None:
+    if runs_attributed_models(model):
         return record_spend(totals)
     return priced_spend(pricing, totals)
 
@@ -334,6 +481,7 @@ def summarize_arm(arm: str, tier: str, model: str, rows: list[dict]) -> dict:
         "spendUsd": spend,
         "steps": sum(int(row.get("steps") or 0) for row in rows),
         "decisionSteps": sum(int(row.get("decisionSteps") or 0) for row in rows),
+        "semanticSearchCalls": sum(int(row.get("semanticSearchCalls") or 0) for row in rows),
         "seconds": round(sum(seconds), 3) if rows and timed else None,
         # A per-resolve cost needs both a price and a resolve; anything else is unknown, not zero.
         "costPerResolvedUsd": (
@@ -368,19 +516,23 @@ def render_markdown(summary: dict) -> str:
         f"Dataset: `{summary['dataset']}` (`{summary['split']}`), subset: {summary['total']} instances.",
         f"Cost cap: ${summary['maxCostUsd']:.2f}; reported spend: {total}.",
         "",
-        "| Arm | Model | Decision model | Tier | Resolved | Spend | Steps | Wall time "
-        "| $/resolved | Failures |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Arm | Model | Decision model | Tier | Resolved | Spend | Steps | Search calls "
+        "| Wall time | $/resolved | Failures |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for arm in summary["arms"]:
         spend = "unpriced" if arm["spendUsd"] is None else f"${arm['spendUsd']:.4f}"
+        # A two-arm matrix shares a tool and a tier, so the arm's own name identifies the row; a
+        # summary written before arm names existed still renders its tool.
+        name = arm.get("armId") or arm["arm"]
         # A decision arm runs two models; both ids travel with its numbers, in the rendered
         # summary as well as in summary.json.
         decision_model = arm.get("decisionModel")
         decision = f"`{decision_model}`" if decision_model else "—"
         lines.append(
-            f"| {arm['arm']} | `{arm['model']}` | {decision} | {arm['tier']} | "
+            f"| {name} | `{arm['model']}` | {decision} | {arm['tier']} | "
             f"{arm['resolved']}/{arm['total']} | {spend} | {arm.get('steps', 'unknown')} | "
+            f"{arm.get('semanticSearchCalls', 0)} | "
             f"{format_seconds(arm.get('seconds'))} | "
             f"{format_usd(arm.get('costPerResolvedUsd'))} | {len(arm['failures'])} |"
         )
