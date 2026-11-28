@@ -52,10 +52,10 @@ internal sealed partial class InteractiveSession
 
         foreach ((string usage, string profileName) in _settings.Usages)
         {
-            if (usage is "chat" or EmbeddingsUsage.Usage)
+            if (usage is "chat" or EmbeddingsUsage.Usage or ImageGenerationUsage.Usage)
             {
-                // `chat` is already above; `embeddings` is not a chat role — it is resolved into
-                // the semantic search tool's own binding, never into a chat client.
+                // `chat` is already above; `embeddings` and `image` are not chat roles — they are
+                // resolved into their tools' own bindings, never into a chat client.
                 continue;
             }
 
@@ -155,6 +155,22 @@ internal sealed partial class InteractiveSession
     /// </summary>
     private EmbeddingsBinding? ResolveEmbeddingsBinding() =>
         EmbeddingsUsage.TryResolve(
+            _settings,
+            _providerEntries,
+            _catalog,
+            _auth,
+            _environment,
+            _factory,
+            SessionRequestContext(),
+            message => Notify(message, NoticeLevel.Warning)
+        );
+
+    /// <summary>
+    /// The image binding the <c>generate_image</c> tool carries, or null. An unset usage is the
+    /// normal off state (the tool is not offered); an unusable profile warns once naming it.
+    /// </summary>
+    private ImageGenerationBinding? ResolveImageGenerationBinding() =>
+        ImageGenerationUsage.TryResolve(
             _settings,
             _providerEntries,
             _catalog,

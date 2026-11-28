@@ -594,6 +594,90 @@ public sealed class ChatClientFactory : IChatClientFactory
         return client.GetEmbeddingClient(WireModelId(model, preset)).AsIEmbeddingGenerator();
     }
 
+    /// <summary>
+    /// The provider's image-generation wire for a resolved model: the same endpoint, declared
+    /// headers and credential placement the <c>openai-chat</c> family sends chat requests with,
+    /// behind MEAI's image generator. Only that family has an image wire in this build; the caller
+    /// checks the family first so the refusal names configuration, not a model id.
+    /// <para>
+    /// MEAI marks its image-generation API experimental, so the suppression is confined to this one
+    /// method and its mapping helper: the returned delegate carries
+    /// <see cref="ImageGenerationWireResult"/>, and no other type or file names the experimental
+    /// surface. A future MEAI change is therefore one edit here.
+    /// </para>
+    /// </summary>
+    internal ImageGenerationWire CreateImageGenerationWire(
+        ModelInfo model,
+        string? apiKey,
+        RequestContext? context
+    )
+    {
+        ArgumentNullException.ThrowIfNull(model);
+        ProviderPreset preset = PresetFor(model);
+        ProviderApiFamily family = ProviderFamilyResolver.Resolve(
+            model.ApiFamily,
+            preset.ChatFamilies,
+            model.Provider,
+            model.Id
+        );
+        if (family != ProviderApiFamily.OpenAiChat)
+        {
+            throw new NotSupportedException(
+                $"Model '{model.Id}' on provider '{model.Provider}' resolves to API family "
+                    + $"'{ProviderApiFamilies.Name(family)}'; image generation is wired on "
+                    + $"'{ProviderApiFamilies.OpenAiChat}' only. Pick an openai-chat image model."
+            );
+        }
+
+        string credential = apiKey ?? ResolveApiKey(model, preset, _namedKeySource);
+        CredentialPlacement placement = ResolvePlacement(model, preset, family);
+        OpenAIClient client = CreateOpenAiClient(
+            model,
+            preset,
+            HeadersHandler(model, preset, context),
+            new ProviderCredentialHandler(credential, placement),
+            family
+        );
+#pragma warning disable MEAI001 // MEAI's image API is experimental; this factory is its only user.
+        IImageGenerator generator = client
+            .GetImageClient(WireModelId(model, preset))
+            .AsIImageGenerator();
+#pragma warning restore MEAI001
+        return new ImageGenerationWire(model.Id, (prompt, cancellationToken) =>
+            GenerateImageAsync(generator, prompt, cancellationToken)
+        );
+    }
+
+#pragma warning disable MEAI001 // The mapping helper is the second and last place the experimental types appear.
+    private static async Task<ImageGenerationWireResult> GenerateImageAsync(
+        IImageGenerator generator,
+        string prompt,
+        CancellationToken cancellationToken
+    )
+    {
+        ImageGenerationResponse response = await generator
+            .GenerateAsync(new ImageGenerationRequest(prompt), options: null, cancellationToken)
+            .ConfigureAwait(false);
+        DataContent? image = response
+            .Contents.OfType<DataContent>()
+            .FirstOrDefault(content => !content.Data.IsEmpty);
+        if (image is null)
+        {
+            throw new InvalidOperationException(
+                "the provider returned no image bytes"
+                    + (
+                        response.Contents.OfType<UriContent>().FirstOrDefault() is not null
+                            ? " (it returned an image URL, and this build does not download one)"
+                            : string.Empty
+                    )
+                    + "; pick a model that returns image bytes."
+            );
+        }
+
+        return new ImageGenerationWireResult(image.Data, image.MediaType, response.Usage);
+    }
+#pragma warning restore MEAI001
+
     internal static AnthropicClient CreateAnthropicClient(
         ModelInfo model,
         Func<string, string?>? namedKeySource = null,

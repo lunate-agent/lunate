@@ -1,6 +1,6 @@
 # ADR-0027: User-scoped provider profiles, usages, and capability facts
 
-- Status: accepted — 2026-10-30 (maintainer amendments for `provider-store`, #253); amended 2026-11-22 (usages as capability-bearing roles, `usages.vision`, #979); further amended 2026-11-25 (`embeddings` is built, `semantic_search`, #1028)
+- Status: accepted — 2026-10-30 (maintainer amendments for `provider-store`, #253); amended 2026-11-22 (usages as capability-bearing roles, `usages.vision`, #979); further amended 2026-11-25 (`embeddings` is built, `semantic_search`, #1028); further amended 2026-11-28 (`image` is built, `generate_image`, #1027)
 - Date: 2026-10-30
 - Duplicate removed: `adr/0027-provider-store-and-model-profiles.md` was an earlier draft of this same decision and claimed the same number; deleted as a duplicate in commit `28dc4440` so the ADR numbers stay unique and dense.
 - Relates to: ADR-0002 (layering and MEAI model types), ADR-0003 (loop ownership), ADR-0015 (pinned session format), ADR-0022 (model catalog and provider auth)
@@ -116,3 +116,30 @@ that all three are exercised:
 
 Image generation remains named and unbuilt. Building a role is this change's rule for any later one:
 the requirement is enforced at resolution, the attribution is recorded, and a consumer exists.
+
+## Amendment 2026-11-28 — `image` is built by the image generation tool
+
+The maintainer decision on issue #980 settled where a generated image lives (the session sidecar,
+content-addressed as ADR-0018 defines) and how a turn names it (the typed image part). Issue #1027 is
+that consumer: the
+`generate_image` tool resolves `usages.image` and asks the profile for an image. This section is the
+later word; the earlier text stays as the record of the 2026-11-22 and 2026-11-25 decisions.
+
+The role is unchanged in shape: one settings key (`usages.image`), one declared requirement at
+resolution (the model's **image output**), and one attribution value (`image`). What is new is that
+all three are exercised:
+
+- The requirement is checked the way decision 3 says capability facts are: a **known** output
+  modality set without `image` is refused by profile and model, an **unknown** set stays accepted,
+  and the resolved family must be `openai-chat` — the only family this build has an image-generation
+  wire for. The `image-generation` API name stays a capability label; decision 3 keeps API names
+  from gating an existing usage, so the usage's declared requirement does the check.
+- A generation call is charged to the run through the loop's one usage-accounting path and recorded
+  in schema 4 under usage `image`. Schema 4 is unchanged; the attribution usage is the free string
+  the 2026-11-22 amendment relies on.
+- The produced bytes are not new state: they go through the same tool-image path as a `read` image,
+  into the session's content-addressed sidecar and the transcript's typed image part. This amendment
+  adds no session-format value.
+
+Both roles named on 2026-11-22 that a consumer now exists for are built; the 2026-11-28 rule for any
+later one is unchanged.

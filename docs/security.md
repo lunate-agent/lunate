@@ -9,10 +9,12 @@ level — it is not a sandbox. To report a vulnerability, use the [security poli
 Lunate runs with your user privileges, and its security posture is deliberately that of a
 single-user CLI tool, not a sandbox. The boundaries are worth knowing about.
 
-**Approval prompts.** The `read`, `write`, `edit`, `bash`, `remember`, `web_search` and `web_fetch`
-tools all run as you, on model-chosen arguments. `bash_output` is read-only and reads only the session's own
-jobs; `bash_kill` is `Execute` risk because it ends processes, so it takes the same approval path as
-`bash`. Every write, edit, command, kill and web call is shown as a prompt
+**Approval prompts.** The `read`, `write`, `edit`, `bash`, `remember`, `web_search`, `web_fetch` and
+`generate_image` tools all run as you, on model-chosen arguments. `bash_output` is read-only and reads
+only the session's own jobs; `bash_kill` is `Execute` risk because it ends processes, so it takes the
+same approval path as `bash`. `generate_image` carries the write risk because it may write the image
+into the workspace when the model names a path, so it asks under the same policy as `write`. Every
+write, edit, command, kill, web call and image generation is shown as a prompt
 — `Allow edit src/Order.cs?  [y]es  [n]o  [a]lways this session` — before it runs, and the
 `approval` setting (`ask`, the default, or `auto-edit`) decides what still asks. `--yolo` approves
 everything for one run and is never a saved setting. Print mode has nobody to ask, so it maps the same policy onto tool risk and refuses what it

@@ -31,6 +31,7 @@ internal static class HarnessFactory
         IExecutionEnvironment? environment = null,
         BashJobRegistry? bashJobs = null,
         Func<EmbeddingsBinding?>? embeddings = null,
+        Func<ImageGenerationBinding?>? imageGeneration = null,
         WebSearchConfiguration? webSearch = null
     )
     {
@@ -83,6 +84,13 @@ internal static class HarnessFactory
         tools.Add(new RememberTool(workspace, files: files));
         tools.Add(new WebSearchTool(webSearch));
         tools.Add(new WebFetchTool());
+        // The image tool is offered only when its usage resolves; an unset `usages.image` adds
+        // nothing and warns nothing, and an unusable profile warns once from the resolver.
+        if (imageGeneration?.Invoke() is { } imageBinding)
+        {
+            tools.Add(new GenerateImageTool(workspace, imageBinding));
+        }
+
         AddOptionalTools(tools, workspace, extraTools, embeddings);
         return tools;
     }
@@ -156,6 +164,7 @@ internal static class HarnessFactory
         IExecutionEnvironment? environment = null,
         BashJobRegistry? bashJobs = null,
         Func<EmbeddingsBinding?>? embeddings = null,
+        Func<ImageGenerationBinding?>? imageGeneration = null,
         WebSearchConfiguration? webSearch = null
     )
     {
@@ -178,6 +187,7 @@ internal static class HarnessFactory
                 environment: environment,
                 bashJobs: bashJobs,
                 embeddings: embeddings,
+                imageGeneration: imageGeneration,
                 webSearch: webSearch
             );
             if (extensionTools is not null)

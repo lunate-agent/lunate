@@ -104,6 +104,7 @@ public sealed partial class SettingsSchemaTests
         ["usages.subagents"] = WildcardId,
         ["usages.compaction"] = "probe-two",
         ["usages.embeddings"] = "probe-two",
+        ["usages.image"] = "probe-two",
         ["usages.vision"] = "probe-two",
     };
 

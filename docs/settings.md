@@ -89,6 +89,7 @@ shown are the documented defaults the store applies when a key is missing.
 | `usages.compaction` | string | unset | user, project | The profile used to compact a session; used only when assigned. |
 | `usages.embeddings` | string | unset | user, project | The embeddings profile: indexed and queried by the optional `semantic_search` tool. It must resolve to an `openai-chat` model that declares the `embeddings` API; otherwise the tool is not offered. |
 | `usages.fast` | string | unset | user, project | The profile used where a fast model is wanted. |
+| `usages.image` | string | unset | user, project | The image profile behind the `generate_image` tool. It must resolve to an `openai-chat` model that declares image output; otherwise the tool is not offered. |
 | `usages.subagents` | string | unset | user, project | The profile child runs use. |
 | `usages.vision` | string | unset | user, project | The vision profile: describes an image for a chat model that cannot see it. It must declare image input; otherwise the image refusal is unchanged. |
 | `verify` | string | block | user | How staged writes behave when a write verifier refuses the content: refuse, write and report unverified, or skip verifier selection. File-only; no environment override. Values: `block`, `warn`, `off`. |

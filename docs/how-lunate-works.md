@@ -30,11 +30,16 @@ as `bash`; a search returns ranked title, URL and snippet results, and a fetch r
 with the page title and links as markdown, both bounded in bytes. In a C# workspace the model can also
 call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` —
 which load on the first C# call rather than at startup.
+When `usages.image` resolves, `generate_image` joins them: it asks that profile for one image from a
+prompt, stores it in the session's own image sidecar, attaches it to the conversation as a typed
+image part, and, with an optional workspace path, also writes the file there under the same approval
+a `write` needs.
+
 Extensions, MCP servers and skills add tools of their own, and they go through the same approval
 policy as the built-ins.
 
-Every write, edit, command and web call stops at an approval prompt with the command or the edit's
-diff on screen; a read does not. The `approval` setting decides what still asks, `--yolo` approves everything
+Every write, edit, command, web call and image generation stops at an approval prompt with the
+command or the edit's diff on screen; a read does not. The `approval` setting decides what still asks, `--yolo` approves everything
 for one run, and a run with no one to ask — print mode, CI — maps the same policy onto tool risk and
 refuses what it may not approve. [Run Lunate safely](security.md) owns the trust model;
 [Use the terminal](usage.md#edits-you-approve-with-the-diff) owns the panel itself.

@@ -685,6 +685,7 @@ internal sealed partial class InteractiveSession : IDisposable
             environment: _executionEnvironment,
             bashJobs: _bashJobs,
             embeddings: ResolveEmbeddingsBinding,
+            imageGeneration: ResolveImageGenerationBinding,
             webSearch: webSearch
         );
         _tools.Add(new AskUserTool());
@@ -718,6 +719,7 @@ internal sealed partial class InteractiveSession : IDisposable
             environment: _executionEnvironment,
             bashJobs: _bashJobs,
             embeddings: ResolveEmbeddingsBinding,
+            imageGeneration: ResolveImageGenerationBinding,
             webSearch: webSearch
         );
         // The model resolves after the extension host: the configured id may name a virtual or
