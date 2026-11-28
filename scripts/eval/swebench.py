@@ -45,6 +45,7 @@ from swebench_support import (
     check_usage,
     copy_lunate_home,
     forwarded_environment,
+    home_credentials,
     instance_image,
     load_dataset,
     select_instances,
@@ -161,7 +162,10 @@ def execute(args: argparse.Namespace) -> int:
     evaluate_mode = args.evaluate or ("never" if args.dry_run else "auto")
     run_id = args.run_id or "swebench-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     args.run_id = run_id
-    forwarded = forwarded_environment(args.env)
+    home = Path(args.lunate_home) if args.lunate_home else None
+    # the home's own credential references come too: its provider is not the chat model's, and a
+    # missing one does not fail the tool, it silently removes it from the arm (#1035)
+    forwarded = forwarded_environment([*args.env, *(home_credentials(home) if home else [])])
     args.lunate_bin = check_binary(args.lunate_bin)
     check_docker(args)
     records = load_dataset(args)
@@ -175,8 +179,8 @@ def execute(args: argparse.Namespace) -> int:
     if run_root.exists() and any(run_root.iterdir()):
         raise AdapterError(f"run directory '{run_root}' already exists; pass a different --run-id")
     run_root.mkdir(parents=True, exist_ok=True)
-    if args.lunate_home:
-        copy_lunate_home(Path(args.lunate_home), run_root)
+    if home:
+        copy_lunate_home(home, run_root)
     (run_root / "dataset.json").write_text(
         json.dumps(selected, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
     )

@@ -29,8 +29,8 @@ empty `model_patch` and their row records `resolved: false`.
 ## What is not here
 
 - **Trajectories.** The `lunate -p --json` event stream and the mini-swe-agent `.traj.json` files
-  came from the run host's working tree, `/home/daniel/swebench-624/runs/rerun-624-bosgame-2/`, which
-  is not part of the repository. They were not committed: a trajectory is large, carries the full
+  came from the run host's working tree, `$SWEBENCH_HOME/runs/rerun-624-bosgame-2/`, which is not
+  part of the repository. They were not committed: a trajectory is large, carries the full
   model conversation, and the per-instance spend and step counts it produced are recorded in
   `summary.json`.
 - **The rest of the working tree.** The adapter's `run.json`, `dataset.json`, `patch.diff`, logs and

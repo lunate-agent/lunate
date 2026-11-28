@@ -152,7 +152,9 @@ python3 scripts/eval/swebench_run.py --arm lunate --lunate-bin artifacts/linux-x
 
 The prepared home holds `settings.json` (`"tools": {"extra": ["semantic_search"]}` and
 `"usages": {"embeddings": "<profile>"}`) and `providers.json`; nothing else from the directory is
-copied, and the provider credential is still forwarded by name. Both arms record their own
+copied, and the provider credential is still forwarded by name. Every `env:` credential the home
+names is forwarded too, so the embedding provider resolves inside the container — a home that names
+a variable that is not set stops the run instead of silently dropping the tool. Both arms record their own
 `steps`, `inputTokens` and `outputTokens` per instance in `summary.json`, and resolve counts come
 from the official harness, so the comparison reads: steps, tokens and resolve rate, arm against arm.
 The comparison itself needs Docker and a live provider credential; it is a maintainer step, not a

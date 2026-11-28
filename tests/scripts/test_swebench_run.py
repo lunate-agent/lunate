@@ -15,6 +15,7 @@ from swebench_run_support import (  # noqa: E402
     decision_home_files,
     decision_model_id,
     elapsed_seconds,
+    evidence_path,
     instance_spend,
     load_definition,
     load_subset,
@@ -1356,6 +1357,25 @@ class SwebenchRunCapTests(unittest.TestCase):
 class SwebenchRunRowTests(unittest.TestCase):
     """One instance row carries the four numbers the card compares."""
 
+    def test_a_run_outside_the_repository_is_named_by_its_place_in_the_run_tree(self) -> None:
+        work_root = Path("/home/someone/swebench/runs/1028-tool-off")
+        run_dir = work_root / "lunate" / "budget-astropy__astropy-12907"
+
+        named = evidence_path(run_dir, work_root)
+
+        self.assertEqual(
+            "eval/swebench/runs/1028-tool-off/lunate/budget-astropy__astropy-12907", named
+        )
+        self.assertFalse(Path(named).is_absolute())
+
+    def test_a_run_inside_the_repository_keeps_its_repository_relative_path(self) -> None:
+        work_root = REPOSITORY / "eval" / "swebench" / "runs" / "run-1"
+        run_dir = work_root / "baseline" / "frontier-instance"
+
+        named = evidence_path(run_dir, work_root)
+
+        self.assertEqual("eval/swebench/runs/run-1/baseline/frontier-instance", named)
+
     def run_dir(self, root: Path) -> Path:
         run_dir = root / "lunate" / "decision-alpha__one-1"
         (run_dir / "alpha__one-1").mkdir(parents=True)
@@ -1428,7 +1448,7 @@ class SwebenchRunRowTests(unittest.TestCase):
             run_dir = self.run_dir(Path(directory))
 
             row = swebench_run.read_lunate_row(
-                {}, "alpha__one-1", self.decision_arm(), run_dir, 0
+                {}, "alpha__one-1", self.decision_arm(), Path(directory), run_dir, 0
             )
 
         self.assertTrue(row["resolved"])
@@ -1447,7 +1467,7 @@ class SwebenchRunRowTests(unittest.TestCase):
             )
 
             row = swebench_run.read_lunate_row(
-                {}, "alpha__one-1", self.decision_arm(), run_dir, 0
+                {}, "alpha__one-1", self.decision_arm(), Path(directory), run_dir, 0
             )
 
         self.assertIsNone(row["seconds"])

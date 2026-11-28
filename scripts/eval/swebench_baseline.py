@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 from swebench_process import instance_image, run_command, safe, utc_now
-from swebench_run_support import elapsed_seconds
+from swebench_run_support import elapsed_seconds, evidence_path
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 SWEBENCH_DIR = REPOSITORY / "eval" / "swebench"
@@ -176,5 +176,5 @@ def run_baseline_instance(
         "limit": None,
         "exitStatus": exit_status,
         "failure": failure,
-        "workDir": str(baseline_root.relative_to(REPOSITORY)) if baseline_root.is_relative_to(REPOSITORY) else str(baseline_root),
+        "workDir": evidence_path(baseline_root, work_root),
     }

@@ -24,6 +24,24 @@ PRESET_FIELDS = (
     "familyHeaders",
     "credentialPlacement",
 )
+COMMITTED_RUNS = Path("eval") / "swebench" / "runs"
+
+
+def evidence_path(run_dir: Path, work_root: Path) -> str:
+    """The row's ``workDir``: where its evidence lives in a clean checkout.
+
+    A run inside the repository is already named the committed way. The harness needs Docker and a
+    live credential, so a run usually happens on a maintainer's box instead: that run is named by its
+    place under the committed run tree, never by the box's own path. A machine-local path in a
+    committed summary leaks the host and is what the platform check refuses.
+    """
+    if run_dir.is_relative_to(REPOSITORY):
+        return str(run_dir.relative_to(REPOSITORY))
+    committed = COMMITTED_RUNS / work_root.name
+    try:
+        return str(committed / run_dir.relative_to(work_root))
+    except ValueError:  # a run directory outside the run tree: name it, never the box
+        return str(committed / run_dir.name)
 
 
 def load_definition(path: Path) -> dict:
