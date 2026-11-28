@@ -61,24 +61,26 @@ table_preamble() {
 EOF
 }
 
-# Milliseconds of a test platform duration ("799ms", "3s 445ms", "1m 2s 7ms").
+# Milliseconds of a test platform duration ("799ms", "3s 445ms", "1m 2s 7ms"). The runner zero-pads
+# its milliseconds ("095ms", "1m 02s 001ms") and bash arithmetic reads a leading zero as octal, where
+# "095" is not a number at all, so every field is read base-10 (#1043).
 parse_ms() {
   local value="$1" ms=0 unit
   while [ -n "$value" ]; do
     case "$value" in
       *m' '*)
         unit="${value%%m *}"
-        ms=$((ms + unit * 60000))
+        ms=$((ms + 10#$unit * 60000))
         value="${value#*m }"
         ;;
       *s' '*)
         unit="${value%%s *}"
-        ms=$((ms + unit * 1000))
+        ms=$((ms + 10#$unit * 1000))
         value="${value#*s }"
         ;;
       *ms)
         unit="${value%ms}"
-        ms=$((ms + unit))
+        ms=$((ms + 10#$unit))
         value=""
         ;;
       *) value="" ;;
@@ -139,13 +141,18 @@ record() {
 
   # The summary block repeats each module line with leading spaces, so the same module can appear
   # twice: the last value per project wins and the records are sorted by project, which keeps the file
-  # stable across runs. The runner colors the line when it believes it is on CI
-  # (`GITHUB_ACTIONS=true`), escapes and all, even with the pass redirected to a file, so the escapes
-  # come off first: they sit after the duration and around the verdict, and a parser that keeps them
-  # matches no line at all - which is how every CI run recorded its shard but no project (#1043).
+  # stable across runs. Three shapes have to survive the parse, and all three are why a record went
+  # missing in CI before (#1043):
+  #   * the runner colors its output when it believes it is on CI (`GITHUB_ACTIONS=true`), escapes and
+  #     all, even with the pass redirected to a file, so the escapes come off first - they sit after
+  #     the duration, and a parser that keeps them matches no line at all;
+  #   * the verdict word is localized: the de-AT pass prints `erfolgreich`/`fehlgeschlagen`, so the
+  #     match is anchored on the module path and the trailing duration, never on `passed`;
+  #   * a failed module carries `failed with N error(s)` between the framework tag and the duration,
+  #     which is why the duration, not the verdict, is what identifies a result line.
   local parsed
   parsed="$(strip_ansi | awk -v root="${PWD}/" '
-    /\.dll \(/ && /\) (passed|failed) / {
+    /\.dll \(/ {
       line = $0
       if (match(line, /\(([0-9]+m )?([0-9]+s )?[0-9]+ms\)[[:space:]]*$/) == 0) {
         next
@@ -364,6 +371,44 @@ LOG
   elif ! grep -Fq '"project":"tests/Lunate.Ai.Tests/Lunate.Ai.Tests.csproj","seconds":4' \
     "${dir}/out-colored/verify-linux-x64-1-of-4-default-projects.jsonl" 2>/dev/null; then
     printf 'self-test: FAIL: a colored pass output recorded no project weight\n' >&2
+    failures=$((failures + 1))
+  fi
+
+  # The runner zero-pads its milliseconds (`(095ms)`, `(1m 02s 001ms)`), which bash arithmetic reads as
+  # octal: `$((095))` is a syntax error, so a pass whose module ran for a two-or-three-digit number of
+  # milliseconds wrote no record at all (#1043). Every unit is read base-10.
+  printf '%s (net11.0|arm64) passed [+5/x0/?0] (095ms)\n' \
+    "${work}/tests/Mermaid.Terminal.Tests/bin/Release/net11.0/Mermaid.Terminal.Tests.dll" \
+    >"${dir}/padded.log"
+  printf '%s (net11.0|arm64) passed [+5/x0/?0] (1m 02s 001ms)\n' \
+    "${work}/tests/Lunate.Roslyn.Tests/bin/Release/net11.0/Lunate.Roslyn.Tests.dll" \
+    >>"${dir}/padded.log"
+  if ! (cd "$work" && bash "$SELF" record --rid linux-x64 --shard 3 --shard-count 4 --pass default \
+    --out-dir "${dir}/out-padded" <"${dir}/padded.log" >/dev/null 2>&1); then
+    printf 'self-test: FAIL: a zero-padded duration broke the parse\n' >&2
+    failures=$((failures + 1))
+  elif ! grep -Fq '"project":"tests/Lunate.Roslyn.Tests/Lunate.Roslyn.Tests.csproj","seconds":63' \
+    "${dir}/out-padded/verify-linux-x64-3-of-4-default-projects.jsonl" 2>/dev/null; then
+    printf 'self-test: FAIL: a zero-padded duration was not recorded in seconds\n' >&2
+    failures=$((failures + 1))
+  fi
+
+  # The verdict word is localized: under LC_ALL=de_AT.UTF-8 the de-AT pass prints `erfolgreich` and
+  # `fehlgeschlagen`, so a parse that keys on `passed` records nothing for the pass the fold needs to
+  # compare against (#1043).
+  printf '%s (net11.0|arm64) erfolgreich [+133/x0/?1] (3m 15s 124ms)\n' \
+    "${work}/tests/Lunate.Protocols.Tests/bin/Release/net11.0/Lunate.Protocols.Tests.dll" \
+    >"${dir}/deat.log"
+  printf '%s (net11.0|arm64) fehlgeschlagen mit 2 Fehlern [+481/x2/?0] (7m 2s 9ms)\n' \
+    "${work}/tests/Lunate.Ai.Tests/bin/Release/net11.0/Lunate.Ai.Tests.dll" \
+    >>"${dir}/deat.log"
+  if ! (cd "$work" && bash "$SELF" record --rid linux-x64 --shard 2 --shard-count 4 --pass de-at \
+    --out-dir "${dir}/out-deat" <"${dir}/deat.log" >/dev/null 2>&1); then
+    printf 'self-test: FAIL: a localized de-AT pass output was rejected\n' >&2
+    failures=$((failures + 1))
+  elif ! grep -Fq '"project":"tests/Lunate.Protocols.Tests/Lunate.Protocols.Tests.csproj","seconds":196' \
+    "${dir}/out-deat/verify-linux-x64-2-of-4-de-at-projects.jsonl" 2>/dev/null; then
+    printf 'self-test: FAIL: a localized de-AT pass recorded no project weight\n' >&2
     failures=$((failures + 1))
   fi
   printf '{"rid":"linux-x64","shard":1,"shard_count":4,"profile":"full","seconds":600,"exit_status":0,"primary":120}\n' \
