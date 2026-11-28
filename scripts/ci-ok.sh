@@ -898,8 +898,12 @@ self_test() {
     _self_verify_matrix "the live decision must require exactly the plan's pull-request legs"
     _self_workflow "the full matrix must be left out of a pull request and a merge group" \
         plan '^            pull_request \| merge_group\) macos=false ;;' 1
-    _self_workflow "the macOS legs must run two shards" \
+    # The card keeps macOS on its two-shard cap and claims the one-third bound only for the Ubuntu
+    # and Windows lanes, which run the dispatch's count (#789).
+    _self_workflow "the macOS legs must run their two-shard cap" \
         plan 'macos_shards=\$\(\(SHARDS < 2 \? SHARDS : 2\)\)' 1
+    _self_workflow "the macOS leg must take the cap, not the dispatch's count" \
+        plan '^            leg macos-latest .*"\$\{macos_shards\}"' 1
     _self_workflow "Ubuntu and Windows must use the default four-shard count" \
         plan "SHARDS: \\\$\\{\\{ inputs\\.verify_shard_count \\|\\| '4' \\}\\}" 1
     _self_workflow "each verify shard must record its wall time" \

@@ -13,5 +13,6 @@
     <ItemGroup>
         <InternalsVisibleTo Include="lunate" />
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
+        <InternalsVisibleTo Include="Lunate.Coding.Process.Tests" />
     </ItemGroup>
 </Project>

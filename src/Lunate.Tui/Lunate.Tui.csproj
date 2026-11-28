@@ -30,6 +30,7 @@
         <InternalsVisibleTo Include="Lunate.Tui.Tests" />
         <InternalsVisibleTo Include="Lunate.Coding" />
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
+        <InternalsVisibleTo Include="Lunate.Coding.Process.Tests" />
         <InternalsVisibleTo Include="lunate" />
     </ItemGroup>
 

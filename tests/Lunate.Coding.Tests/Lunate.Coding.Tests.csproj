@@ -5,6 +5,15 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- The shell and process suites live in Lunate.Coding.Process.Tests, linked from here so
+             the layout rule still sees them under their source folders. -->
+        <Compile Remove="Bash/*Tests.cs" />
+        <Compile Remove="Bash/*Tests.*.cs" />
+        <Compile Remove="Process/*Tests.cs" />
+        <Compile Remove="Process/*Tests.*.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="../../src/Lunate.Coding/Lunate.Coding.csproj" />
         <ProjectReference Include="../../src/Lunate.Roslyn.BuiltIn/Lunate.Roslyn.BuiltIn.csproj" />
         <ProjectReference

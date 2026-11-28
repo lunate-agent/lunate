@@ -127,11 +127,13 @@ jobs:
       # The verify job's matrix, sized by the event (#831): a pull request proves the change on
       # Ubuntu only, a merge group runs the same Ubuntu shards without repeating the PR's cheap
       # checks, and the full three-OS matrix belongs to a push to main, the nightly and a manual
-      # dispatch. Ubuntu and Windows run the dispatch's shard count (four unless a manual dispatch
-      # picks another); macOS runs two. The free plan runs five macOS jobs at once, so four per
-      # pull-request run plus four per merge-queue group left shards cancelled without a runner,
-      # which ejected green pull requests from the queue (#831). ci-ok reads `macos` and requires
-      # the full matrix only on the events that own it.
+      # dispatch. Ubuntu and Windows run the dispatch's shard count, four unless a manual dispatch
+      # picks another, because the balance bound needs four there (#789). macOS keeps its two-shard
+      # cap: the card's third is not attainable at two shards, so macOS's acceptance is the best
+      # wall time within two shards, and a third shard would put the free plan's five concurrent
+      # macOS jobs at risk, which ejected green pull requests from the merge queue (#831). macOS now
+      # runs only where the full matrix does, and ci-ok reads `macos` and requires the full matrix
+      # only on the events that own it.
       #
       # budget_ms: calibrated in spike S-3 (docs/dev/spikes/S-3/report.md, ADR 0005 accepted
       # 2026-10-04) -- runner startup median + ~50% headroom, rounded up to 50 ms. Re-calibrate when a
@@ -362,9 +364,12 @@ jobs:
     strategy:
       fail-fast: false
       # The legs and their shards come from the plan job (`Decide the verify legs`): Ubuntu and
-      # Windows run four shards on every event, macOS two and not on a pull request. The test phase
-      # is sharded per OS (#696, building on #390): verify.sh's --shard i/n partitions the
-      # solution's test projects by position, and each shard runs its slice of both culture passes.
+      # Windows run four shards, macOS two, and macOS only on the events that own the full matrix.
+      # The test phase is sharded per OS (#696, building on #390): verify.sh's --shard i/n partitions
+      # the solution's test projects by recorded weight (#789) - one project per unit, both culture
+      # passes together, largest recorded weight first from scripts/verify-shard-weights.tsv - so
+      # every test project is in exactly one shard. The process-bound half of the Coding suite is its
+      # own test project, Lunate.Coding.Process.Tests, so a shard never carries the whole slow suite.
       # Shard 1 also owns every non-test step (publish, budgets, roundtrips, format, docs checks,
       # public API); a shard > 1 runs only the build it needs plus its test slice. The ruleset
       # requires ci-ok, and ci-ok requires the verify job, which fails on any failed shard. Manual

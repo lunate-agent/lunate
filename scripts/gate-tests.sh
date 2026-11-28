@@ -113,6 +113,7 @@ FORMAT_DIR=""
 CS15_DIR=""
 SHIPPED_DIR=""
 WAIT_DIR=""
+SHARD_DIR=""
 cleanup() {
   if [ -n "$FORMAT_DIR" ]; then
     rm -rf "$FORMAT_DIR"
@@ -125,6 +126,9 @@ cleanup() {
   fi
   if [ -n "$WAIT_DIR" ]; then
     rm -rf "$WAIT_DIR"
+  fi
+  if [ -n "$SHARD_DIR" ]; then
+    rm -rf "$SHARD_DIR"
   fi
 }
 trap cleanup EXIT
@@ -405,100 +409,487 @@ for shard_bad in '2' '1/0' '0/2' '3/2' '4/2' 'a/2' '1/a' '1//2' '1/2/3' '' '  1/
   fi
 done
 
-# One shard's slice of the real lunate.slnx: position filter with index/count.
+# One shard's slice of the real lunate.slnx for one culture pass, from the recorded weight table.
 shard_slice() {
-  SHARD_I="$1" SHARD_N="$2" verify_shard_projects
+  SHARD_I="$1" SHARD_N="$2" verify_shard_projects "${3:-default}"
+}
+
+# One shard's predicted wall time, in the table's seconds, including shard 1's non-test pre-load.
+shard_load() {
+  SHARD_I="$1" SHARD_N="$2" verify_shard_loads | sed -n "s/^$1$(printf '\t')//p"
+}
+
+# Prints "<shard> <load> <lane total>" for the first shard over a third of its lane, nothing when every
+# shard is within it. The real table and the fixture below go through this one function, so the
+# self-test proves the arithmetic the gate enforces.
+shard_over_a_third() {
+  local shard_count="$1" shard_index total=0 load
+  for shard_index in $(seq 1 "$shard_count"); do
+    total=$((total + $(shard_load "$shard_index" "$shard_count")))
+  done
+  for shard_index in $(seq 1 "$shard_count"); do
+    load="$(shard_load "$shard_index" "$shard_count")"
+    if [ $((load * 3)) -gt "$total" ]; then
+      printf '%s %s %s\n' "$shard_index" "$load" "$total"
+      return 0
+    fi
+  done
+  return 0
+}
+
+# The partition the weight rule replaced: sorted project p belongs to shard (p % n) + 1, and both
+# culture passes ran over the shard's whole project list, so its recorded weight is twice each
+# project's plus shard 1's pre-load. Kept only to report the weight partition's before/after (#789).
+shard_position_load() {
+  local shard_index="$1" shard_count="$2" index=0 load=0 project
+  while IFS= read -r project; do
+    if [ $((index % shard_count)) -eq $((shard_index - 1)) ]; then
+      load=$((load + 2 * $(verify_shard_weight "$project")))
+    fi
+    index=$((index + 1))
+  done < <(verify_test_projects)
+  if [ "$shard_index" -eq 1 ]; then
+    load=$((load + $(verify_shard_primary_weight)))
+  fi
+  printf '%s\n' "$load"
+}
+
+# The busiest shard's recorded weight at one shard count, through a load function.
+shard_pole() {
+  local load_fn="$1" shard_count="$2" shard_index load pole=0
+  for shard_index in $(seq 1 "$shard_count"); do
+    load="$("$load_fn" "$shard_index" "$shard_count")"
+    if [ "$load" -gt "$pole" ]; then
+      pole="$load"
+    fi
+  done
+  printf '%s\n' "$pole"
+}
+
+# A shard's wall time as the table predicts it: the two culture passes run back to back, and within a
+# pass the test platform starts every module at once, so the pass costs its heaviest project, paid
+# twice because both passes stay in the project's own shard; shard 1 adds its non-test pre-load. The
+# position partition paid the same twice but parked a heavy project beside light ones, so its heaviest
+# project was heavier; reported, not enforced (#789).
+shard_wall() {
+  local shard_index="$1" shard_count="$2" pass project shard weight wall=0
+  local heaviest_default=0 heaviest_deat=0
+  while IFS="$VERIFY_SHARD_TAB" read -r pass project shard; do
+    [ "$shard" = "$shard_index" ] || continue
+    weight="$(verify_shard_weight "$project")"
+    case "$pass" in
+      default) [ "$weight" -gt "$heaviest_default" ] && heaviest_default="$weight" ;;
+      de-at) [ "$weight" -gt "$heaviest_deat" ] && heaviest_deat="$weight" ;;
+    esac
+  done < <(SHARD_I=1 SHARD_N="$shard_count" verify_shard_plan)
+  if [ "$shard_index" -eq 1 ]; then
+    wall="$(verify_shard_primary_weight)"
+  fi
+  wall=$((wall + heaviest_default + heaviest_deat))
+  printf '%s\n' "$wall"
+}
+
+# The wall time the position partition produced the same way: both passes ran over the shard's whole
+# project list, so its heaviest unit is paid twice.
+shard_position_wall() {
+  local shard_index="$1" shard_count="$2" index=0 heaviest=0 project weight wall
+  while IFS= read -r project; do
+    if [ $((index % shard_count)) -eq $((shard_index - 1)) ]; then
+      weight="$(verify_shard_weight "$project")"
+      if [ "$weight" -gt "$heaviest" ]; then
+        heaviest="$weight"
+      fi
+    fi
+    index=$((index + 1))
+  done < <(verify_test_projects)
+  wall=$((2 * heaviest))
+  if [ "$shard_index" -eq 1 ]; then
+    wall=$((wall + $(verify_shard_primary_weight)))
+  fi
+  printf '%s\n' "$wall"
+}
+
+# The shard count each verify lane runs, as "<os><TAB><count>", read from the workflow's leg lines
+# and the variable each one passes: Ubuntu and Windows pass the dispatch's count (whose fallback is
+# the dispatch input's default), macOS passes its own cap. Fails when a lane passes a variable this
+# gate does not know, so a lane cannot be given a count the balance check never sees.
+shard_lane_counts() {
+  local workflow="$1" dispatch macos_cap os variable count
+  dispatch="$(grep -oE "verify_shard_count \|\| '[0-9]+'" "$workflow" | head -n 1 | grep -oE '[0-9]+' || true)"
+  macos_cap="$(grep -oE 'macos_shards=\$\(\(SHARDS < [0-9]+ \? SHARDS : [0-9]+\)\)' "$workflow" |
+    head -n 1 | grep -oE ': [0-9]+\)' | grep -oE '[0-9]+' || true)"
+  case "$dispatch" in
+    "" | *[!0-9]*) return 1 ;;
+  esac
+  case "$macos_cap" in
+    "" | *[!0-9]*) return 1 ;;
+  esac
+  while read -r os variable; do
+    variable="${variable%\"}"
+    variable="${variable#\"}"
+    case "$variable" in
+      '${SHARDS}') count="$dispatch" ;;
+      '${macos_shards}') count="$macos_cap" ;;
+      *) return 1 ;;
+    esac
+    printf '%s\t%s\n' "$os" "$count"
+  done < <(grep -E '^ +leg [a-z-]+-latest ' "$workflow" | awk '{ print $2, $6 }' | LC_ALL=C sort -u)
+}
+
+# Why the lanes' shard counts are not the ones the card asks for; nothing when both are right.
+# Ubuntu and Windows need the dispatch's count, four at the default, because the card's third is not
+# attainable below it; macOS keeps its two-shard cap, where the card asks for the best wall time
+# within two shards instead (#789).
+shard_lane_count_problem() {
+  local lane_count="$1" macos_count="$2"
+  case "$lane_count" in
+    "" | *[!0-9]*) printf 'the Ubuntu and Windows shard count is unreadable (%s)\n' "$lane_count"; return 0 ;;
+  esac
+  if [ "$lane_count" -lt 4 ]; then
+    printf 'the Ubuntu and Windows lanes run %s shards; the third needs four, because two always leave one shard carrying at least half the lane\n' "$lane_count"
+    return 0
+  fi
+  if [ "$macos_count" != "2" ]; then
+    printf 'the macOS lane runs %s shards; the card keeps its two-shard cap and asks for the best wall time within two\n' "$macos_count"
+    return 0
+  fi
+  return 0
+}
+
+shard_fail() {
+  echo "gate-tests: FAIL: $1" >&2
+  exit 1
 }
 
 echo "gate-tests: the project list must one-to-one match the solution's test projects"
 partition_all="$(LC_ALL=C sort < <(verify_test_projects))"
 partition_count="$(printf '%s\n' "$partition_all" | wc -l | tr -d ' ')"
 if [ "$partition_count" -eq 0 ] || [ "$partition_count" -ne "$(grep -o 'Tests\.csproj' lunate.slnx | wc -l | tr -d ' ')" ]; then
-  echo "gate-tests: FAIL: verify_test_projects reads $partition_count projects; lunate.slnx has $(grep -o 'Tests\.csproj' lunate.slnx | wc -l | tr -d ' ') (post-#179 extraction regression?)" >&2
-  exit 1
+  shard_fail "verify_test_projects reads $partition_count projects; lunate.slnx has $(grep -o 'Tests\.csproj' lunate.slnx | wc -l | tr -d ' ') (post-#179 extraction regression?)"
 fi
-shard_union="$(printf '%s\n' "$(shard_slice 1 2)" "$(shard_slice 2 2)" | LC_ALL=C sort)"
-if [ "$shard_union" != "$partition_all" ]; then
-  echo "gate-tests: FAIL: shards 1/2+2/2 do not partition the test projects" >&2
-  diff <(printf '%s\n' "$shard_union") <(printf '%s\n' "$partition_all") | head -20 >&2
-  exit 1
+
+echo "gate-tests: no weight row may name a test project the solution does not have"
+stale_rows="$(verify_shard_stale_rows)"
+if [ -n "$stale_rows" ]; then
+  shard_fail "scripts/verify-shard-weights.tsv names projects lunate.slnx no longer has:
+${stale_rows}
+Refresh it with: scripts/shard-weights.sh weights --from <dir of verify-timing artifacts> --out scripts/verify-shard-weights.tsv"
 fi
-shard_union3="$(printf '%s\n' "$(shard_slice 1 3)" "$(shard_slice 2 3)" "$(shard_slice 3 3)" | LC_ALL=C sort)"
-if [ "$shard_union3" != "$partition_all" ]; then
-  echo "gate-tests: FAIL: shards 1/3..3/3 do not partition the test projects" >&2
-  exit 1
+
+echo "gate-tests: the weight table must record shard 1's non-test pre-load"
+if ! grep -Eq '^#primary[[:space:]]+[0-9]+$' "${SCRIPT_DIR}/verify-shard-weights.tsv"; then
+  shard_fail "scripts/verify-shard-weights.tsv has no #primary row; shard 1's publish, budgets and roundtrips would be planned as free"
 fi
-# The CI matrix runs four shards per OS (#696). Each must own a real slice: a shard that owns
-# nothing would either fail the gate or, worse, look like a smoke test.
-shard_union4="$(printf '%s\n' "$(shard_slice 1 4)" "$(shard_slice 2 4)" "$(shard_slice 3 4)" "$(shard_slice 4 4)" | LC_ALL=C sort)"
-if [ "$shard_union4" != "$partition_all" ]; then
-  echo "gate-tests: FAIL: shards 1/4..4/4 do not partition the test projects" >&2
-  diff <(printf '%s\n' "$shard_union4") <(printf '%s\n' "$partition_all") | head -20 >&2
-  exit 1
-fi
-for shard_index in 1 2 3 4; do
-  if [ -z "$(shard_slice "$shard_index" 4)" ]; then
-    echo "gate-tests: FAIL: shard ${shard_index}/4 owns zero test projects" >&2
-    exit 1
+
+echo "gate-tests: every culture pass must be partitioned, and every shard must own a unit, at 1 to 4 shards"
+for shard_count in 1 2 3 4; do
+  for shard_pass in default de-at; do
+    shard_units_all=""
+    for shard_index in $(seq 1 "$shard_count"); do
+      shard_slice_one="$(shard_slice "$shard_index" "$shard_count" "$shard_pass")"
+      if [ -z "$shard_slice_one" ]; then
+        shard_fail "shard ${shard_index}/${shard_count} owns zero test projects in the ${shard_pass} pass"
+      fi
+      shard_units_all="${shard_units_all}${shard_slice_one}"$'\n'
+    done
+    shard_union="$(printf '%s' "$shard_units_all" | grep -v '^$' | LC_ALL=C sort)"
+    if [ "$shard_union" != "$partition_all" ]; then
+      echo "gate-tests: FAIL: shards 1/${shard_count}..${shard_count}/${shard_count} of the ${shard_pass} pass do not partition the test projects" >&2
+      diff <(printf '%s\n' "$shard_union") <(printf '%s\n' "$partition_all") | head -20 >&2
+      exit 1
+    fi
+    # Equal multisets: the sorted union has exactly one line per project, so no project is in two
+    # shards and none is missing.
+    if [ "$(printf '%s\n' "$shard_union" | grep -c .)" -ne "$partition_count" ]; then
+      shard_fail "shards 1/${shard_count} of the ${shard_pass} pass assign a project twice"
+    fi
+  done
+done
+
+echo "gate-tests: every test project must be in exactly one shard, with both culture passes together"
+for shard_count in 1 2 3 4; do
+  split_projects="$(SHARD_I=1 SHARD_N="$shard_count" verify_shard_plan | awk -F'\t' '
+    { if (!($2 in first)) { first[$2] = $3 } else if (first[$2] != $3) { print $2 } }
+  ')"
+  if [ -n "$split_projects" ]; then
+    shard_fail "at ${shard_count} shards these projects are not in exactly one shard: $(printf '%s' "$split_projects" | tr '\n' ' ')"
   fi
 done
-# Round-robin keeps the run balanced: neighbouring shard sizes differ by at most one.
-shard_size_1="$(printf '%s\n' "$(shard_slice 1 2)" | grep -c . || true)"
-shard_size_2="$(printf '%s\n' "$(shard_slice 2 2)" | grep -c . || true)"
-if [ "$((shard_size_1 - shard_size_2 > 1 || shard_size_2 - shard_size_1 > 1))" -eq 1 ]; then
-  echo "gate-tests: FAIL: shard sizes are unbalanced: $shard_size_1/$shard_size_2 for $partition_count projects" >&2
-  exit 1
+
+echo "gate-tests: the partition must be byte-identical across calls"
+shard_plan_once="$(SHARD_I=1 SHARD_N=4 verify_shard_plan)"
+shard_plan_twice="$(SHARD_I=1 SHARD_N=4 verify_shard_plan)"
+if [ "$shard_plan_once" != "$shard_plan_twice" ]; then
+  shard_fail "the four-shard plan is not deterministic"
 fi
 
-echo "gate-tests: the shard module expression must be one built-assembly path per project, joined with ';'"
-shard_modules_all="$(CONFIGURATION=Release SHARD_I=1 SHARD_N=1 verify_shard_modules)"
-module_count="$(printf '%s\n' "$shard_modules_all" | tr ';' '\n' | grep -c .)"
-if [ "$module_count" -ne "$partition_count" ]; then
-  echo "gate-tests: FAIL: the 1/1 module expression carries $module_count entries for $partition_count projects" >&2
-  exit 1
+# The third is the Ubuntu and Windows lanes' rule: they run the dispatch's shard count. macOS keeps
+# the card's two-shard cap, where no partition can hold the third (two shards always leave one
+# carrying at least half the lane), and its acceptance is the best wall time within two shards (#789).
+# The gate reads every lane's count out of the workflow and checks each against its own rule.
+WORKFLOW="${SCRIPT_DIR}/../.github/workflows/ci.yml"
+lane_counts="$(shard_lane_counts "$WORKFLOW")"
+if [ -z "$lane_counts" ]; then
+  shard_fail "the verify lanes' shard counts are unreadable from .github/workflows/ci.yml (expected Ubuntu and Windows on \"\${SHARDS}\" and macOS on \"\${macos_shards}\")"
 fi
-case "$shard_modules_all" in
-  *"/bin/Release/net11.0/Lunate.Tui.Tests.dll"*) ;;
-  *)
-    echo "gate-tests: FAIL: module expression is not a built-assembly path per project: $shard_modules_all" >&2
-    exit 1
-    ;;
-esac
-shard_modules_repeat="$(CONFIGURATION=Release SHARD_I=1 SHARD_N=1 verify_shard_modules)"
-if [ "$shard_modules_all" != "$shard_modules_repeat" ]; then
-  echo "gate-tests: FAIL: the module expression is not deterministic across calls" >&2
-  exit 1
+lane_shard_count="$(printf '%s\n' "$lane_counts" | awk -F'\t' '$1 == "ubuntu-latest" { print $2 }')"
+windows_shard_count="$(printf '%s\n' "$lane_counts" | awk -F'\t' '$1 == "windows-latest" { print $2 }')"
+macos_shard_count="$(printf '%s\n' "$lane_counts" | awk -F'\t' '$1 == "macos-latest" { print $2 }')"
+if [ "$lane_shard_count" != "$windows_shard_count" ]; then
+  shard_fail "Ubuntu runs ${lane_shard_count} verify shards and Windows ${windows_shard_count}; the same partition has to be checked on both"
 fi
-module_union="$(printf '%s\n%s\n' "$(CONFIGURATION=Release SHARD_I=1 SHARD_N=2 verify_shard_modules | tr ';' '\n')" "$(CONFIGURATION=Release SHARD_I=2 SHARD_N=2 verify_shard_modules | tr ';' '\n')" | LC_ALL=C sort)"
-module_union_all="$(printf '%s\n' "$shard_modules_all" | tr ';' '\n' | LC_ALL=C sort)"
-if [ "$module_union" != "$module_union_all" ]; then
-  echo "gate-tests: FAIL: the shard module expressions do not cover the solution set" >&2
-  exit 1
+lane_count_problem="$(shard_lane_count_problem "$lane_shard_count" "$macos_shard_count")"
+if [ -n "$lane_count_problem" ]; then
+  shard_fail "$lane_count_problem"
 fi
-module_union4="$(for shard_index in 1 2 3 4; do
-  CONFIGURATION=Release SHARD_I="$shard_index" SHARD_N=4 verify_shard_modules | tr ';' '\n'
-done | LC_ALL=C sort)"
-if [ "$module_union4" != "$module_union_all" ]; then
-  echo "gate-tests: FAIL: the four-shard module expressions do not cover the solution set" >&2
-  exit 1
+if ! grep -Fq "default: \"${lane_shard_count}\"" "$WORKFLOW"; then
+  shard_fail "the dispatch input's default and the Ubuntu and Windows fallback count disagree (${lane_shard_count})"
 fi
 
-echo "gate-tests: the shard wall-time recorder writes the timing and the summary row"
+# Fails when the Ubuntu and Windows lanes' own count cannot meet the card's third: two shards always
+# leave one carrying half the lane, and only the count the matrix runs is worth checking, because a
+# manual dispatch that picks a smaller count is a baseline measurement.
+echo "gate-tests: no shard may carry more than a third of its lane's recorded weight on the Ubuntu and Windows lanes' count (${lane_shard_count})"
+lane_total=0
+shard_loads=""
+for shard_index in $(seq 1 "$lane_shard_count"); do
+  shard_load_one="$(shard_load "$shard_index" "$lane_shard_count")"
+  shard_loads="${shard_loads}${shard_index}:${shard_load_one}s "
+  lane_total=$((lane_total + shard_load_one))
+done
+if [ "$lane_total" -le 0 ]; then
+  shard_fail "the lane's recorded weight is $lane_total s - scripts/verify-shard-weights.tsv carries no weights"
+fi
+printf 'gate-tests: Ubuntu and Windows at %s shards: %spole %ss of %ss; wall pole %ss, position wall pole %ss\n' \
+  "$lane_shard_count" "$shard_loads" \
+  "$(shard_pole shard_load "$lane_shard_count")" "$lane_total" \
+  "$(shard_pole shard_wall "$lane_shard_count")" "$(shard_pole shard_position_wall "$lane_shard_count")"
+shard_over="$(shard_over_a_third "$lane_shard_count")"
+if [ -n "$shard_over" ]; then
+  shard_fail "shard $(printf '%s' "$shard_over" | cut -d' ' -f1)/${lane_shard_count} carries $(printf '%s' "$shard_over" | cut -d' ' -f2)s of the lane's $(printf '%s' "$shard_over" | cut -d' ' -f3)s, over a third (${shard_loads})"
+fi
+
+# macOS keeps the card's two-shard cap. Its acceptance is the best wall time within two shards, so the
+# gate reports the recorded before/after and requires the weight partition to be no heavier than the
+# position partition it replaced; the longest-processing-time bound below covers the rest.
+echo "gate-tests: macOS keeps its two-shard cap (${macos_shard_count}) and its weight partition must be no heavier than the position one"
+macos_total=0
+macos_loads=""
+for shard_index in $(seq 1 "$macos_shard_count"); do
+  shard_load_one="$(shard_load "$shard_index" "$macos_shard_count")"
+  macos_loads="${macos_loads}${shard_index}:${shard_load_one}s "
+  macos_total=$((macos_total + shard_load_one))
+done
+if [ "$macos_total" -le 0 ]; then
+  shard_fail "the macOS lane's recorded weight is $macos_total s - scripts/verify-shard-weights.tsv carries no weights"
+fi
+macos_pole="$(shard_pole shard_load "$macos_shard_count")"
+macos_position_pole="$(shard_pole shard_position_load "$macos_shard_count")"
+macos_wall_pole="$(shard_pole shard_wall "$macos_shard_count")"
+macos_position_wall_pole="$(shard_pole shard_position_wall "$macos_shard_count")"
+printf 'gate-tests: macOS at %s shards: %spole %ss of %ss (%s%%), position pole %ss (%s%%); wall pole %ss, position wall pole %ss\n' \
+  "$macos_shard_count" "$macos_loads" \
+  "$macos_pole" "$macos_total" "$(awk -v p="$macos_pole" -v t="$macos_total" 'BEGIN { printf "%.1f", 100 * p / t }')" \
+  "$macos_position_pole" "$(awk -v p="$macos_position_pole" -v t="$macos_total" 'BEGIN { printf "%.1f", 100 * p / t }')" \
+  "$macos_wall_pole" "$macos_position_wall_pole"
+if [ "$macos_pole" -gt "$macos_position_pole" ]; then
+  shard_fail "macOS's weight partition carries ${macos_pole}s at two shards, heavier than the position partition's ${macos_position_pole}s"
+fi
+if [ "$macos_wall_pole" -gt "$macos_position_wall_pole" ]; then
+  shard_fail "macOS's weight partition costs ${macos_wall_pole}s at two shards, more than the position partition's ${macos_position_wall_pole}s"
+fi
+
+# LPT's guarantee is relative to the optimum, and no partition can beat the heavier of the lane's
+# fair share and its heaviest project. At four shards the recorded table has such a project
+# (Lunate.Extensibility.Testing.Tests alone is heavier than a quarter of the lane), so the bound uses
+# that lower bound instead of pretending the fair share is attainable.
+echo "gate-tests: every shard count must stay within the longest-processing-time bound"
+for shard_count in 1 2 3 4; do
+  lane_total=0
+  for shard_index in $(seq 1 "$shard_count"); do
+    lane_total=$((lane_total + $(shard_load "$shard_index" "$shard_count")))
+  done
+  largest_job="$(verify_shard_primary_weight)"
+  while IFS= read -r shard_project; do
+    shard_weight_one="$(verify_shard_weight "$shard_project")"
+    shard_job=$((2 * shard_weight_one))
+    if [ "$shard_job" -gt "$largest_job" ]; then
+      largest_job="$shard_job"
+    fi
+  done < <(verify_test_projects)
+  fair_share=$(((lane_total + shard_count - 1) / shard_count))
+  if [ "$fair_share" -gt "$largest_job" ]; then
+    largest_job="$fair_share"
+  fi
+  for shard_index in $(seq 1 "$shard_count"); do
+    shard_load_one="$(shard_load "$shard_index" "$shard_count")"
+    if [ $((shard_load_one * 3 * shard_count)) -gt $((largest_job * (4 * shard_count - 1))) ]; then
+      shard_fail "shard ${shard_index}/${shard_count} carries ${shard_load_one}s of a ${lane_total}s lane, beyond the longest-processing-time bound (${largest_job}s lower bound on the optimum)"
+    fi
+  done
+done
+
+echo "gate-tests: the heaviest project must be planned as one project, not one unit per culture pass"
+heaviest_project=""
+heaviest_weight=0
+while IFS= read -r shard_project; do
+  shard_weight_one="$(verify_shard_weight "$shard_project")"
+  if [ "$shard_weight_one" -gt "$heaviest_weight" ]; then
+    heaviest_weight="$shard_weight_one"
+    heaviest_project="$shard_project"
+  fi
+done < <(verify_test_projects)
+if [ -n "$heaviest_project" ]; then
+  heaviest_units="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan |
+    awk -F'\t' -v project="$heaviest_project" '$2 == project { print }' | grep -c . || true)"
+  heaviest_shards="$(SHARD_I=1 SHARD_N="$lane_shard_count" verify_shard_plan |
+    awk -F'\t' -v project="$heaviest_project" '$2 == project { print $3 }' | LC_ALL=C sort -u | grep -c . || true)"
+  if [ "$heaviest_units" -ne 2 ] || [ "$heaviest_shards" -ne 1 ]; then
+    shard_fail "the heaviest project $heaviest_project (${heaviest_weight}s a pass) has ${heaviest_units} unit(s) in ${heaviest_shards} shard(s) at ${lane_shard_count} shards, not one project in one shard"
+  fi
+fi
+
+echo "gate-tests: a project with no weight row must be partitioned at the default weight, not dropped"
+SHARD_DIR="$(mktemp -d "${SCRIPT_DIR}/../.gate-shard.XXXXXX")"
+printf '#primary\t0\ntests/Lunate.Ai.Tests/Lunate.Ai.Tests.csproj\t7\n' >"${SHARD_DIR}/partial.tsv"
+defaulted_weight="$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/partial.tsv" verify_shard_weight tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj)"
+if [ "$defaulted_weight" != "$VERIFY_SHARD_DEFAULT_WEIGHT" ]; then
+  shard_fail "a project without a row weighs ${defaulted_weight}s instead of the default ${VERIFY_SHARD_DEFAULT_WEIGHT}s"
+fi
+defaulted_units="$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/partial.tsv" SHARD_I=1 SHARD_N=4 verify_shard_plan | grep -c . || true)"
+if [ "$defaulted_units" -ne $((partition_count * 2)) ]; then
+  shard_fail "a partial weight table planned $defaulted_units units for $((partition_count * 2)) expected"
+fi
+if [ ! -f "${SCRIPT_DIR}/verify-shard-weights.tsv" ]; then
+  shard_fail "scripts/verify-shard-weights.tsv is missing; the partition would fall back to the default weight for every project"
+fi
+
+echo "gate-tests: a weight row naming a project the solution does not have is reported as stale"
+printf '#primary\t0\ntests/Lunate.Gone.Tests/Lunate.Gone.Tests.csproj\t42\n' >"${SHARD_DIR}/stale.tsv"
+if [ -z "$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/stale.tsv" verify_shard_stale_rows)" ]; then
+  shard_fail "a weight row naming a project lunate.slnx does not have was not reported as stale"
+fi
+
+echo "gate-tests: the balance check must reject a lane whose pole is a third of it, not wave it through"
+# Every project weighs 1 s and the pole weighs 5000 s: the project lands in one shard whatever the
+# table says, but its two passes then put that shard over a third of the lane, which no partition can
+# fix - the check has to say so rather than report a partition it cannot balance.
+{
+  printf '#primary\t0\n'
+  while IFS= read -r shard_project; do
+    if [ "$shard_project" = "tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj" ]; then
+      printf 'tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj\t5000\n'
+    else
+      printf '%s\t1\n' "$shard_project"
+    fi
+  done < <(verify_test_projects)
+} >"${SHARD_DIR}/pole.tsv"
+pole_over="$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/pole.tsv" shard_over_a_third 4)"
+if [ -z "$pole_over" ]; then
+  shard_fail "the balance check accepted a lane whose pole is a third of it, so it cannot catch an unbalanced partition"
+fi
+pole_split="$(VERIFY_SHARD_WEIGHTS_FILE="${SHARD_DIR}/pole.tsv" SHARD_I=1 SHARD_N=4 verify_shard_plan |
+  awk -F'\t' '$2 == "tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj" { print $3 }' |
+  LC_ALL=C sort -u | grep -c . || true)"
+if [ "$pole_split" -ne 1 ]; then
+  shard_fail "the pole's project was planned into ${pole_split} shard(s), not one"
+fi
+echo "gate-tests: the third is a four-shard property, which is why macOS keeps its two-shard cap and its own acceptance"
+# The recorded table at two shards leaves one shard carrying about half the lane. The card does not ask
+# macOS for the third; it asks for the best wall time within two shards (#789).
+if [ -z "$(shard_over_a_third 2)" ]; then
+  shard_fail "the balance check accepted two shards on the recorded table, so the third cannot be why macOS is capped"
+fi
+
+echo "gate-tests: the lane-count reader must resolve both count variables and reject a lane it cannot read"
+lane_counts_real="$(shard_lane_counts "$WORKFLOW")"
+lane_counts_want="$(printf '%s\t%s\n' macos-latest "$macos_shard_count" ubuntu-latest "$lane_shard_count" windows-latest "$lane_shard_count" | LC_ALL=C sort)"
+if [ "$lane_counts_real" != "$lane_counts_want" ]; then
+  shard_fail "the lane-count reader does not read the workflow's lanes (got: ${lane_counts_real//$'\n'/; }; expected: ${lane_counts_want//$'\n'/; })"
+fi
+{
+  printf "          SHARDS: \${{ inputs.verify_shard_count || '4' }}\n"
+  printf '          macos_shards=$((SHARDS < 3 ? SHARDS : 3))\n'
+  printf '          leg ubuntu-latest linux-x64 250 150 "${SHARDS}" ""\n'
+  printf '          leg windows-latest win-x64 350 150 "${SHARDS}" ""\n'
+  printf '          leg macos-latest osx-arm64 300 150 "${macos_shards}" ""\n'
+} >"${SHARD_DIR}/ci-capped.yml"
+capped_macos="$(shard_lane_counts "${SHARD_DIR}/ci-capped.yml" | awk -F'\t' '$1 == "macos-latest" { print $2 }')"
+if [ "$capped_macos" != "3" ]; then
+  shard_fail "the lane-count reader read macOS's cap as '${capped_macos}' instead of 3 on a fixture workflow"
+fi
+if [ -z "$(shard_lane_count_problem 4 "$capped_macos")" ]; then
+  shard_fail "the lane-count check accepted a macOS lane that runs three shards"
+fi
+if [ -z "$(shard_lane_count_problem 2 2)" ]; then
+  shard_fail "the lane-count check accepted two shards on the Ubuntu and Windows lanes, where the third cannot hold"
+fi
+if [ -n "$(shard_lane_count_problem 4 2)" ]; then
+  shard_fail "the lane-count check rejected the card's four Ubuntu/Windows shards and two macOS shards: $(shard_lane_count_problem 4 2)"
+fi
+{
+  printf "          SHARDS: \${{ inputs.verify_shard_count || '4' }}\n"
+  printf '          macos_shards=$((SHARDS < 2 ? SHARDS : 2))\n'
+  printf '          leg macos-latest osx-arm64 300 150 "${SHARDS_OTHER}" ""\n'
+} >"${SHARD_DIR}/ci-unknown.yml"
+if [ -n "$(shard_lane_counts "${SHARD_DIR}/ci-unknown.yml")" ]; then
+  shard_fail "the lane-count reader accepted a lane whose shard count variable it does not know"
+fi
+
+if [ -n "$(shard_over_a_third "$lane_shard_count")" ]; then
+  shard_fail "the recorded table's own partition is over a third at ${lane_shard_count} shards, which the check above should have failed on"
+fi
+
+echo "gate-tests: the shard module expression must be one built-assembly path per culture pass, joined with ';'"
+for shard_pass in default de-at; do
+  shard_modules_all="$(CONFIGURATION=Release SHARD_I=1 SHARD_N=1 verify_shard_modules "$shard_pass")"
+  module_count="$(printf '%s\n' "$shard_modules_all" | tr ';' '\n' | grep -c .)"
+  if [ "$module_count" -ne "$partition_count" ]; then
+    shard_fail "the 1/1 ${shard_pass} module expression carries $module_count entries for $partition_count projects"
+  fi
+  case "$shard_modules_all" in
+    *"/bin/Release/net11.0/Lunate.Tui.Tests.dll"*) ;;
+    *)
+      shard_fail "the ${shard_pass} module expression is not a built-assembly path per project: $shard_modules_all"
+      ;;
+  esac
+  shard_modules_repeat="$(CONFIGURATION=Release SHARD_I=1 SHARD_N=1 verify_shard_modules "$shard_pass")"
+  if [ "$shard_modules_all" != "$shard_modules_repeat" ]; then
+    shard_fail "the ${shard_pass} module expression is not deterministic across calls"
+  fi
+  module_union_all="$(printf '%s\n' "$shard_modules_all" | tr ';' '\n' | LC_ALL=C sort)"
+  for shard_count in 2 4; do
+    module_union="$(for shard_index in $(seq 1 "$shard_count"); do
+      CONFIGURATION=Release SHARD_I="$shard_index" SHARD_N="$shard_count" verify_shard_modules "$shard_pass" | tr ';' '\n'
+    done | LC_ALL=C sort)"
+    if [ "$module_union" != "$module_union_all" ]; then
+      shard_fail "the ${shard_count}-shard ${shard_pass} module expressions do not cover the solution set"
+    fi
+  done
+done
+
+echo "gate-tests: the shard wall-time recorders write the shard, the project and the non-test time"
 if ! grep -Fq 'shard-timing.sh' "${SCRIPT_DIR}/verify.sh"; then
-  echo "gate-tests: FAIL: verify.sh does not invoke shard-timing.sh, so no shard records its wall time" >&2
-  exit 1
+  shard_fail "verify.sh does not invoke shard-timing.sh, so no shard records its wall time"
+fi
+if ! grep -Fq 'shard-weights.sh' "${SCRIPT_DIR}/verify.sh"; then
+  shard_fail "verify.sh does not invoke shard-weights.sh, so no run records the per-project wall times the partition reads"
 fi
 if ! bash "${SCRIPT_DIR}/shard-timing.sh" --self-test >/dev/null; then
-  echo "gate-tests: FAIL: shard-timing.sh self-test failed" >&2
-  exit 1
+  shard_fail "shard-timing.sh self-test failed"
+fi
+if ! bash "${SCRIPT_DIR}/shard-weights.sh" --self-test >/dev/null; then
+  shard_fail "shard-weights.sh self-test failed"
 fi
 
 echo "gate-tests: a shard that would own zero test projects must fail instead of running nothing"
-shard_rc=0
-( CONFIGURATION=Release SHARD_I=25 SHARD_N=25 verify_shard_modules ) >/dev/null 2>&1 || shard_rc=$?
-if [ "$shard_rc" -eq 0 ]; then
-  echo "gate-tests: FAIL: shard 25/25 produced a module expression for zero projects" >&2
-  exit 1
-fi
+# More shards than units: shard 64 owns nothing, and a shard that runs nothing must never look green.
+for shard_pass in default de-at; do
+  shard_rc=0
+  ( CONFIGURATION=Release SHARD_I=64 SHARD_N=64 verify_shard_modules "$shard_pass" ) >/dev/null 2>&1 || shard_rc=$?
+  if [ "$shard_rc" -eq 0 ]; then
+    shard_fail "shard 64/64 produced a ${shard_pass} module expression for zero projects"
+  fi
+done
 
 echo "gate-tests: OK"

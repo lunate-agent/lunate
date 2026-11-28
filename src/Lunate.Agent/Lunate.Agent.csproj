@@ -72,6 +72,7 @@
         <InternalsVisibleTo Include="Lunate.Protocols.Tests" />
         <!-- The Coding production-composition proofs validate a session run's event stream. -->
         <InternalsVisibleTo Include="Lunate.Coding.Tests" />
+        <InternalsVisibleTo Include="Lunate.Coding.Process.Tests" />
     </ItemGroup>
 
     <!--
