@@ -103,7 +103,12 @@ internal sealed partial class InteractiveSession
                 break;
             case UsageUpdated usage:
                 AddUsage(usage, root: !child);
-                if (usage.Attribution?.Usage is "decision" or EmbeddingsUsage.Usage)
+                if (
+                    usage.Attribution?.Usage
+                    is "decision"
+                        or EmbeddingsUsage.Usage
+                        or ImageGenerationUsage.Usage
+                )
                 {
                     RecordAttributedUsage(usage);
                 }

@@ -883,6 +883,17 @@ internal static class PrintMode
                     SessionContext(session),
                     message => warn(new UserNotice(NoticeLevel.Warning, message))
                 ),
+            imageGeneration: () =>
+                ImageGenerationUsage.TryResolve(
+                    settings,
+                    providers,
+                    catalog,
+                    auth,
+                    options.Environment ?? Environment.GetEnvironmentVariable,
+                    factory,
+                    SessionContext(session),
+                    message => warn(new UserNotice(NoticeLevel.Warning, message))
+                ),
             webSearch: webSearch
         );
         tools.Add(new AskUserTool());
@@ -1011,6 +1022,17 @@ internal static class PrintMode
                 bashJobs: bashJobs,
                 embeddings: () =>
                     EmbeddingsUsage.TryResolve(
+                        settings,
+                        providers,
+                        catalog,
+                        auth,
+                        options.Environment ?? Environment.GetEnvironmentVariable,
+                        factory,
+                        SessionContext(session),
+                        message => warn(new UserNotice(NoticeLevel.Warning, message))
+                    ),
+                imageGeneration: () =>
+                    ImageGenerationUsage.TryResolve(
                         settings,
                         providers,
                         catalog,

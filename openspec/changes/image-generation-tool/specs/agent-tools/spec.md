@@ -6,9 +6,11 @@
 
 `generate_image` SHALL be registered beside the core tools whenever an image-generation profile
 resolves through `usages.image`. Without such a profile the tool SHALL NOT be registered, so the
-model is never offered a tool that cannot run, and one notice SHALL name `usages.image`. It SHALL
-take a required non-empty `prompt` string and an optional workspace `path` string, and it SHALL make
-one image-generation call through the resolved profile's client.
+model is never offered a tool that cannot run. An unset `usages.image` SHALL register nothing and
+print no notice; a configured profile that cannot serve the usage SHALL register nothing and warn
+once naming the profile and `usages.image`. The tool SHALL take a required non-empty `prompt` string
+and an optional workspace `path` string, and it SHALL make one image-generation call through the
+resolved profile's client.
 
 A successful call SHALL hand the returned bytes to the loop's existing tool-image path, so the
 session sidecar stores them content-addressed (ADR-0018) and the transcript records one typed
@@ -41,11 +43,17 @@ run as usage `image` with its profile, provider and resolved model id.
 - **THEN** the result text is `[image 640x480]`, the session message carries one typed image part
   whose digest is the SHA-256 of the returned bytes, and that digest names the session sidecar blob
 
-#### Scenario: No usage means no tool
+#### Scenario: No usage means no tool and no notice
 
-- **GIVEN** no resolvable `usages.image` profile
+- **GIVEN** no `usages.image` key
 - **WHEN** the harness is built
-- **THEN** `generate_image` is not registered and one notice names `usages.image`
+- **THEN** `generate_image` is not registered and no notice is printed
+
+#### Scenario: An unusable image profile warns once
+
+- **GIVEN** `usages.image` naming a profile that cannot serve image output
+- **WHEN** the harness is built
+- **THEN** `generate_image` is not registered and one warning names the profile and `usages.image`
 
 #### Scenario: A path saves the bytes in the workspace
 

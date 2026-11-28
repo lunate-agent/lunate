@@ -30,6 +30,11 @@ as `bash`; a search returns ranked title, URL and snippet results, and a fetch r
 with the page title and links as markdown, both bounded in bytes. In a C# workspace the model can also
 call the Roslyn tools — `cs_diagnostics`, `cs_find_symbol`, `cs_find_references` and `cs_outline` —
 which load on the first C# call rather than at startup.
+When `usages.image` resolves, `generate_image` joins them: it asks that profile for one image from a
+prompt, stores it in the session's own image sidecar, attaches it to the conversation as a typed
+image part, and, with an optional workspace path, also writes the file there under the same approval
+a `write` needs.
+
 Extensions, MCP servers and skills add tools of their own, and they go through the same approval
 policy as the built-ins.
 

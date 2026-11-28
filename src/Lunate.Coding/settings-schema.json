@@ -489,6 +489,13 @@
       "description": "The profile used where a fast model is wanted."
     },
     {
+      "name": "usages.image",
+      "type": "string",
+      "default": "unset",
+      "scope": "user, project",
+      "description": "The image profile behind the `generate_image` tool. It must resolve to an `openai-chat` model that declares image output; otherwise the tool is not offered."
+    },
+    {
       "name": "usages.subagents",
       "type": "string",
       "default": "unset",

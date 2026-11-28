@@ -121,6 +121,16 @@ charges its embedding calls to the run as usage `embeddings`, so `/cost` groups 
 usage. The workspace index is a cache under `~/.lunate/cache/semantic-index/`, never in the
 workspace and never in a session.
 
+The `image` usage is the image-generation profile behind the `generate_image` tool. It must resolve
+to an `openai-chat` model that declares image output — a model whose known output modalities say
+otherwise is refused when the usage resolves, while an unknown capability set is accepted. With no
+`image` usage, or a profile that cannot resolve, the tool is not offered to the model; a configured
+profile that fails to resolve prints one warning naming it. A generated image is stored
+content-addressed in the session's own sidecar (`<sessions-dir>/<session-id>/images/`) and named in
+the transcript by the typed image part, never by its bytes, and the call is charged to the run as
+usage `image` so `/cost` groups it under its own usage. A chat model that cannot see images needs a
+`vision` profile for the generated image to reach it, exactly as it does for any attached image.
+
 The optional decision profile lives in the same block; [Decisions](decisions.md) owns what it does.
 
 ## Your own model catalog

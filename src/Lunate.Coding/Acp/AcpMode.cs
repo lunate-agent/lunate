@@ -395,6 +395,7 @@ internal static class AcpMode
             bashGuardEnabled: effective.BashGuard,
             bashJobs: bashJobs,
             embeddings: () => ResolveEmbeddingsBinding(session),
+            imageGeneration: () => ResolveImageGenerationBinding(session),
             webSearch: webSearch
         );
         tools.Add(new AskUserTool());
@@ -514,6 +515,7 @@ internal static class AcpMode
                 bashGuardEnabled: effective.BashGuard,
                 bashJobs: bashJobs,
                 embeddings: () => ResolveEmbeddingsBinding(session),
+                imageGeneration: () => ResolveImageGenerationBinding(session),
                 webSearch: webSearch
             ),
         };
@@ -533,6 +535,19 @@ internal static class AcpMode
         // for it only when the tool name is enabled.
         EmbeddingsBinding? ResolveEmbeddingsBinding(Session session) =>
             EmbeddingsUsage.TryResolve(
+                effective,
+                providers,
+                models,
+                auth,
+                static name => Environment.GetEnvironmentVariable(name),
+                clientFactory,
+                new RequestContext(session.SessionId),
+                message => (warn ?? (_ => { }))(new UserNotice(NoticeLevel.Warning, message))
+            );
+
+        // The image binding the generate_image tool carries; an unset usage offers no tool.
+        ImageGenerationBinding? ResolveImageGenerationBinding(Session session) =>
+            ImageGenerationUsage.TryResolve(
                 effective,
                 providers,
                 models,
