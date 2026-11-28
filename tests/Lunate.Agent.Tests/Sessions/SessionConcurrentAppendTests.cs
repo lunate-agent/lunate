@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using Microsoft.Extensions.AI;
 
@@ -30,7 +31,7 @@ public sealed class SessionConcurrentAppendTests
         const int PerWriter = 100;
         string filler = new('x', 4096);
         using var gate = new Barrier(Writers);
-        var failures = new System.Collections.Concurrent.ConcurrentQueue<Exception>();
+        var failures = new ConcurrentQueue<Exception>();
         List<Thread> threads = [];
         for (var writer = 0; writer < Writers; writer++)
         {
