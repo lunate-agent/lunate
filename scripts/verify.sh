@@ -375,6 +375,7 @@ docs_profile() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_arms.py"
 
   # A run whose red jobs never acquired a runner is retried once instead of being filed as a code
   # failure: the workflow wiring and the reporter's deferral decision (#923).
@@ -518,6 +519,7 @@ platform_checks() {
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_adapter_preflight.py"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_run.py"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_swebench_arms.py"
 
   # The template roundtrip restores into a packages folder of its own, and this pins that plus the
   # restore behaviour it exists for (#932). It runs here rather than in the docs profile because it

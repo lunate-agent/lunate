@@ -9,3 +9,6 @@ image-pull.log
 prompt.md
 run.sh
 collect_patch.py
+# A semantic-search arm's index cache is written under the run's LUNATE_HOME; the settings and
+# provider pair stay committed, the cache does not.
+**/lunate-home/cache/

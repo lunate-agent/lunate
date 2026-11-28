@@ -28,18 +28,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from swebench_run_support import (
-    SINGLE_MODEL_TIERS,
     arm_chat_model,
     arm_credentials,
+    arm_id,
     arm_instance_spend,
+    arm_tool,
     decision_home_files,
     decision_model_id,
     elapsed_seconds,
+    embeddings_model_id,
     load_definition,
     load_subset,
     model_pricing,
     official_counts,
     render_markdown,
+    semantic_search_enabled,
+    semantic_search_home_files,
     summarize_arm,
     trajectory_totals,
 )
@@ -109,7 +113,7 @@ def adapter_command(
         "--output-dir",
         str(output_dir),
         "--run-id",
-        f"{model['tier']}-{safe(instance_id)}",
+        f"{arm_id(model)}-{safe(instance_id)}",
         "--evaluate",
         "always",
         "--max-cost",
@@ -131,15 +135,34 @@ def adapter_command(
     return command
 
 
-def write_decision_home(work_root: Path, model: dict) -> Path:
-    """Render the arm's prepared home from its definition, in the run tree that is committed."""
-    home = work_root / "lunate-home" / model["tier"]
+def write_home(work_root: Path, model: dict, files: dict[str, dict]) -> Path:
+    """Write one arm's prepared home into the run tree that is committed."""
+    home = work_root / "lunate-home" / arm_id(model)
     home.mkdir(parents=True, exist_ok=True)
-    for name, payload in decision_home_files(model).items():
+    for name, payload in files.items():
         (home / name).write_text(
             json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n"
         )
     return home
+
+
+def write_decision_home(work_root: Path, model: dict) -> Path:
+    """Render the decision arm's prepared home from its definition."""
+    return write_home(work_root, model, decision_home_files(model))
+
+
+def write_semantic_search_home(work_root: Path, model: dict) -> Path:
+    """Render the semantic-search-on arm's prepared home from its definition."""
+    return write_home(work_root, model, semantic_search_home_files(model))
+
+
+def arm_home(work_root: Path, model: dict) -> Path | None:
+    """The prepared home an arm needs, or None for the arms that run at the product defaults."""
+    if decision_model_id(model) is not None:
+        return write_decision_home(work_root, model)
+    if semantic_search_enabled(model):
+        return write_semantic_search_home(work_root, model)
+    return None
 
 
 def read_lunate_row(
@@ -149,7 +172,9 @@ def read_lunate_row(
     if (run_dir / "run.json").is_file():
         run_json = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     decision_model = decision_model_id(model)
-    totals = trajectory_totals(run_dir / instance_id / "trajectory.jsonl", decision_model)
+    totals = trajectory_totals(
+        run_dir / instance_id / "trajectory.jsonl", decision_model, embeddings_model_id(model)
+    )
     spend = arm_instance_spend(
         model, totals, model_pricing(CATALOG, arm_chat_model(model))
     )
@@ -177,6 +202,8 @@ def read_lunate_row(
         "spendUsd": spend,
         "steps": totals["steps"],
         "decisionSteps": totals["decisionSteps"],
+        "semanticSearchCalls": totals["semanticSearchCalls"],
+        "embeddingCalls": totals["embeddingCalls"],
         "seconds": elapsed_seconds(instance.get("startedAt"), instance.get("finishedAt")),
         "inputTokens": totals["inputTokens"],
         "outputTokens": totals["outputTokens"],
@@ -192,29 +219,30 @@ def run_lunate_instance(
     run_root = work_root / "lunate"
     run_root.mkdir(parents=True, exist_ok=True)
     home = None
-    if decision_model_id(model) and not definition.get("_lunate_home"):
-        home = str(write_decision_home(work_root, model))
+    if not definition.get("_lunate_home"):
+        prepared = arm_home(work_root, model)
+        home = str(prepared) if prepared else None
     command = adapter_command(definition, instance_id, model, remaining, run_root, home)
     env = os.environ.copy()
     if platform.machine() not in ("x86_64", "AMD64"):
         env["DOTNET_EnableWriteXorExecute"] = "0"
-    log = work_root / "logs" / f"lunate-{model['tier']}-{safe(instance_id)}.log"
+    log = work_root / "logs" / f"lunate-{arm_id(model)}-{safe(instance_id)}.log"
     result = run_command(command, cwd=REPOSITORY, env=env, log=log)
-    run_dir = run_root / f"{model['tier']}-{safe(instance_id)}"
+    run_dir = run_root / f"{arm_id(model)}-{safe(instance_id)}"
     return read_lunate_row(definition, instance_id, model, run_dir, result.returncode)
 
 
 def run_arm(
     definition: dict, subset: list[str], arm: str, work_root: Path, initial_spent: float = 0.0
 ) -> dict:
-    models = definition["models"]
-    if arm == "baseline":
-        # mini-swe-agent has no decision layer: only the single-model tiers have a baseline.
-        models = [model for model in models if model.get("tier") in SINGLE_MODEL_TIERS]
+    tool = "lunate" if arm == "lunate" else "mini-swe-agent"
+    # The arms are data: the run executes exactly the entries whose tool this arm runs, so two
+    # budget arms and one baseline are three independent rows rather than a tier grid.
+    models = [model for model in definition["models"] if arm_tool(model) == tool]
     cap = float(definition["limits"]["maxCostUsd"])
     spent = initial_spent
     arms = []
-    rows_by_tier = {model["tier"]: [] for model in models}
+    rows_by_arm = {arm_id(model): [] for model in models}
     cap_reached = False
     unknown_spend = False
     for instance_id in subset:
@@ -226,9 +254,11 @@ def run_arm(
         pending: list[dict] = []
         arm_root = work_root / ("lunate" if arm == "lunate" else "baseline")
         for model in models:
-            run_dir = arm_root / f"{model['tier']}-{safe(instance_id)}"
+            run_dir = arm_root / f"{arm_id(model)}-{safe(instance_id)}"
             if arm == "lunate" and definition.get("_resume") and (run_dir / "run.json").is_file():
-                rows_by_model[model["tier"]] = read_lunate_row(definition, instance_id, model, run_dir, 0)
+                rows_by_model[arm_id(model)] = read_lunate_row(
+                    definition, instance_id, model, run_dir, 0
+                )
             else:
                 if run_dir.exists():
                     shutil.rmtree(run_dir)
@@ -242,15 +272,15 @@ def run_arm(
                     for model in pending
                 ]
                 for model, future in zip(pending, futures):
-                    rows_by_model[model["tier"]] = future.result()
-        rows = [rows_by_model[model["tier"]] for model in models]
+                    rows_by_model[arm_id(model)] = future.result()
+        rows = [rows_by_model[arm_id(model)] for model in models]
         for row in rows:
             if row.get("spendUsd") is None:
                 unknown_spend = True
             else:
                 spent += row["spendUsd"]
         for model, row in zip(models, rows):
-            rows_by_tier[model["tier"]].append(row)
+            rows_by_arm[arm_id(model)].append(row)
         if not definition.get("_keep_images"):
             image = instance_image(instance_id)
             subprocess.run([definition["_docker"], "rmi", "-f", image], capture_output=True, text=True, check=False)
@@ -259,8 +289,18 @@ def run_arm(
             break
     for model in models:
         arm_summary = summarize_arm(
-            arm, model["tier"], arm_chat_model(model), rows_by_tier[model["tier"]]
+            arm, model["tier"], arm_chat_model(model), rows_by_arm[arm_id(model)]
         )
+        if model.get("arm"):
+            # Two arms can share a tool and a tier, so the definition's own arm name travels with
+            # the numbers; a definition without arm names keeps its tool and tier identifiers.
+            arm_summary["armId"] = arm_id(model)
+            arm_summary["tool"] = tool
+        if semantic_search_enabled(model):
+            arm_summary["semanticSearch"] = "on"
+            arm_summary["embeddingsModel"] = embeddings_model_id(model)
+        elif model.get("semanticSearch") == "off":
+            arm_summary["semanticSearch"] = "off"
         if decision_model_id(model) is not None:
             # The prediction is filed under the chat model id; the advising model is recorded
             # beside it so the arm's two models travel with its numbers.
