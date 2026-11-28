@@ -109,6 +109,94 @@ class SwebenchAdapterRunTests(AdapterTestCase):
         instance = self.run_root("run-home") / "alpha__one-1"
         self.assertIn("LUNATE_HOME=/lunate-run/lunate-home", (instance / "run.sh").read_text())
 
+    def test_a_home_that_names_a_credential_gets_it_forwarded(self) -> None:
+        # #1035: the home's provider is not the chat model's. Forwarding only the chat model's
+        # variable leaves the embeddings provider unresolvable in the container, and the tool is
+        # not offered at all — so the "tool on" arm silently measures the "tool off" arm.
+        home = self.tmp / "home-on"
+        home.mkdir()
+        (home / "settings.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 2,
+                    "profiles": {"embed": {"provider": "or-embed", "model": "text-embedding-3-small"}},
+                    "usages": {"embeddings": "embed"},
+                    "tools": {"extra": ["semantic_search"]},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (home / "providers.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "providers": [
+                        {
+                            "name": "or-embed",
+                            "kind": "openai",
+                            "baseUrl": "https://example.invalid/v1",
+                            "credentialReference": "env:HOME_API_KEY",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--dry-run",
+                "--instance",
+                "alpha__one-1",
+                "--run-id",
+                "run-home-credentials",
+                "--lunate-home",
+                str(home),
+                "--env",
+                "FAKE_API_KEY",
+            ),
+            environment=self.adapter_environment(HOME_API_KEY=SECRET),
+        )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        run = json.loads((self.run_root("run-home-credentials") / "run.json").read_text())
+        self.assertEqual(["FAKE_API_KEY", "HOME_API_KEY"], run["forwardedEnvironment"])
+        environment = (self.docker_args.parent / (self.docker_args.name + ".envs")).read_text()
+        self.assertIn("HOME_API_KEY", environment)
+
+    def test_a_home_referencing_an_unset_credential_is_refused(self) -> None:
+        home = self.tmp / "home-missing"
+        home.mkdir()
+        (home / "settings.json").write_text(
+            json.dumps({"schemaVersion": 2, "usages": {"embeddings": "embed"}}), encoding="utf-8"
+        )
+        (home / "providers.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "providers": [{"name": "or-embed", "credentialReference": "env:ABSENT_API_KEY"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = self.run_adapter(
+            *self.base_arguments(
+                "--dry-run",
+                "--instance",
+                "alpha__one-1",
+                "--run-id",
+                "run-home-missing",
+                "--lunate-home",
+                str(home),
+                "--env",
+                "FAKE_API_KEY",
+            )
+        )
+
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn("ABSENT_API_KEY", result.stderr)
+
     def test_the_dry_run_selects_exactly_one_instance(self) -> None:
         result = self.run_adapter(
             *self.base_arguments(

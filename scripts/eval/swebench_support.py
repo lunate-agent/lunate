@@ -90,6 +90,40 @@ def copy_lunate_home(source: Path, run_root: Path) -> None:
             (destination / name).write_bytes(candidate.read_bytes())
 
 
+def home_credentials(source: Path) -> list[str]:
+    """Every ``env:NAME`` credential reference the prepared home names, sorted, deduplicated.
+
+    A home that binds ``usages.embeddings`` names its own provider's credential, and that provider
+    is not the chat model's. Forwarding only the chat model's variable left the optional tool the
+    arm exists to test unresolvable inside the container, and silently: the tool is not offered, so
+    the "tool on" arm is a second copy of the "tool off" arm (#1035).
+    """
+    names: set[str] = set()
+    for name in ("settings.json", "providers.json"):
+        path = source / name
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            fail(f"the prepared home's {name} could not be read: {exc}")
+        for value in _referenced_strings(data):
+            if value.startswith("env:") and len(value) > len("env:"):
+                names.add(value[len("env:") :])
+    return sorted(names)
+
+
+def _referenced_strings(value: object) -> list[str]:
+    """Every string anywhere in a decoded JSON document, in document order."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [item for nested in value.values() for item in _referenced_strings(nested)]
+    if isinstance(value, list):
+        return [item for nested in value for item in _referenced_strings(nested)]
+    return []
+
+
 def load_dataset(args: argparse.Namespace) -> list[dict]:
     if args.dataset_file:
         path = Path(args.dataset_file)
