@@ -2,17 +2,25 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY / "scripts" / "eval"))
 
 from swebench_run_support import (  # noqa: E402
+    arm_chat_model,
+    arm_credentials,
+    arm_instance_spend,
+    decision_home_files,
+    decision_model_id,
+    elapsed_seconds,
     instance_spend,
     load_definition,
     load_subset,
     official_counts,
     priced_spend,
+    record_spend,
     render_markdown,
     summarize_arm,
     trajectory_totals,
@@ -41,32 +49,100 @@ class SwebenchRunDefinitionTests(unittest.TestCase):
             subset,
         )
 
-    def test_the_pinned_models_are_one_budget_and_one_frontier(self) -> None:
+    def test_the_pinned_models_are_one_budget_one_frontier_and_the_decision_arm(self) -> None:
         definition = load_definition(EVAL / "run.json")
 
         tiers = sorted(model["tier"] for model in definition["models"])
-        self.assertEqual(["budget", "frontier"], tiers)
+        self.assertEqual(["budget", "decision", "frontier"], tiers)
         self.assertEqual("SWE-bench/SWE-bench_Verified", definition["dataset"])
         self.assertGreater(definition["limits"]["maxCostUsd"], 0)
+        # The card's cap: one run stops at US$2.00 and reports what it got.
+        self.assertEqual(2, definition["limits"]["maxCostUsd"])
 
-    def test_a_definition_without_both_tiers_is_rejected(self) -> None:
+    def test_the_decision_arm_is_the_card_configuration(self) -> None:
+        definition = load_definition(EVAL / "run.json")
+        decision = next(model for model in definition["models"] if model["tier"] == "decision")
+
+        self.assertEqual("opencode-go/deepseek-v4.1-flash", arm_chat_model(decision))
+        self.assertEqual("opencode-go/glm-5.3-flash", decision_model_id(decision))
+        self.assertEqual("on", decision["decisionLayer"])
+        self.assertEqual("OPENCODE_GO_API_KEY", decision["main"]["credential"])
+        self.assertEqual("OPENCODE_GO_API_KEY", decision["decision"]["credential"])
+        self.assertIn("decision layer", decision["note"])
+        self.assertEqual(["OPENCODE_GO_API_KEY"], arm_credentials(decision))
+
+    def test_a_second_decision_arm_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "run.json"
+            decision = {
+                "tier": "decision",
+                "main": {"id": "opencode-go/main", "credential": "KEY"},
+                "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+                "decisionLayer": "on",
+                "note": "advises on routing and stops",
+            }
             path.write_text(
                 json.dumps(
                     {
                         "dataset": "SWE-bench/SWE-bench_Verified",
                         "split": "test",
                         "instancesFile": "instances.txt",
-                        "limits": {"maxCostUsd": 5},
-                        "models": [{"tier": "budget", "id": "one"}],
+                        "limits": {"maxCostUsd": 2},
+                        "models": [
+                            {"tier": "budget", "id": "opencode-go/budget"},
+                            {"tier": "frontier", "id": "opencode-go/frontier"},
+                            decision,
+                            decision,
+                        ],
                     }
                 ),
                 encoding="utf-8",
             )
 
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ValueError) as raised:
                 load_definition(path)
+
+            self.assertIn("at most one decision arm", str(raised.exception))
+
+    def test_a_decision_arm_without_both_models_is_rejected(self) -> None:
+        base = {
+            "dataset": "SWE-bench/SWE-bench_Verified",
+            "split": "test",
+            "instancesFile": "instances.txt",
+            "limits": {"maxCostUsd": 2},
+        }
+        single = [
+            {"tier": "budget", "id": "opencode-go/budget"},
+            {"tier": "frontier", "id": "opencode-go/frontier"},
+        ]
+        complete = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+        flavours = {
+            "'decision' model id": {**complete, "decision": {"credential": "KEY"}},
+            "'main' model id": {k: v for k, v in complete.items() if k != "main"},
+            "credential variable": {
+                **complete,
+                "decision": {"id": "opencode-go/decision"},
+            },
+            "'decisionLayer'": {**complete, "decisionLayer": "sometimes"},
+            "note": {k: v for k, v in complete.items() if k != "note"},
+        }
+        for expected, arm in flavours.items():
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "run.json"
+                path.write_text(
+                    json.dumps({**base, "models": [*single, arm]}), encoding="utf-8"
+                )
+
+                with self.assertRaises(ValueError) as raised:
+                    load_definition(path)
+
+                self.assertIn(expected, str(raised.exception))
 
     def test_a_duplicate_instance_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -128,6 +204,83 @@ class SwebenchRunAdapterCommandTests(unittest.TestCase):
             [part for part in with_home if part not in ("--lunate-home", "/tmp/prepared-home")],
         )
 
+    def test_the_decision_arm_passes_the_main_model_home_and_credential(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "FAKE_KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "FAKE_KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+
+        with mock.patch.dict(__import__("os").environ, {"FAKE_KEY": "placeholder"}):
+            command = swebench_run.adapter_command(
+                self.definition(None),
+                "alpha__one-1",
+                model,
+                2.0,
+                Path("/tmp/out"),
+                "home/decision",
+            )
+
+        self.assertEqual("opencode-go/main", command[command.index("--model") + 1])
+        self.assertEqual("home/decision", command[command.index("--lunate-home") + 1])
+        forwarded = [command[index + 1] for index, part in enumerate(command) if part == "--env"]
+        self.assertIn("FAKE_KEY", forwarded)
+        self.assertEqual(1, forwarded.count("FAKE_KEY"), "the shared credential is forwarded once")
+
+    def test_the_decision_home_binds_the_decision_profile(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+
+        settings = decision_home_files(model)["settings.json"]
+
+        self.assertEqual("opencode-go/main", settings["profiles"]["main"]["model"])
+        self.assertEqual("opencode-go/decision", settings["profiles"]["decision"]["model"])
+        self.assertEqual("opencode-go", settings["profiles"]["decision"]["provider"])
+        self.assertEqual("main", settings["usages"]["chat"])
+        self.assertEqual("decision", settings["decisions"]["profile"])
+        self.assertEqual("shadow", settings["decisions"]["routing"])
+        self.assertEqual(["main", "decision"], settings["decisions"]["routingProfiles"])
+
+    def test_a_layer_off_arm_writes_no_decisions_block(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+            "decisionLayer": "off",
+            "note": "the layer stays off",
+        }
+
+        settings = decision_home_files(model)["settings.json"]
+
+        self.assertNotIn("decisions", settings)
+        self.assertEqual("opencode-go/decision", settings["profiles"]["decision"]["model"])
+
+    def test_the_decision_home_is_written_lf_and_readable(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            home = swebench_run.write_decision_home(Path(directory), model)
+
+            written = (home / "settings.json").read_bytes()
+            self.assertNotIn(b"\r\n", written)
+            self.assertEqual("decision", json.loads(written)["decisions"]["profile"])
+
+    def test_only_a_decision_arm_carries_a_prepared_home(self) -> None:
+        with self.assertRaises(ValueError):
+            decision_home_files({"tier": "budget", "id": "opencode-go/budget"})
+
 
 class SwebenchRunSpendTests(unittest.TestCase):
     def test_trajectory_totals_and_catalog_price(self) -> None:
@@ -187,6 +340,132 @@ class SwebenchRunSpendTests(unittest.TestCase):
         }
 
         self.assertIsNone(priced_spend({"output": 1}, totals))
+
+    def test_a_decision_call_is_not_an_agent_step(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "trajectory.jsonl"
+            lines = [
+                {
+                    "type": "usage_updated",
+                    "modelId": "opencode-go/main",
+                    "usage": {"inputTokenCount": 10, "outputTokenCount": 2},
+                    "costUsd": 0.25,
+                }
+                for _ in range(3)
+            ] + [
+                {
+                    "type": "usage_updated",
+                    "modelId": "opencode-go/decision",
+                    "usage": {"inputTokenCount": 5, "outputTokenCount": 1},
+                    "costUsd": 0.01,
+                }
+            ]
+            path.write_text("\n".join(json.dumps(line) for line in lines), encoding="utf-8")
+
+            totals = trajectory_totals(path, "opencode-go/decision")
+
+            self.assertEqual(3, totals["steps"])
+            self.assertEqual(1, totals["decisionSteps"])
+            self.assertEqual(4, totals["usageRecords"])
+
+    def test_a_multi_model_arm_prices_every_record(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "trajectory.jsonl"
+            path.write_text(
+                "\n".join(
+                    json.dumps(line)
+                    for line in (
+                        {
+                            "type": "usage_updated",
+                            "modelId": "opencode-go/main",
+                            "usage": {"inputTokenCount": 2_000_000, "outputTokenCount": 0},
+                            "costUsd": 0.3,
+                        },
+                        {
+                            "type": "usage_updated",
+                            "modelId": "opencode-go/decision",
+                            "usage": {"inputTokenCount": 1_000_000, "outputTokenCount": 0},
+                            "costUsd": 0.02,
+                        },
+                    )
+                ),
+                encoding="utf-8",
+            )
+
+            totals = trajectory_totals(path, "opencode-go/decision")
+
+            # The two records are priced at their own rates, not both at the main model's.
+            self.assertAlmostEqual(0.32, arm_instance_spend(model, totals, {"input": 0.15}))
+            self.assertAlmostEqual(0.32, record_spend(totals))
+
+    def test_a_record_without_a_price_makes_the_arm_unpriced(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "trajectory.jsonl"
+            path.write_text(
+                json.dumps(
+                    {
+                        "type": "usage_updated",
+                        "modelId": "opencode-go/main",
+                        "usage": {"inputTokenCount": 1000, "outputTokenCount": 10},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            totals = trajectory_totals(path, "opencode-go/decision")
+
+            self.assertIsNone(arm_instance_spend(model, totals, {"input": 0.15}))
+
+    def test_a_single_model_arm_keeps_the_lane_price(self) -> None:
+        model = {"tier": "budget", "id": "opencode-go/budget", "credential": "KEY"}
+        totals = {
+            "inputTokens": 1_000_000,
+            "outputTokens": 0,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.0,
+            "recordCostUsd": 99.0,
+            "uncostedRecords": 0,
+            "steps": 1,
+            "limit": None,
+        }
+
+        self.assertAlmostEqual(0.15, arm_instance_spend(model, totals, {"input": 0.15}))
+
+    def test_a_cost_limit_event_wins_over_both_price_paths(self) -> None:
+        model = {
+            "tier": "decision",
+            "main": {"id": "opencode-go/main", "credential": "KEY"},
+            "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+        totals = {
+            "uncostedRecords": 2,
+            "recordCostUsd": 0.0,
+            "limit": {"kind": "cost", "maxCostUsd": 2, "spendUsd": 2.01},
+        }
+
+        self.assertAlmostEqual(2.01, arm_instance_spend(model, totals, None))
+
+    def test_elapsed_seconds_reads_the_run_stamps(self) -> None:
+        self.assertEqual(90.0, elapsed_seconds("2026-11-14T11:25:15Z", "2026-11-14T11:26:45Z"))
+        self.assertIsNone(elapsed_seconds(None, "2026-11-14T11:26:45Z"))
+        self.assertIsNone(elapsed_seconds("yesterday", "2026-11-14T11:26:45Z"))
 
 
 class SwebenchRunBaselineSpendTests(unittest.TestCase):
@@ -283,6 +562,69 @@ class SwebenchRunSummaryTests(unittest.TestCase):
         self.assertAlmostEqual(0.75, arm["spendUsd"])
         self.assertEqual("beta__two-2", arm["failures"][0]["instanceId"])
 
+    def test_the_arm_reports_wall_time_and_cost_per_resolve(self) -> None:
+        rows = [
+            {
+                "instanceId": "alpha__one-1",
+                "resolved": True,
+                "spendUsd": 0.25,
+                "steps": 4,
+                "decisionSteps": 2,
+                "seconds": 30.0,
+                "failure": None,
+            },
+            {
+                "instanceId": "beta__two-2",
+                "resolved": False,
+                "spendUsd": 0.35,
+                "steps": 6,
+                "decisionSteps": 3,
+                "seconds": 60.0,
+                "failure": "unresolved",
+            },
+        ]
+
+        arm = summarize_arm("lunate", "decision", "opencode-go/main", rows)
+
+        self.assertEqual(90.0, arm["seconds"])
+        self.assertEqual(10, arm["steps"])
+        self.assertEqual(5, arm["decisionSteps"])
+        self.assertAlmostEqual(0.6, arm["costPerResolvedUsd"])
+
+    def test_an_arm_without_a_resolve_has_no_cost_per_resolve(self) -> None:
+        rows = [
+            {
+                "instanceId": "alpha__one-1",
+                "resolved": False,
+                "spendUsd": 0.5,
+                "steps": 4,
+                "seconds": 10.0,
+                "failure": "unresolved",
+            }
+        ]
+
+        arm = summarize_arm("lunate", "budget", "opencode-go/budget", rows)
+
+        self.assertEqual(0, arm["resolved"])
+        self.assertIsNone(arm["costPerResolvedUsd"])
+
+    def test_an_unpriced_arm_has_no_cost_per_resolve(self) -> None:
+        rows = [
+            {
+                "instanceId": "alpha__one-1",
+                "resolved": True,
+                "spendUsd": None,
+                "steps": 4,
+                "seconds": 10.0,
+                "failure": None,
+            }
+        ]
+
+        arm = summarize_arm("lunate", "budget", "opencode-go/budget", rows)
+
+        self.assertIsNone(arm["spendUsd"])
+        self.assertIsNone(arm["costPerResolvedUsd"])
+
     def test_the_markdown_names_the_cap_and_the_arms(self) -> None:
         summary = {
             "runId": "run-1",
@@ -311,6 +653,40 @@ class SwebenchRunSummaryTests(unittest.TestCase):
         self.assertIn("$0.2500", markdown)
         self.assertIn("lunate", markdown)
         self.assertIn("1/1", markdown)
+
+    def test_the_markdown_shows_wall_time_and_cost_per_resolve(self) -> None:
+        summary = {
+            "runId": "run-1",
+            "dataset": "SWE-bench/SWE-bench_Verified",
+            "split": "test",
+            "total": 1,
+            "maxCostUsd": 2.0,
+            "totalSpendUsd": 0.4,
+            "capReached": False,
+            "arms": [
+                {
+                    "arm": "lunate",
+                    "tier": "decision",
+                    "model": "opencode-go/deepseek-v4.1-flash",
+                    "decisionModel": "opencode-go/glm-5.3-flash",
+                    "resolved": 1,
+                    "total": 1,
+                    "spendUsd": 0.4,
+                    "steps": 12,
+                    "seconds": 245.5,
+                    "costPerResolvedUsd": 0.4,
+                    "failures": [],
+                }
+            ],
+        }
+
+        markdown = render_markdown(summary)
+
+        self.assertIn("Wall time", markdown)
+        self.assertIn("$/resolved", markdown)
+        self.assertIn("245.5s", markdown)
+        self.assertIn("$0.4000", markdown)
+        self.assertIn("| 12 |", markdown)
 
     def test_official_counts_come_from_the_harness_summary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -673,6 +1049,142 @@ class SwebenchRunCapTests(unittest.TestCase):
 
             self.assertEqual(0, result)
             self.assertFalse((root / "run-1.baseline.json").exists())
+
+    def test_the_baseline_arm_skips_the_decision_tier(self) -> None:
+        from unittest import mock
+
+        tiers: list[str] = []
+
+        def runner(definition, instance_id, model, work_root, remaining):
+            tiers.append(model["tier"])
+            return {
+                "instanceId": instance_id,
+                "resolved": True,
+                "spendUsd": 0.1,
+                "steps": 3,
+                "seconds": 12.0,
+                "failure": None,
+            }
+
+        definition = self.definition()
+        definition["models"] = definition["models"] + [
+            {
+                "tier": "decision",
+                "main": {"id": "opencode-go/main", "credential": "KEY"},
+                "decision": {"id": "opencode-go/decision", "credential": "KEY"},
+                "decisionLayer": "on",
+                "note": "advises on routing and stops",
+            }
+        ]
+
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(swebench_run, "run_baseline_instance", side_effect=runner):
+                arm = swebench_run.run_arm(
+                    definition, ["alpha__one-1"], "baseline", Path(directory)
+                )
+
+        self.assertEqual({"budget", "frontier"}, set(tiers))
+        self.assertEqual(["budget", "frontier"], [item["tier"] for item in arm["arms"]])
+
+
+class SwebenchRunRowTests(unittest.TestCase):
+    """One instance row carries the four numbers the card compares."""
+
+    def run_dir(self, root: Path) -> Path:
+        run_dir = root / "lunate" / "decision-alpha__one-1"
+        (run_dir / "alpha__one-1").mkdir(parents=True)
+        (run_dir / "alpha__one-1" / "trajectory.jsonl").write_text(
+            "\n".join(
+                json.dumps(line)
+                for line in (
+                    {
+                        "type": "usage_updated",
+                        "modelId": "opencode-go/main",
+                        "usage": {"inputTokenCount": 1000, "outputTokenCount": 100},
+                        "costUsd": 0.01,
+                    },
+                    {
+                        "type": "usage_updated",
+                        "modelId": "opencode-go/main",
+                        "usage": {"inputTokenCount": 2000, "outputTokenCount": 200},
+                        "costUsd": 0.02,
+                    },
+                    {
+                        "type": "usage_updated",
+                        "modelId": "opencode-go/glm-5.3-flash",
+                        "usage": {"inputTokenCount": 500, "outputTokenCount": 50},
+                        "costUsd": 0.005,
+                    },
+                )
+            ),
+            encoding="utf-8",
+        )
+        (run_dir / "run.json").write_text(
+            json.dumps(
+                {
+                    "instances": [
+                        {
+                            "instanceId": "alpha__one-1",
+                            "exitCode": 0,
+                            "hasPatch": True,
+                            "startedAt": "2026-11-14T11:25:15Z",
+                            "finishedAt": "2026-11-14T11:28:20Z",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        (run_dir / "official-results.json").write_text(
+            json.dumps(
+                {
+                    "resolved_instances": 1,
+                    "unresolved_instances": 0,
+                    "dataset_instances": 1,
+                    "resolved_ids": ["alpha__one-1"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return run_dir
+
+    def decision_arm(self) -> dict:
+        return {
+            "tier": "decision",
+            "main": {"id": "opencode-go/deepseek-v4.1-flash", "credential": "KEY"},
+            "decision": {"id": "opencode-go/glm-5.3-flash", "credential": "KEY"},
+            "decisionLayer": "on",
+            "note": "advises on routing and stops",
+        }
+
+    def test_the_row_records_resolved_spend_steps_and_wall_time(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self.run_dir(Path(directory))
+
+            row = swebench_run.read_lunate_row(
+                {}, "alpha__one-1", self.decision_arm(), run_dir, 0
+            )
+
+        self.assertTrue(row["resolved"])
+        self.assertAlmostEqual(0.035, row["spendUsd"])
+        self.assertEqual(2, row["steps"])
+        self.assertEqual(1, row["decisionSteps"])
+        self.assertEqual(185.0, row["seconds"])
+        self.assertIsNone(row["failure"])
+
+    def test_a_row_without_run_stamps_has_no_wall_time(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self.run_dir(Path(directory))
+            (run_dir / "run.json").write_text(
+                json.dumps({"instances": [{"instanceId": "alpha__one-1", "exitCode": 0}]}),
+                encoding="utf-8",
+            )
+
+            row = swebench_run.read_lunate_row(
+                {}, "alpha__one-1", self.decision_arm(), run_dir, 0
+            )
+
+        self.assertIsNone(row["seconds"])
 
 
 class SwebenchRunEvidenceTests(unittest.TestCase):

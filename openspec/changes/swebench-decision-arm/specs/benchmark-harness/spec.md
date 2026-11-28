@@ -96,7 +96,7 @@ The committed summary SHALL record, for every instance and every arm, the resolv
 
 #### Scenario: A decision call is not an agent step
 
-- **GIVEN** a decision-arm trajectory with four usage records, one of which is attributed to the `decision` usage
+- **GIVEN** a decision-arm trajectory with four usage records, one of which names the arm's decision model
 - **WHEN** the orchestrator reads that instance
 - **THEN** the instance row records three agent steps and one decision step
 

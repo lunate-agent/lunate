@@ -14,10 +14,17 @@
       "tier": "frontier",
       "id": "openrouter/anthropic/claude-opus-5.5",
       "credential": "OPENROUTER_API_KEY"
+    },
+    {
+      "tier": "decision",
+      "main": { "id": "opencode-go/deepseek-v4.1-flash", "credential": "OPENCODE_GO_API_KEY" },
+      "decision": { "id": "opencode-go/glm-5.3-flash", "credential": "OPENCODE_GO_API_KEY" },
+      "decisionLayer": "on",
+      "note": "The decision layer runs the main model with the decision model advising on routing and stops. Committed with the run so the configuration travels with the numbers."
     }
   ],
   "limits": {
-    "maxCostUsd": 5,
+    "maxCostUsd": 2,
     "maxTimeSeconds": 1800
   },
   "instanceTimeoutSeconds": 1800,
