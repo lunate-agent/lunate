@@ -38,8 +38,8 @@ a `write` needs.
 Extensions, MCP servers and skills add tools of their own, and they go through the same approval
 policy as the built-ins.
 
-Every write, edit, command and web call stops at an approval prompt with the command or the edit's
-diff on screen; a read does not. The `approval` setting decides what still asks, `--yolo` approves everything
+Every write, edit, command, web call and image generation stops at an approval prompt with the
+command or the edit's diff on screen; a read does not. The `approval` setting decides what still asks, `--yolo` approves everything
 for one run, and a run with no one to ask — print mode, CI — maps the same policy onto tool risk and
 refuses what it may not approve. [Run Lunate safely](security.md) owns the trust model;
 [Use the terminal](usage.md#edits-you-approve-with-the-diff) owns the panel itself.

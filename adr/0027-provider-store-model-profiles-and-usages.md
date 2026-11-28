@@ -119,8 +119,9 @@ the requirement is enforced at resolution, the attribution is recorded, and a co
 
 ## Amendment 2026-11-28 — `image` is built by the image generation tool
 
-#980 settled where a generated image lives (the session sidecar, content-addressed as ADR-0018
-defines) and how a turn names it (the typed image part). #1027 is that consumer: the
+The maintainer decision on issue #980 settled where a generated image lives (the session sidecar,
+content-addressed as ADR-0018 defines) and how a turn names it (the typed image part). Issue #1027 is
+that consumer: the
 `generate_image` tool resolves `usages.image` and asks the profile for an image. This section is the
 later word; the earlier text stays as the record of the 2026-11-22 and 2026-11-25 decisions.
 
