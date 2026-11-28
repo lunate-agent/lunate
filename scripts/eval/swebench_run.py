@@ -28,7 +28,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from swebench_run_support import (
-    instance_spend,
+    SINGLE_MODEL_TIERS,
+    arm_chat_model,
+    arm_credentials,
+    arm_instance_spend,
+    decision_home_files,
+    decision_model_id,
+    elapsed_seconds,
     load_definition,
     load_subset,
     model_pricing,
@@ -76,7 +82,12 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def adapter_command(
-    definition: dict, instance_id: str, model: dict, remaining: float, output_dir: Path
+    definition: dict,
+    instance_id: str,
+    model: dict,
+    remaining: float,
+    output_dir: Path,
+    lunate_home: str | None = None,
 ) -> list[str]:
     command = [
         sys.executable,
@@ -84,7 +95,7 @@ def adapter_command(
         "--instance",
         instance_id,
         "--model",
-        model["id"],
+        arm_chat_model(model),
         "--lunate-bin",
         str(Path(definition["_lunate_bin"]).resolve()),
         "--eval-python",
@@ -110,12 +121,25 @@ def adapter_command(
         "--timeout",
         str(definition["instanceTimeoutSeconds"]),
     ]
-    if definition.get("_lunate_home"):
-        command += ["--lunate-home", definition["_lunate_home"]]
-    for name in (model["credential"], "DOTNET_EnableWriteXorExecute"):
+    if lunate_home is None:
+        lunate_home = definition.get("_lunate_home")
+    if lunate_home:
+        command += ["--lunate-home", lunate_home]
+    for name in (*arm_credentials(model), "DOTNET_EnableWriteXorExecute"):
         if os.environ.get(name):
             command += ["--env", name]
     return command
+
+
+def write_decision_home(work_root: Path, model: dict) -> Path:
+    """Render the arm's prepared home from its definition, in the run tree that is committed."""
+    home = work_root / "lunate-home" / model["tier"]
+    home.mkdir(parents=True, exist_ok=True)
+    for name, payload in decision_home_files(model).items():
+        (home / name).write_text(
+            json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n"
+        )
+    return home
 
 
 def read_lunate_row(
@@ -124,9 +148,11 @@ def read_lunate_row(
     run_json = {}
     if (run_dir / "run.json").is_file():
         run_json = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
-    totals = trajectory_totals(run_dir / instance_id / "trajectory.jsonl")
-    pricing = model_pricing(CATALOG, model["id"])
-    spend = instance_spend(totals, pricing)
+    decision_model = decision_model_id(model)
+    totals = trajectory_totals(run_dir / instance_id / "trajectory.jsonl", decision_model)
+    spend = arm_instance_spend(
+        model, totals, model_pricing(CATALOG, arm_chat_model(model))
+    )
     counts = official_counts(run_dir)
     instance = (run_json.get("instances") or [{}])[0]
     exit_code = int(instance.get("exitCode", returncode))
@@ -150,6 +176,8 @@ def read_lunate_row(
         "resolved": bool(counts and instance_id in (counts.get("resolvedIds") or [])),
         "spendUsd": spend,
         "steps": totals["steps"],
+        "decisionSteps": totals["decisionSteps"],
+        "seconds": elapsed_seconds(instance.get("startedAt"), instance.get("finishedAt")),
         "inputTokens": totals["inputTokens"],
         "outputTokens": totals["outputTokens"],
         "limit": totals.get("limit"),
@@ -163,7 +191,10 @@ def run_lunate_instance(
 ) -> dict:
     run_root = work_root / "lunate"
     run_root.mkdir(parents=True, exist_ok=True)
-    command = adapter_command(definition, instance_id, model, remaining, run_root)
+    home = None
+    if decision_model_id(model) and not definition.get("_lunate_home"):
+        home = str(write_decision_home(work_root, model))
+    command = adapter_command(definition, instance_id, model, remaining, run_root, home)
     env = os.environ.copy()
     if platform.machine() not in ("x86_64", "AMD64"):
         env["DOTNET_EnableWriteXorExecute"] = "0"
@@ -177,6 +208,9 @@ def run_arm(
     definition: dict, subset: list[str], arm: str, work_root: Path, initial_spent: float = 0.0
 ) -> dict:
     models = definition["models"]
+    if arm == "baseline":
+        # mini-swe-agent has no decision layer: only the single-model tiers have a baseline.
+        models = [model for model in models if model.get("tier") in SINGLE_MODEL_TIERS]
     cap = float(definition["limits"]["maxCostUsd"])
     spent = initial_spent
     arms = []
@@ -224,7 +258,15 @@ def run_arm(
             cap_reached = True
             break
     for model in models:
-        arms.append(summarize_arm(arm, model["tier"], model["id"], rows_by_tier[model["tier"]]))
+        arm_summary = summarize_arm(
+            arm, model["tier"], arm_chat_model(model), rows_by_tier[model["tier"]]
+        )
+        if decision_model_id(model) is not None:
+            # The prediction is filed under the chat model id; the advising model is recorded
+            # beside it so the arm's two models travel with its numbers.
+            arm_summary["decisionModel"] = decision_model_id(model)
+            arm_summary["decisionLayer"] = model.get("decisionLayer")
+        arms.append(arm_summary)
     return {
         "runId": definition["_run_id"],
         "arm": arm,
