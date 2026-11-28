@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "runId": "rerun-624-bosgame-2",
+  "runId": "1028-semantic-search-on-off",
   "dataset": "SWE-bench/SWE-bench_Verified",
   "split": "test",
   "subset": [
@@ -12,7 +12,7 @@
   ],
   "total": 5,
   "maxCostUsd": 5.0,
-  "totalSpendUsd": 1.615688,
+  "totalSpendUsd": 2.602713,
   "capReached": false,
   "arms": [
     {
@@ -26,13 +26,13 @@
           "completed": false,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.015200082,
+          "spendUsd": 0.023783040000000002,
           "steps": 50,
-          "inputTokens": 343799,
-          "outputTokens": 10665,
+          "inputTokens": 470572,
+          "outputTokens": 16389,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-astropy__astropy-12907"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -40,27 +40,27 @@
           "completed": false,
           "hasPatch": false,
           "resolved": false,
-          "spendUsd": 0.022593593999999998,
+          "spendUsd": 0.01556793,
           "steps": 50,
-          "inputTokens": 389795,
-          "outputTokens": 19109,
+          "inputTokens": 392519,
+          "outputTokens": 7628,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-django__django-13128"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
           "exitCode": 2,
           "completed": false,
           "hasPatch": true,
-          "resolved": false,
-          "spendUsd": 0.024496086,
+          "resolved": true,
+          "spendUsd": 0.014567538,
           "steps": 50,
-          "inputTokens": 413545,
-          "outputTokens": 20670,
+          "inputTokens": 395055,
+          "outputTokens": 8839,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-django__django-15572"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -68,32 +68,32 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.007419894000000001,
-          "steps": 32,
-          "inputTokens": 174489,
-          "outputTokens": 4526,
+          "spendUsd": 0.007967034,
+          "steps": 27,
+          "inputTokens": 174779,
+          "outputTokens": 6463,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-pydata__xarray-3151"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
           "exitCode": 2,
           "completed": false,
-          "hasPatch": false,
-          "resolved": false,
-          "spendUsd": 0.021638442,
+          "hasPatch": true,
+          "resolved": true,
+          "spendUsd": 0.017356956000000003,
           "steps": 50,
-          "inputTokens": 443463,
-          "outputTokens": 14982,
+          "inputTokens": 457106,
+          "outputTokens": 9798,
           "limit": null,
           "failure": "exit 2",
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/budget-sphinx-doc__sphinx-8120"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/budget-sphinx-doc__sphinx-8120"
         }
       ],
-      "resolved": 2,
+      "resolved": 4,
       "total": 5,
-      "spendUsd": 0.091348,
+      "spendUsd": 0.079242,
       "unpricedInstances": [],
       "failures": [
         {
@@ -112,7 +112,12 @@
           "instanceId": "sphinx-doc__sphinx-8120",
           "reason": "exit 2"
         }
-      ]
+      ],
+      "steps": 227,
+      "inputTokens": 1890031,
+      "outputTokens": 49117,
+      "tool": "off",
+      "sourceRun": "1028-tool-off"
     },
     {
       "arm": "lunate",
@@ -125,13 +130,13 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.07006,
-          "steps": 4,
-          "inputTokens": 12025,
-          "outputTokens": 1098,
+          "spendUsd": 0.062476,
+          "steps": 3,
+          "inputTokens": 11854,
+          "outputTokens": 753,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-astropy__astropy-12907"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
@@ -139,13 +144,13 @@
           "completed": true,
           "hasPatch": false,
           "resolved": false,
-          "spendUsd": 0.506264,
-          "steps": 14,
-          "inputTokens": 84446,
-          "outputTokens": 8424,
+          "spendUsd": 0.385876,
+          "steps": 9,
+          "inputTokens": 68529,
+          "outputTokens": 5588,
           "limit": null,
           "failure": "empty patch",
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-django__django-13128"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -153,13 +158,13 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.15486,
-          "steps": 6,
-          "inputTokens": 29655,
-          "outputTokens": 1812,
+          "spendUsd": 0.226924,
+          "steps": 8,
+          "inputTokens": 44916,
+          "outputTokens": 2363,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-django__django-15572"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -167,13 +172,13 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.156096,
-          "steps": 7,
-          "inputTokens": 30759,
-          "outputTokens": 1653,
+          "spendUsd": 0.132048,
+          "steps": 5,
+          "inputTokens": 26207,
+          "outputTokens": 1361,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-pydata__xarray-3151"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -181,60 +186,63 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.193748,
+          "spendUsd": 0.234364,
           "steps": 9,
-          "inputTokens": 38567,
-          "outputTokens": 1974,
+          "inputTokens": 49406,
+          "outputTokens": 1837,
           "limit": null,
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/lunate/frontier-sphinx-doc__sphinx-8120"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-off/lunate/frontier-sphinx-doc__sphinx-8120"
         }
       ],
       "resolved": 4,
       "total": 5,
-      "spendUsd": 1.081028,
+      "spendUsd": 1.041688,
       "unpricedInstances": [],
       "failures": [
         {
           "instanceId": "django__django-13128",
           "reason": "empty patch"
         }
-      ]
+      ],
+      "steps": 34,
+      "inputTokens": 200912,
+      "outputTokens": 11902,
+      "tool": "off",
+      "sourceRun": "1028-tool-off"
     },
     {
-      "arm": "baseline",
+      "arm": "lunate",
       "tier": "budget",
       "model": "opencode-go/deepseek-v4.1-flash",
       "instances": [
         {
           "instanceId": "astropy__astropy-12907",
-          "exitCode": 0,
-          "completed": true,
+          "exitCode": 2,
+          "completed": false,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.00488456,
-          "steps": 14,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "spendUsd": 0.017622144,
+          "steps": 50,
+          "inputTokens": 385892,
+          "outputTokens": 13367,
           "limit": null,
-          "exitStatus": "Submitted",
-          "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-astropy__astropy-12907"
+          "failure": "exit 2",
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
-          "exitCode": 0,
-          "completed": true,
-          "hasPatch": true,
-          "resolved": true,
-          "spendUsd": 0.010700799999999998,
-          "steps": 20,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "exitCode": 2,
+          "completed": false,
+          "hasPatch": false,
+          "resolved": false,
+          "spendUsd": 0.018729017999999997,
+          "steps": 50,
+          "inputTokens": 451999,
+          "outputTokens": 10790,
           "limit": null,
-          "exitStatus": "Submitted",
-          "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-django__django-13128"
+          "failure": "exit 2",
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -242,54 +250,75 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.00489197,
-          "steps": 10,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "spendUsd": 0.004373412,
+          "steps": 14,
+          "inputTokens": 98914,
+          "outputTokens": 2725,
           "limit": null,
-          "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-django__django-15572"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
-          "exitCode": 0,
-          "completed": true,
+          "exitCode": 2,
+          "completed": false,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.0036207000000000006,
-          "steps": 11,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "spendUsd": 0.014882676,
+          "steps": 50,
+          "inputTokens": 404786,
+          "outputTokens": 10287,
           "limit": null,
-          "exitStatus": "Submitted",
-          "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-pydata__xarray-3151"
+          "failure": "exit 2",
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
-          "exitCode": 0,
-          "completed": true,
+          "exitCode": 2,
+          "completed": false,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.015173130000000003,
-          "steps": 35,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "spendUsd": 0.024907752000000002,
+          "steps": 50,
+          "inputTokens": 547720,
+          "outputTokens": 16789,
           "limit": null,
-          "exitStatus": "Submitted",
-          "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/budget-sphinx-doc__sphinx-8120"
+          "failure": "exit 2",
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/budget-sphinx-doc__sphinx-8120"
         }
       ],
-      "resolved": 5,
+      "resolved": 4,
       "total": 5,
-      "spendUsd": 0.039271,
+      "spendUsd": 0.080515,
       "unpricedInstances": [],
-      "failures": []
+      "failures": [
+        {
+          "instanceId": "astropy__astropy-12907",
+          "reason": "exit 2"
+        },
+        {
+          "instanceId": "django__django-13128",
+          "reason": "exit 2"
+        },
+        {
+          "instanceId": "pydata__xarray-3151",
+          "reason": "exit 2"
+        },
+        {
+          "instanceId": "sphinx-doc__sphinx-8120",
+          "reason": "exit 2"
+        }
+      ],
+      "steps": 214,
+      "inputTokens": 1889311,
+      "outputTokens": 53958,
+      "tool": "on",
+      "sourceRun": "1028-tool-on-prefix",
+      "superseded": true,
+      "note": "ran before the #1035 adapter fix: only the chat model's credential was forwarded, so semantic_search was not offered at all \u2014 a second copy of the tool-off arm"
     },
     {
-      "arm": "baseline",
+      "arm": "lunate",
       "tier": "frontier",
       "model": "openrouter/anthropic/claude-opus-5.5",
       "instances": [
@@ -299,29 +328,27 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.0313662,
+          "spendUsd": 0.090648,
           "steps": 4,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "inputTokens": 16747,
+          "outputTokens": 1183,
           "limit": null,
-          "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-astropy__astropy-12907"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-astropy__astropy-12907"
         },
         {
           "instanceId": "django__django-13128",
           "exitCode": 0,
           "completed": true,
-          "hasPatch": true,
-          "resolved": true,
-          "spendUsd": 0.22713,
-          "steps": 13,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "hasPatch": false,
+          "resolved": false,
+          "spendUsd": 0.57578,
+          "steps": 14,
+          "inputTokens": 108115,
+          "outputTokens": 7166,
           "limit": null,
-          "exitStatus": "Submitted",
-          "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-django__django-13128"
+          "failure": "empty patch",
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-django__django-13128"
         },
         {
           "instanceId": "django__django-15572",
@@ -329,14 +356,13 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.0339522,
-          "steps": 4,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "spendUsd": 0.150852,
+          "steps": 6,
+          "inputTokens": 30548,
+          "outputTokens": 1433,
           "limit": null,
-          "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-django__django-15572"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-django__django-15572"
         },
         {
           "instanceId": "pydata__xarray-3151",
@@ -344,14 +370,13 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.043250000000000004,
-          "steps": 4,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "spendUsd": 0.15998,
+          "steps": 6,
+          "inputTokens": 32070,
+          "outputTokens": 1585,
           "limit": null,
-          "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-pydata__xarray-3151"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-pydata__xarray-3151"
         },
         {
           "instanceId": "sphinx-doc__sphinx-8120",
@@ -359,29 +384,140 @@
           "completed": true,
           "hasPatch": true,
           "resolved": true,
-          "spendUsd": 0.0683424,
-          "steps": 8,
-          "inputTokens": 0,
-          "outputTokens": 0,
+          "spendUsd": 0.336248,
+          "steps": 11,
+          "inputTokens": 68117,
+          "outputTokens": 3189,
           "limit": null,
-          "exitStatus": "Submitted",
           "failure": null,
-          "workDir": "eval/swebench/runs/rerun-624-bosgame-2/baseline/frontier-sphinx-doc__sphinx-8120"
+          "workDir": "/home/daniel/swebench-1028/runs/1028-tool-on/lunate/frontier-sphinx-doc__sphinx-8120"
         }
       ],
-      "resolved": 5,
+      "resolved": 4,
       "total": 5,
-      "spendUsd": 0.404041,
+      "spendUsd": 1.313508,
       "unpricedInstances": [],
-      "failures": []
+      "failures": [
+        {
+          "instanceId": "django__django-13128",
+          "reason": "empty patch"
+        }
+      ],
+      "steps": 41,
+      "inputTokens": 255597,
+      "outputTokens": 14556,
+      "tool": "on",
+      "sourceRun": "1028-tool-on-prefix"
+    },
+    {
+      "arm": "lunate",
+      "tier": "budget",
+      "model": "opencode-go/deepseek-v4.1-flash",
+      "instances": [
+        {
+          "completed": false,
+          "exitCode": 2,
+          "failure": "exit 2",
+          "hasPatch": true,
+          "inputTokens": 448611,
+          "instanceId": "astropy__astropy-12907",
+          "limit": null,
+          "outputTokens": 12540,
+          "resolved": true,
+          "spendUsd": 0.019590689999999997,
+          "steps": 50,
+          "workDir": "runs-budget-on/astropy__astropy-12907/budget-on"
+        },
+        {
+          "completed": false,
+          "exitCode": 2,
+          "failure": "exit 2",
+          "hasPatch": false,
+          "inputTokens": 392620,
+          "instanceId": "django__django-13128",
+          "limit": null,
+          "outputTokens": 11856,
+          "resolved": false,
+          "spendUsd": 0.017574215999999997,
+          "steps": 50,
+          "workDir": "runs-budget-on/django__django-13128/budget-on"
+        },
+        {
+          "completed": false,
+          "exitCode": 2,
+          "failure": "exit 2",
+          "hasPatch": true,
+          "inputTokens": 457236,
+          "instanceId": "django__django-15572",
+          "limit": null,
+          "outputTokens": 15095,
+          "resolved": true,
+          "spendUsd": 0.020836896000000004,
+          "steps": 50,
+          "workDir": "runs-budget-on/django__django-15572/budget-on"
+        },
+        {
+          "completed": true,
+          "exitCode": 0,
+          "failure": null,
+          "hasPatch": true,
+          "inputTokens": 210217,
+          "instanceId": "pydata__xarray-3151",
+          "limit": null,
+          "outputTokens": 5597,
+          "resolved": true,
+          "spendUsd": 0.008717693999999998,
+          "steps": 30,
+          "workDir": "runs-budget-on/pydata__xarray-3151/budget-on"
+        },
+        {
+          "completed": false,
+          "exitCode": 2,
+          "failure": "exit 2",
+          "hasPatch": true,
+          "inputTokens": 544878,
+          "instanceId": "sphinx-doc__sphinx-8120",
+          "limit": null,
+          "outputTokens": 13155,
+          "resolved": false,
+          "spendUsd": 0.02104038,
+          "steps": 50,
+          "workDir": "runs-budget-on/sphinx-doc__sphinx-8120/budget-on"
+        }
+      ],
+      "resolved": 3,
+      "total": 5,
+      "spendUsd": 0.08776,
+      "unpricedInstances": [],
+      "failures": [
+        {
+          "instanceId": "astropy__astropy-12907",
+          "reason": "exit 2"
+        },
+        {
+          "instanceId": "django__django-13128",
+          "reason": "exit 2"
+        },
+        {
+          "instanceId": "django__django-15572",
+          "reason": "exit 2"
+        },
+        {
+          "instanceId": "sphinx-doc__sphinx-8120",
+          "reason": "exit 2"
+        }
+      ],
+      "steps": 230,
+      "inputTokens": 2053562,
+      "outputTokens": 58243,
+      "tool": "on",
+      "sourceRun": "1028-tool-on-budget"
     }
   ],
   "lunate": {
-    "startedAt": "2026-11-14T11:25:15Z",
-    "finishedAt": "2026-11-14T11:46:37Z"
+    "startedAt": "2026-11-27T22:10:47Z",
+    "finishedAt": "2026-11-27T22:59:42Z"
   },
-  "baseline": {
-    "startedAt": "2026-11-14T11:25:15Z",
-    "finishedAt": "2026-11-14T12:00:58Z"
-  }
+  "baseline": null,
+  "note": "Four arms on the first published run's five Verified instances: lunate budget and lunate frontier, semantic_search off and on. The budget 'on' arm is the rerun with the #1035 adapter fix (both credentials forwarded); the pre-fix budget arm is kept under lunate-tool-on-prefix as the evidence of the confound. semantic_search was called 0 times in all fifteen 'on' instances."
 }
