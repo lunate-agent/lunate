@@ -32,9 +32,12 @@ a third. At the Ubuntu and Windows count, no shard SHALL carry more than one thi
 recorded weight, counting shard 1's non-test pre-load in both the shard and the lane. A dispatch that
 picks fewer shards is a baseline measurement: below four the third cannot be met by any partition,
 because two shards always leave one carrying at least half the lane. The macOS lane's acceptance is the
-best wall time within two shards instead: its two-shard partition SHALL be no heavier -- in its busiest
-shard's summed recorded weight, and in the wall time its heaviest project predicts -- than the position
-partition it replaced. At every shard count `n` the busiest shard SHALL stay within the
+best wall time within two shards instead: both the position and the weight partition SHALL be measured
+at two shards, and the measured busiest-shard wall times SHALL be recorded before and after, so the
+acceptance is a measurement rather than a prediction. Its two-shard partition SHALL also be no heavier
+-- in its busiest shard's summed recorded weight, and in the wall time its heaviest project predicts --
+than the position partition it replaced, which is the gate's own comparison. At every shard count `n`
+the busiest shard SHALL stay within the
 longest-processing-time bound, `(4n-1)/(3n)` of the larger of the lane's fair share and its heaviest
 project (shard 1's non-test pre-load included), because no partition can beat a single project heavier
 than the fair share; at four shards that is 31.25 % when the fair share is the larger term, which is
@@ -52,9 +55,11 @@ Windows pole against the third and the macOS two-shard pole against the position
 
 Every gate run SHALL record the wall time of each test project it runs, next to the per-shard record
 `scripts/shard-timing.sh` already writes, one record per shard and culture pass so that a shard which
-ran both passes keeps both; `scripts/shard-weights.sh weights --from <dir>` SHALL fold such records
-back into `scripts/verify-shard-weights.tsv`, taking a project's slower recorded pass, so a real run
-refreshes the weights instead of anyone estimating them.
+ran both passes keeps both. That recording SHALL also cover a pass that fails after its retry budget
+and each pass of the opt-in pooled runner, because those runs executed their projects before the leg
+exited. `scripts/shard-weights.sh weights --from <dir>` SHALL fold such records back into
+`scripts/verify-shard-weights.tsv`, taking a project's slower recorded pass, so a real run refreshes
+the weights instead of anyone estimating them.
 
 #### Scenario: A heavy suite is split into projects instead of one shard carrying it whole
 
@@ -121,6 +126,12 @@ refreshes the weights instead of anyone estimating them.
 - **GIVEN** a gate run that executed test projects
 - **WHEN** the run finishes
 - **THEN** `artifacts/verify-timing/` holds a per-project record naming each project's wall time beside the shard's own record, and `scripts/shard-weights.sh weights --from` folds it into a weight table
+
+#### Scenario: A failed pass still records its projects
+
+- **GIVEN** a gate run whose default or de-AT pass fails after its retry budget, or an opt-in pooled run
+- **WHEN** the pass finishes
+- **THEN** its per-project records are written for every project it ran before the leg exits, so a red run's wall times are not lost
 
 #### Scenario: A shard's two culture passes are both kept
 

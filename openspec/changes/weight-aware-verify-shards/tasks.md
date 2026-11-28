@@ -89,3 +89,15 @@
 - [x] 7.5 Update the delta spec, proposal, design, task list, ADR manifest and changelog to the
       project-level split, then rerun the self-tests, the named tests, `openspec validate --all
       --strict` and the archive as the last commit.
+
+## 8. Rework — measured two-shard lanes and recorder coverage
+
+- [x] 8.1 Measure the position and weight partitions at macOS's two-shard cap on the same machine, and
+      record the before/after busiest-shard wall times in the design and changelog; keep the gate's
+      recorded-weight and predicted-wall comparison as the enforceable check.
+- [x] 8.2 Record per-project wall times on a pass that fails after its retry budget and for each pass of
+      the opt-in pooled runner, so every gate path that ran projects leaves its records.
+- [x] 8.3 Add `tests/scripts/test_verify_project_recording.py` and run it from the platform checks, so
+      the failed-pass and pooled recording paths are pinned by a focused test.
+- [x] 8.4 Refresh the spec delta, proposal, design and changelog with the recorder paths, the measured
+      two-shard numbers and the final Windows pole, then re-run the self-tests and archive last.

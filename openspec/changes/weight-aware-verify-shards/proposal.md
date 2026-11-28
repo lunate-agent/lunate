@@ -30,10 +30,12 @@ suite that owns the pole has to stop being one unit.
   `scripts/shard-timing.sh` already writes, and teach `scripts/shard-weights.sh` to fold a run's records
   back into the table (`weights --from <dir>`), so the next real run refreshes the weights instead of
   guessing them. Each record names its culture pass, so a shard that ran both passes keeps both and the
-  fold takes the slower one.
+  fold takes the slower one. A pass that fails after its retry budget, and each pass of the opt-in
+  pooled runner, record too: those legs still ran their projects before they exited.
 - Keep the macOS lane on the card's two-shard cap: it does not gain a third shard, because the card
   gives it the best-wall-time-within-two-shards acceptance instead of the third, which no partition can
-  meet at two shards.
+  meet at two shards. Both partitions are measured at two shards and their busiest-shard wall times are
+  recorded before and after, so the acceptance is a measurement and not only the gate's prediction.
 - Give shard 1's non-test work a weight in the partition: it starts pre-loaded with the recorded cost
   of its publish, startup budget, roundtrip, formatting, docs and public-API steps, so the leg that
   owns them is not silently the heaviest.

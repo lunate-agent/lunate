@@ -184,6 +184,14 @@ record_project_times() {
     echo "verify: could not record the ${pass} pass's per-project wall times" >&2
 }
 
+# `VERIFY_TIMING_PASS` is set only around the two pass commands. A pass that fails still ran its
+# projects, so its recorder runs on the failure branch too rather than being lost to the exit (#789).
+record_project_times_if_configured() {
+  if [ -n "${VERIFY_TIMING_PASS:-}" ]; then
+    record_project_times "$1" "$VERIFY_TIMING_PASS"
+  fi
+}
+
 run_tests() {
   local label="$1"
   shift
@@ -207,6 +215,7 @@ run_tests() {
       continue
     fi
     cat "$output"
+    record_project_times_if_configured "$output"
     if [ "$status" -ne 0 ]; then
       # The names go out before the exit, so the run's check run carries the test the leg failed on and
       # not only the step (see report_failed_tests in lib.sh). #942's step report is already in the EXIT
@@ -227,10 +236,25 @@ run_tests() {
   if [ "$attempt" -eq 2 ]; then
     record_flake "$label" "$first_output"
   fi
-  if [ -n "${VERIFY_TIMING_PASS:-}" ]; then
-    record_project_times "$output" "$VERIFY_TIMING_PASS"
-  fi
+  record_project_times_if_configured "$output"
   rm -f "$output" "$first_output"
+}
+
+# The pooled runner writes one log per (project, culture pass) instead of one pass log: concatenate
+# this pass's logs in queue order so the same parser sees every project the pass ran, whether it passed,
+# failed, or produced no result at all (#789).
+record_pooled_project_times() {
+  local dir="$1" order="$2" pass="$3" combined item index log
+  combined="$(mktemp "${VERIFY_TMP_ROOT}/pooled.XXXXXX")"
+  while IFS= read -r item; do
+    index="${item%%:*}"
+    log="${dir}/${index}.log"
+    if [ -f "$log" ]; then
+      cat "$log" >>"$combined"
+    fi
+  done < <(verify_test_queue "$order" | verify_shard_queue "$pass")
+  record_project_times "$combined" "$pass"
+  rm -f "$combined"
 }
 
 VERIFY_TMP_ROOT=""
@@ -560,6 +584,11 @@ platform_checks() {
   step "a red leg names its failing step"
   python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_step_report.py"
 
+  # Every test path records the per-project wall times the shard weights read: a pass that failed twice
+  # and the opt-in pooled runner used to exit before the recorder (#789).
+  step "every test path records its projects"
+  python3 "${SCRIPT_DIR}/../tests/scripts/test_verify_project_recording.py"
+
   # The same reader for the startup budget: a red `perf (macos-latest)` named only the step, while the
   # floor, median and budget it failed on were in the log (#950).
   step "a red startup budget names its measurement"
@@ -749,11 +778,13 @@ verify_test_phase() {
     wait "$culture_pid" || culture_rc=$?
 
     verify_check_test_pass "$default_dir" "test" serial-first default
+    record_pooled_project_times "$default_dir" serial-first default
 
     step "test (de-AT culture)"
     # Non-English culture pass (S-5 finding). Effective on macOS/Linux; Windows
     # runners keep the OS culture (LANG is not honored there).
     verify_check_test_pass "$culture_dir" "test (de-AT culture)" serial-last de-at
+    record_pooled_project_times "$culture_dir" serial-last de-at
 
     if [ "$default_rc" -ne 0 ] || [ "$culture_rc" -ne 0 ]; then
       echo "verify: the test phase runner failed (default ${default_rc}, de-AT ${culture_rc})" >&2

@@ -87,13 +87,27 @@ four shards the heaviest project alone is over a quarter of the lane, so the fai
 the bound would reject the best possible partition; the gate names the lower bound it used when it
 fails.
 On the recorded table the four-shard Ubuntu and Windows loads are `704 / 960 / 704 / 704` s of
-3072 s, a pole of 31.25 %, inside the third. The Windows measurement run on the split
-(`measure-timing-win-x64-*`, run 46114774702) took `715 / 759 / 517 / 331` s from verify-start to
-verify-end, so the pole fell from the recorded 900 s to 759 s (15.7 %); the final table also restores
-`#primary`, which moves `Lunate.Extensibility.Testing.Tests` from the 715 s shard that carried it
-beside ten small projects to a shard of its own. Within macOS's two shards the gate reports the weight
-partition's busiest shard at 1536 s against the position partition's 2216 s, and its predicted wall
-pole at 960 s against 1070 s.
+3072 s, a pole of 31.25 %, inside the third. The position partition's own run on `main`
+(`46105412860`, commit 218aa75d) measured the Windows verify step at `748 / 887 / 134 / 480` s, with a
+887 s pole; the issue's earlier record was `561 / 900 / 162 / 467` s, a 900 s pole. The Windows
+measurement run on the split (`measure-timing-win-x64-*`, run 46114774702, commit 7fb6c096) measured
+`715 / 759 / 517 / 331` s from verify-start to verify-end, so the pole fell to 759 s (14.4 % below the
+same run's 887 s and 15.7 % below the issue's 900 s). The final table restores `#primary`, which moves
+the 480 s `Lunate.Extensibility.Testing.Tests` from the 715 s shard that carried it beside ten small
+projects to a shard of its own; the Coding shard remains the measured 759 s pole, now beside a lighter
+set of projects, so the final `#primary`-aware assignment's pole is the measured 759 s rather than the
+715 s shard it splits.
+
+macOS is measured at two shards rather than argued from the weights. The local same-machine run of the
+test phase measured the position partition at `172` s and `3627` s and the weight partition at `954` s
+and `966` s, so the busiest shard fell from 3627 s to 966 s; the position shard's de-AT pass includes
+the sandbox's process-tree timeout, recorded here as the environment skew rather than hidden. The
+position partition's own CI run (`46105412860`) measured the macOS verify step at `398` and `913` s, a
+913 s pole. The gate reports the recorded-weight comparison -- the weight partition's busiest shard at
+1536 s against the position partition's 2216 s -- and the predicted wall pole at 960 s against 1070 s.
+The `#primary`-aware final assignment was not separately run on a CI macOS runner in this session;
+the same-machine two-shard measurement above is the before/after evidence, and the gate's prediction is
+the enforceable comparison.
 
 ### The table is recorded, reviewed and refreshable
 
@@ -102,9 +116,12 @@ plus the `#primary` weight. It is a ratchet point: reviewed like code, and refre
 rather than re-estimated. Every gate run now calls `shard-weights.sh record`, which parses the test
 platform's own per-module summary out of the pass output and writes
 `artifacts/verify-timing/verify-<rid>-<shard>-of-<n>-<pass>-projects.jsonl`; the culture pass is part of
-the name because a shard runs both passes and one file per (shard, pass) keeps both records.
-`shard-weights.sh weights --from <dir>` folds a lane's records into a table, taking the slower of a
-project's two recorded passes so the heavier pass is what the partition compensates for.
+the name because a shard runs both passes and one file per (shard, pass) keeps both records. The
+recorder runs on a pass that fails after its retry budget as well as on a green one, and the pooled
+runner concatenates its per-project logs into the same record, so a red leg and an opt-in local run do
+not lose the wall times they measured. `shard-weights.sh weights --from <dir>` folds a lane's records
+into a table, taking the slower of a project's two recorded passes so the heavier pass is what the
+partition compensates for.
 
 A project with no row gets `VERIFY_SHARD_DEFAULT_WEIGHT`, so adding a test project never fails the
 gate; a row for a project `lunate.slnx` no longer has fails `gate-tests.sh`, so a rename or a deletion
