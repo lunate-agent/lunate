@@ -9,22 +9,45 @@
 # adding a test project does not fail the gate; a row naming a project lunate.slnx no longer has fails
 # scripts/gate-tests.sh, so a rename or a deletion is what asks for a refresh.
 #
-# Every gate run records the wall time of each test project it ran, so a refresh reads a real run
-# rather than an estimate:
+# Refresh from a real run's artifacts - the per-project records a gate run writes beside its shard
+# record - rather than by estimating:
 #   scripts/shard-weights.sh weights --from <dir holding verify-timing artifacts> \
 #     --out scripts/verify-shard-weights.tsv
-# Download the four `verify-timing-<rid>-*` artifacts of one lane into one directory first; the fold
-# takes the slower of a project's two recorded passes and the longest recorded non-test time.
 #
-# What this first table records, and what it leaves to the default:
-#   * `Lunate.Coding.Tests` 226 s - the reference Mac measurement scripts/test-parallel.sh records
-#     (2026-10-20: 3m46s alone, 3m47s beside the whole suite). It is the project the card names as the
-#     pole: parked whole beside five light projects it made the Windows leg 900 s of a 2090 s lane.
-#   * `#primary` 110 s - the same reference run, its full gate 7m46s minus its two test passes
-#     5m55s-5m58s, rounded up. CI skips the platform checks on an OS leg and adds the install
-#     roundtrips, so refresh it from a run's own record too.
-#   * every other project - the default weight until a run records it. The partition still separates
-#     the two passes of every project, which is what removes the pole; the weights refine the rest.
+# Recorded from a real run's own per-project records, not estimated: the four shards of
+# `bash scripts/verify.sh --shard i/4` on 2026-11-28 (osx-arm64, macOS 26.3.1, Mac mini M4, 10 cores),
+# each shard's default and de-AT pass recorded by scripts/shard-weights.sh and folded with
+# `weights --from`, taking the slower of a project's two recorded passes. Before this run the table
+# named one project and left the other twenty-two on the default weight, which is what the review
+# sent back (#1043).
 #
-#primary	110
-tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj	226
+# Known skew, recorded with the numbers rather than hidden: the lane sandbox blocks 19 process-tree
+# and pty tests in `Lunate.Coding.Tests` (ProcessSession, BashBackgroundJob, ProcessRunner,
+# UnixChildProcess, SignalTerminalRestore, DiagnosticScrubber, BashGuardTool and WaitDiagnosis tests),
+# and their timeout waits are part of that project's recorded 406 s; the Windows lane's own record for
+# one pass of it is about 390 s. `#primary` is the reference run's 110 s: a full local gate run is not
+# measurable on this machine (the sandbox kills it), and the same fold refreshes it from a run's
+# `verify-<rid>-<shard>-of-<n>.json`.
+extensions/lsp-diagnostics/LspDiagnosticsExtension.Tests/LspDiagnosticsExtension.Tests.csproj	16
+extensions/permission-gate/PermissionGateExtension.Tests/PermissionGateExtension.Tests.csproj	4
+extensions/subagents/SubagentsExtension.Tests/SubagentsExtension.Tests.csproj	6
+samples/extensions/code-mode/CodeModeExtension.Tests/CodeModeExtension.Tests.csproj	29
+samples/extensions/mcp-from-extension/McpFromExtensionExtension.Tests/McpFromExtensionExtension.Tests.csproj	26
+samples/extensions/memory-provider/MemoryProviderExtension.Tests/MemoryProviderExtension.Tests.csproj	6
+samples/extensions/model-router/ModelRouterExtension.Tests/ModelRouterExtension.Tests.csproj	5
+samples/extensions/node-remote/NodeRemoteExtension.Tests/NodeRemoteExtension.Tests.csproj	6
+samples/extensions/ui-showcase/UiShowcaseExtension.Tests/UiShowcaseExtension.Tests.csproj	4
+samples/extensions/worktree-tasks/WorktreeTasksExtension.Tests/WorktreeTasksExtension.Tests.csproj	17
+templates/extension/TemplateExtension.Tests/TemplateExtension.Tests.csproj	4
+tests/Lunate.Agent.Tests/Lunate.Agent.Tests.csproj	22
+tests/Lunate.Ai.Tests/Lunate.Ai.Tests.csproj	7
+tests/Lunate.Coding.Tests/Lunate.Coding.Tests.csproj	406
+tests/Lunate.Extensibility.Compile.Tests/Lunate.Extensibility.Compile.Tests.csproj	29
+tests/Lunate.Extensibility.Remote.Tests/Lunate.Extensibility.Remote.Tests.csproj	5
+tests/Lunate.Extensibility.Restore.Tests/Lunate.Extensibility.Restore.Tests.csproj	54
+tests/Lunate.Extensibility.Testing.Tests/Lunate.Extensibility.Testing.Tests.csproj	480
+tests/Lunate.Extensibility.Tests/Lunate.Extensibility.Tests.csproj	23
+tests/Lunate.Protocols.Tests/Lunate.Protocols.Tests.csproj	196
+tests/Lunate.Roslyn.Tests/Lunate.Roslyn.Tests.csproj	119
+tests/Lunate.Tui.Tests/Lunate.Tui.Tests.csproj	4
+tests/Mermaid.Terminal.Tests/Mermaid.Terminal.Tests.csproj	3
