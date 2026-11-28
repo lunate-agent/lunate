@@ -49,6 +49,35 @@ concurrency:
 permissions:
   contents: read
 
+# Job timeouts (#1048). Without one a job is held for GitHub's six-hour default, so a single hung
+# step burns a runner -- and, for the gate, the pull request -- for six hours. Each number below is
+# about three times the job's typical duration, measured from the workflow API over twelve recent
+# runs -- #1045's pull-request run (46118568650) and eleven other pull-request, `main` push, nightly
+# and merge-group runs of 2026-11-23 to 11-28 -- so the legs only a push or the queue runs have their
+# own history, not an estimate. Three times a sub-minute job is below both a whole minute and a
+# shared runner's own noise, so those jobs get a five-minute floor: a slow runner must not red the
+# gate for work whose steps take twenty seconds.
+#
+#   job                    measured             timeout
+#   plan                   14-23 s              5
+#   changes                4-12 s               5
+#   changelog              6-9 s                5
+#   tree-checks            12 s                 5
+#   verify-docs            35 s                 5
+#   red-main-issue         7-10 s               5
+#   ci-ok                  4-13 s               5
+#   platform               2m17s-4m25s          12   (~3x its 3m54s median)
+#   verify (ubuntu)        2m-13m42s            30   (~2.5x the 12m19s shard in the table)
+#   verify (windows)       2m43s-16m26s         45   (~3x its 14m26s median)
+#   verify (macos)         7m34s-55m37s         120  (~3x its 37m51s median; the runner is bimodal)
+#   verify-powershell      17m36s-23m52s        60   (~3x its 19m49s median)
+#   perf (macos)           3m38s-45m19s         90   (~3x its 28m35s median)
+#
+# The verify legs take their number from the plan's matrix (`timeout_minutes`) rather than from this
+# job: one value cannot serve both a 13-minute Ubuntu shard and a 56-minute macOS one. Re-measure a
+# job's history when a change makes it slower or faster and move its number with it; a timeout that
+# fires on a run that would have gone green is a miscalibrated number, not a flaky test.
+
 jobs:
   # Which gate this change needs. Prose (docs, ADRs, OpenSpec proposals/specs, root Markdown) cannot
   # break the build, so it gets the three-minute docs profile; anything else -- including any change
@@ -58,6 +87,7 @@ jobs:
     name: plan
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       profile: ${{ steps.decide.outputs.profile }}
       macos: ${{ steps.legs.outputs.macos }}
@@ -163,17 +193,19 @@ jobs:
             *) macos=true ;;
           esac
           legs=""
-          # os, rid, budget_ms, memory_gate_mb, shard count, extra JSON fields
+          # os, rid, budget_ms, memory_gate_mb, shard count, timeout (minutes), extra JSON fields.
+          # The timeout is per leg because the runners differ: the table at the top of this file
+          # records where each number comes from.
           leg() {
             local shard
             for ((shard = 1; shard <= $5; shard++)); do
-              legs+="${legs:+,}{\"os\":\"$1\",\"rid\":\"$2\",\"budget_ms\":$3,\"memory_gate_mb\":$4,\"shard\":${shard},\"shard_count\":$5$6}"
+              legs+="${legs:+,}{\"os\":\"$1\",\"rid\":\"$2\",\"budget_ms\":$3,\"memory_gate_mb\":$4,\"shard\":${shard},\"shard_count\":$5,\"timeout_minutes\":$6$7}"
             done
           }
-          leg ubuntu-latest linux-x64 250 150 "${SHARDS}" ""
+          leg ubuntu-latest linux-x64 250 150 "${SHARDS}" 30 ""
           if [ "${macos}" = true ]; then
-            leg macos-latest osx-arm64 300 150 "${macos_shards}" ',"budget_enforce":0'
-            leg windows-latest win-x64 350 150 "${SHARDS}" ""
+            leg macos-latest osx-arm64 300 150 "${macos_shards}" 120 ',"budget_enforce":0'
+            leg windows-latest win-x64 350 150 "${SHARDS}" 45 ""
           fi
           {
             echo "macos=${macos}"
@@ -191,6 +223,7 @@ jobs:
     # no later leg in the queue for the PowerShell decision to feed.
     if: (github.event_name != 'pull_request' || github.event.pull_request.draft == false) && github.event_name != 'merge_group'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       powershell: ${{ steps.powershell.outputs.powershell }}
     steps:
@@ -237,6 +270,7 @@ jobs:
     name: changelog
     if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -284,6 +318,7 @@ jobs:
     # skips this workflow entirely), and a pull request runs the checks through its profile.
     if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -319,6 +354,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.profile == 'full' && github.event_name != 'merge_group'
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -359,6 +395,8 @@ jobs:
     needs: plan
     if: needs.plan.outputs.profile == 'full'
     runs-on: ${{ matrix.os }}
+    # Per leg: the plan decides it with the leg (see the timeout table at the top of this file).
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     strategy:
       fail-fast: false
       # The legs and their shards come from the plan job (`Decide the verify legs`): Ubuntu and
@@ -550,6 +588,7 @@ jobs:
     # The pull request already ran the docs profile; a merge group has nothing left to lint.
     if: needs.plan.outputs.profile == 'docs' && github.event_name != 'merge_group'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -582,6 +621,7 @@ jobs:
     # eject a green change from the queue.
     if: needs.plan.outputs.profile == 'full' && needs.changes.outputs.powershell == 'true' && github.event_name != 'pull_request' && github.event_name != 'merge_group'
     runs-on: windows-latest
+    timeout-minutes: 60
     env:
       RID: win-x64
       BUDGET_MS: 350
@@ -673,6 +713,7 @@ jobs:
     # the nightly's perf result feeds its verdict.
     if: needs.plan.outputs.profile == 'full' && (github.event_name == 'schedule' || github.event_name == 'push')
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -748,6 +789,7 @@ jobs:
     needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog]
     if: always() && (github.event_name == 'schedule' || github.event_name == 'push')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       actions: read
@@ -815,6 +857,7 @@ jobs:
     needs: [plan, changes, verify, verify-powershell, platform, verify-docs, perf, changelog, tree-checks]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: read
