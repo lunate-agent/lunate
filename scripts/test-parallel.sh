@@ -44,10 +44,11 @@ verify_test_projects() {
 #
 # One unit per test project, and both culture passes of a project run in the same
 # shard: the issue's acceptance is that every project is in exactly one shard.
-# Units are placed largest recorded weight first into the least-loaded shard
+# Projects are placed largest recorded weight first into the least-loaded shard
 # (longest processing time first), so no shard carries a whole slow suite beside
-# four small ones and the heavy suites are split into separate projects where a
-# lane needs it (#789).
+# four small ones. The process-bound half of the old Coding suite is its own
+# project, Lunate.Coding.Process.Tests, so the slowest suite no longer has to be
+# carried whole by one shard (#789).
 #
 # The partition is computed inside every shard from the committed table alone, so
 # the legs of a lane agree without talking to each other, and it is a pure
@@ -57,8 +58,9 @@ verify_test_projects() {
 
 # The recorded weight table: one row per `lunate.slnx` test project with the
 # wall time in seconds of ONE culture pass, plus a `#primary` row with the wall
-# time shard 1 spends on its non-test steps. Overridable so the gate self-test can
-# partition a fixture table.
+# time shard 1 spends on its non-test steps. A project's load is twice its row
+# because both culture passes run in the same shard. Overridable so the gate
+# self-test can partition a fixture table.
 VERIFY_SHARD_WEIGHTS_FILE="${VERIFY_SHARD_WEIGHTS_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/verify-shard-weights.tsv}"
 
 # The weight of a project the table does not name yet: one recorded culture pass
@@ -144,7 +146,7 @@ verify_shard_units() {
   done < <(verify_test_projects)
 }
 
-# The plan: `<pass><TAB><project><TAB><shard>` in placement order. Units are
+# The plan: `<pass><TAB><project><TAB><shard>` in placement order. Projects are
 # sorted by recorded weight (descending), then project, so the plan is
 # reproducible; each project goes to the shard whose load is lowest, ties to the
 # lowest shard number. Both culture passes of a project are emitted together, so

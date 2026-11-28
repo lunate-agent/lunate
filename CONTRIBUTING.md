@@ -297,9 +297,10 @@ edited, because the gate's own flake budget has already been spent: `scripts/ver
 failed pass once and records a pass that comes back green the second time as a flake, so a step that
 ends red is not one unlucky attempt — the retry ran and was red too. The shards partition the test
 projects by recorded weight (`scripts/test-parallel.sh`, `scripts/verify-shard-weights.tsv`), so the
-comparison is the legs of the same run that own the same slice — one table drives every OS, and
-`verify_shard_projects` in `scripts/test-parallel.sh` prints which shard owns a project for a culture
-pass — and a test that failed on one OS and passed on another in the same run is not a tree change. `verify (ubuntu-latest, 4/4)` of run 45147690490 failed
+comparison is the legs of the same run that own the same slice — one table drives every OS, every
+project stays whole in one shard, and `verify_shard_projects` in `scripts/test-parallel.sh` prints
+which shard owns a project — and a test that failed on one OS and passed on another in the same run
+is not a tree change. `verify (ubuntu-latest, 4/4)` of run 45147690490 failed
 `Lunate.Extensibility.Remote.Tests.RemoteExtensionTests.A_cancelled_hook_call_sends_a_cancel_request_to_the_child`
 while `verify (windows-latest, 4/4)` of the same run — the same test projects, through
 `bash scripts/verify.sh --shard 4/4` under Git Bash — was green, the Ubuntu leg of the previous push

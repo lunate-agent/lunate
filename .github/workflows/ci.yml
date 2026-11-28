@@ -366,9 +366,10 @@ jobs:
       # The legs and their shards come from the plan job (`Decide the verify legs`): Ubuntu and
       # Windows run four shards, macOS two, and macOS only on the events that own the full matrix.
       # The test phase is sharded per OS (#696, building on #390): verify.sh's --shard i/n partitions
-      # the solution's test projects by recorded weight (#789) - one unit per culture pass of one
-      # project, largest recorded weight first, from scripts/verify-shard-weights.tsv - and each
-      # shard runs its slice of each culture pass.
+      # the solution's test projects by recorded weight (#789) - one project per unit, both culture
+      # passes together, largest recorded weight first from scripts/verify-shard-weights.tsv - so
+      # every test project is in exactly one shard. The process-bound half of the Coding suite is its
+      # own test project, Lunate.Coding.Process.Tests, so a shard never carries the whole slow suite.
       # Shard 1 also owns every non-test step (publish, budgets, roundtrips, format, docs checks,
       # public API); a shard > 1 runs only the build it needs plus its test slice. The ruleset
       # requires ci-ok, and ci-ok requires the verify job, which fails on any failed shard. Manual

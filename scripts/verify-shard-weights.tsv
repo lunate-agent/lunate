@@ -2,8 +2,9 @@
 # test project, in seconds, plus the `#primary` row: the wall time shard 1 spends on its non-test
 # steps (tools, build, publish, startup budget, install/tool/extension roundtrips, the two
 # Category=Perf budgets). scripts/test-parallel.sh reads this file and nothing else to partition the
-# test phase: one unit per (project, culture pass), placed largest recorded weight first into the
-# least-loaded shard, so both culture passes of a heavy project land in different shards (#789).
+# test phase: one unit per test project, both culture passes together, placed largest recorded weight
+# first into the least-loaded shard. The process-bound half of the Coding suite is its own project,
+# Lunate.Coding.Process.Tests, so a shard never carries the whole slow suite (#789).
 #
 # A project with no row here is partitioned at the default weight (VERIFY_SHARD_DEFAULT_WEIGHT), so
 # adding a test project does not fail the gate; a row naming a project lunate.slnx no longer has fails
@@ -22,12 +23,15 @@
 # sent back (#1043).
 #
 # Known skew, recorded with the numbers rather than hidden: the lane sandbox blocks 19 process-tree
-# and pty tests in `Lunate.Coding.Tests` (ProcessSession, BashBackgroundJob, ProcessRunner,
+# and pty tests in the Coding suite (ProcessSession, BashBackgroundJob, ProcessRunner,
 # UnixChildProcess, SignalTerminalRestore, DiagnosticScrubber, BashGuardTool and WaitDiagnosis tests),
-# and their timeout waits are part of that project's recorded 406 s; the Windows lane's own record for
-# one pass of it is about 390 s. `#primary` is the reference run's 110 s: a full local gate run is not
-# measurable on this machine (the sandbox kills it), and the same fold refreshes it from a run's
-# `verify-<rid>-<shard>-of-<n>.json`.
+# and their timeout waits are part of the suite's recorded 406 s. The split moves those tests into
+# `Lunate.Coding.Process.Tests`; its 116 s and `Lunate.Coding.Tests`' 300 s are the recorded suite
+# divided at the process boundary, and the next run's records refresh both. The Windows lane's own
+# record for one pass of the old suite is about 390 s. `#primary` is the reference run's 110 s: a full
+# local gate run is not measurable on this machine (the sandbox kills it), and the same fold refreshes
+# it from a run's `verify-<rid>-<shard>-of-<n>.json`.
+#primary	110
 extensions/lsp-diagnostics/LspDiagnosticsExtension.Tests/LspDiagnosticsExtension.Tests.csproj	16
 extensions/permission-gate/PermissionGateExtension.Tests/PermissionGateExtension.Tests.csproj	4
 extensions/subagents/SubagentsExtension.Tests/SubagentsExtension.Tests.csproj	6

@@ -1,8 +1,8 @@
 name: Measure verify shards
 
-# Temporary measurement lane for #789: the pull-request CI runs Ubuntu only, so the Windows
-# before/after pole has no run of its own. This workflow runs the same four shards on
-# windows-latest for pull request #1043 and uploads each shard's timing artifacts. It is removed
+# Temporary measurement lane for #789: the pull-request CI runs Ubuntu only, so the Windows and
+# macOS before/after poles have no run of their own. This workflow runs the four Windows shards and
+# the two macOS shards for pull request #1043 and uploads each shard's timing artifacts. It is removed
 # again before the change is archived.
 
 on:
@@ -13,10 +13,11 @@ permissions:
   contents: read
 
 jobs:
-  measure:
+  measure-windows:
     name: measure (windows-latest, ${{ matrix.shard }}/4)
     if: github.event.pull_request.number == 1043
     runs-on: windows-latest
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -91,6 +92,62 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: measure-timing-win-x64-${{ matrix.shard }}-of-4
+          path: artifacts/verify-timing/
+          if-no-files-found: warn
+          retention-days: 14
+
+  measure-macos:
+    name: measure (macos-latest, ${{ matrix.shard }}/2)
+    if: github.event.pull_request.number == 1043
+    runs-on: macos-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      RID: osx-arm64
+      VERIFY_SKIP_PLATFORM_CHECKS: "1"
+      DOTNET_CLI_UI_LANGUAGE: en
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: core.autocrlf
+          GIT_CONFIG_VALUE_0: "false"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            global.json
+            Directory.Build.props
+            **/*.csproj
+
+      - name: Install hyperfine (macOS)
+        if: matrix.shard == 1
+        run: |
+          set -euo pipefail
+          brew install hyperfine
+          hyperfine --version
+
+      - name: Verify (bash)
+        shell: bash
+        env:
+          BUDGET_MS: 300
+          STARTUP_BUDGET_ENFORCE: "0"
+        run: bash scripts/verify.sh --shard "${{ matrix.shard }}/2"
+
+      - name: Upload timing
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: measure-timing-osx-arm64-${{ matrix.shard }}-of-2
           path: artifacts/verify-timing/
           if-no-files-found: warn
           retention-days: 14

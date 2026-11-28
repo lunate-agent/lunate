@@ -441,7 +441,7 @@ shard_over_a_third() {
 # culture passes ran over the shard's whole project list, so its recorded weight is twice each
 # project's plus shard 1's pre-load. Kept only to report the weight partition's before/after (#789).
 shard_position_load() {
-  local shard_count="$1" shard_index="$2" index=0 load=0 project
+  local shard_index="$1" shard_count="$2" index=0 load=0 project
   while IFS= read -r project; do
     if [ $((index % shard_count)) -eq $((shard_index - 1)) ]; then
       load=$((load + 2 * $(verify_shard_weight "$project")))
@@ -574,6 +574,11 @@ ${stale_rows}
 Refresh it with: scripts/shard-weights.sh weights --from <dir of verify-timing artifacts> --out scripts/verify-shard-weights.tsv"
 fi
 
+echo "gate-tests: the weight table must record shard 1's non-test pre-load"
+if ! grep -Eq '^#primary[[:space:]]+[0-9]+$' "${SCRIPT_DIR}/verify-shard-weights.tsv"; then
+  shard_fail "scripts/verify-shard-weights.tsv has no #primary row; shard 1's publish, budgets and roundtrips would be planned as free"
+fi
+
 echo "gate-tests: every culture pass must be partitioned, and every shard must own a unit, at 1 to 4 shards"
 for shard_count in 1 2 3 4; do
   for shard_pass in default de-at; do
@@ -599,7 +604,7 @@ for shard_count in 1 2 3 4; do
   done
 done
 
-echo "gate-tests: every test project must be in exactly one shard for both culture passes"
+echo "gate-tests: every test project must be in exactly one shard, with both culture passes together"
 for shard_count in 1 2 3 4; do
   split_projects="$(SHARD_I=1 SHARD_N="$shard_count" verify_shard_plan | awk -F'\t' '
     { if (!($2 in first)) { first[$2] = $3 } else if (first[$2] != $3) { print $2 } }
@@ -692,16 +697,32 @@ if [ "$macos_wall_pole" -gt "$macos_position_wall_pole" ]; then
   shard_fail "macOS's weight partition costs ${macos_wall_pole}s at two shards, more than the position partition's ${macos_position_wall_pole}s"
 fi
 
+# LPT's guarantee is relative to the optimum, and no partition can beat the heavier of the lane's
+# fair share and its heaviest project. At four shards the recorded table has such a project
+# (Lunate.Extensibility.Testing.Tests alone is heavier than a quarter of the lane), so the bound uses
+# that lower bound instead of pretending the fair share is attainable.
 echo "gate-tests: every shard count must stay within the longest-processing-time bound"
 for shard_count in 1 2 3 4; do
   lane_total=0
   for shard_index in $(seq 1 "$shard_count"); do
     lane_total=$((lane_total + $(shard_load "$shard_index" "$shard_count")))
   done
+  largest_job="$(verify_shard_primary_weight)"
+  while IFS= read -r shard_project; do
+    shard_weight_one="$(verify_shard_weight "$shard_project")"
+    shard_job=$((2 * shard_weight_one))
+    if [ "$shard_job" -gt "$largest_job" ]; then
+      largest_job="$shard_job"
+    fi
+  done < <(verify_test_projects)
+  fair_share=$(((lane_total + shard_count - 1) / shard_count))
+  if [ "$fair_share" -gt "$largest_job" ]; then
+    largest_job="$fair_share"
+  fi
   for shard_index in $(seq 1 "$shard_count"); do
     shard_load_one="$(shard_load "$shard_index" "$shard_count")"
-    if [ $((shard_load_one * 3 * shard_count)) -gt $((lane_total * (4 * shard_count - 1))) ]; then
-      shard_fail "shard ${shard_index}/${shard_count} carries ${shard_load_one}s of a ${lane_total}s lane, beyond the longest-processing-time bound"
+    if [ $((shard_load_one * 3 * shard_count)) -gt $((largest_job * (4 * shard_count - 1))) ]; then
+      shard_fail "shard ${shard_index}/${shard_count} carries ${shard_load_one}s of a ${lane_total}s lane, beyond the longest-processing-time bound (${largest_job}s lower bound on the optimum)"
     fi
   done
 done

@@ -16,9 +16,10 @@
 #
 # `weights` reads every shard's project records and shard records in a directory and prints the weight
 # table scripts/verify-shard-weights.tsv: one row per test project with the SLOWER of its two recorded
-# culture passes, plus the `#primary` row with the longest non-test time shard 1 recorded. Rows the run
-# did not cover keep their value from --table, so a one-shard refresh cannot drop the other shards'
-# projects.
+# culture passes, plus the `#primary` row with the longest non-test time shard 1 recorded. The
+# partition keeps every project whole, so that one row is the project's weight for both passes. Rows
+# the run did not cover keep their value from --table, so a one-shard refresh cannot drop the other
+# shards' projects.
 
 set -euo pipefail
 
@@ -45,8 +46,9 @@ table_preamble() {
 # test project, in seconds, plus the \`#primary\` row: the wall time shard 1 spends on its non-test
 # steps (tools, build, publish, startup budget, install/tool/extension roundtrips, the two
 # Category=Perf budgets). scripts/test-parallel.sh reads this file and nothing else to partition the
-# test phase: one unit per (project, culture pass), placed largest recorded weight first into the
-# least-loaded shard, so both culture passes of a heavy project land in different shards (#789).
+# test phase: one unit per test project, both culture passes together, placed largest recorded weight
+# first into the least-loaded shard. The process-bound half of the Coding suite is its own project,
+# Lunate.Coding.Process.Tests, so a shard never carries the whole slow suite (#789).
 #
 # A project with no row here is partitioned at the default weight (VERIFY_SHARD_DEFAULT_WEIGHT), so
 # adding a test project does not fail the gate; a row naming a project lunate.slnx no longer has fails

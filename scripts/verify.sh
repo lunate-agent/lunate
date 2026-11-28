@@ -17,8 +17,9 @@ VERIFY_START_EPOCH="$(date +%s)"
 # run the longest gate or, worse, the shortest one.
 #
 # --shard i/n (default 1/1) partitions the test projects of lunate.slnx across n legs by recorded
-# weight (see scripts/test-parallel.sh and scripts/verify-shard-weights.tsv): the unit is one culture
-# pass of one project and the units are placed largest-first, so no leg carries a whole slow project.
+# weight (see scripts/test-parallel.sh and scripts/verify-shard-weights.tsv): the unit is one project,
+# both culture passes run in the same shard, and projects are placed largest-first, so no leg carries
+# a whole slow suite beside four light ones and every project is in exactly one shard.
 # Shard 1 also runs the non-test steps, shards > 1 run the build they need plus their slice of both
 # test passes only. CI sharding: the `verify` matrix jobs in .github/workflows/ci.yml pass one --shard
 # each, and every shard must be green.
@@ -95,7 +96,7 @@ fi
 # serial lane inside a pass; see scripts/test-parallel.sh for the measurement
 # that backs the choice. The compile tests spawn the published single-file
 # binary and restore a reference pack with it, so they own their lane too.
-SERIAL_TEST_PROJECTS="Lunate.Coding.Tests Lunate.Agent.Tests Lunate.Extensibility.Compile.Tests"
+SERIAL_TEST_PROJECTS="Lunate.Coding.Tests Lunate.Coding.Process.Tests Lunate.Agent.Tests Lunate.Extensibility.Compile.Tests"
 
 # English-first gate output: pin the dotnet CLI / test-runner UI language so
 # localized toolchain text never leaks into logs on non-English machines. Only
@@ -660,8 +661,8 @@ verify_primary_before_tests() {
 # forbids the build arguments with it, so the shard selects its own slice of
 # built assemblies through `--test-modules` instead — the same fan-out of
 # module processes a solution-wide run gets, minus the modules owned by the
-# other shards. The slice of each culture pass is its own list, because the
-# partition decides the two passes of a project separately (#789). `dotnet test --test-modules` does not build, so a shard > 1
+# other shards. Both culture passes use this shard's project list, because the
+# partition keeps every project whole (#789). `dotnet test --test-modules` does not build, so a shard > 1
 # runs its own build step first (a fresh CI workspace has nothing built; see
 # the dispatch at the bottom), while a local shard-2-plus run consumes the
 # build its shard-1 run left behind.
@@ -686,8 +687,8 @@ verify_test_phase() {
   test_start="$(date +%s)"
   if [ "$JOBS" -eq 0 ]; then
     if [ "$SHARD_N" -gt 1 ]; then
-      # One module list per culture pass: the partition places the two passes of a project
-      # independently, so the shard runs different projects in the two passes (#789).
+      # The partition keeps every project whole, so both culture passes run the same
+      # project list in this shard (#789).
       shard_modules_default="$(verify_shard_modules default)"
       shard_modules_deat="$(verify_shard_modules de-at)"
       VERIFY_TIMING_PASS=default run_tests "test" \
